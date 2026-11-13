@@ -1,0 +1,18 @@
+Upgrade Scout
+Copyright (c) 2026 Nikita Snetkov. All rights reserved.
+
+You may download, install and use this addon in the game. No permission is
+granted to copy, modify or redistribute it or its code, in whole or in part,
+without the written permission of the copyright holder.
+
+The libraries in UpgradeScout/Libs are not covered by this notice and keep
+their own licenses: LibStub is in the public domain; LibAHTab is under the MIT
+License, Copyright (c) 2022 plusmouse (see UpgradeScout/Libs/LibAHTab/LICENSE).
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

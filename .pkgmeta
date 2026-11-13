@@ -1,0 +1,26 @@
+# Read by the BigWigsMods packager (https://github.com/BigWigsMods/packager), which builds the
+# release archive and uploads it to CurseForge when a version tag is pushed
+# (.github/workflows/release.yml). scripts/release.ps1 builds the same archive by hand.
+
+package-as: UpgradeScout
+
+# The addon is the UpgradeScout folder; nothing else in the repository belongs in the archive.
+move-folders:
+  UpgradeScout/UpgradeScout: UpgradeScout
+
+ignore:
+  - tests
+  - scripts
+  - docs
+  - README.md
+  - README.ru.md
+  - CHANGELOG.md
+  - LICENSE
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+# Shown on CurseForge; its app installs Pawn together with this addon.
+required-dependencies:
+  - pawn

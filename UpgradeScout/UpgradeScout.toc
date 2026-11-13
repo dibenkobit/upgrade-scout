@@ -1,0 +1,42 @@
+## Interface: 16001
+## Title: Upgrade Scout
+## Notes: Finds gear upgrades on the auction house that you can equip and afford, scored by Pawn.
+## Notes-ruRU: Находит на аукционе улучшения экипировки, которые можно надеть и которые по карману, с оценкой по Pawn.
+## Notes-deDE: Findet im Auktionshaus Ausrüstungsverbesserungen, die du anlegen und dir leisten kannst, bewertet mit Pawn.
+## Notes-frFR: Trouve à l'hôtel des ventes les améliorations d'équipement que vous pouvez équiper et vous offrir, évaluées par Pawn.
+## Notes-zhCN: 在拍卖行中找出你能装备且买得起的装备提升，由 Pawn 评分。
+## Notes-esES: Encuentra en la casa de subastas mejoras de equipo que puedes equiparte y permitirte, puntuadas por Pawn.
+## Notes-esMX: Encuentra en la casa de subastas mejoras de equipo que puedes equiparte y permitirte, puntuadas por Pawn.
+## Notes-ptBR: Encontra na Casa de Leilões melhorias de equipamento que você pode equipar e pagar, avaliadas pelo Pawn.
+## Notes-itIT: Trova alla Casa d'Aste i miglioramenti di equipaggiamento che puoi indossare e permetterti, valutati da Pawn.
+## Version: 1.0.0
+## Author: Nikita Snetkov
+## X-License: All Rights Reserved
+## X-Curse-Project-ID: 1802323
+## SavedVariablesPerCharacter: UpgradeScoutCharDB
+## Category: Auctions
+## Category-ruRU: Лоты
+## Category-deDE: Auktionen
+## Category-frFR: Enchères
+## Category-zhCN: 拍卖
+## Category-ptBR: Leilões
+## Category-esES: Subastas
+## Category-esMX: Subastas
+## Category-itIT: Aste
+## IconTexture: Interface\AddOns\UpgradeScout\icon.tga
+
+# Pawn is a hard requirement: every score in this addon is Pawn's own number for the scale you
+# have active. With this line the game refuses to load Upgrade Scout unless Pawn is installed
+# and enabled (the AddOns list then shows "Dependency missing: Pawn"), and Pawn always loads first.
+## Dependencies: Pawn
+
+Libs\LibStub\LibStub.lua
+Libs\LibAHTab\LibAHTab.lua
+
+Locale.lua
+Core.lua
+PawnBridge.lua
+Compare.lua
+Results.lua
+Scanner.lua
+UI.lua

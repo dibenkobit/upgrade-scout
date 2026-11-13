@@ -1,0 +1,45 @@
+# Pushing a tag named after the version in the .toc (for example 1.0.0) builds the archive, uploads
+# it to CurseForge and attaches it to a GitHub release.
+#
+# CurseForge needs two things, and the upload is skipped while either is missing:
+#   - "## X-Curse-Project-ID: <number>" in UpgradeScout/UpgradeScout.toc
+#   - a repository secret CF_API_TOKEN (https://authors.curseforge.com/#/settings/api-tokens)
+name: Package and release
+
+on:
+  push:
+    tags:
+      - '**'
+
+permissions:
+  contents: write     # to create the GitHub release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # provided by GitHub, nothing to set up
+    steps:
+      - name: Clone project
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The archive is named after the tag, the game shows the version from the .toc.
+      - name: Check that the tag is the version in the .toc
+        run: |
+          version=$(sed -n 's/^## Version:[[:space:]]*//p' UpgradeScout/UpgradeScout.toc | tr -d '\r')
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not the version in the .toc ($version)"
+            exit 1
+          fi
+
+      - name: Run the tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1
+          lua5.1 tests/run.lua
+
+      - name: Package and release
+        uses: BigWigsMods/packager@v2
