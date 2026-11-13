@@ -2,305 +2,83 @@
 
 <img src="docs/logo/logo.png" alt="Upgrade Scout logo" width="128" align="right">
 
-**Finds gear upgrades and consumables on the auction house that you can use and afford, scored by Pawn.** An addon for World of Warcraft Forever.
+**Finds gear upgrades on the auction house that you can equip and afford.** An addon for World of Warcraft Forever.
 
-**[Download on CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
+**[Download on CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)** · [Русская версия](README.ru.md)
 
-[Русская версия](README.ru.md)
+Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list of gear that is
+better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
 
-Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list, slot by slot,
-of the gear for sale that you can equip right now and that beats what you are wearing. In every slot
-two picks are marked:
+## What it does
 
-- **Best upgrade**: the biggest improvement, whatever it costs.
-- **Best value**: the least gold per point of improvement.
+- Scores gear with [Pawn](https://www.curseforge.com/wow/addons/pawn), so the list matches Pawn's green arrows.
+- Shows only what you can equip right now and can pay for.
+- Marks two items in every slot: the **Best upgrade** is the strongest, the **Best value** is the
+  cheapest per point of improvement.
+- **Best set for** picks the upgrades that give the most together for your gold, or for a sum you type.
+- The **Consumables** tab lists potions, elixirs, food and bandages you can use, the most useful for
+  your character first.
+- Both tabs work for your other characters too.
 
-## Features
-
-- Scores are [Pawn](https://www.curseforge.com/wow/addons/pawn)'s own numbers for the scale you choose, so the list
-  agrees with Pawn's tooltips and green arrows.
-- Only gear you can use now: required level, class rules and nothing red in the item tooltip.
-- Buyout prices only, each one checked against the actual auctions before it is shown. Bid-only
-  auctions are ignored.
-- **Top 5 per slot** keeps the options worth considering and drops the rest.
-- **Only what I can afford** hides what costs more than you have.
-- **Best set for a budget**: the upgrades that, bought together, add the most for the gold you
-  have, or for a sum you name.
-- **Buy** from the list: the addon checks that the auction is still there and asks before paying.
-- A second tab, **Consumables**, lists the potions, food, elixirs, bandages and other consumables
-  you can use right now, the ones worth the most to your character first: what an elixir or a flask
-  adds is scored on the same Pawn scale as gear. The price is for one piece.
-- Both lists can be made **for another character of yours**: stand at the auction house on one
-  character and see what is worth buying for another, against the gear that one wears.
-- Works for any class and level. English, Russian, German, French, Spanish, Brazilian Portuguese, Italian and Simplified Chinese.
-
-## Requirements
-
-- World of Warcraft Forever, client 1.60.1 (interface 16001).
-- **Pawn**, installed and enabled. Without it the game does not load Upgrade Scout and the AddOns
-  list shows "Dependency missing: Pawn".
+Any class, any level. English, Russian, German, French, Spanish, Brazilian Portuguese, Italian and
+Simplified Chinese.
 
 ## Install
 
-The main source is CurseForge: [Upgrade Scout on CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout).
-Install it with the CurseForge app, or download the file there and unpack it as described below.
+You need World of Warcraft Forever (1.60.1) and [Pawn](https://www.curseforge.com/wow/addons/pawn).
+Without Pawn the addon does not load.
 
-The same archive is attached to every [GitHub release](https://github.com/dibenkobit/upgrade-scout/releases),
-as an alternative:
+The easy way is the CurseForge app. To install by hand:
 
-1. Download `UpgradeScout-<version>-forever.zip`.
-2. Unpack it into `World of Warcraft\_forever_\Interface\AddOns`, so that the folder
-   `AddOns\UpgradeScout` holds `UpgradeScout.toc`.
+1. Download `UpgradeScout-<version>-forever.zip` from [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)
+   or from [GitHub releases](https://github.com/dibenkobit/upgrade-scout/releases).
+2. Unpack it into `World of Warcraft\_forever_\Interface\AddOns`.
 3. Restart the game.
 
-## Use
+## Good to know
 
-1. Open the auction house and click the **Upgrades** tab (or type `/upscout`).
-2. Press **Scan**. The list fills in as prices are confirmed, best upgrades first.
-3. Hover a row for the item tooltip, its Pawn score against yours, what it replaces and the cost per
-   point. **Buy** looks the auction up again and asks for confirmation before paying.
+- Prices are buyouts. Auctions that only take bids are skipped.
+- **Top 5 per slot** keeps the list short. Turn it off to see every upgrade. The scan then takes
+  longer, up to a few minutes on a busy auction house.
+- A yellow `*` after a name means the item has effects Pawn can't score, such as procs.
+- Health and mana potions have no score: Pawn has no number for "restores 700 health".
+- Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The
+  game's Sell tab shows all of them in one list, so the lowest price there can be for another item.
 
-- **Columns**: the upgrade in Pawn points and how much that is over the item it replaces, in
-  percent (**new** for an empty slot); the buyout; the price of one point.
-- **Pawn scale**: the dropdown shows the scale in use. If Pawn shows more than one scale for the
-  character, pick another there; the list is rescanned with the new scale.
-- **Only what I can afford**: on by default. Turn it off to see everything; prices you cannot pay are red.
-- **Top 5 per slot**: on by default. Turn it off to see every upgrade; the scan then looks up every
-  price, which can take minutes on a busy auction house, and the status line shows about how much
-  time is left. With it on:
-  - An item is left out when a stronger one costs the same or less per point. What remains reads top
-    to bottom as "weaker, but cheaper per point" (and so cheaper outright); the best upgrade and the
-    best value are always part of it.
-  - If more than five remain, the slot keeps the best upgrade and the next two steps below it, the
-    best value and the next step below it.
-  - The right end of a slot's heading shows how many upgrades there are in all, for example "5 of 17".
-- **The meter under an upgrade's number** shows how big it is next to the best one in the same slot.
-- **A slot folds away**: click its heading and one line is left, with the number of upgrades in it;
-  another click brings it back. Folded slots are remembered for the character.
-- A yellow `*` after a name means the item has effects Pawn cannot score (procs, on-use effects).
-- **Variants are items of their own**: "Soldier's Boots of the Tiger" and "of the Whale" differ in
-  their stats, are scored apart, and each has its own lowest price. The game's Sell tab is another
-  matter: put a piece of gear into it, and the list beside it holds every variant of that item, so
-  the lowest price there is usually that of a variant nobody wants. It is not the price of yours.
-- Blocks are equipment slots, so **Main Hand** holds everything that goes into that hand: one-hand,
-  main-hand and two-hand weapons together. Each weapon row says which it is in grey after the name,
-  in the same words as the item tooltip.
-- **Clicks on a row**: Shift-click puts the item's link into chat, Ctrl-click tries the item on, as
-  everywhere in the game.
-- **Stop**: while a scan runs, the Scan button reads **Stop**. Stopped during the price checks, the
-  list keeps what was found so far. Ticking or unticking a filter lets the price checks go on;
-  **Scan** starts over.
-- **After you equip something** the list is measured against your new gear at once, without another
-  scan.
-- The game has one list of auctions for every search. A search on the Buy tab, or by another addon,
-  while the scan is reading that list (its first step) stops the scan, and the status line says so.
-  Press **Scan** again.
+## Buying for another character
 
-## The best set for a budget
+1. Log in to the other character once with the addon installed. The addon saves its gear, level
+   and skills.
+2. On the character at the auction house, pick the other character's scale in the **Pawn scale**
+   dropdown and press **Scan**.
 
-The list answers "what is the best for this slot". The strip under it answers another question:
-"I have five gold. What do I buy to gain the most?"
+The list is now for that character. The one you are playing still pays.
 
-Tick **Best set for** under the list. The list then shows one set of upgrades: the offers that,
-bought together, add the most Pawn points for the sum in the two fields, with no more of a kind
-than can be worn at once (one chest, two rings, what two hands hold). The strip says what the set
-comes to: how many items, how many points, for how much.
+At a mailbox, take the gear you bought out of the mail. A button under the mail window then puts it
+into a letter to that character. Check the letter and press **Send**. Consumables you send yourself.
 
-- **The sum** is all your gold until you type another. Empty both fields to go back to all of it.
-- **It is exact**: every combination that could be the best is compared. That is why ticking the
-  box may look up a few more prices. A set can need an offer that **Top 5 per slot** hides, such as
-  a weaker chest that leaves gold for boots.
-- **Buy** the items from their rows, one by one, as in the list. What you have bought counts as
-  worn from then on, and a sum you typed goes down by what you paid, so the rest of the set stays
-  as it was.
-- The two filters above the list have no say while the box is ticked.
-- It works for another character as well: the set is for that character, the gold is yours.
-
-## Consumables
-
-The **Consumables** tab does the same for the game's Consumables category: potions, elixirs, flasks,
-food and drink, bandages, scrolls and the rest. Press **Scan** there.
-
-- **What is listed**: consumables you can use right now. Required level, class and skill are read
-  from the item tooltip: nothing in it may be red.
-- **Blocks** are the game's subcategories. The second column is the game's own text for what the
-  item does; the price is for one piece, and the last column is how many pieces are for sale.
-- **Score**: what an elixir, a flask, a scroll, an oil or a meal adds (Strength, spell damage, mana
-  every five seconds...) is scored by Pawn on the scale chosen at the top, in the same points as
-  gear: +25 Agility from an elixir is worth what +25 Agility on a ring is. Choosing another scale
-  scores the list again without another scan.
-  - The numbers come from the game's own data tables, which the addon carries as `SupplyData.lua`.
-    A consumable the tables say nothing about, or whose effect is not a plain number (a proc, a
-    percentage, protection from fire), is listed without a score.
-  - Health and mana restored have no score: Pawn has no weight for "restores 700 health".
-- **Best for me**: on by default.
-  - One row per kind. Two consumables are of one kind when the text of their effect differs only in
-    its numbers: "Restores 70 to 90 health" and "Restores 700 to 900 health".
-  - The best of a kind is the one with the highest score. Without a score it is the one that
-    requires the highest level; equal levels are settled by the bigger number in the text (bandages
-    require a skill, not a level), and then by the lower price.
-  - What is of no use to your character is left out: a consumable whose stats your scale gives no
-    weight (an Intellect elixir for a warrior), and mana for a character without it. Food with such
-    a bonus is still food, and all of it counts as one kind.
-  - Turn it off to see every consumable: each kind from its best down, what is of no use in grey at
-    the end of its block.
-- **Order in a block**: what restores health or mana first, then what has a score, the highest
-  first, then the rest from the highest required level down.
-- **Only what I can afford** works here too, on the price of one piece.
-- **Buy** reads the current prices, then asks how many. The box shows what that many cost, cheapest
-  pieces first. **Buy** in the box asks the auction house for its price, **Confirm** buys at it.
-
-## For another character
-
-Both tabs can make their lists for another character of your account. The character you are playing
-stands at the auction house, pays, and mails what it bought.
-
-1. Log in to the other character once with the addon installed. That is when the addon writes the
-   character down: class, level, what it wears, the kinds of weapon and armor it has learned, its
-   professions. It is written down again every time you play it, last of all when you log out.
-2. On the character at the auction house, open the **Pawn scale** dropdown. Under its own scales are
-   the scales of every character the addon has written down, each line beginning with the
-   character's name in the colour of its class. Pick one and press **Scan**.
-
-- **What changes**: an upgrade is measured against what that character wears, on that character's
-  Pawn scale. Required level, class, learned weapon and armor skills and professions are that
-  character's too, and so is the question whether mana is of any use. **Only what I can afford**
-  still goes by the gold of the character you are playing: it is the one that pays.
-- **Whose list it is** stays in view: the dropdown, the status line and every item tooltip name the
-  character. A tooltip puts the item that character wears in the slot beside the one for sale.
-- **How fresh it is**: the character is known as it was when you last played it, and the dropdown's
-  tooltip says how long ago that was. Log in to it again after it has gained levels or changed gear.
-- **Sending it there**: gear you buy for another character is remembered. Take it out of the
-  auction house's mail, and at the mailbox a button under the mail window reads "For Name: 2 of 2 in
-  your bags". A click opens the Send Mail page, writes the character's name and attaches the
-  items; you check the letter and press **Send**.
-  - The button counts what is in your bags; its tooltip lists the purchases and which of them are
-    still in the mail.
-  - A letter holds twelve items. With more than that, send the letter and click again.
-  - A right-click on the button forgets the purchases, if you have seen to them yourself. They are
-    forgotten by themselves after thirty days.
-  - Only gear is followed: consumables stack with your own, and the addon cannot tell which of a
-    stack were bought for the other character.
-- **Which scales**: the ones Pawn has switched on for that character (Pawn keeps this for the whole
-  account). The scale you pick for a character is remembered with the character, whichever
-  character you were playing when you picked it.
-- **Another realm**: a character of another realm is listed with its realm in brackets after the
-  name, so that it is not picked by mistake: mail does not go from one realm to another.
-- **What cannot be known**: the game answers "can it be equipped" only for the character being
-  played, so for another one the addon works the answer out from what it wrote down. An item that
-  asks for standing with a faction is left out.
-- The choice lasts until you log out or reload the interface. After that the lists are for the
-  character you are playing again.
-- `/upscout forget Name` takes a character that no longer exists out of the dropdown.
+The addon knows the other character as it was when you last played it. Log in to it again after it
+levels up or changes gear.
 
 ## Commands
 
-| Command | What it does |
-| --- | --- |
-| `/upscout` | Opens the Upgrades tab while the auction house is open. `/upgradescout` is the same command. |
-| `/upscout stats` | Prints what the last scan sent to the auction house and how long each step took. |
-| `/upscout forget Name` | Takes a character that no longer exists out of the scale dropdown. |
-
-## How an item is judged
-
-| Question | Answer comes from |
-| --- | --- |
-| How good is it? | Pawn's score for the base item on the chosen scale |
-| Better than mine? | Score minus the score of the item it replaces; at least 0.5% higher, as in Pawn |
-| Can I wear it now? | Required level, Pawn's class rules, and no red line in the item tooltip. For another character: what the addon wrote down about it (see above) |
-| What does it cost? | The cheapest buyout among identical items; bid-only auctions are ignored |
-
-Which item it replaces:
-
-- Rings and trinkets: the weaker of the two you wear, or an empty slot.
-- Two-hand weapon: your main hand and off hand together.
-- One-hand weapon: your main hand; also your off hand if you can dual wield.
-- Shield or held item: your off hand. Not offered while you hold a two-hander.
-
-"Best value" only considers items that give at least a quarter of the biggest improvement available in
-that slot, so a tiny upgrade for a few copper does not win (`VALUE_MIN_SHARE` in `Results.lua`).
-
-## How the scan works
-
-1. **Browse**: one search for all weapons and armor, sorted by level. If the rows really arrive in
-   level order, reading stops once they are past your level; otherwise every page is read.
-2. **Score**: Pawn scores one real auction link per row. Rows that cannot beat your gear, or that have
-   a red line in their tooltip, drop out. The rest are candidates.
-3. **Check prices**: an item search reads the actual auctions of a candidate and keeps the cheapest
-   buyout. The server answers one request at a time, so this is the slow step, and the scan sends
-   only the searches whose answer the list can show:
-   - With **Only what I can afford** on, a candidate is not searched when even the lowest price in
-     its row is more than you have.
-   - With **Top 5 per slot** on, a candidate is not searched when an offer already checked is
-     stronger and costs no more per point than the candidate would at the lowest price in its row.
-     Candidates are checked strongest first, so each checked offer rules out the weaker ones it beats.
-   - With **Best set for** ticked, a candidate is not searched when the lowest price in its row is
-     more than the sum, or when as many checked offers as can be worn at once are worn the same
-     way, are at least as strong and cost no more than that lowest price.
-
-   Skipping never changes the list: both rules only skip what the list would hide anyway. The
-   candidates are kept, so when you switch a filter off, buy an offer or come into money, the prices
-   the list now needs are looked up then. Until that happens the right end of a slot's heading reads
-   "3 of about 19": 19 upgrades by score, some of them not checked for a buyout price.
-
-Safety nets, because none of this was assumed about the server:
-
-- If an item search shows that a row holds different items than its sample suggested, every candidate
-  and every row dropped in step 2 is searched after all.
-- If rows turn out to have buyouts below their own "lowest price", that number is no longer used to
-  skip anything.
-- Three item searches in a row without an answer end the price checks instead of waiting out the rest.
-
-The scan for consumables is the first two steps with another question: one search for the
-Consumables category, then every row's tooltip is read. There is no price check, because
-consumables are sold by the piece without bids and a row's lowest price is the price of one piece.
-What a consumable is worth is worked out when the list is drawn, from the table of what it adds and
-the Pawn scale in use.
-The auctions are read only when you press **Buy**.
-
-`/upscout stats` prints what the last scan sent and how long each step took (see [Commands](#commands)).
+- `/upscout` opens the Upgrades tab. The auction house must be open.
+- `/upscout stats` shows how long the last scan took.
+- `/upscout forget Name` removes a deleted character from the dropdown.
 
 ## Development
 
-The logic runs outside the game against a stand-in client (`tests/wow.lua`: frames, events, an auction
-house with paging and a request throttle, a fake Pawn). Lua 5.1 is needed.
+The tests run outside the game and need Lua 5.1:
 
 ```
-lua5.1 tests/run.lua            # every scenario
-lua5.1 tests/run.lua buy        # one scenario
+lua5.1 tests/run.lua
 ```
 
-- `scripts\install.ps1` copies the addon into the game's AddOns folder (`-Game <path>` if the game is
-  not in the default place).
-- `scripts\make-textures.py` draws the tab's art into `UpgradeScout\Media` (needs Python with numpy
-  and Pillow; the command is at the top of the file). Run it after changing a shape or a colour there.
-- `scripts\make-supply-data.py --build <client build>` writes `UpgradeScout\SupplyData.lua`, the table
-  of what consumables add, from the game's data tables as [wago.tools](https://wago.tools) publishes
-  them (plain Python, nothing to install). Run it when the game gets new consumables; one that is
-  not in the table is listed without a score.
-- A release is a tag named after the version in the `.toc` (for example `1.2.0`). Pushing it runs the
-  tests, uploads `UpgradeScout-<version>-forever.zip` to CurseForge and attaches it to a GitHub
-  release (`.github/workflows/release.yml`).
+Each script in `scripts/` says at the top what it does and how to run it.
 
-| File | Purpose |
-| --- | --- |
-| `Locale.lua` | Every text of the addon, in eight languages |
-| `Core.lua` | Events, messages between the files, saved settings, how money and numbers are written |
-| `Roster.lua` | The characters of the account as each was last seen, and what a character that is not being played can use |
-| `PawnBridge.lua` | The only place that calls Pawn |
-| `Compare.lua` | Which slot an item goes into and how much better it is |
-| `Results.lua` | Rows for the list and the two picks per slot |
-| `Plan.lua` | The best set of upgrades for a sum of money |
-| `SupplyData.lua` | What each consumable adds or restores, from the game's tables. Written by `scripts/make-supply-data.py` |
-| `Supplies.lua` | Consumables: which do the same thing, what each is worth to the character, which is the best, and their rows |
-| `Scanner.lua` | Auction house requests: browse, score, price check, buy; the scan and the purchase of consumables |
-| `Mail.lua` | Gear bought for another character: what is on its way, and the button at the mailbox that puts it into a letter |
-| `UI.lua` | The tab |
-| `Media/` | The tab's textures: the plate under the list, buttons, bars, marks. Drawn by `scripts/make-textures.py` |
-| `icon.tga` | The icon in the game's AddOns list and on the tab before the first scan, exported from `docs/logo/logo.svg` |
-| `Libs/` | LibStub (public domain) and LibAHTab (MIT), which adds auction house tabs without clashing with other addons' tabs |
+To release, push a tag with the version from `UpgradeScout.toc`, for example `1.2.0`. GitHub Actions
+runs the tests and uploads the zip to CurseForge and GitHub.
 
 ## License
 
-All rights reserved, see [LICENSE](LICENSE). The libraries in `Libs/` keep their own licenses. Pawn is
-a separate addon by Vger and is not included.
+All rights reserved, see [LICENSE](LICENSE). Pawn is a separate addon by Vger and is not included.
