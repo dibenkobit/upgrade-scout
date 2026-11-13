@@ -2,7 +2,7 @@
 
 <img src="docs/logo/logo.png" alt="Upgrade Scout logo" width="128" align="right">
 
-**Finds gear upgrades on the auction house that you can equip and afford, scored by Pawn.** An addon for World of Warcraft Forever.
+**Finds gear upgrades and consumables on the auction house that you can use and afford, scored by Pawn.** An addon for World of Warcraft Forever.
 
 **[Download on CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
@@ -22,6 +22,9 @@ two picks are marked:
 - Only gear you can use now: required level, class rules and nothing red in the item tooltip.
 - Buyout prices only, each one checked against the actual auctions before it is shown. Bid-only
   auctions are ignored.
+- The auction house keeps every variant of an item ("of the Tiger", "of the Whale") in one list. The
+  addon prices each variant on its own and tells you when that list has cheaper auctions, so the
+  price of the item is not mistaken for the lowest price under its name.
 - **Top 5 per slot** keeps the options worth considering and drops the rest.
 - **Only what I can afford** hides what costs more than you have.
 - **Buy** from the list: the addon checks that the auction is still there and asks before paying.
@@ -58,6 +61,8 @@ as an alternative:
 3. Hover a row for the item tooltip, its Pawn score against yours, what it replaces and the cost per
    point. **Buy** looks the auction up again and asks for confirmation before paying.
 
+- **Columns**: the upgrade in Pawn points and how much that is over the item it replaces, in
+  percent (**new** for an empty slot); the buyout; the price of one point.
 - **Pawn scale**: the dropdown shows the scale in use. If Pawn shows more than one scale for the
   character, pick another there; the list is rescanned with the new scale.
 - **Only what I can afford**: on by default. Turn it off to see everything; prices you cannot pay are red.
@@ -84,6 +89,16 @@ as an alternative:
 - Blocks are equipment slots, so **Main Hand** holds everything that goes into that hand: one-hand,
   main-hand and two-hand weapons together. Each weapon row says which it is in grey after the name,
   in the same words as the item tooltip.
+- **Clicks on a row**: Shift-click puts the item's link into chat, Ctrl-click tries the item on, as
+  everywhere in the game.
+- **Stop**: while a scan runs, the Scan button reads **Stop**. Stopped during the price checks, the
+  list keeps what was found so far. Ticking or unticking a filter lets the price checks go on;
+  **Scan** starts over.
+- **After you equip something** the list is measured against your new gear at once, without another
+  scan.
+- The game has one list of auctions for every search. A search on the Buy tab, or by another addon,
+  while the scan is reading that list (its first step) stops the scan, and the status line says so.
+  Press **Scan** again.
 
 ## Consumables
 
@@ -142,12 +157,33 @@ stands at the auction house, pays, and mails what it bought.
 - **Which scales**: the ones Pawn has switched on for that character (Pawn keeps this for the whole
   account). The scale you pick for a character is remembered with the character, whichever
   character you were playing when you picked it.
+- **Another realm**: a character of another realm is listed with its realm in brackets after the
+  name, so that it is not picked by mistake: mail does not go from one realm to another.
 - **What cannot be known**: the game answers "can it be equipped" only for the character being
   played, so for another one the addon works the answer out from what it wrote down. An item that
   asks for standing with a faction is left out.
 - The choice lasts until you log out or reload the interface. After that the lists are for the
   character you are playing again.
 - `/upscout forget Name` takes a character that no longer exists out of the dropdown.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `/upscout` | Opens the Upgrades tab while the auction house is open. `/upgradescout` is the same command. |
+| `/upscout stats` | Prints what the last scan sent to the auction house and how long each step took. |
+| `/upscout forget Name` | Takes a character that no longer exists out of the scale dropdown. |
+| `/upscout probe Name` | At the auction house: writes down what the auction house answers about gear of that name. |
+
+`/upscout probe` is there to check a price that looks wrong. It records every auction of the rows
+it finds (up to twelve rows) with buyout, bid, item link and Pawn score, before any of the scan's
+judgement. No sellers' names are recorded.
+
+- Type the name of the item itself, without "of the Tiger" and the like, or put the item into the
+  command with Shift-click.
+- A summary goes to the chat: each row, and under it what is sold in it, how many and from what price.
+- The whole record is saved by `/reload` (or on logout) as `UpgradeScoutDB.probe` in
+  `WTF\Account\<account>\SavedVariables\UpgradeScout.lua`.
 
 ## How an item is judged
 
@@ -185,8 +221,8 @@ that slot, so a tiny upgrade for a few copper does not win (`VALUE_MIN_SHARE` in
 
    Skipping never changes the list: both rules only skip what the list would hide anyway. The
    candidates are kept, so when you switch a filter off, buy an offer or come into money, the prices
-   the list now needs are looked up then. Until that happens a slot title reads "Chest (3 of about 19)":
-   19 upgrades by score, some of them not checked for a buyout price.
+   the list now needs are looked up then. Until that happens the right end of a slot's heading reads
+   "3 of about 19": 19 upgrades by score, some of them not checked for a buyout price.
 
 Safety nets, because none of this was assumed about the server:
 
@@ -206,14 +242,7 @@ What a consumable is worth is worked out when the list is drawn, from the table 
 the Pawn scale in use.
 The auctions are read only when you press **Buy**.
 
-`/upscout stats` prints what the last scan sent and how long each step took.
-
-`/upscout probe Name` (at the auction house) writes down what the auction house answers about the
-gear of that name: every auction of the rows it finds, with buyout, bid, item link and Pawn score,
-before any of the scan's judgement. A summary goes to the chat and the whole record into
-`UpgradeScoutDB.probe` in the account's saved variables after `/reload`. It is there to check a
-price that looks wrong. An item can be put into the command with Shift-click instead of a name.
-No sellers' names are recorded.
+`/upscout stats` prints what the last scan sent and how long each step took (see [Commands](#commands)).
 
 ## Development
 
@@ -233,12 +262,14 @@ lua5.1 tests/run.lua buy        # one scenario
   of what consumables add, from the game's data tables as [wago.tools](https://wago.tools) publishes
   them (plain Python, nothing to install). Run it when the game gets new consumables; one that is
   not in the table is listed without a score.
-- A release is a tag named after the version in the `.toc` (for example `1.0.1`). Pushing it runs the
+- A release is a tag named after the version in the `.toc` (for example `1.1.0`). Pushing it runs the
   tests, uploads `UpgradeScout-<version>-forever.zip` to CurseForge and attaches it to a GitHub
   release (`.github/workflows/release.yml`).
 
 | File | Purpose |
 | --- | --- |
+| `Locale.lua` | Every text of the addon, in eight languages |
+| `Core.lua` | Events, messages between the files, saved settings, how money and numbers are written |
 | `Roster.lua` | The characters of the account as each was last seen, and what a character that is not being played can use |
 | `PawnBridge.lua` | The only place that calls Pawn |
 | `Compare.lua` | Which slot an item goes into and how much better it is |

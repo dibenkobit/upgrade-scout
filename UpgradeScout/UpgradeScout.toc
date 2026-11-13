@@ -1,15 +1,15 @@
 ## Interface: 16001
 ## Title: Upgrade Scout
-## Notes: Finds gear upgrades on the auction house that you can equip and afford, scored by Pawn.
-## Notes-ruRU: Находит на аукционе улучшения экипировки, которые можно надеть и которые по карману, с оценкой по Pawn.
-## Notes-deDE: Findet im Auktionshaus Ausrüstungsverbesserungen, die du anlegen und dir leisten kannst, bewertet mit Pawn.
-## Notes-frFR: Trouve à l'hôtel des ventes les améliorations d'équipement que vous pouvez équiper et vous offrir, évaluées par Pawn.
-## Notes-zhCN: 在拍卖行中找出你能装备且买得起的装备提升，由 Pawn 评分。
-## Notes-esES: Encuentra en la casa de subastas mejoras de equipo que puedes equiparte y permitirte, puntuadas por Pawn.
-## Notes-esMX: Encuentra en la casa de subastas mejoras de equipo que puedes equiparte y permitirte, puntuadas por Pawn.
-## Notes-ptBR: Encontra na Casa de Leilões melhorias de equipamento que você pode equipar e pagar, avaliadas pelo Pawn.
-## Notes-itIT: Trova alla Casa d'Aste i miglioramenti di equipaggiamento che puoi indossare e permetterti, valutati da Pawn.
-## Version: 1.0.1
+## Notes: Finds gear upgrades and consumables on the auction house that you can use and afford, scored by Pawn.
+## Notes-ruRU: Находит на аукционе улучшения экипировки и расходники, которые можно использовать и которые по карману, с оценкой по Pawn.
+## Notes-deDE: Findet im Auktionshaus Ausrüstungsverbesserungen und Verbrauchsgüter, die du benutzen und dir leisten kannst, bewertet mit Pawn.
+## Notes-frFR: Trouve à l'hôtel des ventes les améliorations d'équipement et les consommables que vous pouvez utiliser et vous offrir, évalués par Pawn.
+## Notes-zhCN: 在拍卖行中找出你能使用且买得起的装备提升和消耗品，由 Pawn 评分。
+## Notes-esES: Encuentra en la casa de subastas mejoras de equipo y consumibles que puedes usar y permitirte, puntuados por Pawn.
+## Notes-esMX: Encuentra en la casa de subastas mejoras de equipo y consumibles que puedes usar y permitirte, puntuados por Pawn.
+## Notes-ptBR: Encontra na Casa de Leilões melhorias de equipamento e consumíveis que você pode usar e pagar, avaliados pelo Pawn.
+## Notes-itIT: Trova alla Casa d'Aste i miglioramenti di equipaggiamento e i consumabili che puoi usare e permetterti, valutati da Pawn.
+## Version: 1.1.0
 ## Author: Nikita Snetkov
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323
