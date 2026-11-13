@@ -33,7 +33,13 @@ two picks are marked:
 
 ## Install
 
-1. Download `UpgradeScout-<version>.zip` from the Releases page of this repository.
+The main source is CurseForge: [Upgrade Scout on CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout).
+Install it with the CurseForge app, or download the file there and unpack it as described below.
+
+The same archive is attached to every [GitHub release](https://github.com/dibenkobit/upgrade-scout/releases),
+as an alternative:
+
+1. Download `UpgradeScout-<version>-forever.zip`.
 2. Unpack it into `World of Warcraft\_forever_\Interface\AddOns`, so that the folder
    `AddOns\UpgradeScout` holds `UpgradeScout.toc`.
 3. Restart the game.
@@ -123,6 +129,9 @@ lua5.1 tests/run.lua buy        # one scenario
 
 - `scripts\install.ps1` copies the addon into the game's AddOns folder (`-Game <path>` if the game is
   not in the default place).
+- A release is a tag named after the version in the `.toc` (for example `1.0.1`). Pushing it runs the
+  tests, uploads `UpgradeScout-<version>-forever.zip` to CurseForge and attaches it to a GitHub
+  release (`.github/workflows/release.yml`).
 - `scripts\release.ps1` builds `dist\UpgradeScout-<version>.zip`; the version is the one in the
   `.toc`.
 

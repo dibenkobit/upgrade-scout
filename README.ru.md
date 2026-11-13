@@ -32,7 +32,13 @@
 
 ## Установка
 
-1. Скачайте `UpgradeScout-<версия>.zip` со страницы Releases этого репозитория.
+Основной источник — CurseForge: [Upgrade Scout на CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout).
+Установите аддон через приложение CurseForge или скачайте файл там и распакуйте, как описано ниже.
+
+Тот же архив приложен к каждому [релизу на GitHub](https://github.com/dibenkobit/upgrade-scout/releases),
+это запасной вариант:
+
+1. Скачайте `UpgradeScout-<версия>-forever.zip`.
 2. Распакуйте в `World of Warcraft\_forever_\Interface\AddOns`, чтобы в папке
    `AddOns\UpgradeScout` лежал файл `UpgradeScout.toc`.
 3. Перезапустите игру.
