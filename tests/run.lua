@@ -10,7 +10,7 @@ local names = {
     "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
-    "buy", "buy_gone", "row_cheaper", "row_unread", "row_pages", "probe",
+    "buy", "buy_gone", "row_variants", "row_unread", "row_pages", "probe",
     "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
     "roster", "roster_order", "alt", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_it",
@@ -854,15 +854,17 @@ function scenarios.buy_gone()
 end
 
 ---------------------------------------------------------------------------
--- A row of the auction house is one name with one list of prices, and the game's own tabs
--- show it so. What is sold in it need not be one thing: the same boots come with other stats.
--- The report these scenarios are for: boots bought for 20 silver, and then the game's Sell tab
--- listing sixty-two "of them" from 4 silver.
--- A level 10 warrior in Old Boots (score 15). Every variant of Soldier's Boots is in one row.
+-- The report these scenarios are for: boots "of the Tiger" bought for 20 silver, and then the
+-- game's Sell tab listing sixty-two "of them" from 4 silver. What it turned out to be: every
+-- variant of an item is a row of the auction house of its own, and the tiger boots did cost
+-- 20 silver; the Sell tab lists all variants of an item together, and the cheap ones were
+-- other variants.
+-- A level 10 warrior in Old Boots (score 15), and Soldier's Boots in several variants.
+--   mixed   all variants in one row, as on a client that does not tell them apart by its keys
 local TIGER, BEAR, WHALE = "Soldier's Boots of the Tiger", "Soldier's Boots of the Bear", "Soldier's Boots of the Whale"
-local function BootsWorld()
+local function BootsWorld(mixed)
     StandardWorld()
-    W.AH.bucketBySuffix = false
+    W.AH.bucketBySuffix = not mixed
     W.AddItem({ id = 510, name = "Old Boots", equipLoc = "INVTYPE_FEET", subClassID = 3, value = 15, level = 5 })
     W.equipped[8] = W.Link(510)
     local function Boots(suffix, name, value, never)
@@ -907,24 +909,23 @@ local function BuyQuestion(name)
     return W.popups[#W.popups]
 end
 
-function scenarios.row_cheaper()
+-- The report as it was: the tiger boots in their own row, the cheap variants in theirs.
+function scenarios.row_variants()
     BootsWorld()
     for i = 1, 40 do W.AddAuction(600, 409 + i % 2, { suffix = 6 }) end     -- forty for the whale, from 4s 9c
     W.AddAuction(600, 900, { suffix = 7 })
     W.AddAuction(600, 2000, { suffix = 5 })
     W.AddAuction(600, 2200, { suffix = 5 })
     LoadAddon()
+    SetView(false, false)               -- every upgrade, so that each variant has its row in the list
     W.OpenAuctionHouse()
     ScanToEnd()
     local tiger, bear = Offer(TIGER), Offer(BEAR)
     check(tiger ~= nil and bear ~= nil, "the two variants that are upgrades are offers")
     eq(Offer(WHALE), nil, "the cheap variant is no upgrade")
-    eq(tiger.buyout, 2000, "the cheapest of the tiger boots is 20 silver"); eq(tiger.count, 2, "two of them")
-    eq(tiger.cheaper, 41, "and the offer knows that 41 auctions of its row cost less")
-    eq(tiger.cheaperFrom, 409, "from 4 silver 9 copper")
-    eq(tiger.unread, nil, "every one of them was read")
-    eq(bear.cheaper, 40, "the bear boots: the forty for the whale"); eq(bear.cheaperFrom, 409, "from the same price")
-    eq(Offer("Good Chest").cheaper, nil, "a row that holds one item has nothing to say")
+    eq(tiger.buyout, 2000, "the tiger boots cost what the cheapest of them costs: 20 silver"); eq(tiger.count, 2, "two of them")
+    eq(bear.buyout, 900, "the bear boots have their own price")
+    eq(tiger.unread, nil, "nothing about the price is in doubt")
     eq(ns.Scanner.stats.unread, 0, "statistics: nothing unread")
     check(ns.Scanner.StatsText():find("could not be read", 1, true) == nil, "and nothing about it in their text")
 
@@ -935,18 +936,16 @@ function scenarios.row_cheaper()
     check(row ~= nil, "the tiger boots are in the list")
     check(row.Name:GetText():find("?", 1, true) == nil, "no question mark at a price that is known: " .. row.Name:GetText())
     local tip = RowTip(TIGER)
-    check(tip:find("Other variants of this item sell for less: 41, from 4s 9c.", 1, true) ~= nil,
-        "the tooltip says what the game's own list would show, and that it is not this item: " .. tip)
-    check(RowTip("Good Chest"):find("sell for less", 1, true) == nil, "nothing of the kind for a row with one item")
-
-    -- The question before paying is the game's own: cheaper variants are not its business.
+    check(tip:find("could not be read", 1, true) == nil and tip:find("4s", 1, true) == nil,
+        "the tooltip says nothing of other variants and their prices: " .. tip)
     local box = BuyQuestion(TIGER)
-    eq(box.arg1, "Buyout auction for:", "the game's own question, and nothing more")
+    eq(box.arg1, "Buyout auction for:", "the question before paying is the game's own, and nothing more")
     eq(box.dialog.MoneyFrame._amount, 2000, "the price is the tiger boots' own")
 end
 
+-- Auctions the client cannot tell what they are, in the row of an offer and below its price.
 function scenarios.row_unread()
-    BootsWorld()
+    BootsWorld(true)
     W.AddAuction(600, 300, { suffix = 6 })                      -- read, and something else
     W.AddAuction(600, 409, { suffix = 5, noLink = true })       -- the auction house does not say what it is
     W.AddAuction(600, 410, { suffix = 9 })                      -- it says, and the client never loads it
@@ -960,7 +959,6 @@ function scenarios.row_unread()
     check(tiger ~= nil, "the tiger boots that could be read are an offer")
     eq(tiger.buyout, 2000, "at the lowest price that is known to be theirs"); eq(tiger.count, 2, "two of them")
     eq(tiger.unread, 2, "two cheaper auctions of the row could be the same boots"); eq(tiger.unreadFrom, 409, "from 4 silver 9 copper")
-    eq(tiger.cheaper, 1, "one cheaper auction is known to be something else"); eq(tiger.cheaperFrom, 300, "at 3 silver")
     eq(ns.Scanner.stats.unread, 3, "statistics: three auctions unread, the dear one too")
     check(ns.Scanner.StatsText():find("Auctions that could not be read: 3.", 1, true) ~= nil, "and their text says so: " .. ns.Scanner.StatsText())
 
@@ -973,11 +971,10 @@ function scenarios.row_unread()
     local tip = RowTip(TIGER)
     check(tip:find("2 cheaper auctions, from 4s 9c, could not be read: they may be this same item", 1, true) ~= nil,
         "the tooltip does not vouch for the price: " .. tip)
-    check(tip:find("Other variants of this item sell for less: 1, from 3s.", 1, true) ~= nil, "and tells the known cheaper one apart: " .. tip)
+    check(tip:find("from 3s", 1, true) == nil, "and says nothing of the cheaper one that is known to be something else: " .. tip)
     local box = BuyQuestion(TIGER)
     check(box.arg1:find("Buyout auction for:", 1, true) == 1, "the game's own question first: " .. box.arg1)
     check(box.arg1:find("2 cheaper auctions, from 4s 9c, could not be read", 1, true) ~= nil, "then what the price cannot be vouched against: " .. box.arg1)
-    check(box.arg1:find("Other variants", 1, true) == nil, "and nothing about the variants: " .. box.arg1)
 end
 
 -- The reading of a row stops at its first page only when that page proves the price: the
@@ -1029,7 +1026,7 @@ function scenarios.row_pages()
     check(boots ~= nil, "the boots are an offer")
     eq(boots.buyout, 500, "at their lowest price, which was on the second page"); eq(boots.count, 2, "both counted")
     eq(boots.more, nil, "the row was read to its end")
-    eq(boots.cheaper, 4, "and the four poor ones that cost less are known"); eq(boots.cheaperFrom, 409, "from their lowest price")
+    eq(boots.unread, nil, "and nothing in it is in doubt")
     local gloves = Offer("Scout's Gloves")
     check(gloves ~= nil, "the gloves behind a page of poor ones are found")
     eq(gloves.buyout, 500, "at their lowest price"); eq(gloves.count, 2, "both counted")
@@ -1042,7 +1039,7 @@ end
 
 -- /upscout probe Name: what the auction house says, written down as it comes.
 function scenarios.probe()
-    BootsWorld()
+    BootsWorld(true)
     W.AddAuction(600, 409, { suffix = 6 })
     W.AddAuction(600, 410, { suffix = 6 })
     W.AddAuction(600, 500, { suffix = 5, noLink = true })

@@ -406,13 +406,8 @@ local function ShowItemTooltip(row)
     elseif offer.count > 1 then
         GameTooltip_AddDisabledLine(GameTooltip, L.TT_MORE:format(offer.count - 1))
     end
-    -- The row of the auction house this came from sells something for less. The game's own
-    -- tabs show a row as one name with one list of prices, so a line says what the cheaper
-    -- auctions are: other variants of the item, in grey like the other notes on what is for
-    -- sale; or, in red, ones nothing is known about, which the price cannot be vouched against.
-    if offer.cheaper then
-        GameTooltip_AddDisabledLine(GameTooltip, L.TT_ROW_CHEAPER:format(offer.cheaper, ns.Money(offer.cheaperFrom)))
-    end
+    -- Cheaper auctions of the offer's row that could not be read: any of them may be this
+    -- same item, so the price cannot be vouched for.
     if offer.unread then
         GameTooltip_AddErrorLine(GameTooltip, L.TT_ROW_UNREAD:format(offer.unread, ns.Money(offer.unreadFrom)))
     end
@@ -1731,7 +1726,7 @@ ns.Listen("CONFIRM_BUY", function(offer)
     end
     -- Money is about to be paid. The question is the game's own, and has one more thing to
     -- say only when the price cannot be vouched for: cheaper auctions of the row that could
-    -- not be read (see ShowItemTooltip). Cheaper variants of the item are no news here.
+    -- not be read (see ShowItemTooltip).
     local text = BUYOUT_AUCTION_CONFIRMATION
     if offer.unread then
         text = text .. "\n\n" .. RED_FONT_COLOR:WrapTextInColorCode(L.TT_ROW_UNREAD:format(offer.unread, ns.Money(offer.unreadFrom)))

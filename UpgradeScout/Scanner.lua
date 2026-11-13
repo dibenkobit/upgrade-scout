@@ -519,11 +519,9 @@ end
 -- A job with `stopAt` covers auctions none of which has a buyout below that price. Once one
 -- at exactly that price has arrived (not the player's own), the cheapest buyout is known and
 -- further pages cannot change it.
--- That holds for every kind of item in the row only while the auctions come cheapest first:
--- then whatever is cheaper than an auction that has arrived has arrived too. A row can hold
--- items that differ (the same boots with other stats), and if its auctions came in any other
--- order, the cheapest of one kind could be on a page not asked for. So without that order
--- the pages are read to the end.
+-- That is relied on only while the auctions come cheapest first: then whatever is cheaper
+-- than an auction that has arrived has arrived too. In any other order something cheaper
+-- could be on a page not asked for, so without that order the pages are read to the end.
 local function CheapestLoaded(job, count)
     if not job.stopAt then return false end
     if job.minPrice and scan.floorBroken then return false end
@@ -564,18 +562,16 @@ end
 local ReadProbe
 
 -- Reads the auctions of the current job's row into offers.
--- A row of the auction house is one name, but what is sold under it need not be one thing:
--- the same boots come with different stats, and the game's own Sell tab lists them all
--- together. An offer is the cheapest auction of one such thing (told apart by its Pawn
--- score). So that the price of an offer is never taken for the price of the name, every
--- auction that can be bought is accounted for (`seen`), and each offer says what else its
--- row sells for less:
---   cheaper, cheaperFrom   auctions of the row below the offer's price that are something
---                          else (other stats; of no use to the character), and the lowest
---                          of their prices
---   unread, unreadFrom     the same for auctions the client could not tell what they are:
---                          no link from the auction house, or the item never loaded. Any of
---                          those may be the offer's own item for less.
+-- On this client every variant of an item is a row of its own: "Soldier's Boots of the
+-- Tiger" and "of the Whale" have different suffixes in their keys. (It is the game's Sell tab
+-- that lists all variants of an item together, with one lowest price: see the README.) The
+-- code does not lean on that: an offer is the cheapest auction of one thing, told apart by
+-- its Pawn score, whatever else its row may hold.
+-- Every auction that can be bought is accounted for (`seen`), so that none is passed over in
+-- silence. An offer says how many auctions of its row below its price the client could not
+-- tell what they are, and the lowest of their prices (unread, unreadFrom): no link from the
+-- auction house, or an item that never loaded. Any of those may be the offer's own item for
+-- less, so its price cannot be vouched for.
 local function ReadJob(job)
     if job.probe then
         ReadProbe(job)
@@ -684,15 +680,12 @@ local function ReadJob(job)
         return
     end
 
-    -- What else the row sells for less than each offer.
-    for _, offer in pairs(found) do
-        for i = 1, #seen do
-            local other = seen[i]
-            if other.buyout < offer.buyout and other.id ~= offer.id then
-                if other.id then
-                    offer.cheaper = (offer.cheaper or 0) + 1
-                    offer.cheaperFrom = math.min(offer.cheaperFrom or other.buyout, other.buyout)
-                else
+    -- Auctions below an offer's price that could be the offer's own item.
+    if unreadable > 0 then
+        for _, offer in pairs(found) do
+            for i = 1, #seen do
+                local other = seen[i]
+                if not other.id and other.buyout < offer.buyout then
                     offer.unread = (offer.unread or 0) + 1
                     offer.unreadFrom = math.min(offer.unreadFrom or other.buyout, other.buyout)
                 end

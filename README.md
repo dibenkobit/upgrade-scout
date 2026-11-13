@@ -22,9 +22,6 @@ two picks are marked:
 - Only gear you can use now: required level, class rules and nothing red in the item tooltip.
 - Buyout prices only, each one checked against the actual auctions before it is shown. Bid-only
   auctions are ignored.
-- The auction house keeps every variant of an item ("of the Tiger", "of the Whale") in one list. The
-  addon prices each variant on its own and tells you when that list has cheaper auctions, so the
-  price of the item is not mistaken for the lowest price under its name.
 - **Top 5 per slot** keeps the options worth considering and drops the rest.
 - **Only what I can afford** hides what costs more than you have.
 - **Buy** from the list: the addon checks that the auction is still there and asks before paying.
@@ -79,13 +76,13 @@ as an alternative:
 - **A slot folds away**: click its heading and one line is left, with the number of upgrades in it;
   another click brings it back. Folded slots are remembered for the character.
 - A yellow `*` after a name means the item has effects Pawn cannot score (procs, on-use effects).
-- **One name, several items**: the auction house keeps every variant of an item ("of the Tiger",
-  "of the Whale") in one list, and the game's Buy and Sell tabs show that list with one lowest
-  price. The addon prices each variant on its own. When other variants cost less, a grey line in
-  the row's tooltip says how many and from what price.
-- A red `?` after a name is rare. It means some cheaper auctions of that list could not be read:
-  the auction house did not say what they hold, so the price shown may not be the lowest for the
-  item. The tooltip and the question before buying say so in red.
+- **Variants are items of their own**: "Soldier's Boots of the Tiger" and "of the Whale" differ in
+  their stats, are scored apart, and each has its own lowest price. The game's Sell tab is another
+  matter: put a piece of gear into it, and the list beside it holds every variant of that item, so
+  the lowest price there is usually that of a variant nobody wants. It is not the price of yours.
+- A red `?` after a name is rare. It means some cheaper auctions of the item could not be read: the
+  auction house did not say what they hold, so the price shown may not be the lowest. The tooltip
+  and the question before buying say so in red.
 - Blocks are equipment slots, so **Main Hand** holds everything that goes into that hand: one-hand,
   main-hand and two-hand weapons together. Each weapon row says which it is in grey after the name,
   in the same words as the item tooltip.

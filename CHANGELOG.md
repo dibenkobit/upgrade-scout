@@ -20,21 +20,16 @@ New:
   - A slot's heading folds the slot away at a click; folded slots are remembered for the character.
   - A meter under each upgrade shows how big it is next to the best one in the slot.
   - Progress bars show how far the scan is.
-- **Cheaper under the same name**: the auction house keeps every variant of an item ("of the
-  Tiger", "of the Whale") in one list, and the game shows that list with one lowest price. When
-  other variants cost less than an offer, a line in its tooltip now says how many and from what
-  price.
 - A red `?` after a name marks the rare offer whose price cannot be vouched for: cheaper auctions
-  of the same list could not be read. Before, such auctions were passed over in silence.
+  of the same item could not be read. Before, such auctions were passed over in silence.
 - `/upscout probe Name` writes down what the auction house answers about an item, to check a price
   that looks wrong. `/upscout forget Name` takes a character out of the scale dropdown.
 
 Fixed:
 
-- The price check of an item with many auctions could stop at the first page of them too early. A
-  variant of the item that was only on a later page was then not listed, and a cheaper auction
-  there would have been missed. The auctions are now read to the end unless the first page proves
-  the price.
+- The price check of an item with many auctions could stop at the first page of them too early,
+  and a cheaper auction on a later page would then have been missed. The auctions are now read to
+  the end unless the first page proves the price.
 - Prices such as 2g 90s 0c had a gap before a single digit of silver or copper.
 
 ## 1.0.1
