@@ -13,6 +13,7 @@
 ## Author: Nikita Snetkov
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323
+## SavedVariables: UpgradeScoutDB
 ## SavedVariablesPerCharacter: UpgradeScoutCharDB
 ## Category: Auctions
 ## Category-ruRU: Лоты
@@ -35,6 +36,7 @@ Libs\LibAHTab\LibAHTab.lua
 
 Locale.lua
 Core.lua
+Roster.lua
 PawnBridge.lua
 Compare.lua
 Results.lua

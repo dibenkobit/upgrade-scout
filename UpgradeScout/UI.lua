@@ -301,20 +301,61 @@ local function Progress()
 end
 
 ---------------------------------------------------------------------------
+-- Whom the lists are for
+---------------------------------------------------------------------------
+-- The lists are for the character being played unless another one of the account is chosen
+-- in the scale field (see "Controls"). That one's card (see Roster.lua) is `who` throughout
+-- this file; nil is the character being played.
+local function WhoName(who)
+    return ns.Roster.Colored(who, who.name)
+end
+
+-- The game puts the tooltip of the worn item beside an item's by itself, but it knows only
+-- what the character being played wears. For another character the item its card remembers
+-- in the slot is put there, in the game's own second tooltip.
+local wornShown = false
+
+local function HideWorn()
+    if wornShown and ShoppingTooltip1 then ShoppingTooltip1:Hide() end
+    wornShown = false
+end
+
+local function ShowWorn(links)
+    local tip = ShoppingTooltip1
+    if not tip or not links or not links[1] then return end
+    tip:SetOwner(GameTooltip, "ANCHOR_NONE")
+    tip:ClearAllPoints()
+    tip:SetPoint("TOPLEFT", GameTooltip, "TOPRIGHT", 0, -10)
+    tip:SetHyperlink(links[1])
+    tip:Show()
+    -- To the right of the item's tooltip where the screen has room, otherwise to its left.
+    local right, edge, width = GameTooltip:GetRight(), UIParent:GetRight(), tip:GetWidth()
+    if right and edge and width and right + width > edge then
+        tip:ClearAllPoints()
+        tip:SetPoint("TOPRIGHT", GameTooltip, "TOPLEFT", 0, -10)
+    end
+    wornShown = true
+end
+
+---------------------------------------------------------------------------
 -- Rows
 ---------------------------------------------------------------------------
 -- A consumable's own tooltip, and under it how much of it is for sale.
 local function ShowSupplyTooltip(row)
     local entry = row.entry
     local supply = entry.supply
+    local who = ns.Roster.Target()
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(supply.link, nil, nil, hideVendorPrice)
     GameTooltip_AddBlankLineToTooltip(GameTooltip)
+    if who then GameTooltip_AddHighlightLine(GameTooltip, L.TT_WHO:format(WhoName(who))) end
     if entry.value then
         GameTooltip_AddNormalLine(GameTooltip, L.TT_SUP_SCORE:format("+" .. ns.Num(entry.value)))
+    elseif entry.why == "MANA" then
+        GameTooltip_AddNormalLine(GameTooltip, who and L.TT_SUP_NO_MANA_WHO or L.TT_SUP_NO_MANA)
     elseif entry.why then
-        GameTooltip_AddNormalLine(GameTooltip, entry.why == "MANA" and L.TT_SUP_NO_MANA or L.TT_SUP_NO_WEIGHT)
+        GameTooltip_AddNormalLine(GameTooltip, who and L.TT_SUP_NO_WEIGHT_WHO or L.TT_SUP_NO_WEIGHT)
     end
     GameTooltip_AddHighlightLine(GameTooltip, L.TT_STOCK:format(supply.quantity, ns.Money(supply.price)))
     if not entry.affordable then
@@ -330,16 +371,18 @@ local function ShowItemTooltip(row)
         return
     end
     local offer = entry.offer
+    local who = ns.Roster.Target()
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     -- No vendor price, as on the Buy tab: this is something to buy, not to sell.
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
 
     GameTooltip_AddBlankLineToTooltip(GameTooltip)
+    if who then GameTooltip_AddHighlightLine(GameTooltip, L.TT_WHO:format(WhoName(who))) end
     if entry.base > 0 then
         -- All three to the precision of the difference, so that they add up: 1.548, 1.5, +0.048.
         local digits = ns.Decimals(entry.delta)
-        GameTooltip_AddColoredLine(GameTooltip, L.TT_SCORE:format(ns.Num(offer.value, digits),
+        GameTooltip_AddColoredLine(GameTooltip, (who and L.TT_SCORE_WHO or L.TT_SCORE):format(ns.Num(offer.value, digits),
             ns.Num(entry.base, digits), ns.Num(entry.delta, digits)), GREEN_FONT_COLOR)
     else
         GameTooltip_AddColoredLine(GameTooltip, L.TT_SCORE_EMPTY:format(ns.Num(offer.value)), GREEN_FONT_COLOR)
@@ -351,7 +394,7 @@ local function ShowItemTooltip(row)
     end
     GameTooltip_AddHighlightLine(GameTooltip, L.TT_COST:format(ns.Money(entry.costPer)))
     if entry.note == "OFFHAND_EMPTY" then
-        GameTooltip_AddNormalLine(GameTooltip, L.TT_OFFHAND_EMPTY)
+        GameTooltip_AddNormalLine(GameTooltip, who and L.TT_OFFHAND_EMPTY_WHO or L.TT_OFFHAND_EMPTY)
     elseif entry.note == "BOTH_HANDS" then
         GameTooltip_AddNormalLine(GameTooltip, L.TT_BOTH_HANDS)
     end
@@ -370,7 +413,11 @@ local function ShowItemTooltip(row)
 
     -- What the item would replace is the point of this list, so the worn item's tooltip is
     -- always put next to it; elsewhere in the game that takes holding Shift.
-    GameTooltip_ShowCompareItem(GameTooltip)
+    if who then
+        ShowWorn(entry.replaced)
+    else
+        GameTooltip_ShowCompareItem(GameTooltip)
+    end
 end
 
 -- While the mouse is on a row: the magnifying glass when a click would try the item on.
@@ -390,6 +437,7 @@ end
 local function ItemRowOnLeave(row)
     row:SetScript("OnUpdate", nil)
     ResetCursor()
+    HideWorn()
     GameTooltip_Hide()
 end
 
@@ -398,6 +446,7 @@ local function ItemRowOnHide(row)
     row:SetScript("OnUpdate", nil)
     if GameTooltip:IsOwned(row) then
         ResetCursor()
+        HideWorn()
         GameTooltip_Hide()
     end
 end
@@ -828,6 +877,14 @@ local function Note()
     return S.message
 end
 
+-- What a scan found reads with the character's name in front when the list is not for the
+-- one being played: whose list this is must not be a guess.
+local function ForWho(text)
+    local who = ns.Roster.Target()
+    if not who or text == "" then return text end
+    return L.ST_WHO:format(WhoName(who), text)
+end
+
 -- What the last scan for consumables found, for the status line.
 local function SuppliesText()
     local parts = {}
@@ -843,7 +900,7 @@ local function SuppliesText()
         if S.suppliesPartial and not S.suppliesNote then parts[#parts + 1] = L.ST_PARTIAL end
         parts[#parts + 1] = L.ST_AGE:format(ns.Ago(time() - S.suppliesAt))
     end
-    return table.concat(parts, " ")
+    return ForWho(table.concat(parts, " "))
 end
 
 local function StatusText()
@@ -877,23 +934,40 @@ local function StatusText()
         if (S.partial or S.halted) and not S.message then parts[#parts + 1] = L.ST_PARTIAL end
         parts[#parts + 1] = L.ST_AGE:format(ns.Ago(time() - S.finishedAt))
     end
-    return table.concat(parts, " ")
+    return ForWho(table.concat(parts, " "))
 end
 
--- The scales Pawn shows and the one in use, as one string: the dropdown is rebuilt when this
--- changes (a scale enabled or hidden in Pawn while the auction house is open).
+-- Whom the lists are for, the scales to choose from and the one in use, as one string: the
+-- dropdown is rebuilt when this changes (a scale enabled or hidden in Pawn while the auction
+-- house is open, a character forgotten).
 local function ScaleKey()
     if ns.Pawn.Problem() then return "" end
-    local current, scales = ns.Pawn.CurrentScale()
+    local who = ns.Roster.Target()
+    local current, scales = ns.Pawn.CurrentScale(who)
     local names = {}
     for i = 1, #scales do names[i] = scales[i].name end
-    return (current and current.name or "") .. "=" .. table.concat(names, "\n")
+    return (who and who.key or "") .. "\n" .. #ns.Roster.List() .. "\n"
+        .. (current and current.name or "") .. "=" .. table.concat(names, "\n")
 end
 
 local function ScaleTitle()
     if ns.Pawn.Problem() then return NONE end
-    local scale = ns.Pawn.CurrentScale()
+    local scale = ns.Pawn.CurrentScale(ns.Roster.Target())
     return scale and scale.title or NONE
+end
+
+-- What an empty list says before its first scan: what the scan will find, and for whom.
+local function IntroText()
+    local who = ns.Roster.Target()
+    if view == "supplies" then
+        -- Consumables can be listed without Pawn, only without scores: what is wrong with
+        -- Pawn is said in the Upgrades view, which cannot do without it.
+        return who and L.SUP_HINT_WHO:format(WhoName(who)) or L.SUP_HINT
+    end
+    local problem = ns.Pawn.Problem()
+    if problem then return problem end
+    if who then return L.HINT_WHO:format(WhoName(who), ScaleTitle()) end
+    return L.HINT:format(ScaleTitle())
 end
 
 -- The status line, with a bar beside it while the scanner works. An empty list has the
@@ -926,9 +1000,7 @@ local function ShowStatus()
         hint:SetText(text)
     elseif first then
         hint:SetPoint("TOP", intro, "BOTTOM", 0, -12)
-        -- Consumables can be listed without Pawn, only without scores: what is wrong with
-        -- Pawn is said in the Upgrades view, which cannot do without it.
-        hint:SetText(view == "supplies" and L.SUP_HINT or ns.Pawn.Problem() or L.HINT:format(ScaleTitle()))
+        hint:SetText(IntroText())
     else
         hint:SetPoint("CENTER", scrollBox, "CENTER", 0, 10)
         hint:SetText(text)
@@ -954,9 +1026,9 @@ end
 -- How the list of consumables is to score what one of them adds: with Pawn, on the scale in
 -- use. Nothing when Pawn cannot be asked; the list then has no scores and leaves nothing out.
 local MANA = Enum.PowerType and Enum.PowerType.Mana or 0
-local function SupplyValue()
+local function SupplyValue(who)
     if ns.Pawn.Problem() then return nil end
-    local scale = ns.Pawn.CurrentScale()
+    local scale = ns.Pawn.CurrentScale(who)
     if not scale then return nil end
     local name = scale.name
     return function(stats) return ns.Pawn.StatsValue(stats, name) end
@@ -967,12 +1039,18 @@ function UI.Refresh()
 
     local all
     if view == "supplies" then
+        -- What is paid with is always the gold of the character being played; what a
+        -- consumable is worth, and whether mana is of any use, is the question of the
+        -- character the list is for.
+        local who = ns.Roster.Target()
+        local mana
+        if who then mana = who.mana and true or false else mana = (UnitPowerMax("player", MANA) or 0) > 0 end
         all, summary = ns.Supplies.Build(S.supplies, {
             money = GetMoney(),
             affordableOnly = ns.db.affordableOnly,
             bestOnly = ns.db.bestOnly,
-            value = SupplyValue(),
-            mana = (UnitPowerMax("player", MANA) or 0) > 0,
+            value = SupplyValue(who),
+            mana = mana,
         })
     else
         all, summary = ns.Results.Build(S.offers, S.ctx, {
@@ -1027,32 +1105,97 @@ end
 ---------------------------------------------------------------------------
 -- Controls
 ---------------------------------------------------------------------------
-local function IsScale(name)
-    local scale = ns.Pawn.CurrentScale()
-    return scale ~= nil and scale.name == name
+-- The scale field answers two questions at once: whom the lists are for, and on which of
+-- that character's Pawn scales. Its menu has the scales of the character being played, and
+-- under them those of every other character of the account the addon has seen (Roster.List),
+-- each line beginning with the character's name. A line of the menu is a "choice":
+--   { who = the character's key, false for the one being played; scale = the scale's name }
+local function IsChoice(choice)
+    local who = ns.Roster.Target()
+    if (who and who.key or false) ~= choice.who then return false end
+    local scale = ns.Pawn.CurrentScale(who)
+    return scale ~= nil and scale.name == choice.scale
 end
 
-local function ChooseScale(name)
-    if ns.db.scale == name then return end
-    ns.db.scale = name
+local function Choose(choice)
+    if IsChoice(choice) then return end
+    local card = nil
+    if choice.who then
+        card = ns.Roster.Get(choice.who)
+        if not card then return end
+    end
+    local owner = card or ns.Roster.Me()
+    if not owner then return end
+    local sameWho = card == ns.Roster.Target()
+    -- A character's scale is remembered with the character, whoever chose it.
+    owner.scale = choice.scale
+
+    if sameWho then
+        -- Scores of gear from another scale mean nothing now, and the Upgrades view scans
+        -- again. Consumables are scored as their list is drawn, so theirs follow with the
+        -- refresh; a scan for gear is not started from their view, where it would grey out
+        -- the Buy buttons.
+        local rescan = view == "gear" and (S.finishedAt ~= nil or S.state ~= "idle")
+        S.Reset()
+        if rescan and S.IsOpen() then S.Start() end
+    else
+        -- Another character: neither list is about it. The view that had a list, or was
+        -- making one, gets it made again; the other waits for its Scan button.
+        local rescan = S.state ~= "idle"
+        if view == "gear" then rescan = rescan or S.finishedAt ~= nil else rescan = rescan or S.suppliesAt ~= nil end
+        StaticPopup_Hide(POPUP)
+        buyBox:Hide()
+        ns.Roster.SetTarget(card)
+        S.Retarget()
+        if rescan and S.IsOpen() then
+            if view == "supplies" then S.StartSupplies() else S.Start() end
+        elseif card and not ns.Pawn.Problem() then
+            -- Nothing to scan yet: the character's gear is asked of the server now, so that
+            -- it is at hand when the scan comes (see PawnBridge.Context).
+            ns.Pawn.Context(choice.scale, card)
+        end
+    end
     -- The dropdown shows the choice by itself; it must not be rebuilt while its menu is open.
     scaleShown = ScaleKey()
-    -- Scores of gear from another scale mean nothing now, and the Upgrades view scans again.
-    -- Consumables are scored as their list is drawn, so theirs follow with the refresh; a
-    -- scan for gear is not started from their view, where it would grey out the Buy buttons.
-    local rescan = view == "gear" and (S.finishedAt ~= nil or S.state ~= "idle")
-    S.Reset()
-    if rescan and S.IsOpen() then S.Start() end
     toTop = true
     UI.Refresh()
 end
 
+local MENU_ROWS = 20        -- a menu with more lines than this scrolls
+
 local function ScaleMenu(_, root)
     if ns.Pawn.Problem() then return end
+    local lines = 0
     local _, scales = ns.Pawn.CurrentScale()
     for i = 1, #scales do
-        root:CreateRadio(scales[i].title, IsScale, ChooseScale, scales[i].name)
+        root:CreateRadio(scales[i].title, IsChoice, Choose, { who = false, scale = scales[i].name })
+        lines = lines + 1
     end
+
+    local me = ns.Roster.Me()
+    local cards = ns.Roster.List()
+    for c = 1, #cards do
+        local card = cards[c]
+        local _, theirs = ns.Pawn.CurrentScale(card)
+        if card ~= me and #theirs > 0 then
+            if lines > 0 and root.CreateDivider then root:CreateDivider() end
+            -- The name in the colour of the class, then the scale without the class it is
+            -- named after: "Diluna: Balance". The field shows the line that is chosen, so
+            -- it says whose list this is as long as it is not one's own.
+            local name = WhoName(card)
+            -- What is bought here cannot be sent to another realm: a character of one is
+            -- listed with its realm, so that it is not chosen by mistake.
+            if me and card.realm and me.realm and card.realm ~= me.realm then
+                name = name .. " (" .. card.realm .. ")"
+            end
+            for i = 1, #theirs do
+                root:CreateRadio(name .. ": " .. ns.Roster.Short(card, theirs[i].title), IsChoice, Choose,
+                    { who = card.key, scale = theirs[i].name })
+                lines = lines + 1
+            end
+        end
+    end
+    if lines > MENU_ROWS and root.SetScrollMode then root:SetScrollMode(MENU_ROWS * 20) end
 end
 
 -- The game's dropdown under a face of ours: a recess with a gold arrow. Its own plate and
@@ -1389,8 +1532,16 @@ local function Build()
     scaleDropdown:SetDefaultText(NONE)
     scaleDropdown:SetupMenu(ScaleMenu)
     scaleDropdown:SetTooltip(function(tooltip)
-        GameTooltip_SetTitle(tooltip, ScaleTitle())
+        local who = ns.Roster.Target()
+        GameTooltip_SetTitle(tooltip, who and L.ST_WHO:format(WhoName(who), ScaleTitle()) or ScaleTitle())
         GameTooltip_AddNormalLine(tooltip, L.SCALE_TIP)
+        GameTooltip_AddBlankLineToTooltip(tooltip)
+        if who then
+            -- How old what is known of the character is: the list is only as good as that.
+            GameTooltip_AddHighlightLine(tooltip, L.WHO_SEEN:format(WhoName(who), who.level,
+                ns.Ago(math.max(0, time() - (who.seen or time())))))
+        end
+        GameTooltip_AddNormalLine(tooltip, L.WHO_TIP)
     end)
 
     -- The plate the list lies on, with the column titles along its top.
@@ -1590,13 +1741,36 @@ end)
 
 ---------------------------------------------------------------------------
 -- /upscout opens the tab when the auction house is open; /upscout stats tells how the last
--- scan went
+-- scan went; /upscout forget Name takes a character that is gone (deleted, renamed) out of
+-- the scale field's menu
 ---------------------------------------------------------------------------
+local function Forget(name)
+    local was = ns.Roster.Target()
+    local card = ns.Roster.Forget(name)
+    if not card then
+        local names = {}
+        local me, cards = ns.Roster.Me(), ns.Roster.List()
+        for i = 1, #cards do
+            if cards[i] ~= me then names[#names + 1] = cards[i].name end
+        end
+        ns.Print(L.MSG_FORGET_WHO:format(#names > 0 and table.concat(names, ", ") or NONE))
+        return
+    end
+    ns.Print(L.MSG_FORGOT:format(card.name))
+    -- The lists were for that character: they go back to being for the one being played.
+    if was == card then S.Retarget() end
+    UI.Refresh()
+end
+
 SLASH_UPGRADESCOUT1 = "/upscout"
 SLASH_UPGRADESCOUT2 = "/upgradescout"
 SlashCmdList["UPGRADESCOUT"] = function(message)
     if message:lower():match("^%s*stats") then
         ns.Print(S.StatsText())
+        return
+    end
+    if message:lower():match("^%s*forget") then
+        Forget(message:match("^%s*%a+%s*(.-)%s*$"))
         return
     end
     if not (frame and S.IsOpen()) then

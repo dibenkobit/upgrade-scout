@@ -28,6 +28,8 @@ two picks are marked:
 - A second tab, **Consumables**, lists the potions, food, elixirs, bandages and other consumables
   you can use right now, the ones worth the most to your character first: what an elixir or a flask
   adds is scored on the same Pawn scale as gear. The price is for one piece.
+- Both lists can be made **for another character of yours**: stand at the auction house on one
+  character and see what is worth buying for another, against the gear that one wears.
 - Works for any class and level. English, Russian, German, French, Spanish, Brazilian Portuguese, Italian and Simplified Chinese.
 
 ## Requirements
@@ -110,13 +112,43 @@ food and drink, bandages, scrolls and the rest. Press **Scan** there.
 - **Buy** reads the current prices, then asks how many. The box shows what that many cost, cheapest
   pieces first. **Buy** in the box asks the auction house for its price, **Confirm** buys at it.
 
+## For another character
+
+Both tabs can make their lists for another character of your account. The character you are playing
+stands at the auction house, pays, and mails what it bought.
+
+1. Log in to the other character once with the addon installed. That is when the addon writes the
+   character down: class, level, what it wears, the kinds of weapon and armor it has learned, its
+   professions. It is written down again every time you play it, last of all when you log out.
+2. On the character at the auction house, open the **Pawn scale** dropdown. Under its own scales are
+   the scales of every character the addon has written down, each line beginning with the
+   character's name in the colour of its class. Pick one and press **Scan**.
+
+- **What changes**: an upgrade is measured against what that character wears, on that character's
+  Pawn scale. Required level, class, learned weapon and armor skills and professions are that
+  character's too, and so is the question whether mana is of any use. **Only what I can afford**
+  still goes by the gold of the character you are playing: it is the one that pays.
+- **Whose list it is** stays in view: the dropdown, the status line and every item tooltip name the
+  character. A tooltip puts the item that character wears in the slot beside the one for sale.
+- **How fresh it is**: the character is known as it was when you last played it, and the dropdown's
+  tooltip says how long ago that was. Log in to it again after it has gained levels or changed gear.
+- **Which scales**: the ones Pawn has switched on for that character (Pawn keeps this for the whole
+  account). The scale you pick for a character is remembered with the character, whichever
+  character you were playing when you picked it.
+- **What cannot be known**: the game answers "can it be equipped" only for the character being
+  played, so for another one the addon works the answer out from what it wrote down. An item that
+  asks for standing with a faction is left out.
+- The choice lasts until you log out or reload the interface. After that the lists are for the
+  character you are playing again.
+- `/upscout forget Name` takes a character that no longer exists out of the dropdown.
+
 ## How an item is judged
 
 | Question | Answer comes from |
 | --- | --- |
 | How good is it? | Pawn's score for the base item on the chosen scale |
 | Better than mine? | Score minus the score of the item it replaces; at least 0.5% higher, as in Pawn |
-| Can I wear it now? | Required level, Pawn's class rules, and no red line in the item tooltip |
+| Can I wear it now? | Required level, Pawn's class rules, and no red line in the item tooltip. For another character: what the addon wrote down about it (see above) |
 | What does it cost? | The cheapest buyout among identical items; bid-only auctions are ignored |
 
 Which item it replaces:
@@ -190,6 +222,7 @@ lua5.1 tests/run.lua buy        # one scenario
 
 | File | Purpose |
 | --- | --- |
+| `Roster.lua` | The characters of the account as each was last seen, and what a character that is not being played can use |
 | `PawnBridge.lua` | The only place that calls Pawn |
 | `Compare.lua` | Which slot an item goes into and how much better it is |
 | `Results.lua` | Rows for the list and the two picks per slot |

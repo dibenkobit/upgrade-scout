@@ -57,6 +57,8 @@ S.supplies = {}                -- id -> consumable for sale that the player can 
 S.suppliesAt = nil             -- when the last scan for them ended
 S.suppliesPartial = false      -- it did not see everything
 S.suppliesNote = nil           -- note for their status line
+S.suppliesWho = nil            -- whom the last scan for them was for: a card from Roster, nil
+                               -- for the character being played (as ctx.who is for gear)
 
 local ahOpen = false
 local run                      -- state of the work in progress
@@ -86,6 +88,21 @@ local ARMOR_LIMIT = {
 local ARMOR_CLASS = Enum.ItemClass.Armor
 local WEAPON_CLASS = Enum.ItemClass.Weapon
 local CONSUMABLE_CLASS = Enum.ItemClass.Consumable
+
+-- Gear of a character that is not being played which the client has and Pawn gave nothing
+-- for (ctx.unread, see PawnBridge.Context): most likely Pawn read the tooltip a moment before
+-- the game had filled it in. The gear snapshot is made again a few times, a second apart; an
+-- item that truly has no stats stays at 0, as it should.
+local CONTEXT_RETRIES = 3
+local contextTries = 0
+local function Recheck()
+    local ctx = S.ctx
+    if not ctx or not ctx.unread or contextTries >= CONTEXT_RETRIES then return end
+    contextTries = contextTries + 1
+    C_Timer.After(1, function()
+        if S.ctx == ctx then S.RefreshContext() end
+    end)
+end
 
 ---------------------------------------------------------------------------
 -- State and the request throttle
@@ -207,7 +224,7 @@ local function EvalLink(link)
     local ctx = S.ctx
     if (minLevel or 0) <= ctx.level and ns.Compare.Handles(equipLoc) then
         local item = ns.Pawn.Item(fullLink)
-        if item and ns.Pawn.ClassCanUse(item) then
+        if item and ns.Pawn.ClassCanUse(item, ctx.who) then
             local value = ns.Pawn.Value(item, ctx.scale)
             if value > 0 then
                 local itemID = C_Item.GetItemInfoInstant(fullLink)
@@ -234,25 +251,38 @@ end
 -- or weapon skill not learned, and so on. That is the most direct answer to "can I equip
 -- this right now". The lines are read as data (C_TooltipInfo), the same data the game builds
 -- its tooltips from, so no tooltip frame is involved.
+-- Red is about the character being played. When the lists are for another one (run.who, a
+-- card from Roster), the same lines are judged by what the card knows of that character.
 local function IsRed(text, color)
     if not text or text == "" or not color then return false end
     local r, g, b = color:GetRGB()
     return r > 0.9 and g < 0.2 and b < 0.2
 end
 
---   true = nothing red, false = something red, nil = the client has not loaded the item yet
+-- Is anything in these lines red?
+local function AnyRed(lines)
+    for i = 2, #lines do
+        local line = lines[i]
+        if IsRed(line.leftText, line.leftColor) or IsRed(line.rightText, line.rightColor) then
+            return true
+        end
+    end
+    return false
+end
+
+--   true = the character can equip it, false = it cannot, nil = the client has not loaded
+--   the item yet
 local function Usable(link)
     local data = C_TooltipInfo.GetHyperlink(link)
     local lines = data and data.lines
     local name = lines and lines[1] and lines[1].leftText
     if not name or name == "" or name == RETRIEVING_ITEM_INFO then return nil end
-    for i = 2, #lines do
-        local line = lines[i]
-        if IsRed(line.leftText, line.leftColor) or IsRed(line.rightText, line.rightColor) then
-            return false
-        end
+    local who = run.who
+    if who then
+        local _, _, _, _, _, classID, subClassID = C_Item.GetItemInfoInstant(link)
+        return ns.Roster.Wields(who, classID, subClassID) and ns.Roster.Allows(who, lines)
     end
-    return true
+    return not AnyRed(lines)
 end
 
 ---------------------------------------------------------------------------
@@ -762,25 +792,26 @@ end
 local ItemSpell = C_Item.GetItemSpell or GetItemSpell
 
 -- What the game says about a consumable:
---   usable  true = nothing red, false = something red, nil = the client has not loaded it yet
+--   usable  true = the character can use it (nothing red; for a character that is not being
+--           played, nothing its card falls short of), false = it cannot, nil = the client
+--           has not loaded it yet
 --   effect  the first line that starts with "Use:", without those words; nil if there is none
 local function ReadSupply(link)
     local data = C_TooltipInfo.GetHyperlink(link)
     local lines = data and data.lines
     local name = lines and lines[1] and lines[1].leftText
     if not name or name == "" or name == RETRIEVING_ITEM_INFO then return nil end
-    local usable, effect = true, nil
+    local effect = nil
     local prefix = ITEM_SPELL_TRIGGER_ONUSE
     for i = 2, #lines do
-        local line = lines[i]
-        if IsRed(line.leftText, line.leftColor) or IsRed(line.rightText, line.rightColor) then
-            usable = false
-        end
-        local text = line.leftText
+        local text = lines[i].leftText
         if not effect and text and type(prefix) == "string" and text:sub(1, #prefix) == prefix then
             effect = text:sub(#prefix + 1):match("^%s*(.-)%s*$")
         end
     end
+    local who = run.who
+    local usable
+    if who then usable = ns.Roster.Allows(who, lines) else usable = not AnyRed(lines) end
     return usable, effect
 end
 
@@ -978,6 +1009,12 @@ local function FinishBrowse(partial)
     if partial then
         if run.mode == "supplies" then S.suppliesPartial = true else S.partial = true end
     end
+    -- Gear of a character that is not being played may have still been on its way from the
+    -- server when the scan began (see PawnBridge.Context): by now it has had time to come.
+    if run.mode ~= "supplies" and S.ctx and S.ctx.pending then
+        S.ctx = ns.Pawn.Context(S.ctx.scale, S.ctx.who)
+        Recheck()
+    end
     S.info.toScore = #run.toScore
     S.info.scored = 0
     run.scoreIndex = 1
@@ -1047,10 +1084,14 @@ local function NewRun(mode)
     lastRequest = nil
     local scanning = IsScanMode(mode)
     local supplies = mode == "supplies" or mode == "supply"
+    -- The character the work is for, when it is not the one being played (a card from Roster).
+    local who
+    if supplies then who = S.suppliesWho else who = S.ctx and S.ctx.who end
     run = {
         mode = mode,
-        -- Rows that ask for a higher level are of no use to the player.
-        level = not supplies and S.ctx and S.ctx.level or UnitLevel("player"),
+        who = who,
+        -- Rows that ask for a higher level are of no use to the character.
+        level = not supplies and S.ctx and S.ctx.level or who and who.level or UnitLevel("player"),
         variant = 1,
         rows = {},          -- key string -> row
         rowCount = 0,
@@ -1089,7 +1130,21 @@ function S.Reset()
     scan = nil
 end
 
--- Starts a full scan. Returns false and sets S.message when it cannot.
+-- The lists are to be for another character (Roster.Target): what was found for the last one
+-- goes, gear and consumables alike, and whatever is running for it stops.
+function S.Retarget()
+    S.Stop()
+    S.Reset()
+    S.supplies = {}
+    S.suppliesAt = nil
+    S.suppliesPartial = false
+    S.suppliesNote = nil
+    S.suppliesWho = nil
+    ns.Fire("OFFERS_CHANGED")
+end
+
+-- Starts a full scan for the character the lists are for. Returns false and sets S.message
+-- when it cannot.
 function S.Start()
     if S.state ~= "idle" then return false end
     S.message = nil
@@ -1098,15 +1153,18 @@ function S.Start()
         ns.Fire("SCAN_STATE")
         return false
     end
+    local who = ns.Roster.Target()
     local problem = ns.Pawn.Problem()
-    local scale = not problem and ns.Pawn.CurrentScale() or nil
+    local scale = not problem and ns.Pawn.CurrentScale(who) or nil
     if problem or not scale then
         S.message = problem or L.ERR_NO_SCALE
         ns.Fire("SCAN_STATE")
         return false
     end
 
-    S.ctx = ns.Pawn.Context(scale.name)
+    S.ctx = ns.Pawn.Context(scale.name, who)
+    contextTries = 0
+    Recheck()
     S.offers = {}
     S.partial = false
     S.halted = false
@@ -1126,8 +1184,7 @@ function S.Start()
         floorBroken = false,-- so many of them that the row's lowest price cannot be relied on
     }
     NewRun("scan")
-    local _, class = UnitClass("player")
-    run.armorLimit = ARMOR_LIMIT[class]
+    run.armorLimit = ARMOR_LIMIT[S.ctx.class]
     SetState("browse")
     SendBrowse()
     return true
@@ -1238,11 +1295,13 @@ function S.CancelPurchase()
     ns.Fire("OFFERS_CHANGED")
 end
 
--- Rebuilds the gear snapshot (after the player changes equipment). The offers keep their
+-- Rebuilds the gear snapshot (after the player changes equipment, or when gear of a
+-- character that is not being played has come from the server). The offers keep their
 -- scores, so the list can be re-ranked without another scan.
 function S.RefreshContext()
     if not S.ctx or ns.Pawn.Problem() then return end
-    S.ctx = ns.Pawn.Context(S.ctx.scale)
+    S.ctx = ns.Pawn.Context(S.ctx.scale, S.ctx.who)
+    Recheck()
     ns.Fire("OFFERS_CHANGED")
 end
 
@@ -1261,6 +1320,7 @@ function S.StartSupplies()
     S.supplies = {}
     S.suppliesPartial = false
     S.suppliesAt = nil
+    S.suppliesWho = ns.Roster.Target()
     S.info = { rows = 0, scored = 0, toScore = 0, verified = 0, toVerify = 0 }
     confirming = false
     NewRun("supplies")
@@ -1498,8 +1558,23 @@ end)
 ns.On("ITEM_SEARCH_RESULTS_UPDATED", OnItemResults)
 ns.On("ITEM_SEARCH_RESULTS_ADDED", OnItemResults)
 
-local function OnItemLoaded()
+-- The gear snapshot is made again a moment after it goes out of date, and once however many
+-- times the game says so: a set of gear is put on piece by piece.
+local contextTimer = false
+local function QueueContext()
+    if not S.ctx or contextTimer then return end
+    contextTimer = true
+    C_Timer.After(0.5, function()
+        contextTimer = false
+        S.RefreshContext()
+    end)
+end
+
+local function OnItemLoaded(itemID)
     if run and S.state == "score" then run.lastLoad = GetTime() end
+    -- An item the gear snapshot was waiting for (see PawnBridge.Context).
+    local ctx = S.ctx
+    if ctx and ctx.pending and itemID ~= nil and ctx.pending[itemID] then QueueContext() end
 end
 ns.On("ITEM_DATA_LOAD_RESULT", OnItemLoaded)
 ns.On("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
@@ -1550,15 +1625,7 @@ ns.On("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
     end
 end)
 
-local contextTimer = false
-ns.On("PLAYER_EQUIPMENT_CHANGED", function()
-    if not S.ctx or contextTimer then return end
-    contextTimer = true
-    C_Timer.After(0.5, function()
-        contextTimer = false
-        S.RefreshContext()
-    end)
-end)
+ns.On("PLAYER_EQUIPMENT_CHANGED", QueueContext)
 
 -- Another search (the Buy tab, another addon) replaces the browse list we are reading.
 local function OnForeignBrowse()

@@ -12,13 +12,20 @@ W.printed = {}
 W.popups = {}
 W.items = {}        -- "id:suffix" -> item
 W.equipped = {}     -- slot -> link
-W.player = { level = 10, class = "WARRIOR", money = 100000, dualWield = false }
+-- The character being played. Beyond these a test may give it: last (a surname, as Forever
+-- has them), mana, race, spells ({ [spell id] = true }: what it knows, which is how the
+-- game says which weapons and armor it has learned) and professions ({ { name, rank }, ... }).
+W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dualWield = false }
 
 ---------------------------------------------------------------------------
 -- Items
 ---------------------------------------------------------------------------
 -- def: { id, suffix, name, level, equipLoc, classID, subClassID, quality, value, value2,
---        red, unique, effects, noStats, uncached, classCant }
+--        red, unique, effects, noStats, uncached, classCant,
+--        values = { [scale] = score } for scales other than the two the tests began with,
+--        stats = { IsMail = 1, ... } as Pawn reads them off the tooltip,
+--        classes = "Druid, Shaman" (the classes it is for), races = "Orc, Troll",
+--        skill = { "Engineering", 150 } (the profession it asks for), reputation = true }
 function W.AddItem(def)
     def.suffix = def.suffix or 0
     def.quality = def.quality or 2
@@ -198,6 +205,46 @@ NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR = Color(1, 0.82, 0), Color(1, 1, 1)
 GREEN_FONT_COLOR, RED_FONT_COLOR = Color(0.1, 1, 0.1), Color(1, 0.125, 0.125)
 GRAY_FONT_COLOR, DISABLED_FONT_COLOR = Color(0.5, 0.5, 0.5), Color(0.5, 0.5, 0.5)
 
+-- The game's texts for what an item asks of its owner, and its names for the classes.
+ITEM_CLASSES_ALLOWED, ITEM_RACES_ALLOWED = "Classes: %s", "Races: %s"
+ITEM_MIN_SKILL, ITEM_REQ_REPUTATION = "Requires %s (%d)", "Requires %s - %s"
+LOCALIZED_CLASS_NAMES_MALE = {
+    WARRIOR = "Warrior", PALADIN = "Paladin", HUNTER = "Hunter", ROGUE = "Rogue", PRIEST = "Priest",
+    SHAMAN = "Shaman", MAGE = "Mage", WARLOCK = "Warlock", DRUID = "Druid",
+}
+LOCALIZED_CLASS_NAMES_FEMALE = LOCALIZED_CLASS_NAMES_MALE
+
+-- How far the character being played has got in a profession; nil if it has not got it.
+local function PlayerSkill(name)
+    for _, profession in ipairs(W.player.professions or {}) do
+        if profession[1] == name then return profession[2] end
+    end
+end
+
+-- The lines every kind of item can have about what it asks of its owner; each is red when
+-- the character being played falls short of it.
+local function AddRequirements(lines, item)
+    local function Line(text, met)
+        lines[#lines + 1] = { leftText = text, leftColor = met and HIGHLIGHT_FONT_COLOR or RED_FONT_COLOR }
+    end
+    if item.level > 1 then
+        Line("Requires Level " .. item.level, item.level <= W.player.level)
+    end
+    if item.classes then
+        Line(ITEM_CLASSES_ALLOWED:format(item.classes),
+            item.classes:find(LOCALIZED_CLASS_NAMES_MALE[W.player.class] or "?", 1, true) ~= nil)
+    end
+    if item.races then
+        Line(ITEM_RACES_ALLOWED:format(item.races), item.races:find(W.player.race or "Human", 1, true) ~= nil)
+    end
+    if item.skill then
+        Line(ITEM_MIN_SKILL:format(item.skill[1], item.skill[2]), (PlayerSkill(item.skill[1]) or 0) >= item.skill[2])
+    end
+    if item.reputation then
+        Line(ITEM_REQ_REPUTATION:format("Argent Dawn", "Revered"), false)
+    end
+end
+
 -- What the game knows to say about an item, line by line: the data its tooltips are built
 -- from. A requirement the player does not meet is red; the right-hand text is the armor kind.
 local function TooltipLines(link)
@@ -209,10 +256,7 @@ local function TooltipLines(link)
         -- A consumable: what it asks for (red when the player falls short of it) and, in a
         -- line that starts with "Use:", what it does. useLate: that line has not arrived.
         local lines = { { leftText = item.name, leftColor = HIGHLIGHT_FONT_COLOR } }
-        if item.level > 1 then
-            lines[#lines + 1] = { leftText = "Requires Level " .. item.level,
-                leftColor = item.level > W.player.level and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR }
-        end
+        AddRequirements(lines, item)
         if item.red then
             lines[#lines + 1] = { leftText = "Requires First Aid (225)", leftColor = RED_FONT_COLOR }
         end
@@ -227,10 +271,7 @@ local function TooltipLines(link)
         { leftText = "Chest", leftColor = HIGHLIGHT_FONT_COLOR, rightText = "Mail",
             rightColor = item.red and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR },
     }
-    if item.level > 1 then
-        lines[#lines + 1] = { leftText = "Requires Level " .. item.level,
-            leftColor = item.level > W.player.level and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR }
-    end
+    AddRequirements(lines, item)
     return lines
 end
 
@@ -523,12 +564,23 @@ local function DropdownModel(dropdown)
     function dropdown:SetTooltip(tooltipFunc) self._tooltip = tooltipFunc end
     function dropdown:GenerateMenu()
         assert(not self._open, "the menu is not rebuilt while it is open")
-        local root = { radios = {} }
+        local root = { radios = {}, dividers = 0 }
         function root:CreateRadio(text, isSelected, setSelected, data)
             self.radios[#self.radios + 1] = { text = text, isSelected = isSelected, setSelected = setSelected, data = data }
         end
+        -- A line across the menu; `after` says which radio each one follows.
+        function root:CreateDivider()
+            self.dividers = self.dividers + 1
+            self.after = self.after or {}
+            self.after[#self.after + 1] = #self.radios
+        end
+        function root:SetScrollMode(extent)
+            assert(type(extent) == "number" and extent > 0, "a height in pixels")
+            self.scroll = extent
+        end
         self._generator(self, root)
         self.radios = root.radios
+        self.dividers, self.dividersAfter, self.scroll = root.dividers, root.after or {}, root.scroll
         ShowSelection(self)
     end
     function dropdown:SetupMenu(generator)
@@ -564,6 +616,11 @@ end
 
 UIParent = Widget("Frame", "UIParent")
 GameTooltip = Widget("GameTooltip", "GameTooltip")
+-- The tooltip the game puts beside the main one, for the item that is worn.
+ShoppingTooltip1 = Widget("GameTooltip", "ShoppingTooltip1")
+ShoppingTooltip1._shown = false
+-- Where a frame's right edge is on the screen: unknown unless a test says (frame._right).
+function M:GetRight() return self._right end
 
 ---------------------------------------------------------------------------
 -- Clock, timers, events
@@ -641,7 +698,22 @@ function hooksecurefunc(tbl, name, hook)
     end
 end
 function UnitLevel() return W.player.level end
-function UnitClass() return "Class", W.player.class end
+function UnitClass() return LOCALIZED_CLASS_NAMES_MALE[W.player.class] or "Class", W.player.class end
+-- Forever gives a character a surname, and says it where other clients say the realm.
+function UnitName() return W.player.name, W.player.last end
+function UnitRace() return W.player.race or "Human", "Human" end
+function UnitFactionGroup() return "Alliance", "Alliance" end
+function GetRealmName() return W.realm or "Testrealm" end
+-- What the character knows: weapon and armor skills are spells to the client.
+function IsPlayerSpell(spell) return W.player.spells ~= nil and W.player.spells[spell] == true end
+function GetProfessions()
+    local professions = W.player.professions or {}
+    return professions[1] and 1 or nil, professions[2] and 2 or nil, nil, nil, professions[3] and 3 or nil
+end
+function GetProfessionInfo(index)
+    local profession = W.player.professions[index]
+    return profession[1], 134400, profession[2], 300
+end
 function CanDualWield() return W.player.dualWield end
 function GetMoney() return W.player.money end
 -- How much mana the character can hold: none unless a test gives it some (W.player.mana).
@@ -684,7 +756,9 @@ RETRIEVING_ITEM_INFO = "Retrieving item information"
 ITEM_SPELL_TRIGGER_ONUSE = "Use:"
 ACCEPT, CANCEL, NONE = "Accept", "Cancel", "None"
 BUYOUT_AUCTION_CONFIRMATION = "Buyout auction for:"
-SECONDS_ABBR, MINUTES_ABBR, HOURS_ABBR = "%d Sec", "%d Min", "%d Hr"
+SECONDS_ABBR, MINUTES_ABBR, HOURS_ABBR, DAYS_ABBR = "%d Sec", "%d Min", "%d Hr", "%d Days"
+-- The colours of the classes, as the game's ColorMixin objects.
+RAID_CLASS_COLORS = { WARRIOR = Color(0.78, 0.61, 0.43), DRUID = Color(1, 0.49, 0.04), MAGE = Color(0.25, 0.78, 0.92) }
 PriceFontWhite, PriceFontRed = { name = "PriceFontWhite" }, { name = "PriceFontRed" }
 -- The font files the tab writes with: the standard one, and the one behind the game's number fonts.
 STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
@@ -740,6 +814,32 @@ function W.AddOnLoaded(name)
         end
     end
     W.Fire("ADDON_LOADED", name)
+end
+
+-- The character logs out. The addon hears of it, and then nothing of the session is left but
+-- what the game saves: the account's variables stay where they are, the character's own are
+-- put away under its name.
+W.charSaved = {}
+function W.Logout()
+    W.Fire("PLAYER_LOGOUT")
+    for i = 1, #W.frames do
+        W.frames[i]._scripts, W.frames[i]._events = {}, {}
+    end
+    W.timers = {}
+    W.loaded = {}
+    awaitingAddOn = {}
+    W.charSaved[W.player.name] = UpgradeScoutCharDB
+    UpgradeScoutCharDB = nil
+    AuctionHouseFrame, LibStub = nil, nil
+    W.equipped = {}
+end
+
+-- Another character of the account comes into the world: `player` as W.player, `equipped`
+-- as W.equipped. The addon is loaded after this, as a new session.
+function W.Login(player, equipped)
+    W.player = player
+    W.equipped = equipped or {}
+    UpgradeScoutCharDB = W.charSaved[player.name]
 end
 HEADSLOT, CHESTSLOT, FINGER0SLOT, MAINHANDSLOT, SECONDARYHANDSLOT = "Head", "Chest", "Finger", "Main Hand", "Off Hand"
 -- The game's text for two of the weapon kinds; the addon has its own for the rest.
@@ -1173,25 +1273,45 @@ function PanelTemplates_SelectTab(tab) tab._selected = true end
 ---------------------------------------------------------------------------
 W.pawnReady = true
 function PawnIsReady() return W.pawnReady end
+-- Every scale Pawn has, those it shows for the character being played first. A test that
+-- plays another class puts that class's scales here.
+W.pawnScales = {
+    { Name = "S1", LocalizedName = "Arms", IsVisible = true },
+    { Name = "S2", LocalizedName = "Protection", IsVisible = true },
+    { Name = "S3", LocalizedName = "Hidden", IsVisible = false },
+}
 function PawnGetAllScalesEx()
-    return {
-        { Name = "S1", LocalizedName = "Arms", IsVisible = true },
-        { Name = "S2", LocalizedName = "Protection", IsVisible = true },
-        { Name = "S3", LocalizedName = "Hidden", IsVisible = false },
-    }
+    local out = {}
+    for i, scale in ipairs(W.pawnScales) do out[i] = scale end
+    return out
 end
+-- What Pawn saves for the whole account: every scale, and for each the characters that have
+-- it switched on. Scales made from a class's template know their class.
+PawnCommon = { Scales = { S1 = { PerCharacterOptions = {} }, S2 = { PerCharacterOptions = {} }, S3 = { PerCharacterOptions = {} } } }
+-- The kinds of item a class never wears, as Pawn lists them by class number.
+PawnNeverUsableStats = { [1] = { "IsWand" }, [8] = { "IsMail", "IsPlate", "IsShield" }, [11] = { "IsMail", "IsPlate", "IsShield" } }
 function PawnGetItemData(link)
     local item, id = ParseItem(link)
     if not item or not item.cached or item.noStats then return nil end
     return {
         Link = link, ID = id, InvType = item.equipLoc, Name = item.name,
         CanEquip = not item.classCant,
+        Stats = item.stats,
         UnknownLines = item.effects and { ["Use: Does something."] = 1 } or nil,
         _item = item,
     }
 end
 function PawnGetSingleValueFromItem(record, scale)
-    local value = scale == "S2" and (record._item.value2 or 0) or record._item.value
+    local item = record._item
+    local value
+    if item.values and item.values[scale] ~= nil then
+        value = item.values[scale]
+    elseif scale == "S1" then
+        value = item.value
+    else
+        -- A scale the item was given no score on values nothing of it.
+        value = scale == "S2" and item.value2 or 0
+    end
     -- Pawn returns (with enchantments, base item); make the first one wrong on purpose so the
     -- tests notice if the addon reads the enchanted number.
     return value + 1000, value

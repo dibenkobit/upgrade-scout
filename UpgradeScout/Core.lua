@@ -47,10 +47,13 @@ function ns.Fire(message, ...)
 end
 
 ---------------------------------------------------------------------------
--- Saved settings (per character)
+-- Saved settings
 ---------------------------------------------------------------------------
--- collapsed: slot id -> true for the slots the player folded away in the list.
+-- Per character. collapsed: slot id -> true for the slots the player folded away in the list.
 ns.db = { affordableOnly = true, topOnly = true, bestOnly = true, collapsed = {} }
+-- For the whole account. chars: the characters of the account as each was last seen, by
+-- name (see Roster.lua).
+ns.account = { chars = {} }
 
 EventUtil.ContinueOnAddOnLoaded(ADDON, function()
     if type(UpgradeScoutCharDB) ~= "table" then UpgradeScoutCharDB = {} end
@@ -60,6 +63,10 @@ EventUtil.ContinueOnAddOnLoaded(ADDON, function()
     if db.bestOnly == nil then db.bestOnly = true end
     if type(db.collapsed) ~= "table" then db.collapsed = {} end
     ns.db = db
+
+    if type(UpgradeScoutDB) ~= "table" then UpgradeScoutDB = {} end
+    if type(UpgradeScoutDB.chars) ~= "table" then UpgradeScoutDB.chars = {} end
+    ns.account = UpgradeScoutDB
 end)
 
 ---------------------------------------------------------------------------
@@ -104,11 +111,15 @@ end
 
 -- Times use the game's own short units (SECONDS_ABBR and so on), so they read right in every
 -- language the game has.
--- "5 Min", "2 Hr"
+-- "5 Min", "2 Hr", "3 Days"
 function ns.Ago(seconds)
     if seconds < 90 then return SECONDS_ABBR:format(math.max(1, math.floor(seconds))) end
     if seconds < 5400 then return MINUTES_ABBR:format(math.floor(seconds / 60 + 0.5)) end
-    return HOURS_ABBR:format(math.floor(seconds / 3600 + 0.5))
+    -- Days only for what was a day and a half ago or more: a character last played.
+    if seconds < 129600 or type(DAYS_ABBR) ~= "string" then
+        return HOURS_ABBR:format(math.floor(seconds / 3600 + 0.5))
+    end
+    return DAYS_ABBR:format(math.floor(seconds / 86400 + 0.5))
 end
 
 -- A wait as one would say it: "15 Sec" (to the nearest five), "7 Min".

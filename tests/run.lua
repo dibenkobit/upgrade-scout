@@ -10,7 +10,8 @@ local names = {
     "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
-    "buy", "buy_gone", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
+    "buy", "buy_gone", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
+    "roster", "roster_order", "alt", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_it",
 }
 
@@ -58,6 +59,19 @@ local function LoadAddon()
         end
     end
     W.AddOnLoaded("UpgradeScout")
+end
+
+-- The character being played logs out and another one of the account logs in: a new session
+-- of the addon, with the account's saved variables as the last one left them.
+--   player, equipped   as W.player and W.equipped
+local function Relog(player, equipped)
+    W.Logout()
+    W.Login(player, equipped)
+    ns = {}
+    LoadAddon()
+    -- The addon writes the character down a moment after it comes into the world.
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
 end
 
 local function Offer(name)
@@ -1060,7 +1074,7 @@ function scenarios.ui()
     eq(#dropdown.radios, 2, "and offers only the scales Pawn shows for this character")
     W.RunUntil(function() return W.AH.ready end, 5)
     dropdown:Pick(2)
-    eq(ns.db.scale, "S2", "choice saved")
+    eq(ns.Roster.Me().scale, "S2", "choice saved")
     eq(ns.Scanner.state, "browse", "rescans")
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 120)
     W.Run(0.3)
@@ -1068,7 +1082,7 @@ function scenarios.ui()
     eq(OfferCount(), 0, "nothing scores on a scale that values none of it")
 
     -- Scrolling a long list
-    ns.db.scale = "S1"
+    ns.Roster.Me().scale = "S1"
     for i = 1, 40 do
         W.AddItem({ id = 900 + i, name = "Legs " .. i, equipLoc = "INVTYPE_LEGS", subClassID = 3, value = i, level = 5 })
         W.AddAuction(900 + i, i * i)     -- i copper per point: weaker legs are cheaper per point
@@ -1904,7 +1918,7 @@ function scenarios.supplies_ui()
     local scannedAt = S.suppliesAt
     frame.ScaleDropdown:Pick(2)
     W.Run(0.3)
-    eq(ns.db.scale, "S2", "the choice is saved"); eq(S.state, "idle", "nothing is scanned"); eq(S.suppliesAt, scannedAt, "the list is the same scan's")
+    eq(ns.Roster.Me().scale, "S2", "the choice is saved"); eq(S.state, "idle", "nothing is scanned"); eq(S.suppliesAt, scannedAt, "the list is the same scan's")
     eq(Listed(), "[POTIONS 1 of 3], Greater Healing Potion, [ELIXIRS], Elixir of Wisdom, "
         .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite",
         "on a scale for Intellect its elixir is the one of use")
@@ -1917,7 +1931,7 @@ function scenarios.supplies_ui()
     W.player.mana = nil
     frame.ScaleDropdown:Pick(1)
     W.Run(0.3)
-    eq(ns.db.scale, "S1", "back on the first scale"); check(Row("Elixir of Agility") ~= nil, "and to its elixirs")
+    eq(ns.Roster.Me().scale, "S1", "back on the first scale"); check(Row("Elixir of Agility") ~= nil, "and to its elixirs")
 
     -- Buy: first the price list is read, then the box asks how many.
     eq(box:IsShown(), false, "no box before a purchase")
@@ -2001,6 +2015,423 @@ function scenarios.supplies_ui()
     lib:SetSelected("UpgradeScoutSupplies")
     W.Run(0.3)
     check(Row("Greater Healing Potion") ~= nil, "the Consumables tab still has its list")
+end
+
+---------------------------------------------------------------------------
+-- Lists for another character of the account
+---------------------------------------------------------------------------
+-- Tooltip lines as C_TooltipInfo gives them: the item's name, then these texts.
+local function Lines(...)
+    local lines = { { leftText = "Some Item" } }
+    for i = 1, select("#", ...) do lines[#lines + 1] = { leftText = (select(i, ...)) } end
+    return lines
+end
+
+-- The card of the character being played, and what a card says an item's owner must be.
+function scenarios.roster()
+    StandardWorld()
+    W.player.last = "Mainsson"              -- Forever gives a character a surname
+    -- Learned: cloth, leather, mail, shields; one-handed swords and axes.
+    W.player.spells = { [9078] = true, [9077] = true, [8737] = true, [9116] = true, [201] = true, [196] = true }
+    W.player.professions = { { "Mining", 75 }, { "Engineering", 150 } }
+    UpgradeScoutCharDB = { scale = "S2" }   -- the scale as earlier versions saved it
+    LoadAddon()
+    local R = ns.Roster
+
+    local me = R.Me()
+    eq(me.key, "Tester Mainsson", "the card is filed under the name Pawn uses: name and surname")
+    eq(me.name, "Tester", "shown by the first name"); eq(me.class, "WARRIOR", "its class"); eq(me.level, 10, "its level")
+    eq(UpgradeScoutDB.chars["Tester Mainsson"], me, "kept for the whole account")
+    eq(me.scale, "S2", "the scale chosen in an earlier version moves to the card")
+    eq(ns.db.scale, nil, "and out of the character's own settings")
+    eq(ns.Pawn.CurrentScale().name, "S2", "it is still the scale in use")
+    eq(me.gear, nil, "nothing is written down before the character is in the world")
+
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    eq(me.gear[5], W.Link(100), "what it wears"); eq(me.gear[16], W.Link(102), "in every slot"); eq(me.gear[1], nil, "an empty slot is empty")
+    eq(me.weapons[7], true, "one-handed swords are learned"); eq(me.weapons[10], nil, "staves are not")
+    eq(me.armor[3], true, "mail is learned"); eq(me.armor[4], nil, "plate is not")
+    eq(me.skills.Engineering, 150, "how far a profession has got"); eq(me.skills.Mining, 75, "each of them")
+    eq(me.mana, false, "a warrior has no mana"); eq(me.dualWield, false, "and this one holds one weapon")
+    eq(me.race, "Human", "its race, as the game names it"); eq(me.realm, "Testrealm", "its realm")
+    check(type(me.seen) == "number", "and when it was written down")
+    eq(#R.List(), 1, "one character so far"); eq(R.Target(), nil, "and the lists are for it")
+
+    -- Nothing worn right after a login is the game not having the links yet; nothing worn
+    -- after the gear changed is the truth.
+    local worn = W.equipped
+    W.equipped = {}
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    eq(me.gear[5], W.Link(100), "an empty answer at login does not wipe the gear")
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1.5)
+    eq(next(me.gear), nil, "taking everything off does")
+    W.equipped = worn
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1.5)
+    eq(me.gear[11], W.Link(101), "and it is written down again when put back on")
+    -- A level gained is known from the event, even while UnitLevel is a moment behind.
+    W.Fire("PLAYER_LEVEL_UP", 11)
+    W.Run(1.5)
+    eq(me.level, 11, "a level gained")
+    -- A game that does not answer about spells leaves what was known.
+    W.player.spells = nil
+    W.Fire("SPELLS_CHANGED")
+    W.Run(1.5)
+    eq(me.weapons[7], true, "no answer about skills keeps the last one")
+    -- So does an answer in part: a warrior wears leather and mail from the start, and an
+    -- answer that has only cloth is not one to go by.
+    W.player.spells = { [9078] = true, [750] = true, [202] = true }
+    W.Fire("SPELLS_CHANGED")
+    W.Run(1.5)
+    eq(me.armor[3], true, "an answer about armor that lacks what the class starts with is not believed")
+    eq(me.armor[4], nil, "none of it")
+    eq(me.weapons[8], true, "weapons have no such check: the answer is taken"); eq(me.weapons[7], nil, "as it is")
+    -- A whole answer, with plate learned at 40.
+    W.player.spells = { [9078] = true, [9077] = true, [8737] = true, [9116] = true, [750] = true, [201] = true }
+    W.Fire("SPELLS_CHANGED")
+    W.Run(1.5)
+    eq(me.armor[4], true, "a whole answer is: plate is learned now")
+
+    -- What a class can ever learn decides for a card that has no record of what was learned.
+    local mage = { key = "M", name = "Magey", class = "MAGE", level = 30 }
+    eq(R.Wields(mage, 2, 7), true, "a mage can learn swords"); eq(R.Wields(mage, 2, 4), false, "never maces")
+    eq(R.Wields(mage, 4, 1), true, "wears cloth"); eq(R.Wields(mage, 4, 3), false, "never mail")
+    eq(R.Wields(mage, 4, 0), true, "a ring asks for no skill"); eq(R.Wields(mage, 2, 20), true, "nor does a fishing pole")
+    mage.weapons = { [10] = true, [19] = true }
+    eq(R.Wields(mage, 2, 7), false, "a record says this mage never went for swords"); eq(R.Wields(mage, 2, 19), true, "and has wands")
+    local hunter = { class = "HUNTER", level = 39 }
+    eq(R.Wields(hunter, 4, 3), false, "mail comes to a hunter at 40"); eq(R.Wields(hunter, 4, 2), true, "leather before that")
+    hunter.level = 40
+    eq(R.Wields(hunter, 4, 3), true, "at 40 it has come"); eq(R.Wields(hunter, 4, 4), false, "plate never does")
+    local warrior = { class = "WARRIOR", level = 39 }
+    eq(R.Wields(warrior, 4, 3), true, "a warrior has mail from the start"); eq(R.Wields(warrior, 4, 4), false, "and plate at 40")
+    hunter.armor = { [1] = true, [2] = true }
+    eq(R.Wields(hunter, 4, 3), false, "a hunter of 40 who never trained mail does not have it")
+    eq(R.Wields({ class = "DRUID", level = 10 }, 4, 8), true, "an idol is a druid's"); eq(R.Wields(warrior, 4, 8), false, "and nobody else's")
+
+    -- What an item's tooltip asks of its owner.
+    local druid = { class = "DRUID", className = "Druid", race = "Night Elf", level = 20, skills = { Engineering = 150 } }
+    eq(R.Allows(druid, Lines("Binds when equipped", "Requires Level 60")), true, "the level is not judged here")
+    eq(R.Allows(druid, Lines("Classes: Druid, Shaman")), true, "an item for its class")
+    eq(R.Allows(druid, Lines("Classes: Warrior, Shaman")), false, "an item for other classes")
+    eq(R.Allows(druid, Lines("|cffff2020Classes: Druid|r")), true, "colour codes are not part of the text")
+    eq(R.Allows(druid, Lines("Races: Night Elf, Tauren")), true, "an item for its race")
+    eq(R.Allows(druid, Lines("Races: Orc, Troll")), false, "an item for other races")
+    eq(R.Allows(druid, Lines("Requires Engineering (150)")), true, "a profession it has got far enough in")
+    eq(R.Allows(druid, Lines("Requires Engineering (151)")), false, "not far enough")
+    eq(R.Allows(druid, Lines("Requires Alchemy (1)")), false, "a profession it has not got")
+    eq(R.Allows(druid, Lines("Requires Argent Dawn - Revered")), false, "standing with a faction is not on a card")
+    druid.skills = nil
+    eq(R.Allows(druid, Lines("Requires Engineering (1)")), false, "professions unknown: not taken on trust")
+    druid.className = "Druidess"
+    eq(R.Allows(druid, Lines("Classes: Druidess")), true, "the class by the name the game gave the character")
+
+    -- The scales of a character that is not being played: those Pawn has switched on for
+    -- it, else those of its class, else all of them.
+    W.pawnScales[#W.pawnScales + 1] = { Name = "D1", LocalizedName = "Druid: Balance", IsVisible = false }
+    W.pawnScales[#W.pawnScales + 1] = { Name = "D2", LocalizedName = "Druid: Feral", IsVisible = false }
+    PawnCommon.Scales.D1 = { ClassID = 11, PerCharacterOptions = {} }
+    PawnCommon.Scales.D2 = { ClassID = 11, PerCharacterOptions = {} }
+    local alt = { key = "Alty-Testrealm", name = "Alty", class = "DRUID", level = 20 }
+    local function Names(scales)
+        local out = {}
+        for i = 1, #scales do out[i] = scales[i].name end
+        return table.concat(out, " ")
+    end
+    eq(Names(ns.Pawn.Scales(alt)), "D1 D2", "without Pawn's notes about the character: the scales of its class")
+    PawnCommon.Scales.D2.PerCharacterOptions["Alty-Testrealm"] = { Visible = true }
+    PawnCommon.Scales.S1.PerCharacterOptions["Alty-Testrealm"] = { Visible = false }
+    eq(Names(ns.Pawn.Scales(alt)), "D2", "with them: the scales it has switched on")
+    eq(ns.Pawn.CurrentScale(alt).name, "D2", "the first of them until one is chosen")
+    alt.scale = "D1"
+    eq(ns.Pawn.CurrentScale(alt).name, "D2", "a choice that is not among them does not count")
+    eq(Names(ns.Pawn.Scales({ key = "Nobody", class = "SHAMAN", level = 5 })), "S1 S2 S3 D1 D2", "a class without scales of its own: every scale")
+    eq(Names(ns.Pawn.Scales()), "S1 S2", "and for the character being played, as before, what Pawn shows")
+    eq(R.Short(alt, "Druid: Balance"), "Balance", "a scale's title without the class it is named after")
+    eq(R.Short(alt, "My own scale"), "My own scale", "any other title as it is")
+    eq(R.Colored(alt, "Alty"), "|cffff7c0aAlty|r", "a name in the colour of the class")
+
+    -- Pawn's list of what a class never wears.
+    eq(ns.Pawn.ClassCanUse({ Stats = { IsShield = 1 } }, alt), false, "a druid never carries a shield")
+    eq(ns.Pawn.ClassCanUse({ Stats = { IsLeather = 1 } }, alt), true, "leather is fine")
+
+    -- Time gone by: days for what was long ago.
+    eq(ns.Ago(7200), "2 Hr", "hours"); eq(ns.Ago(3 * 86400), "3 Days", "and days")
+end
+
+-- Languages that number the places in a text ("%2$d ... %1$s") are read the right way round.
+function scenarios.roster_order()
+    ITEM_MIN_SKILL = "%2$d points of %1$s needed"
+    LoadAddon()
+    local card = { class = "DRUID", level = 20, skills = { Engineering = 150 } }
+    eq(ns.Roster.Allows(card, Lines("150 points of Engineering needed")), true, "the profession and its rank, each from its place")
+    eq(ns.Roster.Allows(card, Lines("151 points of Engineering needed")), false, "a rank it has not reached")
+    eq(ns.Roster.Allows(card, Lines("1 points of Alchemy needed")), false, "a profession it has not got")
+end
+
+-- A druid of level 20: staves and daggers but no maces, cloth and leather, a leatherworker.
+local function Druid()
+    return {
+        name = "Alty", level = 20, class = "DRUID", race = "Night Elf", money = 300, mana = 800, dualWield = false,
+        spells = { [9078] = true, [9077] = true, [227] = true, [1180] = true },
+        professions = { { "Leatherworking", 120 } },
+    }
+end
+
+-- Pawn's scales as the character of this class sees them: its own are the ones shown.
+local function ScalesFor(class)
+    local druid = class == "DRUID"
+    W.pawnScales = {
+        { Name = "S1", LocalizedName = "Arms", IsVisible = not druid },
+        { Name = "S2", LocalizedName = "Protection", IsVisible = not druid },
+        { Name = "D1", LocalizedName = "Druid: Balance", IsVisible = druid },
+        { Name = "D2", LocalizedName = "Druid: Feral", IsVisible = druid },
+        { Name = "S3", LocalizedName = "Hidden", IsVisible = false },
+    }
+end
+
+-- The whole road: the druid is played once, then the warrior stands at the auction house and
+-- asks for the druid's lists.
+function scenarios.alt()
+    StandardWorld()
+    local warriorGear = W.equipped
+    local warrior = W.player
+
+    -- What the druid wears. `values`: the score on the druid's two scales.
+    W.AddItem({ id = 300, name = "Alt's Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, values = { D1 = 12, D2 = 3 }, level = 15 })
+    W.AddItem({ id = 301, name = "Alt's Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10, value = 0, values = { D1 = 15, D2 = 2 }, level = 15 })
+    W.AddItem({ id = 302, name = "Alt's Charm", equipLoc = "INVTYPE_NECK", value = 0, values = { D1 = 1, D2 = 1 }, level = 5 })
+    -- A trinket with nothing on it for Pawn to read.
+    W.AddItem({ id = 303, name = "Alt's Pebble", equipLoc = "INVTYPE_TRINKET", value = 0, level = 1, noStats = true })
+    -- For sale, of no worth to a warrior.
+    local function Sell(def, price)
+        def.value = 0
+        W.AddItem(def)
+        W.AddAuction(def.id, price)
+    end
+    Sell({ id = 310, name = "Druid Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, values = { D1 = 20, D2 = 2 }, level = 18 }, 2000)
+    Sell({ id = 311, name = "Bark Shield", equipLoc = "INVTYPE_SHIELD", subClassID = 6, values = { D1 = 50 }, level = 10, stats = { IsShield = 1 } }, 100)
+    Sell({ id = 312, name = "Elder Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10, values = { D1 = 40 }, level = 25 }, 100)
+    Sell({ id = 313, name = "Carved Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10, values = { D1 = 22, D2 = 10 }, level = 19 }, 3000)
+    Sell({ id = 314, name = "Stone Mace", equipLoc = "INVTYPE_WEAPONMAINHAND", classID = 2, subClassID = 4, values = { D1 = 30 }, level = 10 }, 100)
+    Sell({ id = 315, name = "Grove Ring", equipLoc = "INVTYPE_FINGER", values = { D1 = 6 }, level = 10, classes = "Druid" }, 500)
+    Sell({ id = 316, name = "Totem Ring", equipLoc = "INVTYPE_FINGER", values = { D1 = 9 }, level = 10, classes = "Shaman" }, 100)
+    Sell({ id = 317, name = "Tinker Goggles", equipLoc = "INVTYPE_HEAD", subClassID = 1, values = { D1 = 14 }, level = 10, skill = { "Engineering", 100 } }, 100)
+    Sell({ id = 318, name = "Hide Belt", equipLoc = "INVTYPE_WAIST", subClassID = 2, values = { D1 = 7 }, level = 10, skill = { "Leatherworking", 100 } }, 400)
+    Sell({ id = 319, name = "Dawn Cloak", equipLoc = "INVTYPE_CLOAK", subClassID = 1, values = { D1 = 8 }, level = 10, reputation = true }, 100)
+    Sell({ id = 320, name = "Plain Buckler", equipLoc = "INVTYPE_SHIELD", subClassID = 6, values = { D1 = 45 }, level = 10 }, 100)
+    -- Consumables.
+    local function Stock(def, price)
+        def.classID, def.quality, def.value = 0, 1, 0
+        W.AddItem(def)
+        W.AddAuction(def.id, price, { quantity = 10 })
+    end
+    Stock({ id = 400, name = "Mana Draught", subClassID = 1, level = 15, stack = 5, use = "Restores 300 to 400 mana." }, 50)
+    Stock({ id = 401, name = "Thick Bandage", subClassID = 7, level = 1, stack = 20, use = "Heals 301 damage over 7 sec.", skill = { "First Aid", 115 } }, 20)
+    Stock({ id = 402, name = "Leather Salve", subClassID = 8, level = 1, stack = 20, use = "Softens a hide.", skill = { "Leatherworking", 100 } }, 30)
+    Stock({ id = 403, name = "Elder Potion", subClassID = 1, level = 25, stack = 5, use = "Restores 700 to 900 health." }, 90)
+    Stock({ id = 404, name = "Young Potion", subClassID = 1, level = 18, stack = 5, use = "Restores 280 to 360 health." }, 40)
+    local function Facts()
+        ns.SupplyData.stats = {}
+        ns.SupplyData.restores = { [400] = "M", [403] = "H", [404] = "H" }
+    end
+    W.pawnWeights.D1 = { Intellect = 1 }
+    W.pawnWeights.D2 = { Agility = 1 }
+    PawnCommon.Scales.D1 = { ClassID = 11, PerCharacterOptions = { ["Alty-Testrealm"] = { Visible = true } } }
+    PawnCommon.Scales.D2 = { ClassID = 11, PerCharacterOptions = { ["Alty-Testrealm"] = { Visible = true } } }
+
+    -- The druid is played.
+    W.Login(Druid(), { [5] = W.Link(300), [13] = W.Link(303), [16] = W.Link(301) })
+    ScalesFor("DRUID")
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local card = UpgradeScoutDB.chars["Alty-Testrealm"]
+    check(card ~= nil, "the druid is written down, under the name Pawn files it by")
+    eq(card.class, "DRUID", "its class"); eq(card.level, 20, "its level"); eq(card.mana, true, "that it has mana")
+    eq(card.gear[5], W.Link(300), "its chest"); eq(card.gear[16], W.Link(301), "its staff")
+    eq(card.weapons[10], true, "staves learned"); eq(card.weapons[4], nil, "maces not")
+    eq(card.skills.Leatherworking, 120, "its profession")
+    eq(ns.Roster.Target(), nil, "its own lists are its own")
+    -- It puts on a necklace and logs out at once: the logout is the last word.
+    W.equipped[2] = W.Link(302)
+    ScalesFor("WARRIOR")
+    Relog(warrior, warriorGear)
+    Facts()
+    card = UpgradeScoutDB.chars["Alty-Testrealm"]
+    eq(card.gear[2], W.Link(302), "what the druid wore when it logged out")
+    eq(#ns.Roster.List(), 2, "the warrior knows of two characters"); eq(ns.Roster.List()[1].name, "Tester", "itself first")
+    eq(ns.Roster.Target(), nil, "the lists are the warrior's own until asked otherwise")
+
+    -- The warrior at the auction house.
+    W.OpenAuctionHouse()
+    local frame = UpgradeScoutFrame
+    local S = ns.Scanner
+    local lib = LibStub("LibAHTab-1-0")
+    lib:SetSelected("UpgradeScout")
+    local dropdown, list = frame.ScaleDropdown, frame.List
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    -- The row of the item of this name, gear or consumable.
+    local function Row(name)
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            local entry = w._shown and w._kind == "Button" and w.entry or nil
+            if entry and (entry.offer or entry.supply).name == name then return w end
+        end
+    end
+    local function Said(words)
+        for _, text in ipairs(W.texts) do
+            local said = text:IsVisible() and text:GetText()
+            if said and said:find(words, 1, true) then return said end
+        end
+    end
+    local function Tooltip(tooltip)
+        local seen = {}
+        for _, line in ipairs(tooltip._lines or {}) do seen[#seen + 1] = line.text end
+        return table.concat(seen, " | ")
+    end
+    local ALTY = "|cffff7c0aAlty|r"
+
+    -- The scale field lists the druid's scales under the warrior's own.
+    eq(#dropdown.radios, 4, "two scales of the warrior and two of the druid")
+    eq(dropdown.radios[1].text, "Arms", "its own as before")
+    eq(dropdown.radios[3].text, ALTY .. ": Balance", "the druid's by its name, in the colour of its class")
+    eq(dropdown.radios[4].text, ALTY .. ": Feral", "each of them")
+    eq(dropdown.dividers, 1, "a line between the characters"); eq(dropdown.dividersAfter[1], 2, "after the warrior's own")
+    eq(dropdown:GetText(), "Arms", "the field shows the warrior's scale")
+    check(list.Hint:GetText():find("you can equip", 1, true) ~= nil, "and the list is to be the warrior's")
+
+    -- Choosing the druid. Nothing was scanned, so nothing is scanned by itself. The client
+    -- does not have the druid's chest at hand.
+    W.items["300:0"].cached = false
+    W.RunUntil(function() return W.AH.ready end, 5)
+    dropdown:Pick(3)
+    eq(ns.Roster.Target(), card, "the lists are for the druid now")
+    eq(dropdown:GetText(), ALTY .. ": Balance", "and the field says so")
+    eq(S.state, "idle", "no scan by itself")
+    check(list.Hint:GetText():find(ALTY .. " can equip", 1, true) ~= nil and list.Hint:GetText():find("\"Druid: Balance\"", 1, true) ~= nil,
+        "the list says whose it will be: " .. list.Hint:GetText())
+    dropdown._tooltip(GameTooltip)
+    check(Tooltip(GameTooltip):find(ALTY .. ", level 20. Seen ", 1, true) ~= nil, "the field's tooltip says how old the druid's card is: " .. Tooltip(GameTooltip))
+
+    frame.ScanButton:Click()
+    eq(S.state, "browse", "the scan is the button's")
+    check(S.ctx.pending ~= nil and S.ctx.pending[300], "the chest is on its way from the server")
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    W.Run(1)
+    eq(S.ctx.who, card, "the scan was for the druid"); eq(S.ctx.level, 20, "at its level"); eq(S.ctx.class, "DRUID", "and class")
+    eq(S.ctx.pending, nil, "the chest came")
+    -- Pawn gives nothing for the pebble. It is asked a few more times, in case it read the
+    -- tooltip too early, and then left at that.
+    eq(S.ctx.unread, 1, "the item Pawn cannot read is counted"); near(S.ctx.equipped[13].value, 0, "and scores nothing")
+    W.Run(5)
+    local settled = S.ctx
+    W.Run(5)
+    eq(S.ctx, settled, "the gear is not read over and over for it")
+    near(S.ctx.equipped[5].value, 12, "and is scored on the druid's scale")
+    check(Offer("Druid Jerkin") ~= nil, "leather the druid can wear")
+    check(Offer("Carved Staff") ~= nil, "a staff above the warrior's level and within the druid's")
+    check(Offer("Grove Ring") ~= nil, "a ring for druids only")
+    check(Offer("Hide Belt") ~= nil, "a belt for a leatherworker")
+    eq(Offer("Elder Staff"), nil, "above the druid's level")
+    eq(Offer("Stone Mace"), nil, "a kind of weapon the druid has not learned")
+    eq(Offer("Bark Shield"), nil, "what Pawn says a druid never carries")
+    eq(Offer("Plain Buckler"), nil, "armor the druid has not learned")
+    eq(Offer("Totem Ring"), nil, "a ring for another class")
+    eq(Offer("Tinker Goggles"), nil, "a profession the druid has not got")
+    eq(Offer("Dawn Cloak"), nil, "standing with a faction is not known")
+    eq(Offer("Good Chest"), nil, "the warrior's upgrades are not the druid's")
+    eq(OfferCount(), 4, "four upgrades for the druid")
+    near(ns.Compare.Place(Offer("Druid Jerkin"), S.ctx)[1].delta, 8, "against the druid's chest")
+    near(ns.Compare.Place(Offer("Carved Staff"), S.ctx)[1].delta, 7, "against the druid's staff")
+    check(Said(ALTY .. ": 4 upgrades in 4 slots.") ~= nil, "the status line names the druid: " .. tostring(Said("upgrades in")))
+
+    -- A row's tooltip: whose list, what is worn there, and the worn item beside it.
+    local jerkin = Row("Druid Jerkin")
+    check(jerkin ~= nil, "the jerkin is in the list")
+    jerkin:GetScript("OnEnter")(jerkin)
+    local tip = Tooltip(GameTooltip)
+    check(tip:find("For " .. ALTY, 1, true) ~= nil, "the tooltip says whom the item is for: " .. tip)
+    check(tip:find("Pawn score: 20, worn: 12 (+8)", 1, true) ~= nil, "what is worn in the slot, not 'yours'")
+    check(tip:find("Replaces: " .. W.Link(300), 1, true) ~= nil, "and which item it replaces")
+    eq(W.compared, nil, "the game's own comparison would show the warrior's chest")
+    eq(ShoppingTooltip1:IsShown(), true, "the druid's chest is shown beside it instead")
+    eq(ShoppingTooltip1._lines[1].text, "Alt's Jerkin", "in the game's second tooltip")
+    jerkin:GetScript("OnLeave")(jerkin)
+    eq(ShoppingTooltip1:IsShown(), false, "and goes with the tooltip")
+
+    -- Consumables for the druid: its level, its mana, its profession.
+    lib:SetSelected("UpgradeScoutSupplies")
+    check(list.Hint:GetText():find(ALTY .. " can use", 1, true) ~= nil, "the other view is the druid's too: " .. list.Hint:GetText())
+    W.RunUntil(function() return W.AH.ready end, 5)
+    frame.ScanButton:Click()
+    W.RunUntil(function() return S.state == "idle" end, 120)
+    W.Run(0.3)
+    check(Supply("Mana Draught") ~= nil, "a potion above the warrior's level")
+    check(Supply("Young Potion") ~= nil, "and another")
+    check(Supply("Leather Salve") ~= nil, "what asks for the druid's profession")
+    eq(Supply("Thick Bandage"), nil, "what asks for a profession it has not got")
+    eq(Supply("Elder Potion"), nil, "what is above its level")
+    check(Row("Mana Draught") ~= nil, "mana is of use to a druid: the potion is in the list")
+    check(Said(ALTY .. ": 3 consumables in ") ~= nil, "and the status line names the druid: " .. tostring(Said("consumables in")))
+
+    -- Back to the warrior: both lists were the druid's and go; the view that had one scans.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    dropdown:Pick(1)
+    eq(ns.Roster.Target(), nil, "the lists are the warrior's again")
+    eq(dropdown:GetText(), "Arms", "the field shows its scale")
+    eq(OfferCount(), 0, "the druid's upgrades are gone"); eq(S.finishedAt, nil, "with their scan")
+    eq(S.state, "browse", "the Consumables view scans again"); eq(S.mode, "supplies", "for consumables")
+    W.RunUntil(function() return S.state == "idle" end, 120)
+    W.Run(0.3)
+    eq(Supply("Mana Draught"), nil, "a level 10 warrior is too young for the potion")
+    eq(Supply("Leather Salve"), nil, "and no leatherworker")
+    lib:SetSelected("UpgradeScout")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    frame.ScanButton:Click()
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    W.Run(0.3)
+    CheckStandardOffers("the warrior's own scan")
+
+    -- The druid's other scale: chosen from here, remembered with the druid, scanned at once.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    dropdown:Pick(4)
+    eq(card.scale, "D2", "the druid's scale is kept on its card")
+    eq(S.state, "browse", "the view had a list: it is made again")
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    W.Run(0.3)
+    check(Offer("Carved Staff") ~= nil, "on the other scale the staff is still better")
+    eq(Offer("Druid Jerkin"), nil, "and the jerkin is not")
+    eq(OfferCount(), 1, "one upgrade")
+    -- And back to the first, for the same character: a change of scale.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    dropdown:Pick(3)
+    eq(card.scale, "D1", "the choice follows"); eq(ns.Roster.Target(), card, "the druid stays")
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    W.Run(0.3)
+    eq(OfferCount(), 4, "four again")
+    eq(ns.Roster.Me().scale, "S1", "the warrior's own scale is still the one it went back to")
+
+    -- The druid logs in again: the scale chosen for it from afar is its scale.
+    W.CloseAuctionHouse()
+    ScalesFor("DRUID")
+    Relog(Druid(), { [5] = W.Link(300), [16] = W.Link(301) })
+    eq(ns.Roster.Me().key, "Alty-Testrealm", "the druid is played"); eq(ns.Roster.Target(), nil, "and the lists are its own")
+    eq(ns.Pawn.CurrentScale().name, "D1", "on the scale chosen for it while the warrior was played")
+    eq(#ns.Roster.List(), 2, "it knows of the warrior")
+    -- A character that is gone is taken out of the list by name.
+    SlashCmdList["UPGRADESCOUT"]("forget Nobody")
+    check(W.printed[#W.printed]:find("Remembered: Tester", 1, true) ~= nil, "an unknown name gets the names there are: " .. W.printed[#W.printed])
+    SlashCmdList["UPGRADESCOUT"]("forget Tester")
+    check(W.printed[#W.printed]:find("Tester is forgotten", 1, true) ~= nil, "a known one is forgotten: " .. W.printed[#W.printed])
+    eq(#ns.Roster.List(), 1, "and is out of the list"); eq(UpgradeScoutDB.chars["Tester-Testrealm"], nil, "and out of the saved file")
+    SlashCmdList["UPGRADESCOUT"]("forget Alty")
+    eq(#ns.Roster.List(), 1, "the character being played cannot be forgotten")
 end
 
 function scenarios.pawn_missing()
