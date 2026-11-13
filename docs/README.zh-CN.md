@@ -6,7 +6,7 @@
 
 **[在 CurseForge 下载](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-[English](../README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md) · 简体中文 · [繁體中文](README.zh-TW.md)
+[English](../README.md) · 简体中文 · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md) · [繁體中文](README.zh-TW.md)
 
 打开拍卖行，点击**装备提升**标签页，然后按**扫描**。你会得到一份比你身上更好的装备列表，按部位排列，并标有价格。在想要的装备上按**购买**即可。
 
@@ -19,7 +19,7 @@
 - **消耗品**标签页列出你能使用的药水、药剂、食物和绷带，对你的角色最有用的排在前面。
 - 两个标签页也都能为你的其他角色使用。
 
-支持所有职业和等级。支持简体中文、繁体中文、英语、俄语、德语、法语、西班牙语、巴西葡萄牙语和韩语。
+支持所有职业和等级。支持英语、简体中文、德语、俄语、法语、西班牙语、巴西葡萄牙语、韩语和繁体中文。
 
 ## 安装
 

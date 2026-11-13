@@ -6,7 +6,7 @@
 
 **[Download on CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-English · [Русский](docs/README.ru.md) · [Deutsch](docs/README.de.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md) · [Português](docs/README.pt-BR.md) · [한국어](docs/README.ko.md) · [简体中文](docs/README.zh-CN.md) · [繁體中文](docs/README.zh-TW.md)
+English · [简体中文](docs/README.zh-CN.md) · [Deutsch](docs/README.de.md) · [Русский](docs/README.ru.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md) · [Português](docs/README.pt-BR.md) · [한국어](docs/README.ko.md) · [繁體中文](docs/README.zh-TW.md)
 
 Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list of gear that is
 better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
@@ -22,8 +22,8 @@ better than what you wear, slot by slot, with prices. Press **Buy** on the one y
   your character first.
 - Both tabs work for your other characters too.
 
-Any class, any level. English, Russian, German, French, Spanish, Brazilian Portuguese, Korean,
-Simplified Chinese and Traditional Chinese.
+Any class, any level. English, Simplified Chinese, German, Russian, French, Spanish, Brazilian
+Portuguese, Korean and Traditional Chinese.
 
 ## Install
 

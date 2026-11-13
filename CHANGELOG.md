@@ -37,4 +37,4 @@ First release, for World of Warcraft Forever 1.60.1.
 - **Only what I can afford** hides what costs more than you have.
 - Buyout prices only, each checked against the real auctions.
 - **Buy** from the list. The addon asks before paying.
-- English, Russian, German, French, Spanish, Brazilian Portuguese and Simplified Chinese.
+- English, Simplified Chinese, German, Russian, French, Spanish and Brazilian Portuguese.

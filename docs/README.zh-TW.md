@@ -6,7 +6,7 @@
 
 **[在 CurseForge 下載](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-[English](../README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · 繁體中文
+[English](../README.md) · [简体中文](README.zh-CN.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md) · 繁體中文
 
 打開拍賣場，點擊**裝備提升**分頁，然後按**掃描**。你會得到一份比你身上更好的裝備列表，按部位排列，並標有價格。在想要的裝備上按**購買**即可。
 
@@ -19,7 +19,7 @@
 - **消耗品**分頁列出你能使用的藥水、藥劑、食物和繃帶，對你的角色最有用的排在前面。
 - 兩個分頁也都能為你的其他角色使用。
 
-支援所有職業和等級。支援繁體中文、簡體中文、英語、俄語、德語、法語、西班牙語、巴西葡萄牙語和韓語。
+支援所有職業和等級。支援英語、簡體中文、德語、俄語、法語、西班牙語、巴西葡萄牙語、韓語和繁體中文。
 
 ## 安裝
 
