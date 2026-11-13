@@ -22,6 +22,7 @@ W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dua
 ---------------------------------------------------------------------------
 -- def: { id, suffix, name, level, equipLoc, classID, subClassID, quality, value, value2,
 --        red, unique, effects, noStats, uncached, classCant,
+--        never = true (a variant the client never gets to know: no name, no stats, ever),
 --        values = { [scale] = score } for scales other than the two the tests began with,
 --        stats = { IsMail = 1, ... } as Pawn reads them off the tooltip,
 --        classes = "Druid, Shaman" (the classes it is for), races = "Orc, Troll",
@@ -32,7 +33,7 @@ function W.AddItem(def)
     def.classID = def.classID or 4
     def.subClassID = def.subClassID or 0
     def.level = def.level or 1
-    def.cached = not def.uncached
+    def.cached = not def.uncached and not def.never
     W.items[def.id .. ":" .. def.suffix] = def
     return def
 end
@@ -968,7 +969,7 @@ function C_Item.GetItemSubClassInfo(classID, subClassID)
 end
 function C_Item.IsItemDataCachedByID(id)
     for _, item in pairs(W.items) do
-        if item.id == id and not item.cached then return false end
+        if item.id == id and not item.cached and not item.never then return false end
     end
     return true
 end
@@ -976,7 +977,7 @@ function C_Item.RequestLoadItemDataByID(id)
     C_Timer.After(W.loadDelay or 0.5, function()
         if W.neverLoad and W.neverLoad[id] then return end
         for _, item in pairs(W.items) do
-            if item.id == id then item.cached = true end
+            if item.id == id and not item.never then item.cached = true end
         end
         W.Fire("ITEM_DATA_LOAD_RESULT", id, true)
     end)
@@ -995,6 +996,7 @@ local A = {
     itemPageSize = 50,      -- auctions per page of an item search
     honorLevelSort = true,
     bucketBySuffix = true,
+    unsortedItems = false,  -- an item search answers in the order the auctions were posted
     sampleLinks = true,
     answerBrowse = true,
     ready = true,
@@ -1008,8 +1010,9 @@ function W.AddAuction(id, buyout, opts)
     -- bid: what a bidder pays. A lot without a buyout always has one; a lot with a buyout has
     -- one only if the seller set it.
     -- quantity: for things sold by the piece, how many pieces the seller put up at this price.
+    -- noLink: the auction house says what the row is and not what this lot holds.
     local auction = { auctionID = A.nextID, id = id, suffix = opts.suffix or 0, buyout = buyout, own = opts.own,
-        bid = opts.bid or (buyout == 0 and 1 or nil), quantity = opts.quantity or 1 }
+        bid = opts.bid or (buyout == 0 and 1 or nil), quantity = opts.quantity or 1, noLink = opts.noLink }
     A.nextID = A.nextID + 1
     A.auctions[#A.auctions + 1] = auction
     return auction
@@ -1043,7 +1046,9 @@ local function InBucket(key)
         local auction = A.auctions[i]
         if KeyText(KeyOf(auction)) == KeyText(key) then out[#out + 1] = auction end
     end
-    table.sort(out, function(a, b) return a.buyout < b.buyout end)
+    if not A.unsortedItems then
+        table.sort(out, function(a, b) return a.buyout < b.buyout end)
+    end
     return out
 end
 
@@ -1062,7 +1067,12 @@ function C_AuctionHouse.SendBrowseQuery(query)
     for i = 1, #A.auctions do
         local auction = A.auctions[i]
         local item = W.items[auction.id .. ":" .. auction.suffix]
-        if classes[item.classID] then
+        -- A row is found by the name of the item itself: "Belt" finds the row that holds the
+        -- Belt of the Bear, "Bear" finds nothing.
+        local base = W.items[auction.id .. ":0"] or item
+        local named = (query.searchString or "") == ""
+            or base.name:lower():find(query.searchString:lower(), 1, true) ~= nil
+        if classes[item.classID] and named then
             local key = KeyOf(auction)
             local text = KeyText(key)
             local row = seen[text]
@@ -1262,7 +1272,7 @@ function C_AuctionHouse.GetItemSearchResultInfo(key, index)
     if not auction then return nil end
     return {
         itemKey = key,
-        itemLink = W.Link(auction.id, auction.suffix),
+        itemLink = not auction.noLink and W.Link(auction.id, auction.suffix) or nil,
         auctionID = auction.auctionID,
         buyoutAmount = auction.buyout > 0 and auction.buyout or nil,
         minBid = auction.bid,

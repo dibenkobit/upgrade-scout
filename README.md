@@ -74,6 +74,13 @@ as an alternative:
 - **A slot folds away**: click its heading and one line is left, with the number of upgrades in it;
   another click brings it back. Folded slots are remembered for the character.
 - A yellow `*` after a name means the item has effects Pawn cannot score (procs, on-use effects).
+- **One name, several items**: the auction house keeps every variant of an item ("of the Tiger",
+  "of the Whale") in one list, and the game's Buy and Sell tabs show that list with one lowest
+  price. The addon prices each variant on its own. When the same list has cheaper auctions, the
+  row's tooltip and the question before buying say how many and from what price, and that they are
+  other items with other stats.
+- A red `?` after a name means some of those cheaper auctions could not be read: the auction house
+  did not say what they hold, so the price shown may not be the lowest for the item.
 - Blocks are equipment slots, so **Main Hand** holds everything that goes into that hand: one-hand,
   main-hand and two-hand weapons together. Each weapon row says which it is in grey after the name,
   in the same words as the item tooltip.
@@ -188,6 +195,9 @@ Safety nets, because none of this was assumed about the server:
 - If rows turn out to have buyouts below their own "lowest price", that number is no longer used to
   skip anything.
 - Three item searches in a row without an answer end the price checks instead of waiting out the rest.
+- An item search stops at its first page only when that page proves the price: its auctions come
+  cheapest first and every one of them is the item the row was taken to hold. Otherwise the row is
+  read to the end.
 
 The scan for consumables is the first two steps with another question: one search for the
 Consumables category, then every row's tooltip is read. There is no price check, because
@@ -197,6 +207,13 @@ the Pawn scale in use.
 The auctions are read only when you press **Buy**.
 
 `/upscout stats` prints what the last scan sent and how long each step took.
+
+`/upscout probe Name` (at the auction house) writes down what the auction house answers about the
+gear of that name: every auction of the rows it finds, with buyout, bid, item link and Pawn score,
+before any of the scan's judgement. A summary goes to the chat and the whole record into
+`UpgradeScoutDB.probe` in the account's saved variables after `/reload`. It is there to check a
+price that looks wrong. An item can be put into the command with Shift-click instead of a name.
+No sellers' names are recorded.
 
 ## Development
 

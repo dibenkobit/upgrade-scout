@@ -10,7 +10,8 @@ local names = {
     "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
-    "buy", "buy_gone", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
+    "buy", "buy_gone", "row_cheaper", "row_unread", "row_pages", "probe",
+    "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
     "roster", "roster_order", "alt", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_it",
 }
@@ -801,7 +802,7 @@ function scenarios.buy()
     eq(#W.popups, 1, "asks for confirmation")
     local box = W.popups[1]
     eq(box.which, "UPGRADESCOUT_BUY", "our dialog")
-    eq(StaticPopupDialogs.UPGRADESCOUT_BUY.text, "Buyout auction for:", "worded as the game's own buyout question")
+    eq(box.arg1, "Buyout auction for:", "worded as the game's own buyout question, and nothing more")
     eq(box.data.link, good.link, "shows the item")
     eq(box.dialog.MoneyFrame._amount, 4000, "and the price as coins")
     eq(#W.AH.calls.bids, 0, "nothing bought before the player agrees")
@@ -850,6 +851,280 @@ function scenarios.buy_gone()
     ns.Scanner.Buy(Offer("Good Chest"))
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 60)
     eq(#W.popups, 0, "no dialog without an answer")
+end
+
+---------------------------------------------------------------------------
+-- A row of the auction house is one name with one list of prices, and the game's own tabs
+-- show it so. What is sold in it need not be one thing: the same boots come with other stats.
+-- The report these scenarios are for: boots bought for 20 silver, and then the game's Sell tab
+-- listing sixty-two "of them" from 4 silver.
+-- A level 10 warrior in Old Boots (score 15). Every variant of Soldier's Boots is in one row.
+local TIGER, BEAR, WHALE = "Soldier's Boots of the Tiger", "Soldier's Boots of the Bear", "Soldier's Boots of the Whale"
+local function BootsWorld()
+    StandardWorld()
+    W.AH.bucketBySuffix = false
+    W.AddItem({ id = 510, name = "Old Boots", equipLoc = "INVTYPE_FEET", subClassID = 3, value = 15, level = 5 })
+    W.equipped[8] = W.Link(510)
+    local function Boots(suffix, name, value, never)
+        W.AddItem({ id = 600, suffix = suffix, name = name, equipLoc = "INVTYPE_FEET", subClassID = 3, value = value, level = 8, never = never })
+    end
+    Boots(0, "Soldier's Boots", 3)
+    Boots(5, TIGER, 21)
+    Boots(6, WHALE, 2)
+    Boots(7, BEAR, 17)
+    Boots(9, "Soldier's Boots of Nothing", 30, true)    -- the client never gets to know this one
+end
+
+-- The tab's row for the offer of this name.
+local function ListRow(name)
+    for _, box in ipairs(W.frames) do
+        if box._template == "WowScrollBoxList" then
+            for _, w in ipairs(box:GetFrames()) do
+                local entry = w._shown and w._kind == "Button" and w.entry or nil
+                if entry and entry.offer and entry.offer.name == name then return w end
+            end
+        end
+    end
+end
+
+-- What the tooltip of that row says.
+local function RowTip(name)
+    local row = assert(ListRow(name), "a row for " .. name)
+    row:GetScript("OnEnter")(row)
+    local seen = {}
+    for _, line in ipairs(GameTooltip._lines) do seen[#seen + 1] = line.text end
+    return table.concat(seen, " | ")
+end
+
+-- The question the addon asks before it pays for the offer of this name.
+local function BuyQuestion(name)
+    StaticPopup_Hide("UPGRADESCOUT_BUY")
+    W.RunUntil(function() return ns.Scanner.state == "idle" and W.AH.ready end, 30)
+    local count = #W.popups
+    ns.Scanner.Buy(Offer(name))
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
+    eq(#W.popups, count + 1, "asks before buying " .. name)
+    return W.popups[#W.popups]
+end
+
+function scenarios.row_cheaper()
+    BootsWorld()
+    for i = 1, 40 do W.AddAuction(600, 409 + i % 2, { suffix = 6 }) end     -- forty for the whale, from 4s 9c
+    W.AddAuction(600, 900, { suffix = 7 })
+    W.AddAuction(600, 2000, { suffix = 5 })
+    W.AddAuction(600, 2200, { suffix = 5 })
+    LoadAddon()
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    local tiger, bear = Offer(TIGER), Offer(BEAR)
+    check(tiger ~= nil and bear ~= nil, "the two variants that are upgrades are offers")
+    eq(Offer(WHALE), nil, "the cheap variant is no upgrade")
+    eq(tiger.buyout, 2000, "the cheapest of the tiger boots is 20 silver"); eq(tiger.count, 2, "two of them")
+    eq(tiger.cheaper, 41, "and the offer knows that 41 auctions of its row cost less")
+    eq(tiger.cheaperFrom, 409, "from 4 silver 9 copper")
+    eq(tiger.unread, nil, "every one of them was read")
+    eq(bear.cheaper, 40, "the bear boots: the forty for the whale"); eq(bear.cheaperFrom, 409, "from the same price")
+    eq(Offer("Good Chest").cheaper, nil, "a row that holds one item has nothing to say")
+    eq(ns.Scanner.stats.unread, 0, "statistics: nothing unread")
+    check(ns.Scanner.StatsText():find("could not be read", 1, true) == nil, "and nothing about it in their text")
+
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 60)
+    W.Run(0.3)
+    local row = ListRow(TIGER)
+    check(row ~= nil, "the tiger boots are in the list")
+    check(row.Name:GetText():find("?", 1, true) == nil, "no question mark at a price that is known: " .. row.Name:GetText())
+    local tip = RowTip(TIGER)
+    check(tip:find("41 in that list cost less, from 4s 9c, but they are other items", 1, true) ~= nil,
+        "the tooltip says what the game's own list would show, and that it is not this item: " .. tip)
+    check(RowTip("Good Chest"):find("cost less", 1, true) == nil, "nothing of the kind for a row with one item")
+
+    -- Money is about to be paid: the question says it too.
+    local box = BuyQuestion(TIGER)
+    check(box.arg1:find("Buyout auction for:", 1, true) == 1, "the game's own question first: " .. box.arg1)
+    check(box.arg1:find("41 in that list cost less, from 4s 9c", 1, true) ~= nil, "then the cheaper auctions of the row: " .. box.arg1)
+    eq(box.dialog.MoneyFrame._amount, 2000, "the price is the tiger boots' own")
+    eq(BuyQuestion("Good Chest").arg1, "Buyout auction for:", "an item alone in its row is asked about as before")
+end
+
+function scenarios.row_unread()
+    BootsWorld()
+    W.AddAuction(600, 300, { suffix = 6 })                      -- read, and something else
+    W.AddAuction(600, 409, { suffix = 5, noLink = true })       -- the auction house does not say what it is
+    W.AddAuction(600, 410, { suffix = 9 })                      -- it says, and the client never loads it
+    W.AddAuction(600, 2000, { suffix = 5 })
+    W.AddAuction(600, 2100, { suffix = 5 })
+    W.AddAuction(600, 2500, { suffix = 5, noLink = true })      -- dearer: no worry for the buyer
+    LoadAddon()
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    local tiger = Offer(TIGER)
+    check(tiger ~= nil, "the tiger boots that could be read are an offer")
+    eq(tiger.buyout, 2000, "at the lowest price that is known to be theirs"); eq(tiger.count, 2, "two of them")
+    eq(tiger.unread, 2, "two cheaper auctions of the row could be the same boots"); eq(tiger.unreadFrom, 409, "from 4 silver 9 copper")
+    eq(tiger.cheaper, 1, "one cheaper auction is known to be something else"); eq(tiger.cheaperFrom, 300, "at 3 silver")
+    eq(ns.Scanner.stats.unread, 3, "statistics: three auctions unread, the dear one too")
+    check(ns.Scanner.StatsText():find("Auctions that could not be read: 3.", 1, true) ~= nil, "and their text says so: " .. ns.Scanner.StatsText())
+
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 60)
+    W.Run(0.3)
+    local row = ListRow(TIGER)
+    check(row ~= nil, "the tiger boots are in the list")
+    check(row.Name:GetText():find("?|r", 1, true) ~= nil, "with a question mark at the name: " .. row.Name:GetText())
+    local tip = RowTip(TIGER)
+    check(tip:find("2 in that list cost less, from 4s 9c, and it did not say what they are: this may not be the lowest price", 1, true) ~= nil,
+        "the tooltip does not vouch for the price: " .. tip)
+    check(tip:find("1 in that list cost less, from 3s, but they are other items", 1, true) ~= nil, "and tells the known cheaper one apart: " .. tip)
+    local box = BuyQuestion(TIGER)
+    check(box.arg1:find("it did not say what they are", 1, true) ~= nil, "the question before paying says it as well: " .. box.arg1)
+end
+
+-- The reading of a row stops at its first page only when that page proves the price: the
+-- auctions in order, cheapest first, and every one of them the item the row was taken to hold.
+function scenarios.row_pages()
+    StandardWorld()
+    W.AH.bucketBySuffix = false
+    W.AH.unsortedItems = true            -- an item search answers in the order of posting
+    W.AH.itemPageSize = 4
+    W.AddItem({ id = 510, name = "Old Boots", equipLoc = "INVTYPE_FEET", subClassID = 3, value = 15, level = 5 })
+    W.equipped[8] = W.Link(510)
+    local function Item(id, suffix, name, equipLoc, value)
+        W.AddItem({ id = id, suffix = suffix, name = name, equipLoc = equipLoc, subClassID = 3, value = value, level = 8 })
+    end
+    local function Post(id, suffix, ...)
+        for _, buyout in ipairs({ ... }) do W.AddAuction(id, buyout, { suffix = suffix }) end
+    end
+    -- Two variants in one row, out of order: the boots that are an upgrade at 20 silver on the
+    -- first page, the same boots at 5 silver on the second.
+    Item(610, 0, "Rider's Boots", "INVTYPE_FEET", 21)
+    Item(610, 3, "Rider's Boots of Junk", "INVTYPE_FEET", 2)
+    Post(610, 3, 409); Post(610, 0, 2000); Post(610, 3, 410, 411); Post(610, 0, 500); Post(610, 3, 412)
+    -- Two variants in order: a first page of nothing but the poor one.
+    Item(630, 0, "Scout's Gloves", "INVTYPE_HAND", 9)
+    Item(630, 3, "Scout's Gloves of Junk", "INVTYPE_HAND", 0.5)
+    Post(630, 3, 100, 101, 102, 103); Post(630, 0, 500, 600)
+    -- One item out of order; a cheaper one is posted while the scan is under way.
+    Item(620, 0, "Common Greaves", "INVTYPE_LEGS", 9)
+    Post(620, 0, 409, 2000, 450, 460, 500)
+    -- One item in order: here the first page is enough.
+    Item(640, 0, "Plain Belt", "INVTYPE_WAIST", 5)
+    Post(640, 0, 100, 101, 102, 103, 104, 105)
+    -- The sample of each row is the plain item, as on a client whose links do not tell the
+    -- variants of an item apart by their suffix.
+    local original = C_AuctionHouse.GetItemKeySampleLink
+    C_AuctionHouse.GetItemKeySampleLink = function(key)
+        if key.itemID == 610 or key.itemID == 630 then return W.Link(key.itemID, 0) end
+        return original(key)
+    end
+    LoadAddon()
+    SetView(false, false)
+    W.OpenAuctionHouse()
+    check(ns.Scanner.Start(), "scan starts")
+    W.RunUntil(function() return ns.Scanner.state ~= "browse" end, 60)
+    W.AddAuction(620, 300)
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 600)
+
+    local boots = Offer("Rider's Boots")
+    check(boots ~= nil, "the boots are an offer")
+    eq(boots.buyout, 500, "at their lowest price, which was on the second page"); eq(boots.count, 2, "both counted")
+    eq(boots.more, nil, "the row was read to its end")
+    eq(boots.cheaper, 4, "and the four poor ones that cost less are known"); eq(boots.cheaperFrom, 409, "from their lowest price")
+    local gloves = Offer("Scout's Gloves")
+    check(gloves ~= nil, "the gloves behind a page of poor ones are found")
+    eq(gloves.buyout, 500, "at their lowest price"); eq(gloves.count, 2, "both counted")
+    local greaves = Offer("Common Greaves")
+    eq(greaves.buyout, 300, "the greaves: the one posted during the scan, on the second page")
+    eq(greaves.count, 6, "all six counted"); eq(greaves.more, nil, "read to the end")
+    local belt = Offer("Plain Belt")
+    eq(belt.buyout, 100, "the belt's price"); eq(belt.more, true, "settled by its first page: the rest was not asked for")
+end
+
+-- /upscout probe Name: what the auction house says, written down as it comes.
+function scenarios.probe()
+    BootsWorld()
+    W.AddAuction(600, 409, { suffix = 6 })
+    W.AddAuction(600, 410, { suffix = 6 })
+    W.AddAuction(600, 500, { suffix = 5, noLink = true })
+    W.AddAuction(600, 2000, { suffix = 5 })
+    W.AddAuction(600, 0, { suffix = 7, bid = 150 })             -- for bids only
+    LoadAddon()
+    local S = ns.Scanner
+    local Slash = SlashCmdList.UPGRADESCOUT
+    local function Printed(words)
+        for i = #W.printed, 1, -1 do
+            if W.printed[i]:find(words, 1, true) then return W.printed[i] end
+        end
+    end
+    Slash("probe Soldier's Boots")
+    check(W.printed[#W.printed]:find("Open the auction house first.", 1, true) ~= nil, "not without the auction house")
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    Slash("probe")
+    check(W.printed[#W.printed]:find("type /upscout probe and the name", 1, true) ~= nil, "without a name it says how to ask")
+    eq(S.state, "idle", "and does nothing")
+
+    Slash("probe Soldier's Boots")
+    eq(S.state, "browse", "the auction house is asked")
+    W.Run(0.2)
+    eq(W.AH.lastQuery.searchString, "Soldier's Boots", "for that name")
+    W.RunUntil(function() return S.state == "verify" end, 30)
+    W.Run(0.1)
+    local status
+    for _, text in ipairs(W.texts) do
+        local said = text:GetText()
+        if said and said:find("Recording auctions", 1, true) then status = said end
+    end
+    check(status ~= nil and status:find("of 1", 1, true) ~= nil, "the status line says what is going on")
+    W.RunUntil(function() return S.state == "idle" end, 60)
+
+    local probe = UpgradeScoutDB.probe
+    check(type(probe) == "table" and probe == ns.account.probe, "the record is in the account's saved file")
+    eq(probe.text, "Soldier's Boots", "what was asked"); eq(probe.scale, "S1", "and the scale the scores are on, by the name Pawn keeps it under")
+    eq(#probe.rows, 1, "one row of the auction house by that name")
+    local row = probe.rows[1]
+    eq(row.itemID, 600, "the boots' row"); eq(row.name, "Soldier's Boots", "under the name of the item itself")
+    eq(row.minPrice, 150, "the lowest price the row was listed with: here a bid"); eq(row.quantity, 5, "and how many it was said to hold")
+    eq(row.full, true, "read to the end"); eq(row.inOrder, true, "the buyouts came cheapest first")
+    eq(#row.auctions, 5, "every auction is there, the one for bids too")
+    local bid, whale, blind, tiger = row.auctions[1], row.auctions[2], row.auctions[4], row.auctions[5]
+    eq(bid.buyout, 0, "no buyout"); eq(bid.bid, 150, "its bid"); eq(bid.name, BEAR, "what it is")
+    eq(whale.buyout, 409, "the cheapest buyout"); eq(whale.name, WHALE, "what it is"); near(whale.value, 2, "its Pawn score")
+    eq(whale.link, "item:600::::::6::::", "and its link, without colour or name")
+    eq(blind.buyout, 500, "the one without a link"); eq(blind.note, "no link", "is marked so"); eq(blind.link, nil, "and has none")
+    eq(tiger.buyout, 2000, "the dearest"); near(tiger.value, 21, "scored as well")
+    for i = 1, #row.auctions do eq(row.auctions[i].owners, nil, "no sellers' names are kept") end
+    check(Printed("Soldier's Boots [600:") ~= nil, "the chat has the row")
+    check(Printed(WHALE .. ", Pawn 2 x2, 4s 9c") ~= nil, "its auctions by what they are, how many and from what price")
+    check(Printed("not read (no link) x1, 5s") ~= nil, "the unread ones too")
+    check(W.printed[#W.printed]:find("Wrote down 1 rows for \"Soldier's Boots\". Type /reload", 1, true) ~= nil,
+        "and what to do next: " .. W.printed[#W.printed])
+    eq(OfferCount(), 0, "the probe judges nothing: no offers")
+
+    -- An item put into the line with Shift-click is asked for by the name the row has.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    Slash("probe " .. W.Link(600, 5))
+    W.Run(0.2)
+    eq(W.AH.lastQuery.searchString, "Soldier's Boots", "a link is asked for by the name of the item itself")
+    W.RunUntil(function() return S.state == "idle" end, 60)
+    eq(#UpgradeScoutDB.probe.rows, 1, "the new record takes the place of the old")
+
+    -- Nothing by that name: the last record stays.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    local last = UpgradeScoutDB.probe
+    Slash("probe No Such Thing")
+    W.RunUntil(function() return S.state == "idle" end, 60)
+    check(W.printed[#W.printed]:find("found no gear by the name \"No Such Thing\"", 1, true) ~= nil, "it says nothing was found: " .. W.printed[#W.printed])
+    eq(UpgradeScoutDB.probe, last, "and keeps what it had")
+
+    -- Not during a scan; and a scan after it is a scan as ever.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    check(S.Start(), "a scan starts")
+    Slash("probe Soldier's Boots")
+    check(W.printed[#W.printed]:find("Wait for the scan to finish.", 1, true) ~= nil, "a probe waits for the scan")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    check(Offer(TIGER) ~= nil and Offer(TIGER).buyout == 2000, "the scan found the boots")
+    eq(Offer(TIGER).unread, 1, "and knows of the cheaper auction it could not read")
 end
 
 ---------------------------------------------------------------------------
