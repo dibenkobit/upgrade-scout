@@ -41,5 +41,20 @@ jobs:
           sudo apt-get install -y lua5.1
           lua5.1 tests/run.lua
 
+      # CurseForge and the GitHub release show this file as the notes of the release (.pkgmeta names
+      # it): what is new in this version, not the whole history.
+      - name: Write the notes of this release
+        run: |
+          awk -v version="$GITHUB_REF_NAME" '
+            { sub(/\r$/, "") }
+            /^## / { inside = ($2 == version); next }
+            inside { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "::error::CHANGELOG.md has no section for $GITHUB_REF_NAME"
+            exit 1
+          fi
+          cat RELEASE_NOTES.md
+
       - name: Package and release
         uses: BigWigsMods/packager@v2

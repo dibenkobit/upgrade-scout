@@ -14,10 +14,14 @@ ignore:
   - docs
   - README.md
   - CHANGELOG.md
+  - RELEASE_NOTES.md
   - LICENSE
 
+# The notes shown with a release on CurseForge and on GitHub: the section of CHANGELOG.md for the
+# version being released. The release workflow writes this file before the packager runs; it is
+# not kept in the repository.
 manual-changelog:
-  filename: CHANGELOG.md
+  filename: RELEASE_NOTES.md
   markup-type: markdown
 
 # Shown on CurseForge; its app installs Pawn together with this addon.
