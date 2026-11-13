@@ -6,7 +6,7 @@
 
 **[Télécharger sur CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-[English](../README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · Français · [Español](README.es.md) · [Português](README.pt-BR.md) · [Italiano](README.it.md) · [简体中文](README.zh-CN.md)
+[English](../README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · Français · [Español](README.es.md) · [Português](README.pt-BR.md) · [简体中文](README.zh-CN.md)
 
 Ouvrez l'hôtel des ventes, cliquez sur l'onglet **Améliorations** et appuyez sur **Scanner**. Vous
 obtenez la liste de l'équipement meilleur que celui que vous portez, emplacement par emplacement,
@@ -26,7 +26,7 @@ avec les prix. Appuyez sur **Acheter** pour l'objet que vous voulez.
 - Les deux onglets fonctionnent aussi pour vos autres personnages.
 
 Toutes les classes, tous les niveaux. Français, anglais, russe, allemand, espagnol, portugais du
-Brésil, italien et chinois simplifié.
+Brésil et chinois simplifié.
 
 ## Installation
 

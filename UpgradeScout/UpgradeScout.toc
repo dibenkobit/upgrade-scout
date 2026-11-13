@@ -8,7 +8,6 @@
 ## Notes-esES: Encuentra en la casa de subastas equipo mejor que el tuyo y que puedes pagar.
 ## Notes-esMX: Encuentra en la casa de subastas equipo mejor que el tuyo y que puedes pagar.
 ## Notes-ptBR: Encontra na Casa de Leilões equipamentos melhores que os seus e que cabem no seu bolso.
-## Notes-itIT: Trova alla Casa d'Aste equipaggiamento migliore del tuo e che puoi permetterti.
 ## Version: 1.2.0
 ## Author: Nikita Snetkov
 ## X-License: All Rights Reserved
@@ -23,7 +22,6 @@
 ## Category-ptBR: Leilões
 ## Category-esES: Subastas
 ## Category-esMX: Subastas
-## Category-itIT: Aste
 ## IconTexture: Interface\AddOns\UpgradeScout\icon.tga
 
 # Pawn is a hard requirement: every score in this addon is Pawn's own number for the scale you

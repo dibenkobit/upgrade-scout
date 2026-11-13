@@ -6,7 +6,7 @@
 
 **[Baixar no CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-[English](../README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) · Português · [Italiano](README.it.md) · [简体中文](README.zh-CN.md)
+[English](../README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) · Português · [简体中文](README.zh-CN.md)
 
 Abra a Casa de Leilões, clique na aba **Melhorias** e aperte **Escanear**. Você recebe uma lista de
 equipamentos melhores do que os que está usando, espaço por espaço, com os preços. Aperte
@@ -25,8 +25,8 @@ equipamentos melhores do que os que está usando, espaço por espaço, com os pr
   mais úteis para o seu personagem.
 - As duas abas também funcionam para os seus outros personagens.
 
-Qualquer classe, qualquer nível. Português do Brasil, inglês, russo, alemão, francês, espanhol,
-italiano e chinês simplificado.
+Qualquer classe, qualquer nível. Português do Brasil, inglês, russo, alemão, francês, espanhol e
+chinês simplificado.
 
 ## Instalação
 

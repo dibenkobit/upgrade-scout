@@ -12,7 +12,7 @@ local names = {
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
     "roster", "roster_order", "alt", "mail", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
-    "locale_pt", "locale_es", "locale_mx", "locale_it",
+    "locale_pt", "locale_es", "locale_mx",
 }
 
 if not scenario then
@@ -2933,10 +2933,6 @@ end
 -- The Latin American client reports its own locale and gets the same Spanish text.
 function scenarios.locale_mx()
     CheckLocale("esMX", "Latin American Spanish", "Escanear")
-end
-
-function scenarios.locale_it()
-    CheckLocale("itIT", "Italian", "Scansiona")
 end
 
 ---------------------------------------------------------------------------
