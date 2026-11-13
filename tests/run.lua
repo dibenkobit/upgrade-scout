@@ -10,7 +10,7 @@ local names = {
     "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
-    "buy", "buy_gone", "ui", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
+    "buy", "buy_gone", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_it",
 }
 
@@ -1259,6 +1259,537 @@ function scenarios.ui()
 end
 
 ---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- Consumables
+---------------------------------------------------------------------------
+-- What a level 30 character with 2 gold finds under Consumables. Prices are for one piece.
+local function SuppliesWorld()
+    W.player.level = 30
+    W.player.money = 20000
+    local function Add(def)
+        def.classID, def.quality = 0, 1
+        return W.AddItem(def)
+    end
+    -- Healing potions: three the character can drink and one it is too young for.
+    Add({ id = 500, name = "Minor Healing Potion", subClassID = 1, level = 1, stack = 5, use = "Restores 70 to 90 health." })
+    Add({ id = 501, name = "Healing Potion", subClassID = 1, level = 12, stack = 5, use = "Restores 280 to 360 health." })
+    Add({ id = 502, name = "Greater Healing Potion", subClassID = 1, level = 21, stack = 5, use = "Restores 455 to 585 health." })
+    Add({ id = 503, name = "Superior Healing Potion", subClassID = 1, level = 35, stack = 5, use = "Restores 700 to 900 health." })
+    Add({ id = 504, name = "Mana Potion", subClassID = 1, level = 22, stack = 5, use = "Restores 455 to 585 mana." })
+    -- Food: two of the same strength at different prices, and a weaker one.
+    Add({ id = 510, name = "Wild Hog Shank", subClassID = 5, level = 25, stack = 20, use = "Restores 874 health over 27 sec. Must remain seated while eating." })
+    Add({ id = 511, name = "Stormwind Brie", subClassID = 5, level = 25, stack = 20, use = "Restores 874 health over 27 sec. Must remain seated while eating." })
+    Add({ id = 512, name = "Mutton Chop", subClassID = 5, level = 15, stack = 20, use = "Restores 552 health over 24 sec. Must remain seated while eating." })
+    -- Bandages ask for a skill, not a level; the tooltip of one the character cannot use is red.
+    Add({ id = 520, name = "Wool Bandage", subClassID = 7, level = 1, stack = 20, use = "Heals 161 damage over 7 sec." })
+    Add({ id = 521, name = "Heavy Wool Bandage", subClassID = 7, level = 1, stack = 20, use = "Heals 301 damage over 7 sec." })
+    Add({ id = 522, name = "Runecloth Bandage", subClassID = 7, level = 1, stack = 20, use = "Heals 1,360 damage over 8 sec.", red = true })
+    -- Filed under Consumables with nothing to use, and a subcategory the game has no name for.
+    Add({ id = 530, name = "Strange Dust", subClassID = 8, level = 1, stack = 20 })
+    Add({ id = 531, name = "Rough Dynamite", subClassID = 0, level = 1, stack = 20, use = "Inflicts 26 to 34 Fire damage in a 5 yard radius." })
+
+    W.AddAuction(500, 30, { quantity = 40 })
+    W.AddAuction(501, 300, { quantity = 12 })
+    W.AddAuction(502, 900, { quantity = 3 })
+    W.AddAuction(502, 1000, { quantity = 10 })
+    W.AddAuction(502, 800, { quantity = 5, own = true })   -- the character's own: cannot be bought
+    W.AddAuction(503, 2500, { quantity = 8 })
+    W.AddAuction(504, 30000, { quantity = 6 })             -- more than the character has
+    W.AddAuction(510, 120, { quantity = 60 })
+    W.AddAuction(511, 90, { quantity = 20 })
+    W.AddAuction(512, 40, { quantity = 100 })
+    W.AddAuction(520, 15, { quantity = 30 })
+    W.AddAuction(521, 60, { quantity = 25 })
+    W.AddAuction(522, 400, { quantity = 50 })
+    W.AddAuction(530, 10, { quantity = 5 })
+    W.AddAuction(531, 200, { quantity = 7 })
+end
+
+local function Supply(name)
+    for _, supply in pairs(ns.Scanner.supplies) do
+        if supply.name == name then return supply end
+    end
+end
+
+local function ScanSupplies()
+    check(ns.Scanner.StartSupplies(), "consumables scan starts")
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 120)
+end
+
+-- Which consumables do the same thing, which of them is the best, and the rows of the list.
+function scenarios.supplies()
+    LoadAddon()
+    local P = ns.Supplies
+
+    local kind, power = P.Describe("Restores 700 to 900 health.")
+    eq(kind, "Restores # to # health.", "the numbers taken out"); eq(power, 900, "the biggest of them")
+    eq((P.Describe("Restores 70 to 90 health.")), kind, "the same kind whatever the numbers")
+    check(P.Describe("Restores 70 to 90 mana.") ~= kind, "another effect is another kind")
+    kind, power = P.Describe("Heals 1,360 damage over 8 sec.")
+    eq(kind, "Heals # damage over # sec.", "a thousands separator belongs to its number"); eq(power, 1360, "which is read whole")
+    kind, power = P.Describe("Stellt 1.050 bis 1.750 Gesundheit wieder her.")
+    eq(kind, "Stellt # bis # Gesundheit wieder her.", "the German separator too"); eq(power, 1750, "read whole")
+    kind, power = P.Describe("Lasts 1.5 sec, 12 times.")
+    eq(kind, "Lasts #.# sec, # times.", "a decimal point is not a separator"); eq(power, 12, "biggest number")
+    kind, power = P.Describe("Eat me.")
+    eq(kind, "Eat me.", "text without numbers stays"); eq(power, 0, "and has no number")
+
+    local function Make(id, sub, effect, level, price, quantity)
+        local k, p = P.Describe(effect)
+        return { id = id, name = id, sub = sub, kind = k, power = p, effect = effect, reqLevel = level, price = price, quantity = quantity }
+    end
+    local list = {
+        a = Make("a", 1, "Restores 70 to 90 health.", 1, 30, 40),
+        b = Make("b", 1, "Restores 455 to 585 health.", 21, 900, 13),
+        c = Make("c", 1, "Restores 455 to 585 mana.", 22, 30000, 6),
+        d = Make("d", 5, "Restores 874 health over 27 sec.", 25, 120, 60),
+        e = Make("e", 5, "Restores 874 health over 27 sec.", 25, 90, 20),
+        f = Make("f", 7, "Heals 161 damage over 7 sec.", 1, 15, 30),
+        g = Make("g", 7, "Heals 301 damage over 7 sec.", 1, 60, 25),
+        h = Make("h", 42, "Does 5 things.", 1, 10, 1),
+        i = Make("i", 2, "Increases Agility by 8 for 1 hr.", 18, 500, 9),
+    }
+    local function Text(rows)
+        local out = {}
+        for _, row in ipairs(rows) do
+            if row.kind == "header" then
+                out[#out + 1] = string.format("[%s %d/%d]", row.title, row.shown, row.total)
+            else
+                out[#out + 1] = row.entry.supply.id .. (row.entry.best and "*" or "") .. (row.entry.affordable and "" or "!")
+            end
+        end
+        return table.concat(out, " ")
+    end
+
+    -- The default view: the best of each kind, among what the character can pay for.
+    local rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true })
+    eq(Text(rows), "[Potions 1/2] b* [Elixirs 1/1] i* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
+        "one row per kind: the higher level, then the bigger number, then the lower price")
+    eq(summary.items, 5, "rows counted"); eq(summary.groups, 5, "subcategories counted")
+    eq(summary.hidden, 1, "the mana potion costs more than the character has")
+    eq(rows[1].group, "SUB1", "a heading is known by its subcategory")
+
+    -- Everything: kinds stay together, the one there is most of for sale first.
+    rows, summary = P.Build(list, { money = 20000, affordableOnly = false, bestOnly = false })
+    eq(Text(rows), "[Potions 3/3] b* a c*! [Elixirs 1/1] i* [Food & Drink 2/2] e* d [Bandages 2/2] g* f [Other 1/1] h*",
+        "every consumable, the strongest of its kind first and marked")
+    eq(summary.items, 9, "all listed"); eq(summary.hidden, 0, "nothing left out")
+
+    rows, summary = P.Build({}, { money = 0, affordableOnly = true, bestOnly = true })
+    eq(#rows, 0, "an empty list from nothing"); eq(summary.items, 0, "and nothing counted")
+end
+
+function scenarios.supplies_scan()
+    SuppliesWorld()
+    -- One the client has to load first, and one whose "Use:" line never arrives.
+    W.AddItem({ id = 540, name = "Late Elixir", classID = 0, subClassID = 2, level = 10, stack = 20, quality = 1,
+        use = "Increases Agility by 8 for 1 hr.", uncached = true })
+    W.AddItem({ id = 541, name = "Silent Elixir", classID = 0, subClassID = 2, level = 10, stack = 20, quality = 1,
+        use = "Increases Strength by 8 for 1 hr.", useLate = true })
+    W.AddAuction(540, 700, { quantity = 4 })
+    W.AddAuction(541, 650, { quantity = 2 })
+    LoadAddon()
+    local S = ns.Scanner
+
+    eq(S.StartSupplies(), false, "no scan while the auction house is closed")
+    eq(S.suppliesNote, ns.L.ERR_AH_CLOSED, "and the list says why")
+    eq(S.message, nil, "the gear list has no note of it")
+
+    W.OpenAuctionHouse()
+    check(S.StartSupplies(), "scan starts")
+    eq(S.mode, "supplies", "it is a scan for consumables")
+    eq(S.suppliesNote, nil, "the note is gone")
+    eq(S.Start(), false, "one scan at a time")
+    W.RunUntil(function() return S.state == "idle" end, 120)
+
+    local filters = W.AH.lastQuery.itemClassFilters
+    eq(#filters, 1, "one category asked for"); eq(filters[1].classID, 0, "Consumables")
+    eq(W.AH.calls.search, 0, "no item searches: the rows hold the price of a piece")
+    check(S.suppliesAt ~= nil, "finish time recorded"); eq(S.suppliesPartial, false, "the scan saw everything")
+    eq(S.finishedAt, nil, "the gear scan has a finish time of its own")
+    eq(next(S.offers), nil, "and its list is untouched")
+
+    local potion = Supply("Greater Healing Potion")
+    check(potion ~= nil, "a potion the character can drink is listed")
+    eq(potion.price, 800, "at the lowest price in its row"); eq(potion.quantity, 18, "with all the pieces for sale")
+    eq(potion.sub, 1, "its subcategory"); eq(potion.stack, 5, "its stack size"); eq(potion.reqLevel, 21, "its level")
+    eq(potion.effect, "Restores 455 to 585 health.", "what it does, without \"Use:\"")
+    eq(potion.kind, "Restores # to # health.", "its kind"); eq(potion.power, 585, "and its strength")
+    eq(Supply("Minor Healing Potion").kind, potion.kind, "a weaker potion is of the same kind")
+    check(Supply("Mana Potion").kind ~= potion.kind, "a mana potion is not")
+
+    eq(Supply("Superior Healing Potion"), nil, "above the character's level: left out")
+    eq(Supply("Runecloth Bandage"), nil, "red in its tooltip: left out")
+    eq(Supply("Strange Dust"), nil, "nothing to use: left out")
+    check(Supply("Rough Dynamite") ~= nil, "a subcategory the game has no name for is listed all the same")
+    check(Supply("Late Elixir") ~= nil, "an item the client had to load is listed")
+    local silent = Supply("Silent Elixir")
+    check(silent ~= nil, "an item whose effect line never came is listed too")
+    eq(silent.effect, nil, "without an effect"); eq(silent.kind, "item:541", "as a kind of its own")
+    local count = 0
+    for _ in pairs(S.supplies) do count = count + 1 end
+    eq(count, 12, "everything else is there")
+
+    -- The rows the tab would show.
+    local rows = ns.Supplies.Build(S.supplies, { money = GetMoney(), affordableOnly = true, bestOnly = true })
+    eq(rows[1].title, "Potions", "potions first"); eq(rows[2].entry.supply.name, "Greater Healing Potion", "the best healing potion")
+    eq(rows[3].title, "Elixirs", "the mana potion is too dear, so elixirs come next")
+
+    -- A scan that is stopped keeps what it read, and the note is the consumables list's own.
+    check(S.StartSupplies(), "second scan starts")
+    eq(next(S.supplies), nil, "a new scan starts from an empty list")
+    W.RunUntil(function() return S.state == "score" end, 30)
+    S.Stop(ns.L.ST_STOPPED)
+    eq(S.state, "idle", "stopped"); eq(S.suppliesNote, ns.L.ST_STOPPED, "says it was stopped")
+    eq(S.suppliesPartial, true, "and that the list may be incomplete"); eq(S.message, nil, "the gear list still has no note")
+
+    -- The auction house does not answer.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    W.AH.answerBrowse = false
+    check(S.StartSupplies(), "third scan starts")
+    W.RunUntil(function() return S.state == "idle" end, 120)
+    eq(S.suppliesNote, ns.L.ERR_BROWSE, "says the auction house did not answer")
+end
+
+function scenarios.supplies_buy()
+    SuppliesWorld()
+    -- A consumable that does not stack is sold as separate auctions.
+    W.AddItem({ id = 550, name = "Odd Flask", classID = 0, subClassID = 3, level = 20, stack = 1, quality = 1, use = "Does 1 thing." })
+    W.AddAuction(550, 6000)
+    local cheapFlask = W.AddAuction(550, 5000)
+    LoadAddon()
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    ScanSupplies()
+
+    local asked, quoted, done = {}, {}, 0
+    ns.Listen("CONFIRM_SUPPLY", function(supply, tiers) asked[#asked + 1] = { supply = supply, tiers = tiers } end)
+    ns.Listen("SUPPLY_QUOTED", function(total) quoted[#quoted + 1] = total end)
+    ns.Listen("SUPPLY_DONE", function() done = done + 1 end)
+    local function Lookup(supply)
+        local before = #asked
+        W.RunUntil(function() return S.Ready() end, 5)
+        S.BuySupply(supply)
+        W.RunUntil(function() return #asked > before or S.state == "idle" end, 30)
+        W.RunUntil(function() return S.Ready() end, 5)
+        return asked[before + 1]
+    end
+    local function Quote(supply, tiers, count)
+        local before = #quoted
+        S.QuoteSupply(supply, tiers, count)
+        W.RunUntil(function() return #quoted > before end, 10)
+        W.RunUntil(function() return S.Ready() end, 5)
+        return quoted[#quoted]
+    end
+
+    -- Step one: who sells how many at what price.
+    local potion = Supply("Greater Healing Potion")
+    eq(potion.price, 800, "the row's lowest price is the character's own auction")
+    S.BuySupply(potion)
+    eq(S.mode, "supply", "a lookup for a consumable"); eq(S.state, "verify", "is under way")
+    W.RunUntil(function() return #asked == 1 end, 30)
+    eq(S.state, "idle", "the lookup is over when the question is asked")
+    eq(asked[1].supply, potion, "the question is about the potion")
+    local tiers = asked[1].tiers
+    eq(#tiers, 2, "the character's own pieces are not in the price list")
+    eq(tiers[1].price, 900, "cheapest first"); eq(tiers[1].quantity, 3, "three at that price")
+    eq(tiers[2].price, 1000, "then the dearer ones"); eq(tiers[2].quantity, 10, "ten of them")
+    eq(potion.price, 900, "the list now shows what can be bought"); eq(potion.quantity, 13, "and how many")
+    eq(S.SupplyCost(tiers, 1), 900, "one piece"); eq(S.SupplyCost(tiers, 5), 3 * 900 + 2 * 1000, "five pieces, cheapest first")
+    eq(S.SupplyCost(tiers, 13), 3 * 900 + 10 * 1000, "all of them"); eq(S.SupplyCost(tiers, 14), nil, "more than there are")
+
+    -- Steps three and four: the server's price, then the purchase.
+    W.RunUntil(function() return S.Ready() end, 5)
+    eq(Quote(potion, tiers, 5), 4700, "the server prices five pieces")
+    eq(W.AH.calls.quotes[1].quantity, 5, "it was asked about five")
+    local money = W.player.money
+    S.ConfirmSupply()
+    S.ConfirmSupply()
+    W.RunUntil(function() return done == 1 end, 10)
+    eq(#W.AH.calls.bought, 1, "bought once, however often the button is pressed")
+    eq(W.player.money, money - 4700, "for the price that was named")
+    check(W.printed[#W.printed]:find("Bought 5 x", 1, true) ~= nil and W.printed[#W.printed]:find("47s", 1, true) ~= nil,
+        "the chat says what was bought: " .. W.printed[#W.printed])
+    eq(potion.price, 1000, "what is left costs more"); eq(potion.quantity, 8, "and there is less of it")
+
+    -- The player closes the box after the server named a price.
+    local second = Lookup(potion)
+    eq(#second.tiers, 1, "one price left"); eq(second.tiers[1].quantity, 8, "eight pieces at it")
+    Quote(potion, second.tiers, 2)
+    S.CancelSupply()
+    eq(W.AH.calls.cancelled, 1, "the server is told the purchase is off")
+    S.ConfirmSupply()
+    eq(#W.AH.calls.bought, 1, "and nothing is bought after that")
+
+    -- Someone else was faster.
+    local third = Lookup(potion)
+    Quote(potion, third.tiers, 2)
+    W.AH.failPurchase = true
+    S.ConfirmSupply()
+    W.RunUntil(function() return done == 2 end, 10)
+    W.AH.failPurchase = nil
+    check(W.printed[#W.printed]:find("did not go through", 1, true) ~= nil, "the chat says the purchase failed")
+    eq(#W.AH.calls.bought, 1, "nothing bought")
+
+    -- More than there is: the server refuses to name a price.
+    local fourth = Lookup(potion)
+    S.QuoteSupply(potion, fourth.tiers, 50)
+    W.RunUntil(function() return done == 3 end, 10)
+    check(W.printed[#W.printed]:find("did not go through", 1, true) ~= nil, "the chat says so")
+
+    -- Buying all of it takes the potion off the list.
+    local fifth = Lookup(potion)
+    Quote(potion, fifth.tiers, 8)
+    S.ConfirmSupply()
+    W.RunUntil(function() return done == 4 end, 10)
+    eq(Supply("Greater Healing Potion"), nil, "sold out: gone from the list")
+
+    -- Sold out before the lookup: the chat says so and the list forgets it.
+    local brie = Supply("Stormwind Brie")
+    for i = #W.AH.auctions, 1, -1 do
+        if W.AH.auctions[i].id == 511 then table.remove(W.AH.auctions, i) end
+    end
+    eq(Lookup(brie), nil, "nothing to ask about")
+    check(W.printed[#W.printed]:find("no longer for sale", 1, true) ~= nil, "the chat says it is gone")
+    eq(Supply("Stormwind Brie"), nil, "gone from the list")
+
+    -- A consumable sold as separate auctions is bought one auction at a time.
+    local flask = Supply("Odd Flask")
+    check(flask ~= nil, "a consumable that does not stack is listed")
+    local sixth = Lookup(flask)
+    eq(#sixth.tiers, 2, "two auctions"); eq(sixth.tiers[1].auctionID, cheapFlask.auctionID, "the cheaper one first")
+    eq(sixth.tiers[1].cost, 5000, "at its buyout price")
+    money = W.player.money
+    S.BuySupplyAuction(flask, sixth.tiers)
+    W.RunUntil(function() return done == 5 end, 10)
+    eq(W.AH.calls.bids[#W.AH.calls.bids].auctionID, cheapFlask.auctionID, "that auction is bought out")
+    eq(W.AH.calls.bids[#W.AH.calls.bids].amount, 5000, "for its buyout price")
+    eq(flask.price, 6000, "the other one is what the list shows now"); eq(flask.quantity, 1, "one left")
+
+    -- The auction house closes in the middle of a lookup.
+    local food = Supply("Wild Hog Shank")
+    W.RunUntil(function() return S.Ready() end, 5)
+    S.BuySupply(food)
+    W.CloseAuctionHouse()
+    eq(S.state, "idle", "the lookup is dropped")
+    W.Run(1)
+    eq(#asked, 6, "and no question follows")
+end
+
+-- The Consumables tab: the frame of the Upgrades tab in its other view.
+function scenarios.supplies_ui()
+    SuppliesWorld()
+    LoadAddon()
+    W.OpenAuctionHouse()
+    local frame = UpgradeScoutFrame
+    local S = ns.Scanner
+    local lib = LibStub("LibAHTab-1-0")
+    check(lib:DoesIDExist("UpgradeScoutSupplies"), "a second tab is registered")
+    eq(lib:GetButton("UpgradeScoutSupplies"):GetText(), "Consumables", "with its own text")
+    local list, scan, box = frame.List, frame.ScanButton, frame.BuyBox
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    local function Rows()
+        local out = {}
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            if w._shown then out[#out + 1] = w end
+        end
+        return out
+    end
+    -- The rows as one line of text: headings in brackets, items by name.
+    local function Listed()
+        local out = {}
+        for _, row in ipairs(Rows()) do
+            if row._kind == "Frame" then
+                out[#out + 1] = "[" .. row.Title:GetText() .. (row.Count:GetText() ~= "" and " " .. row.Count:GetText() or "") .. "]"
+            else
+                out[#out + 1] = row.Name:GetText()
+            end
+        end
+        return table.concat(out, ", ")
+    end
+    local function Row(name)
+        for _, row in ipairs(Rows()) do
+            if row._kind == "Button" and row.Name:GetText() == name then return row end
+        end
+    end
+    -- A text in view that holds these words.
+    local function Said(words)
+        for _, text in ipairs(W.texts) do
+            local said = text:IsVisible() and text:GetText()
+            if said and said:find(words, 1, true) then return said end
+        end
+    end
+    local function Tick(check, checked)
+        check:SetChecked(checked)
+        check:Click()
+        W.Run(0.3)
+    end
+
+    -- The Upgrades tab has its own titles and controls.
+    lib:SetSelected("UpgradeScout")
+    eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab names its second column")
+    eq(list.Titles[3]:IsShown(), true, "and has a column for the gain")
+    eq(frame.TopCheck:IsShown(), true, "its own second filter"); eq(frame.BestCheck:IsShown(), false, "not the other view's")
+    eq(frame.ScaleDropdown:IsShown(), true, "and the Pawn scale")
+
+    -- The Consumables tab shows the same frame, made over.
+    lib:SetSelected("UpgradeScoutSupplies")
+    eq(frame:IsShown(), true, "the same frame is up")
+    eq(list.Titles[2]:GetText(), "EFFECT", "the second column is what the item does")
+    eq(list.Titles[3]:IsShown(), false, "no gain to show")
+    eq(list.Titles[4]:GetText(), "EACH", "the price is that of one piece"); eq(list.Titles[5]:GetText(), "FOR SALE", "then how many there are")
+    eq(frame.ScaleDropdown:IsShown(), false, "no Pawn scale: consumables are not scored")
+    eq(frame.TopCheck:IsShown(), false, "the top-N filter is gone"); eq(frame.BestCheck:IsShown(), true, "another one is in its place")
+    eq(frame.BestCheck.Text:GetText(), "Best of each kind", "with its label"); eq(frame.BestCheck:GetChecked(), true, "ticked by default")
+    eq(frame.AffordCheck:IsShown(), true, "the price filter is shared")
+    eq(list.Intro:IsShown(), true, "the emblem before the first scan")
+    eq(list.Intro.Heading:GetText(), "CONSUMABLES FOR SALE", "under this view's title")
+    check(list.Hint:GetText():find("consumables on the auction house", 1, true) ~= nil, "and what the view is for: " .. list.Hint:GetText())
+
+    -- The scan button scans for consumables here.
+    scan:Click()
+    eq(S.mode, "supplies", "a scan for consumables")
+    W.Run(0.2)
+    eq(scan.Label:GetText(), "STOP", "which the button can stop")
+    W.RunUntil(function() return S.state == "idle" end, 120)
+    W.Run(0.3)
+    eq(scan.Label:GetText(), "SCAN", "back to Scan")
+    eq(Listed(), "[POTIONS 1 of 3], Greater Healing Potion, [FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite",
+        "the best of each kind the character can pay for, by subcategory")
+    check(Said("4 consumables in 4 categories. 1 more cost more than you have.") ~= nil, "the status line counts them")
+    check(Said("Sec ago") ~= nil, "and says how old the scan is")
+    eq(list.Intro:IsShown(), false, "the emblem is gone")
+
+    local potion = Row("Greater Healing Potion")
+    eq(potion.Effect:IsShown(), true, "a consumable's row says what it does"); eq(potion.Effect:GetText(), "Restores 455 to 585 health.", "in the game's words")
+    eq(potion.Stock:IsShown(), true, "and how many are for sale"); eq(potion.Stock:GetText(), "18", "all of them")
+    eq(potion.Price:GetAmount(), 800, "the price of one piece"); eq(potion.Price._font, PriceFontWhite, "in white: the character can pay")
+    eq(potion.Pick:IsShown(), false, "no pick"); eq(potion.Upgrade:IsShown(), false, "no gain"); eq(potion.Share:IsShown(), false, "no share")
+    eq(potion.Meter:IsShown(), false, "no meter"); eq(potion.PerPoint:IsShown(), false, "no price per point")
+    eq(potion.Buy:IsEnabled(), true, "it can be bought")
+
+    -- The age of this view's scan goes on counting.
+    W.Run(6)
+    check(Said("Scanned " .. ns.Ago(time() - S.suppliesAt) .. " ago.") ~= nil, "the age keeps up with the clock")
+    check(time() - S.suppliesAt >= 6, "six seconds on")
+
+    -- Its tooltip is the item's own, with what is for sale under it.
+    potion:GetScript("OnEnter")(potion)
+    local seen = {}
+    for _, line in ipairs(GameTooltip._lines) do seen[#seen + 1] = line.text end
+    check(table.concat(seen, "\n"):find("18 for sale, from 8s each.", 1, true) ~= nil, "the tooltip says how much there is: " .. table.concat(seen, " | "))
+    potion:GetScript("OnLeave")(potion)
+
+    -- Every consumable instead of the best of each kind.
+    Tick(frame.BestCheck, false)
+    eq(ns.db.bestOnly, false, "the setting is saved")
+    eq(Listed(), "[POTIONS], Greater Healing Potion, Healing Potion, Minor Healing Potion, "
+        .. "[FOOD & DRINK], Stormwind Brie, Wild Hog Shank, Mutton Chop, [BANDAGES], Heavy Wool Bandage, Wool Bandage, [OTHER], Rough Dynamite",
+        "each kind from its strongest down; of two equally strong the cheaper first")
+
+    -- What costs too much comes back in red when the price filter is off.
+    Tick(frame.AffordCheck, false)
+    local mana = Row("Mana Potion")
+    check(mana ~= nil, "the mana potion is listed")
+    eq(mana.Price._font, PriceFontRed, "its price in red"); eq(mana.Buy:IsEnabled(), false, "and it cannot be bought")
+    Tick(frame.AffordCheck, true)
+    Tick(frame.BestCheck, true)
+
+    -- A heading folds its subcategory away, as a slot's heading does.
+    local heading = Rows()[1]
+    heading.Toggle:Click()
+    eq(ns.db.collapsed.SUB1, true, "potions folded")
+    eq(Listed(), "[POTIONS 1 of 3], [FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite", "its rows are gone")
+    Rows()[1].Toggle:Click()
+    eq(ns.db.collapsed.SUB1, nil, "and unfolded again")
+
+    -- Buy: first the price list is read, then the box asks how many.
+    eq(box:IsShown(), false, "no box before a purchase")
+    potion = Row("Greater Healing Potion")
+    potion.Buy:Click()
+    eq(S.mode, "supply", "the price list is being read")
+    W.RunUntil(function() return box:IsShown() end, 30)
+    W.RunUntil(function() return S.Ready() end, 5)
+    W.Run(0.3)
+    eq(box.Name:GetText(), "Greater Healing Potion", "the box names the item")
+    eq(box.Stock:GetText(), "of 13 for sale", "and how many can be bought: the character's own are not counted")
+    eq(box.Count:GetNumber(), 5, "it starts at one stack")
+    eq(box.TotalLabel:GetText(), "TOTAL", "with the price of that many")
+    eq(box.Total:GetAmount(), 3 * 900 + 2 * 1000, "the cheapest pieces first")
+    eq(box.Buy.Label:GetText(), "BUY", "the button buys"); eq(box.Buy:IsEnabled(), true, "and is ready")
+    potion = Row("Greater Healing Potion")
+    eq(potion.Price:GetAmount(), 900, "the list now shows the price that can be had"); eq(potion.Stock:GetText(), "13", "and the pieces that can be bought")
+
+    W.Type(box.Count, "2")
+    eq(box.Total:GetAmount(), 1800, "two pieces")
+    W.Type(box.Count, "14")
+    eq(box.Total:IsShown(), false, "no price for more than there are"); eq(box.Buy:IsEnabled(), false, "and nothing to buy")
+    W.Type(box.Count, "")
+    eq(box.Buy:IsEnabled(), false, "nor for nothing")
+    W.player.money = 1000
+    W.Type(box.Count, "2")
+    eq(box.Total._font, PriceFontRed, "a price out of reach is red"); eq(box.Buy:IsEnabled(), false, "and cannot be paid")
+    W.player.money = 20000
+    W.Type(box.Count, "2")
+    eq(box.Total._font, PriceFontWhite, "white again with the money back"); eq(box.Buy:IsEnabled(), true, "and the button too")
+
+    -- "Buy" asks the server for its price; the same button then confirms it.
+    box.Buy:Click()
+    eq(box.step, "quote", "the server is asked"); eq(box.Buy:IsEnabled(), false, "the button waits"); eq(box.Count:IsEnabled(), false, "and the number is settled")
+    eq(#W.AH.calls.bought, 0, "nothing is bought yet")
+    W.RunUntil(function() return box.step == "confirm" end, 10)
+    eq(box.TotalLabel:GetText(), "FINAL PRICE", "the server's price"); eq(box.Total:GetAmount(), 1800, "for two pieces")
+    eq(box.Buy.Label:GetText(), "CONFIRM", "the button now confirms")
+    W.RunUntil(function() return box.Buy:IsEnabled() end, 5)
+    box.Buy:Click()
+    eq(box.Buy:IsEnabled(), false, "pressed once")
+    W.RunUntil(function() return not box:IsShown() end, 10)
+    eq(#W.AH.calls.bought, 1, "bought"); eq(W.AH.calls.bought[1].quantity, 2, "two pieces"); eq(W.player.money, 20000 - 1800, "paid for")
+    W.Run(0.3)
+    potion = Row("Greater Healing Potion")
+    eq(potion.Stock:GetText(), "11", "the list has two fewer"); eq(potion.Price:GetAmount(), 900, "at the same lowest price")
+
+    -- Cancel before anything was asked of the server: nothing to call off.
+    potion.Buy:Click()
+    W.RunUntil(function() return box:IsShown() end, 30)
+    box.Cancel:Click()
+    eq(box:IsShown(), false, "the box closes"); eq(W.AH.calls.cancelled, 0, "the server was never asked")
+
+    -- Enter in the number field presses Buy; cancelling then calls the purchase off.
+    W.RunUntil(function() return S.Ready() end, 5)
+    W.Run(0.3)       -- the list redraws a moment after the scanner is free again
+    Row("Greater Healing Potion").Buy:Click()
+    W.RunUntil(function() return box:IsShown() end, 30)
+    W.RunUntil(function() return box.Buy:IsEnabled() end, 5)
+    W.Type(box.Count, "1")
+    W.PressEnter(box.Count)
+    eq(box.step, "quote", "Enter asks the server")
+    W.RunUntil(function() return box.step == "confirm" end, 10)
+    box.Cancel:Click()
+    eq(W.AH.calls.cancelled, 1, "the server is told the purchase is off"); eq(#W.AH.calls.bought, 1, "nothing more was bought")
+
+    -- Leaving the view takes the box down; the Upgrades tab is itself again.
+    W.RunUntil(function() return S.Ready() end, 5)
+    W.Run(0.3)       -- the list redraws a moment after the scanner is free again
+    Row("Greater Healing Potion").Buy:Click()
+    W.RunUntil(function() return box:IsShown() end, 30)
+    lib:SetSelected("UpgradeScout")
+    eq(box:IsShown(), false, "the box does not follow to the other tab")
+    eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab has its titles back"); eq(list.Titles[3]:IsShown(), true, "all five of them")
+    eq(frame.ScaleDropdown:IsShown(), true, "its Pawn scale"); eq(frame.TopCheck:IsShown(), true, "and its filter")
+    eq(Listed(), "", "and its own, empty list")
+    eq(list.Intro:IsShown(), true, "with the emblem: gear was never scanned"); eq(list.Intro.Heading:GetText(), "GEAR UPGRADES FOR SALE", "under its own title")
+    eq(ns.Scanner.state, "idle", "nothing was started behind the view")
+
+    -- And back: the consumables are still there.
+    lib:SetSelected("UpgradeScoutSupplies")
+    W.Run(0.3)
+    check(Row("Greater Healing Potion") ~= nil, "the Consumables tab still has its list")
+end
+
 function scenarios.pawn_missing()
     StandardWorld()
     LoadAddon()

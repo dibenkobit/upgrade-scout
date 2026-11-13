@@ -50,13 +50,14 @@ end
 -- Saved settings (per character)
 ---------------------------------------------------------------------------
 -- collapsed: slot id -> true for the slots the player folded away in the list.
-ns.db = { affordableOnly = true, topOnly = true, collapsed = {} }
+ns.db = { affordableOnly = true, topOnly = true, bestOnly = true, collapsed = {} }
 
 EventUtil.ContinueOnAddOnLoaded(ADDON, function()
     if type(UpgradeScoutCharDB) ~= "table" then UpgradeScoutCharDB = {} end
     local db = UpgradeScoutCharDB
     if db.affordableOnly == nil then db.affordableOnly = true end
     if db.topOnly == nil then db.topOnly = true end
+    if db.bestOnly == nil then db.bestOnly = true end
     if type(db.collapsed) ~= "table" then db.collapsed = {} end
     ns.db = db
 end)

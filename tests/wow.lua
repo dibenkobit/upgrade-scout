@@ -68,8 +68,30 @@ for _, name in ipairs({
     "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetDesaturated", "SetAlpha",
     "SetFontObject", "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent",
+    "SetFrameStrata", "EnableMouse",
+    -- edit boxes
+    "SetAutoFocus", "SetNumeric", "SetMaxLetters", "SetFocus", "ClearFocus", "HighlightText",
 }) do
     M[name] = noop
+end
+
+-- Edit boxes. What the addon writes into one and what the player types (W.Type) both reach the
+-- box's OnTextChanged, as in the game; the second argument says which of the two it was.
+function M:SetNumber(number)
+    assert(self._kind == "EditBox" and type(number) == "number", "a number for an edit box")
+    self._text = tostring(number)
+    if self._scripts.OnTextChanged then self._scripts.OnTextChanged(self, false) end
+end
+function M:GetNumber() return tonumber(self._text) or 0 end
+function W.Type(box, text)
+    assert(box._kind == "EditBox" and box._enabled and box:IsVisible(), "an edit box that takes typing")
+    box._text = text
+    if box._scripts.OnTextChanged then box._scripts.OnTextChanged(box, true) end
+end
+-- The Enter key in an edit box.
+function W.PressEnter(box)
+    assert(box._kind == "EditBox" and box._enabled and box:IsVisible(), "an edit box that takes typing")
+    if box._scripts.OnEnterPressed then box._scripts.OnEnterPressed(box) end
 end
 
 function M:SetTexture(file) self._texture = file end
@@ -181,6 +203,22 @@ local function TooltipLines(link)
     local item = ParseItem(link)
     if not item or not item.cached then
         return { { leftText = RETRIEVING_ITEM_INFO, leftColor = RED_FONT_COLOR } }
+    end
+    if item.classID == 0 then
+        -- A consumable: what it asks for (red when the player falls short of it) and, in a
+        -- line that starts with "Use:", what it does. useLate: that line has not arrived.
+        local lines = { { leftText = item.name, leftColor = HIGHLIGHT_FONT_COLOR } }
+        if item.level > 1 then
+            lines[#lines + 1] = { leftText = "Requires Level " .. item.level,
+                leftColor = item.level > W.player.level and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR }
+        end
+        if item.red then
+            lines[#lines + 1] = { leftText = "Requires First Aid (225)", leftColor = RED_FONT_COLOR }
+        end
+        if item.use and not item.useLate then
+            lines[#lines + 1] = { leftText = ITEM_SPELL_TRIGGER_ONUSE .. " " .. item.use, leftColor = GREEN_FONT_COLOR }
+        end
+        return lines
     end
     local lines = {
         { leftText = item.name, leftColor = Color(0.1, 1, 0) },
@@ -640,6 +678,7 @@ function GameTooltip_AddDisabledLine(tooltip, text) GameTooltip_AddColoredLine(t
 function GameTooltip_AddErrorLine(tooltip, text) GameTooltip_AddColoredLine(tooltip, text, RED_FONT_COLOR) end
 
 RETRIEVING_ITEM_INFO = "Retrieving item information"
+ITEM_SPELL_TRIGGER_ONUSE = "Use:"
 ACCEPT, CANCEL, NONE = "Accept", "Cancel", "None"
 BUYOUT_AUCTION_CONFIRMATION = "Buyout auction for:"
 SECONDS_ABBR, MINUTES_ABBR, HOURS_ABBR = "%d Sec", "%d Min", "%d Hr"
@@ -752,7 +791,7 @@ function W.AcceptPopup(popup)
 end
 
 Enum = {
-    ItemClass = { Weapon = 2, Armor = 4 },
+    ItemClass = { Consumable = 0, Weapon = 2, Armor = 4 },
     AuctionHouseSortOrder = { Price = 0, Name = 1, Level = 2, Bid = 3, Buyout = 4, TimeRemaining = 5 },
     AuctionHouseFilter = {
         PoorQuality = 6, CommonQuality = 7, UncommonQuality = 8, RareQuality = 9,
@@ -776,8 +815,18 @@ end
 function C_Item.GetItemInfo(info)
     local item, id, suffix = ParseItem(info)
     if not item or not item.cached then return nil end
-    return item.name, W.Link(id, suffix), item.quality, item.level + 5, item.level, "Type", "SubType", 1,
+    return item.name, W.Link(id, suffix), item.quality, item.level + 5, item.level, "Type", "SubType", item.stack or 1,
         item.equipLoc, 134400, 100, item.classID, item.subClassID
+end
+-- The spell an item casts when it is used: consumables have one, and say what it does (`use`).
+function C_Item.GetItemSpell(info)
+    local item = ParseItem(info)
+    if item and item.use then return "Spell of " .. item.name, 100000 + item.id end
+end
+-- The game's names for the subcategories of Consumables it knows.
+W.subNames = { [1] = "Potions", [2] = "Elixirs", [5] = "Food & Drink", [7] = "Bandages" }
+function C_Item.GetItemSubClassInfo(classID, subClassID)
+    if classID == 0 then return W.subNames[subClassID] end
 end
 function C_Item.IsItemDataCachedByID(id)
     for _, item in pairs(W.items) do
@@ -811,7 +860,7 @@ local A = {
     sampleLinks = true,
     answerBrowse = true,
     ready = true,
-    calls = { browse = 0, more = 0, search = 0, itemMore = 0, bids = {} },
+    calls = { browse = 0, more = 0, search = 0, itemMore = 0, bids = {}, quotes = {}, bought = {}, cancelled = 0 },
     nextID = 1,
 }
 W.AH = A
@@ -820,8 +869,9 @@ function W.AddAuction(id, buyout, opts)
     opts = opts or {}
     -- bid: what a bidder pays. A lot without a buyout always has one; a lot with a buyout has
     -- one only if the seller set it.
+    -- quantity: for things sold by the piece, how many pieces the seller put up at this price.
     local auction = { auctionID = A.nextID, id = id, suffix = opts.suffix or 0, buyout = buyout, own = opts.own,
-        bid = opts.bid or (buyout == 0 and 1 or nil) }
+        bid = opts.bid or (buyout == 0 and 1 or nil), quantity = opts.quantity or 1 }
     A.nextID = A.nextID + 1
     A.auctions[#A.auctions + 1] = auction
     return auction
@@ -883,7 +933,7 @@ function C_AuctionHouse.SendBrowseQuery(query)
                 seen[text] = row
                 rows[#rows + 1] = row
             end
-            row.totalQuantity = row.totalQuantity + 1
+            row.totalQuantity = row.totalQuantity + auction.quantity
             -- By default the row shows the lowest number on any of its lots, bids included.
             -- With bidsIgnored it shows the cheapest buyout whenever there is one.
             if auction.buyout > 0 then
@@ -949,10 +999,106 @@ function C_AuctionHouse.SendSearchQuery(key, sorts, separateOwnerItems, minLevel
     A.results = A.results or {}
     A.loaded = A.loaded or {}
     local list = InBucket(key)
+    if W.IsCommodity(key.itemID) then
+        -- Sold by the piece: the answer is a price list, under another event.
+        A.pieces = A.pieces or {}
+        A.pieces[key.itemID] = list
+        local itemID = key.itemID
+        C_Timer.After(0.2, function() W.Fire("COMMODITY_SEARCH_RESULTS_UPDATED", itemID) end)
+        return
+    end
     A.results[KeyText(key)] = list
     A.loaded[KeyText(key)] = math.min(#list, A.itemPageSize)
     local copy = { itemID = key.itemID, itemLevel = key.itemLevel, itemSuffix = key.itemSuffix, battlePetSpeciesID = 0 }
     C_Timer.After(0.2, function() W.Fire("ITEM_SEARCH_RESULTS_UPDATED", copy) end)
+end
+
+---------------------------------------------------------------------------
+-- Things sold by the piece ("commodities"): every consumable that stacks. All sellers' pieces
+-- of an item are one pile; a purchase takes the cheapest pieces first.
+---------------------------------------------------------------------------
+function W.IsCommodity(itemID)
+    local item = W.items[itemID .. ":0"]
+    return item ~= nil and item.classID == 0 and (item.stack or 1) > 1
+end
+function C_AuctionHouse.GetNumCommoditySearchResults(itemID)
+    return A.pieces and A.pieces[itemID] and #A.pieces[itemID] or 0
+end
+function C_AuctionHouse.GetCommoditySearchResultInfo(itemID, index)
+    local auction = A.pieces and A.pieces[itemID] and A.pieces[itemID][index]
+    if not auction then return nil end
+    return {
+        itemID = itemID,
+        quantity = auction.quantity,
+        unitPrice = auction.buyout,
+        auctionID = auction.auctionID,
+        owners = { "Seller" },
+        numOwnerItems = auction.own and auction.quantity or 0,
+        containsOwnerItem = auction.own or false,
+        containsAccountItem = false,
+    }
+end
+-- The pieces for sale now that the player can buy, cheapest first.
+local function Pieces(itemID)
+    local out = {}
+    for i = 1, #A.auctions do
+        local auction = A.auctions[i]
+        if auction.id == itemID and not auction.own and auction.buyout > 0 then out[#out + 1] = auction end
+    end
+    table.sort(out, function(a, b) return a.buyout < b.buyout end)
+    return out
+end
+local function PiecesCost(itemID, quantity)
+    local cost, left = 0, quantity
+    for _, auction in ipairs(Pieces(itemID)) do
+        local take = math.min(left, auction.quantity)
+        cost, left = cost + take * auction.buyout, left - take
+        if left == 0 then return cost end
+    end
+    return nil
+end
+-- The game takes both of these only from a click; the tests call them from one.
+function C_AuctionHouse.StartCommoditiesPurchase(itemID, quantity)
+    Busy()
+    assert(W.IsCommodity(itemID) and type(quantity) == "number" and quantity >= 1 and quantity == math.floor(quantity),
+        "a whole number of pieces of something sold by the piece")
+    A.calls.quotes[#A.calls.quotes + 1] = { itemID = itemID, quantity = quantity }
+    local total = PiecesCost(itemID, quantity)
+    A.purchase = total and { itemID = itemID, quantity = quantity, total = total } or nil
+    C_Timer.After(0.2, function()
+        if total then
+            W.Fire("COMMODITY_PRICE_UPDATED", total / quantity, total)
+        else
+            W.Fire("COMMODITY_PURCHASE_FAILED")
+        end
+    end)
+end
+function C_AuctionHouse.ConfirmCommoditiesPurchase(itemID, quantity)
+    local purchase = assert(A.purchase, "a purchase was started")
+    assert(purchase.itemID == itemID and purchase.quantity == quantity, "the item and quantity that were started")
+    A.purchase = nil
+    -- failPurchase: someone else was faster.
+    local total = not A.failPurchase and PiecesCost(itemID, quantity)
+    if total then
+        local left = quantity
+        for _, auction in ipairs(Pieces(itemID)) do
+            local take = math.min(left, auction.quantity)
+            auction.quantity, left = auction.quantity - take, left - take
+        end
+        for i = #A.auctions, 1, -1 do
+            if A.auctions[i].quantity == 0 then table.remove(A.auctions, i) end
+        end
+        W.player.money = W.player.money - total
+        A.calls.bought[#A.calls.bought + 1] = { itemID = itemID, quantity = quantity, total = total }
+    end
+    C_Timer.After(0.2, function()
+        W.Fire(total and "COMMODITY_PURCHASE_SUCCEEDED" or "COMMODITY_PURCHASE_FAILED")
+        if total then W.Fire("PLAYER_MONEY") end
+    end)
+end
+function C_AuctionHouse.CancelCommoditiesPurchase()
+    A.calls.cancelled = A.calls.cancelled + 1
+    A.purchase = nil
 end
 function C_AuctionHouse.GetNumItemSearchResults(key)
     return A.loaded and A.loaded[KeyText(key)] or 0
@@ -985,7 +1131,7 @@ function C_AuctionHouse.GetItemSearchResultInfo(key, index)
         containsOwnerItem = auction.own or false,
         containsAccountItem = false,
         owners = { "Seller" },
-        quantity = 1,
+        quantity = auction.quantity,
     }
 end
 function C_AuctionHouse.PlaceBid(auctionID, amount)

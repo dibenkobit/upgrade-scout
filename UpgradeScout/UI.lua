@@ -13,10 +13,15 @@ local S = ns.Scanner
 --   prices          MoneyDisplayFrameTemplate
 --   the Pawn scale  WowStyle1DropdownTemplate: its menu and its text, under a face of ours
 --   buying          a StaticPopup shaped like the game's own BUYOUT_AUCTION
+--
+-- The "Consumables" tab is the same frame in another view (`view`): the same list with rows
+-- of another kind, another second filter, a status line of its own, and a box that asks how
+-- many pieces to buy. What differs between the views is gathered in ApplyView.
 local UI = {}
 ns.UI = UI
 
 local TAB_ID = "UpgradeScout"
+local TAB_SUPPLIES = "UpgradeScoutSupplies"
 local POPUP = "UPGRADESCOUT_BUY"
 local MEDIA = "Interface\\AddOns\\" .. ADDON .. "\\Media\\"
 
@@ -65,6 +70,9 @@ local PICKS = {
 
 local frame, scrollBox, provider, hint, intro, status, statusBar, listBar
 local scanButton, scaleDropdown, affordCheck, topCheck
+local view = "gear"         -- what the frame shows: "gear" (Upgrades) or "supplies" (Consumables)
+local holder                -- the frame the Consumables tab is made with (see Build)
+local bestCheck, buyBox     -- the Consumables view's own filter, and its box for buying
 local rows = {}
 local summary               -- what the last refresh counted, for the status line
 local elements = {}       -- row key -> the table the scroll box knows the row by (see SyncList)
@@ -294,8 +302,27 @@ end
 ---------------------------------------------------------------------------
 -- Rows
 ---------------------------------------------------------------------------
+-- A consumable's own tooltip, and under it how much of it is for sale.
+local function ShowSupplyTooltip(row)
+    local entry = row.entry
+    local supply = entry.supply
+    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+    local hideVendorPrice = true
+    GameTooltip:SetHyperlink(supply.link, nil, nil, hideVendorPrice)
+    GameTooltip_AddBlankLineToTooltip(GameTooltip)
+    GameTooltip_AddHighlightLine(GameTooltip, L.TT_STOCK:format(supply.quantity, ns.Money(supply.price)))
+    if not entry.affordable then
+        GameTooltip_AddErrorLine(GameTooltip, L.TT_CANT_AFFORD:format(ns.Money(supply.price - GetMoney())))
+    end
+    GameTooltip:Show()
+end
+
 local function ShowItemTooltip(row)
     local entry = row.entry
+    if entry.supply then
+        ShowSupplyTooltip(row)
+        return
+    end
     local offer = entry.offer
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     -- No vendor price, as on the Buy tab: this is something to buy, not to sell.
@@ -371,12 +398,17 @@ end
 
 -- Shift-click links the item in chat, Ctrl-click tries it on: the game decides which.
 local function ItemRowOnClick(row)
-    HandleModifiedItemClick(row.entry.offer.link)
+    HandleModifiedItemClick((row.entry.supply or row.entry.offer).link)
 end
 
 local function BuyOnClick(button)
     PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-    S.Buy(button:GetParent().entry.offer)
+    local entry = button:GetParent().entry
+    if entry.supply then
+        S.BuySupply(entry.supply)
+    else
+        S.Buy(entry.offer)
+    end
 end
 
 -- A click on a slot's heading folds the slot away, or brings it back.
@@ -465,13 +497,13 @@ local function BuildItemRow(row)
     row.Share:SetPoint("RIGHT", row, "LEFT", UPGRADE_RIGHT, 3)
     row.Upgrade = NewText(row, 14, GREEN, "RIGHT", true)
     row.Upgrade:SetPoint("RIGHT", row.Share, "LEFT", -5, 0)
-    local trough = row:CreateTexture(nil, "BACKGROUND", nil, 1)
-    trough:SetColorTexture(0, 0, 0, 0.6)
-    trough:SetSize(METER_WIDTH, 4)
-    trough:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT", UPGRADE_RIGHT, 5)
+    row.Trough = row:CreateTexture(nil, "BACKGROUND", nil, 1)
+    row.Trough:SetColorTexture(0, 0, 0, 0.6)
+    row.Trough:SetSize(METER_WIDTH, 4)
+    row.Trough:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT", UPGRADE_RIGHT, 5)
     row.Meter = NewTexture(row, "Bar", "ARTWORK")
     row.Meter:SetHeight(3)
-    row.Meter:SetPoint("LEFT", trough, "LEFT", 0.5, 0)
+    row.Meter:SetPoint("LEFT", row.Trough, "LEFT", 0.5, 0)
 
     row.Price = NewMoney(row, PRICE_RIGHT)
     -- An auction house that deals in whole silver shows no copper in its prices.
@@ -481,6 +513,16 @@ local function BuildItemRow(row)
     row.PerPoint = NewMoney(row, PER_RIGHT)
     row.PerPoint:SetFontObject(PriceFontWhite)
     row.PerPoint:SetAlpha(0.8)
+
+    -- A consumable's row says what the item does where a gear row has its pick and its gain,
+    -- and how many pieces are for sale where a gear row has its price per point. The list
+    -- hands a frame from one view to the other, so every row has both sets of parts and
+    -- shows the one its entry calls for (see InitItemRow).
+    row.Effect = NewText(row, 11.5, SOFT, "LEFT", true)
+    row.Effect:SetPoint("LEFT", row, "LEFT", PICK_LEFT, 0)
+    row.Effect:SetWidth(UPGRADE_RIGHT - PICK_LEFT)
+    row.Stock = NewText(row, 12, SOFT, "RIGHT", true)
+    row.Stock:SetPoint("RIGHT", row, "LEFT", PER_RIGHT, 0)
 
     row.Buy = NewButton(row, 58, 20, "ButtonDark", 9.5)
     row.Buy:SetPoint("RIGHT", row, "RIGHT", -4, 0)
@@ -535,12 +577,48 @@ local function CanBuy()
     return S.state == "idle" and S.IsOpen()
 end
 
+-- A consumable: its name, what it does, the price of one piece and how many are for sale.
+local function InitSupplyRow(row, entry)
+    local supply = entry.supply
+    row.Icon:SetTexture(supply.icon)
+    row.Rim:SetVertexColor(ns.QualityColor(supply.quality))
+    row.Name:SetText(ns.QualityText(supply.name, supply.quality))
+    row.Name:SetWidth(NAME_WIDTH)
+    row.Hand:Hide()
+    SetPick(row.Pick, nil)
+
+    -- The strongest of its kind reads brighter than the weaker ones listed under it.
+    local color = entry.best and CREAM or MUTED
+    row.Effect:SetTextColor(color[1], color[2], color[3])
+    row.Effect:SetText(supply.effect or "")
+    row.Stock:SetText(tostring(supply.quantity))
+
+    row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
+    row.Price:SetAmount(ns.Copper(supply.price))
+
+    row.Buy:SetEnabled(CanBuy() and entry.affordable)
+end
+
 local function InitItemRow(row, element)
     if not row.built then BuildItemRow(row) end
     local data = element.data
     local entry = data.entry
     local offer = entry.offer
     row.entry = entry
+
+    -- The frame may have been a row of the other view a moment ago.
+    local gear = entry.supply == nil
+    row.Share:SetShown(gear)
+    row.Upgrade:SetShown(gear)
+    row.Trough:SetShown(gear)
+    row.Meter:SetShown(gear)
+    row.PerPoint:SetShown(gear)
+    row.Effect:SetShown(not gear)
+    row.Stock:SetShown(not gear)
+    if not gear then
+        InitSupplyRow(row, entry)
+        return
+    end
 
     row.Icon:SetTexture(offer.icon)
     row.Rim:SetVertexColor(ns.QualityColor(offer.quality))
@@ -578,7 +656,8 @@ local function InitHeaderRow(row, element)
     if not row.built then BuildHeaderRow(row) end
     local data = element.data
     row.group = data.group
-    row.Title:SetText(ns.Upper(ns.Compare.GroupLabel(data.group)))
+    -- A slot's name, or the title a heading of consumables comes with.
+    row.Title:SetText(ns.Upper(data.title or ns.Compare.GroupLabel(data.group)))
 
     local count = ""
     if data.shown < data.total then
@@ -605,6 +684,7 @@ end
 
 local function RowKey(row)
     if row.kind == "header" then return "H:" .. row.group end
+    if row.kind == "supply" then return "U:" .. row.entry.supply.id end
     return "I:" .. row.entry.group .. ":" .. tostring(row.entry.offer.id)
 end
 
@@ -636,8 +716,12 @@ local function Fold(all)
             best = nil
             out[#out + 1] = row
         else
-            best = best or row.entry.delta
-            row.share = best > 0 and math.min(row.entry.delta / best, 1) or 1
+            -- (A consumable has no gain and no meter.)
+            local delta = row.entry.delta
+            if delta then
+                best = best or delta
+                row.share = best > 0 and math.min(delta / best, 1) or 1
+            end
             if not hidden then out[#out + 1] = row end
         end
     end
@@ -706,11 +790,41 @@ end
 ---------------------------------------------------------------------------
 -- Status line and refresh
 ---------------------------------------------------------------------------
+-- Each view has a scan of its own: when the last one ended, and the note it left.
+local function FinishedAt()
+    if view == "supplies" then return S.suppliesAt end
+    return S.finishedAt
+end
+
+local function Note()
+    if view == "supplies" then return S.suppliesNote end
+    return S.message
+end
+
+-- What the last scan for consumables found, for the status line.
+local function SuppliesText()
+    local parts = {}
+    if S.suppliesNote then parts[#parts + 1] = S.suppliesNote end
+    if S.suppliesAt then
+        if summary.items == 0 then
+            parts[#parts + 1] = summary.hidden > 0 and L.ST_SUP_NONE_AFFORD:format(summary.hidden) or L.ST_SUP_NONE
+        elseif summary.hidden > 0 then
+            parts[#parts + 1] = L.ST_SUP_DONE_HIDDEN:format(summary.items, summary.groups, summary.hidden)
+        else
+            parts[#parts + 1] = L.ST_SUP_DONE:format(summary.items, summary.groups)
+        end
+        if S.suppliesPartial and not S.suppliesNote then parts[#parts + 1] = L.ST_PARTIAL end
+        parts[#parts + 1] = L.ST_AGE:format(ns.Ago(time() - S.suppliesAt))
+    end
+    return table.concat(parts, " ")
+end
+
 local function StatusText()
+    -- What the scanner is doing is said in both views, whichever of them it is working for.
     if S.state == "browse" then
         return L.ST_BROWSE:format(S.info.rows)
     elseif S.state == "score" then
-        return L.ST_SCORE:format(S.info.scored, S.info.toScore)
+        return (S.mode == "supplies" and L.ST_SUP_SCORE or L.ST_SCORE):format(S.info.scored, S.info.toScore)
     elseif S.state == "verify" then
         if S.mode == "scan" or S.mode == "more" then
             local text = L.ST_VERIFY:format(S.info.verified, S.info.toVerify)
@@ -721,6 +835,7 @@ local function StatusText()
         end
         return L.ST_BUYCHECK
     end
+    if view == "supplies" then return SuppliesText() end
 
     local parts = {}
     if S.message then parts[#parts + 1] = S.message end
@@ -772,7 +887,7 @@ local function ShowStatus()
     if not idle then SetBar(statusBar, progress) end
 
     local empty = #rows == 0
-    local first = empty and idle and not (S.finishedAt or S.message)
+    local first = empty and idle and not (FinishedAt() or Note())
     intro:SetShown(first)
     listBar:SetShown(empty and not idle)
     hint:ClearAllPoints()
@@ -784,7 +899,8 @@ local function ShowStatus()
         hint:SetText(text)
     elseif first then
         hint:SetPoint("TOP", intro, "BOTTOM", 0, -12)
-        hint:SetText(ns.Pawn.Problem() or L.HINT:format(ScaleTitle()))
+        -- Consumables are not scored, so their view has nothing to ask of Pawn.
+        hint:SetText(view == "supplies" and L.SUP_HINT or ns.Pawn.Problem() or L.HINT:format(ScaleTitle()))
     else
         hint:SetPoint("CENTER", scrollBox, "CENTER", 0, 10)
         hint:SetText(text)
@@ -798,7 +914,7 @@ local function ClockOnUpdate()
     local now = time()
     if now == clockAt then return end
     clockAt = now
-    if S.state == "idle" and S.finishedAt then ShowStatus() end
+    if S.state == "idle" and FinishedAt() then ShowStatus() end
 end
 
 local function SetCheck(check, checked)
@@ -811,12 +927,20 @@ function UI.Refresh()
     if not frame or not frame:IsShown() then return end
 
     local all
-    all, summary = ns.Results.Build(S.offers, S.ctx, {
-        money = GetMoney(),
-        affordableOnly = ns.db.affordableOnly,
-        limit = ns.db.topOnly and ns.Results.TOP_COUNT or nil,
-        unchecked = S.Unchecked(),
-    })
+    if view == "supplies" then
+        all, summary = ns.Supplies.Build(S.supplies, {
+            money = GetMoney(),
+            affordableOnly = ns.db.affordableOnly,
+            bestOnly = ns.db.bestOnly,
+        })
+    else
+        all, summary = ns.Results.Build(S.offers, S.ctx, {
+            money = GetMoney(),
+            affordableOnly = ns.db.affordableOnly,
+            limit = ns.db.topOnly and ns.Results.TOP_COUNT or nil,
+            unchecked = S.Unchecked(),
+        })
+    end
     rows = Fold(all)
     SyncList()
 
@@ -825,9 +949,10 @@ function UI.Refresh()
     -- Red while it starts a scan, dark while it stops one.
     scanButton.Label:SetText(ns.Upper(idle and L.SCAN or L.STOP))
     scanButton.Face:SetFile(idle and "ButtonRed" or "ButtonDark")
-    scanButton:SetEnabled(idle or S.mode == "scan" or S.mode == "more")
+    scanButton:SetEnabled(idle or S.mode == "scan" or S.mode == "more" or S.mode == "supplies")
     SetCheck(affordCheck, ns.db.affordableOnly)
     SetCheck(topCheck, ns.db.topOnly)
+    SetCheck(bestCheck, ns.db.bestOnly)
 
     local scaleKey = ScaleKey()
     if scaleKey ~= scaleShown then
@@ -836,8 +961,9 @@ function UI.Refresh()
     end
 
     -- The scan looks up only the prices the list can show. If the list now needs more of them
-    -- (a filter was switched off, an offer was bought), this is where it asks.
-    S.Demand()
+    -- (a filter was switched off, an offer was bought), this is where it asks. Only the gear
+    -- list asks: a lookup started behind the Consumables view would keep its Buy buttons grey.
+    if view == "gear" then S.Demand() end
 end
 
 -- Redraws soon, and once however many times it is asked: a scan reports progress many times
@@ -903,10 +1029,12 @@ end
 
 local function ScanOnClick()
     PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-    if S.state == "idle" then
-        S.Start()
-    else
+    if S.state ~= "idle" then
         S.Stop(L.ST_STOPPED)
+    elseif view == "supplies" then
+        S.StartSupplies()
+    else
+        S.Start()
     end
     UI.Refresh()
 end
@@ -955,6 +1083,210 @@ local function ScaleLabel()
     return ns.Upper((L.SCALE:gsub("%s*:%s*$", ""):gsub("：$", "")))
 end
 
+---------------------------------------------------------------------------
+-- The box that asks how many of a consumable to buy
+---------------------------------------------------------------------------
+-- A purchase of a consumable goes in steps (see "Consumables: the scan and the purchase" in
+-- Scanner.lua), and the box follows them in `step`:
+--   choose   the player types how many; the box shows what that many cost by the price list
+--   quote    "Buy" was pressed: the server is being asked what exactly they cost
+--   confirm  the server's price is shown and the button reads "Confirm"
+--   wait     pressed again: the purchase is on its way
+-- A consumable sold as separate auctions has nothing to choose: the box offers its cheapest
+-- auction (`auction`) as it is, and one press buys it.
+local BOX_WIDTH, BOX_HEIGHT, BOX_EDGE = 330, 162, 18
+
+-- A caption beside a field: the words of a label without the colon they end in.
+local function Caption(text)
+    return ns.Upper((text:gsub("%s*:%s*$", ""):gsub("：$", "")))
+end
+
+local function PaintBox()
+    if not buyBox.tiers then return end
+    local step = buyBox.step
+    local settled = step == "confirm" or step == "wait"
+    local cost
+    if settled then
+        cost = buyBox.quoted
+    elseif buyBox.auction then
+        cost = buyBox.auction.cost
+    else
+        local count = buyBox.Count:GetNumber()
+        cost = count > 0 and S.SupplyCost(buyBox.tiers, count) or nil
+    end
+    local affordable = cost ~= nil and cost <= GetMoney()
+
+    buyBox.TotalLabel:SetText(Caption(settled and L.QTY_FINAL or L.QTY_TOTAL))
+    -- No price for nothing, or for more pieces than there are.
+    buyBox.Total:SetShown(cost ~= nil)
+    if cost then
+        buyBox.Total:SetFontObject(affordable and PriceFontWhite or PriceFontRed)
+        buyBox.Total:SetAmount(ns.Copper(cost))
+    end
+    buyBox.Buy.Label:SetText(ns.Upper(step == "confirm" and L.QTY_CONFIRM or L.BUY))
+    buyBox.Buy:SetEnabled((step == "choose" or step == "confirm") and affordable and S.Ready())
+    buyBox.Count:SetEnabled(step == "choose" and buyBox.auction == nil)
+end
+
+local function CloseBox()
+    buyBox:Hide()
+end
+
+local function BoxBuyOnClick()
+    PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+    local step = buyBox.step
+    if step == "confirm" then
+        buyBox.step = "wait"
+        S.ConfirmSupply()
+    elseif step ~= "choose" then
+        return
+    elseif buyBox.auction then
+        buyBox.step, buyBox.quoted = "wait", buyBox.auction.cost
+        S.BuySupplyAuction(buyBox.supply, buyBox.tiers)
+    else
+        buyBox.step = "quote"
+        S.QuoteSupply(buyBox.supply, buyBox.tiers, buyBox.Count:GetNumber())
+    end
+    PaintBox()
+end
+
+local function BuildBuyBox()
+    buyBox = CreateFrame("Frame", nil, frame)
+    buyBox:SetSize(BOX_WIDTH, BOX_HEIGHT)
+    buyBox:SetPoint("CENTER", scrollBox, "CENTER", 0, 0)
+    -- Above the rows, and in the way of clicks meant for the rows under it.
+    buyBox:SetFrameStrata("DIALOG")
+    buyBox:EnableMouse(true)
+    buyBox:Hide()
+    NewSlices(buyBox, "Panel", 0.375, 12, "BACKGROUND", 0, 1.5)
+
+    buyBox.Icon = buyBox:CreateTexture(nil, "ARTWORK")
+    buyBox.Icon:SetSize(ICON_SIZE - 3, ICON_SIZE - 3)
+    buyBox.Icon:SetPoint("CENTER", buyBox, "TOPLEFT", BOX_EDGE + ICON_SIZE / 2, -28)
+    buyBox.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    buyBox.Rim = NewTexture(buyBox, "IconRim", "ARTWORK", 1)
+    buyBox.Rim:SetSize(ICON_SIZE, ICON_SIZE)
+    buyBox.Rim:SetPoint("CENTER", buyBox.Icon, "CENTER", 0, 0)
+    buyBox.Name = NewText(buyBox, 13, CREAM, "LEFT", true)
+    buyBox.Name:SetPoint("LEFT", buyBox.Rim, "RIGHT", PAD, 0)
+    buyBox.Name:SetWidth(BOX_WIDTH - 2 * BOX_EDGE - ICON_SIZE - PAD)
+
+    local rule = NewLine(buyBox)
+    rule:SetVertexColor(0.80, 0.60, 0.26, 0.55)
+    rule:SetPoint("TOPLEFT", buyBox, "TOPLEFT", BOX_EDGE - 4, -48)
+    rule:SetPoint("TOPRIGHT", buyBox, "TOPRIGHT", -(BOX_EDGE - 4), -48)
+
+    local countLabel = NewText(buyBox, 9.5, GOLD_DIM)
+    countLabel:SetPoint("LEFT", buyBox, "TOPLEFT", BOX_EDGE, -70)
+    countLabel:SetText(Caption(L.QTY))
+
+    -- The field for the number: an edit box of the game's in a recess of ours.
+    local count = CreateFrame("EditBox", nil, buyBox)
+    count:SetSize(56, 22)
+    count:SetPoint("LEFT", countLabel, "RIGHT", PAD, 0)
+    NewSlices(count, "Inset", 0.25, 6, "BACKGROUND")
+    count:SetFont(numberFont, 13, "")
+    count:SetTextColor(CREAM[1], CREAM[2], CREAM[3])
+    count:SetJustifyH("CENTER")
+    count:SetAutoFocus(false)
+    count:SetNumeric(true)
+    count:SetMaxLetters(4)
+    count:SetScript("OnTextChanged", PaintBox)
+    count:SetScript("OnEnterPressed", function() buyBox.Buy:Click() end)
+    count:SetScript("OnEscapePressed", CloseBox)
+    buyBox.Count = count
+
+    -- "of 152 for sale"
+    buyBox.Stock = NewText(buyBox, 11, MUTED, "LEFT", true)
+    buyBox.Stock:SetPoint("LEFT", count, "RIGHT", PAD, 0)
+
+    buyBox.TotalLabel = NewText(buyBox, 9.5, GOLD_DIM)
+    buyBox.TotalLabel:SetPoint("LEFT", buyBox, "TOPLEFT", BOX_EDGE, -102)
+    buyBox.Total = CreateFrame("Frame", nil, buyBox, "MoneyDisplayFrameTemplate")
+    buyBox.Total:SetPoint("RIGHT", buyBox, "TOPRIGHT", -BOX_EDGE, -102)
+    if not C_AuctionHouse.SupportsCopperValues() then
+        buyBox.Total.CopperDisplay:SetForcedHidden(true)
+    end
+
+    buyBox.Buy = NewButton(buyBox, 138, 24, "ButtonRed", 11)
+    buyBox.Buy:SetPoint("BOTTOMLEFT", buyBox, "BOTTOMLEFT", BOX_EDGE, 16)
+    buyBox.Buy:SetScript("OnClick", BoxBuyOnClick)
+    buyBox.Cancel = NewButton(buyBox, 138, 24, "ButtonDark", 11)
+    buyBox.Cancel:SetPoint("BOTTOMRIGHT", buyBox, "BOTTOMRIGHT", -BOX_EDGE, 16)
+    buyBox.Cancel.Label:SetText(ns.Upper(CANCEL))
+    buyBox.Cancel:SetScript("OnClick", CloseBox)
+
+    -- However the box goes away, a purchase that was not confirmed is off.
+    buyBox:SetScript("OnHide", function() S.CancelSupply() end)
+end
+
+---------------------------------------------------------------------------
+-- The two views
+---------------------------------------------------------------------------
+local function CheckWidth(check)
+    return CHECK_SIZE + CHECK_GAP + check.Text:GetStringWidth()
+end
+
+-- Makes the frame's controls and titles those of `view`. The list itself follows at the
+-- next refresh.
+local function ApplyView()
+    local gear = view == "gear"
+    local list = frame.List
+
+    -- Item, pick, gain, buyout, price per point; or item, effect, price of a piece, pieces.
+    list.Titles[2]:SetText(ns.Upper(gear and L.COL_PICK or L.COL_EFFECT))
+    list.Titles[3]:SetShown(gear)
+    list.Titles[4]:SetText(ns.Upper(gear and L.COL_PRICE or L.COL_UNIT))
+    list.Titles[5]:SetText(ns.Upper(gear and L.COL_PER or L.COL_STOCK))
+    intro.Heading:SetText(ns.Upper(gear and L.TITLE or L.TITLE_SUP))
+
+    -- Consumables are not scored by Pawn, and their second filter is another one. (The scale
+    -- field has no label where a language's words leave no room for one.)
+    if frame.ScaleLabel then frame.ScaleLabel:SetShown(gear) end
+    scaleDropdown:SetShown(gear)
+    topCheck:SetShown(gear)
+    bestCheck:SetShown(not gear)
+    affordCheck:ClearAllPoints()
+    affordCheck:SetPoint("LEFT", gear and topCheck or bestCheck, "LEFT", -(2 * PAD + CheckWidth(affordCheck)), 0)
+
+    buyBox:Hide()
+    toTop = true
+end
+
+-- What the Consumables view adds to the frame Build has made, and what makes the frame serve
+-- two tabs. (A part of Build in its own right, also because one Lua function can refer to
+-- only so many of a file's local names.)
+local function BuildViews(auction)
+    -- Where the Upgrades view has "Top N per slot".
+    bestCheck = NewFilterCheck(L.SUP_BEST, "bestOnly", L.SUP_BEST_TIP)
+    bestCheck:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + CheckWidth(bestCheck)), -BAR_MIDDLE)
+    BuildBuyBox()
+    frame.BestCheck, frame.BuyBox = bestCheck, buyBox
+
+    -- The library that makes the tabs shows and hides the frame a tab was made with. So the
+    -- Consumables tab is made with an empty frame of its own, and the real one comes and goes
+    -- with it. Which of the two tabs brought the frame up says which view it is to show.
+    holder = CreateFrame("Frame", nil, auction)
+    holder:Hide()
+    holder:SetScript("OnShow", function() frame:Show() end)
+    holder:SetScript("OnHide", function() frame:Hide() end)
+
+    frame:SetScript("OnShow", function()
+        local shown = holder:IsShown() and "supplies" or "gear"
+        if shown ~= view then
+            view = shown
+            ApplyView()
+        end
+        UI.Refresh()
+    end)
+    -- Another tab, or the window closed: a question about buying must not stay up.
+    frame:SetScript("OnHide", function()
+        StaticPopup_Hide(POPUP)
+        buyBox:Hide()
+    end)
+    ApplyView()
+end
+
 local function Build()
     local auction = AuctionHouseFrame
     -- By now the game has settled on its fonts for the player's language, and so has any
@@ -980,6 +1312,7 @@ local function Build()
     affordCheck:SetPoint("LEFT", topCheck, "LEFT", -(2 * PAD + affordWidth), 0)
 
     local scaleLabel = NewText(frame, 9.5, GOLD_DIM)
+    frame.ScaleLabel = scaleLabel
     scaleLabel:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD, 0)
     scaleLabel:SetText(ScaleLabel())
 
@@ -990,6 +1323,7 @@ local function Build()
         + 2 * PAD + affordWidth + 2 * PAD + topWidth + BAR_RIGHT)
     if room < DROPDOWN_MIN then
         scaleLabel:Hide()
+        frame.ScaleLabel = nil
         room = room + labelWidth
         labelWidth = 0
     end
@@ -1055,6 +1389,7 @@ local function Build()
     local heading = NewText(intro, 12.5, GOLD, "CENTER")
     heading:SetPoint("TOP", emblem, "BOTTOM", 0, -12)
     heading:SetText(ns.Upper(L.TITLE))
+    intro.Heading = heading
     local underline = NewLine(intro)
     underline:SetVertexColor(0.85, 0.64, 0.28, 0.7)
     underline:SetPoint("BOTTOMLEFT", intro, "BOTTOMLEFT", 0, 0)
@@ -1085,9 +1420,7 @@ local function Build()
 
     CreateFrame("Frame", nil, frame):SetScript("OnUpdate", ClockOnUpdate)
 
-    frame:SetScript("OnShow", UI.Refresh)
-    -- Another tab, or the window closed: a question about buying must not stay up.
-    frame:SetScript("OnHide", function() StaticPopup_Hide(POPUP) end)
+    BuildViews(auction)
 end
 
 ---------------------------------------------------------------------------
@@ -1097,7 +1430,9 @@ end
 -- added to it right then.
 EventUtil.ContinueOnAddOnLoaded("Blizzard_AuctionHouseUI", function()
     Build()
-    LibStub("LibAHTab-1-0"):CreateTab(TAB_ID, frame, L.TAB, L.TITLE)
+    local tabs = LibStub("LibAHTab-1-0")
+    tabs:CreateTab(TAB_ID, frame, L.TAB, L.TITLE)
+    tabs:CreateTab(TAB_SUPPLIES, holder, L.TAB_SUP, L.TITLE_SUP)
 end)
 
 ns.On("PLAYER_MONEY", QueueRefresh)
@@ -1150,6 +1485,52 @@ ns.Listen("CONFIRM_BUY", function(offer)
     end
     -- link and useLinkForItemInfo are for the popup's item frame, which fills in the rest.
     StaticPopup_Show(POPUP, nil, nil, { offer = offer, link = offer.link, useLinkForItemInfo = true })
+end)
+
+---------------------------------------------------------------------------
+-- Buying a consumable (the box is built in BuildBuyBox)
+---------------------------------------------------------------------------
+ns.Listen("CONFIRM_SUPPLY", function(supply, tiers)
+    -- The lookup before the question takes a moment; the player may have left the view since.
+    if not frame:IsVisible() or view ~= "supplies" then
+        S.CancelSupply()
+        return
+    end
+    buyBox.supply, buyBox.tiers = supply, tiers
+    buyBox.auction = tiers[1].auctionID and tiers[1] or nil
+    buyBox.step, buyBox.quoted = "choose", nil
+    buyBox.Icon:SetTexture(supply.icon)
+    buyBox.Rim:SetVertexColor(ns.QualityColor(supply.quality))
+    buyBox.Name:SetText(ns.QualityText(supply.name, supply.quality))
+    buyBox.Stock:SetText(L.QTY_OF:format(supply.quantity))
+    buyBox:Show()
+
+    -- To begin with: one stack, or as much of one as there is for sale and money for.
+    local count = buyBox.auction and buyBox.auction.quantity or math.min(supply.stack, supply.quantity)
+    if not buyBox.auction then
+        local money = GetMoney()
+        while count > 1 and S.SupplyCost(tiers, count) > money do count = count - 1 end
+    end
+    buyBox.Count:SetNumber(count)
+    buyBox.Count:SetFocus()
+    buyBox.Count:HighlightText()
+    PaintBox()
+end)
+
+ns.Listen("SUPPLY_QUOTED", function(total)
+    if not buyBox:IsShown() or (buyBox.step ~= "quote" and buyBox.step ~= "confirm") then return end
+    buyBox.step, buyBox.quoted = "confirm", total
+    PaintBox()
+end)
+
+-- Bought, or not: either way the box has done its work.
+ns.Listen("SUPPLY_DONE", function()
+    if buyBox then buyBox:Hide() end
+end)
+
+-- The buttons of the box wait for the auction house to be ready for the next request.
+ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function()
+    if buyBox and buyBox:IsShown() then PaintBox() end
 end)
 
 ---------------------------------------------------------------------------

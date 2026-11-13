@@ -25,6 +25,8 @@ two picks are marked:
 - **Top 5 per slot** keeps the options worth considering and drops the rest.
 - **Only what I can afford** hides what costs more than you have.
 - **Buy** from the list: the addon checks that the auction is still there and asks before paying.
+- A second tab, **Consumables**, lists the potions, food, elixirs, bandages and other consumables
+  you can use right now, the strongest of each kind first, at the price of one piece.
 - Works for any class and level. English, Russian, German, French, Spanish, Brazilian Portuguese, Italian and Simplified Chinese.
 
 ## Requirements
@@ -73,6 +75,25 @@ as an alternative:
   main-hand and two-hand weapons together. Each weapon row says which it is in grey after the name,
   in the same words as the item tooltip.
 
+## Consumables
+
+The **Consumables** tab does the same for the game's Consumables category: potions, elixirs, flasks,
+food and drink, bandages, scrolls and the rest. Press **Scan** there; Pawn has no part in this list.
+
+- **What is listed**: consumables you can use right now. Required level, class and skill are read
+  from the item tooltip: nothing in it may be red.
+- **Blocks** are the game's subcategories. The second column is the game's own text for what the
+  item does; the price is for one piece, and the last column is how many pieces are for sale.
+- **Best of each kind**: on by default, one row per kind. Turn it off to see every consumable, each
+  kind from its strongest down.
+  - Two consumables are of one kind when the text of their effect differs only in its numbers:
+    "Restores 70 to 90 health" and "Restores 700 to 900 health".
+  - The best of a kind is the one that requires the highest level. Equal levels are settled by the
+    bigger number in the text (bandages require a skill, not a level), and then by the lower price.
+- **Only what I can afford** works here too, on the price of one piece.
+- **Buy** reads the current prices, then asks how many. The box shows what that many cost, cheapest
+  pieces first. **Buy** in the box asks the auction house for its price, **Confirm** buys at it.
+
 ## How an item is judged
 
 | Question | Answer comes from |
@@ -120,6 +141,11 @@ Safety nets, because none of this was assumed about the server:
   skip anything.
 - Three item searches in a row without an answer end the price checks instead of waiting out the rest.
 
+The scan for consumables is the first two steps with another question: one search for the
+Consumables category, then every row's tooltip is read. There is no price check, because
+consumables are sold by the piece without bids and a row's lowest price is the price of one piece.
+The auctions are read only when you press **Buy**.
+
 `/upscout stats` prints what the last scan sent and how long each step took.
 
 ## Development
@@ -145,7 +171,8 @@ lua5.1 tests/run.lua buy        # one scenario
 | `PawnBridge.lua` | The only place that calls Pawn |
 | `Compare.lua` | Which slot an item goes into and how much better it is |
 | `Results.lua` | Rows for the list and the two picks per slot |
-| `Scanner.lua` | Auction house requests: browse, score, price check, buy |
+| `Supplies.lua` | Consumables: which do the same thing, which of those is the best, and their rows |
+| `Scanner.lua` | Auction house requests: browse, score, price check, buy; the scan and the purchase of consumables |
 | `UI.lua` | The tab |
 | `Media/` | The tab's textures: the plate under the list, buttons, bars, marks. Drawn by `scripts/make-textures.py` |
 | `icon.tga` | The icon in the game's AddOns list and on the tab before the first scan, exported from `docs/logo/logo.svg` |

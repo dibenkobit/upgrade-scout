@@ -41,6 +41,8 @@ S.mode = nil                   -- what the current work is for:
                                --   more     prices the list started to need after a scan
                                --   buy      the lookup before a purchase
                                --   refresh  the lookup after one
+                               --   supplies a scan for consumables (see "Consumables" below)
+                               --   supply   the lookup before a consumable is bought
 S.offers = {}                  -- offer id -> offer
 S.ctx = nil                    -- comparison context of the last scan (see PawnBridge.Context)
 S.info = { rows = 0, scored = 0, toScore = 0, verified = 0, toVerify = 0 }
@@ -50,6 +52,12 @@ S.halted = false               -- the price checks were stopped and wait for S.R
 S.finishedAt = nil
 S.stats = nil                  -- what the last scan sent and how long it took (see NewStats)
 
+-- The same for consumables, which have a scan and a list of their own.
+S.supplies = {}                -- id -> consumable for sale that the player can use (see ScoreSupply)
+S.suppliesAt = nil             -- when the last scan for them ended
+S.suppliesPartial = false      -- it did not see everything
+S.suppliesNote = nil           -- note for their status line
+
 local ahOpen = false
 local run                      -- state of the work in progress
 local scan                     -- what the last scan learned; kept until the next scan
@@ -58,6 +66,8 @@ local lastRequest              -- request sent last, repeated if the server drop
 local sendingBrowse = false
 local purchases = {}           -- auction id -> offer, for purchases the player confirmed
 local confirming = false       -- the player is looking at the "Buy this?" box
+local quote                    -- the consumable purchase the server was asked to price (see QuoteSupply)
+local supplyBids = {}          -- auction id -> { supply, tiers }, for consumables bought as one auction
 local stateSince = 0
 
 local ITEM_SORTS = {
@@ -75,6 +85,7 @@ local ARMOR_LIMIT = {
 }
 local ARMOR_CLASS = Enum.ItemClass.Armor
 local WEAPON_CLASS = Enum.ItemClass.Weapon
+local CONSUMABLE_CLASS = Enum.ItemClass.Consumable
 
 ---------------------------------------------------------------------------
 -- State and the request throttle
@@ -398,6 +409,7 @@ local function FinishRun(ok)
     run = nil
     pending = nil
     if mode == "scan" then S.finishedAt = time() end
+    if mode == "supplies" then S.suppliesAt = time() end
     SetState("idle")
     if IsScanMode(mode) then SaveStats() end
     if done then done(ok) end
@@ -663,8 +675,14 @@ local function StepJobs(now)
     end
 end
 
+local ReadLookupAuctions
+
 local function OnItemResults(itemKey)
     if S.state ~= "verify" or not run then return end
+    if run.lookup then
+        ReadLookupAuctions(itemKey)
+        return
+    end
     local job = run.job
     if job and (job.state == "query" or job.state == "more") and ns.SameKey(itemKey, job.key) then
         ContinueJob(job)
@@ -729,13 +747,97 @@ local function ScoreRow(row)
     return true
 end
 
+---------------------------------------------------------------------------
+-- Consumables
+---------------------------------------------------------------------------
+-- A scan for consumables is the first two steps of the scan for gear, with other questions:
+--   browse  one search for the whole Consumables category
+--   score   each row's item is kept if the player can use it right now (nothing red in its
+--           tooltip) and its tooltip says what it does: the line that starts with "Use:"
+-- There is no third step. Consumables are sold by the piece out of one pile per item, without
+-- bids, so the lowest price in a browse row is the price of one piece.
+-- Which of them do the same thing, and which of those is the best, is Supplies.lua's business.
+local ItemSpell = C_Item.GetItemSpell or GetItemSpell
+
+-- What the game says about a consumable:
+--   usable  true = nothing red, false = something red, nil = the client has not loaded it yet
+--   effect  the first line that starts with "Use:", without those words; nil if there is none
+local function ReadSupply(link)
+    local data = C_TooltipInfo.GetHyperlink(link)
+    local lines = data and data.lines
+    local name = lines and lines[1] and lines[1].leftText
+    if not name or name == "" or name == RETRIEVING_ITEM_INFO then return nil end
+    local usable, effect = true, nil
+    local prefix = ITEM_SPELL_TRIGGER_ONUSE
+    for i = 2, #lines do
+        local line = lines[i]
+        if IsRed(line.leftText, line.leftColor) or IsRed(line.rightText, line.rightColor) then
+            usable = false
+        end
+        local text = line.leftText
+        if not effect and text and type(prefix) == "string" and text:sub(1, #prefix) == prefix then
+            effect = text:sub(#prefix + 1):match("^%s*(.-)%s*$")
+        end
+    end
+    return usable, effect
+end
+
+-- true when the row is settled, false when it has to wait for the client to load something.
+-- `final`: the wait is over, settle the row with what is known.
+local function ScoreSupply(row, final)
+    local itemID = row.key.itemID
+    if not C_Item.IsItemDataCachedByID(itemID) then
+        if not run.requested[itemID] then
+            run.requested[itemID] = true
+            C_Item.RequestLoadItemDataByID(itemID)
+        end
+        return final or false
+    end
+    local name, link, quality, _, _, _, _, stack, _, icon, _, _, subClassID = C_Item.GetItemInfo(itemID)
+    if not name or not link then return final or false end
+
+    local usable, effect = ReadSupply(link)
+    if usable == nil then return final or false end
+    if not usable then return true end
+    if not effect or effect == "" then
+        -- Nothing to use: a reagent or a leftover filed under Consumables. If the item does
+        -- cast something, the line about it is still on its way.
+        if not (ItemSpell and ItemSpell(itemID)) then return true end
+        if not final then return false end
+        effect = nil
+    end
+
+    local kind, power = "item:" .. itemID, 0
+    if effect then kind, power = ns.Supplies.Describe(effect) end
+    S.supplies[row.ks] = {
+        id = row.ks,
+        key = row.key,
+        itemID = itemID,
+        link = link,
+        name = name,
+        quality = quality,
+        icon = icon,
+        sub = subClassID or -1,
+        reqLevel = row.required,
+        stack = math.max(stack or 1, 1),
+        effect = effect,
+        kind = kind,            -- the same for every consumable that does the same thing
+        power = power,
+        price = row.minPrice,   -- of one piece
+        quantity = row.quantity,
+    }
+    return true
+end
+
 local function StepScore(now)
     local started = Clock()
     local list = run.toScore
+    local supplies = run.mode == "supplies"
+    local Score = supplies and ScoreSupply or ScoreRow
     while run.scoreIndex <= #list do
         local row = list[run.scoreIndex]
         run.scoreIndex = run.scoreIndex + 1
-        if ScoreRow(row) then
+        if Score(row) then
             S.info.scored = S.info.scored + 1
             run.lastLoad = now
         else
@@ -750,8 +852,13 @@ local function StepScore(now)
     if #run.waiting > 0 then
         if now - run.lastLoad > LOAD_TIMEOUT then
             -- The client is not going to tell us more: let the item search decide these.
+            -- (A consumable has no item search to go to: it is taken as far as it is known.)
             for i = 1, #run.waiting do
-                AddCandidate(run.waiting[i])
+                if supplies then
+                    ScoreSupply(run.waiting[i], true)
+                else
+                    AddCandidate(run.waiting[i])
+                end
             end
             S.info.scored = S.info.scored + #run.waiting
             run.waiting = {}
@@ -765,6 +872,10 @@ local function StepScore(now)
     end
 
     ns.Fire("SCAN_PROGRESS")
+    if supplies then
+        FinishRun(true)
+        return
+    end
     scan.ready = true
     StartVerify()
 end
@@ -791,7 +902,8 @@ local function BrowseQuery(variant)
             filter.PoorQuality, filter.CommonQuality, filter.UncommonQuality, filter.RareQuality,
             filter.EpicQuality, filter.LegendaryQuality, filter.ArtifactQuality,
         },
-        itemClassFilters = { { classID = WEAPON_CLASS }, { classID = ARMOR_CLASS } },
+        itemClassFilters = run.mode == "supplies" and { { classID = CONSUMABLE_CLASS } }
+            or { { classID = WEAPON_CLASS }, { classID = ARMOR_CLASS } },
     }
 end
 
@@ -805,7 +917,7 @@ local function TrackOrder(required)
     order.count = order.count + 1
     if required < order.last then order.inversions = order.inversions + 1 end
     order.last = required
-    if required > S.ctx.level then
+    if required > run.level then
         order.above = order.above + 1
     else
         order.above = 0
@@ -829,10 +941,21 @@ local function AddRow(result)
 
     local required = AH.GetItemKeyRequiredLevel(key) or 0
     TrackOrder(required)
-    if required > S.ctx.level then return end
+    if required > run.level then return end
 
     local ks = ns.KeyString(key)
     if run.rows[ks] then return end
+
+    if run.mode == "supplies" then
+        -- A row without a price has nothing to buy in it.
+        if (result.minPrice or 0) > 0 then
+            local row = { key = key, ks = ks, minPrice = result.minPrice, required = required,
+                quantity = result.totalQuantity or 0 }
+            run.rows[ks] = row
+            run.toScore[#run.toScore + 1] = row
+        end
+        return
+    end
 
     local _, _, _, equipLoc, _, classID, subClassID = C_Item.GetItemInfoInstant(key.itemID)
     if not ns.Compare.Handles(equipLoc) then return end
@@ -847,7 +970,9 @@ local function AddRow(result)
 end
 
 local function FinishBrowse(partial)
-    if partial then S.partial = true end
+    if partial then
+        if run.mode == "supplies" then S.suppliesPartial = true else S.partial = true end
+    end
     S.info.toScore = #run.toScore
     S.info.scored = 0
     run.scoreIndex = 1
@@ -916,8 +1041,11 @@ local function NewRun(mode)
     S.mode = mode
     lastRequest = nil
     local scanning = IsScanMode(mode)
+    local supplies = mode == "supplies" or mode == "supply"
     run = {
         mode = mode,
+        -- Rows that ask for a higher level are of no use to the player.
+        level = not supplies and S.ctx and S.ctx.level or UnitLevel("player"),
         variant = 1,
         rows = {},          -- key string -> row
         rowCount = 0,
@@ -928,7 +1056,8 @@ local function NewRun(mode)
         requested = {},
         -- A lookup around a purchase scores its item afresh; a scan keeps its scores.
         evalCache = scanning and scan.evalCache or {},
-        stats = scanning and S.stats or nil,
+        -- A scan for consumables counts its requests too, but nobody reads the numbers.
+        stats = scanning and S.stats or (mode == "supplies" and NewStats() or nil),
         deadline = 0,
         lastLoad = 0,
         nextRetry = 0,
@@ -1012,7 +1141,16 @@ function S.Stop(message)
         end
         if mode == "scan" then S.finishedAt = time() end
     end
-    S.message = message
+    if mode == "supplies" then
+        -- What was read before the stop stays in the list.
+        S.suppliesPartial = true
+        S.suppliesAt = time()
+    end
+    if mode == "supplies" or mode == "supply" then
+        S.suppliesNote = message
+    else
+        S.message = message
+    end
     SetState("idle")
     if IsScanMode(mode) then SaveStats() end
     ns.Fire("OFFERS_CHANGED")
@@ -1100,6 +1238,199 @@ function S.RefreshContext()
     ns.Fire("OFFERS_CHANGED")
 end
 
+---------------------------------------------------------------------------
+-- Consumables: the scan and the purchase
+---------------------------------------------------------------------------
+-- Starts a scan for consumables. Returns false and sets S.suppliesNote when it cannot.
+function S.StartSupplies()
+    if S.state ~= "idle" then return false end
+    S.suppliesNote = nil
+    if not ahOpen then
+        S.suppliesNote = L.ERR_AH_CLOSED
+        ns.Fire("SCAN_STATE")
+        return false
+    end
+    S.supplies = {}
+    S.suppliesPartial = false
+    S.suppliesAt = nil
+    S.info = { rows = 0, scored = 0, toScore = 0, verified = 0, toVerify = 0 }
+    confirming = false
+    NewRun("supplies")
+    SetState("browse")
+    SendBrowse()
+    return true
+end
+
+-- A consumable is bought by the piece, and what a purchase costs depends on how many pieces
+-- it takes: the cheapest go first. So a purchase goes in steps, as on the game's Buy tab:
+--   lookup   an item search reads who sells how many at what price      S.BuySupply
+--   choose   the player says how many                                   CONFIRM_SUPPLY
+--   quote    the server names the price of exactly that many            S.QuoteSupply
+--   confirm  the player agrees to that price                            S.ConfirmSupply
+-- The game takes the last two only from a click, so each is called straight from one.
+-- A "price list" is { { price = of one piece, quantity = pieces at that price }, ... },
+-- cheapest first.
+
+-- What `count` pieces cost; nil when the price list does not hold that many.
+function S.SupplyCost(tiers, count)
+    local cost, left = 0, count
+    for i = 1, #tiers do
+        local take = math.min(left, tiers[i].quantity)
+        cost = cost + take * tiers[i].price
+        left = left - take
+        if left <= 0 then return cost end
+    end
+    return nil
+end
+
+-- True when the auction house would take a request this very moment.
+function S.Ready()
+    return ahOpen and AH.IsThrottledMessageSystemReady()
+end
+
+-- The list shows what the price list holds: its lowest price and how many pieces there are.
+-- A consumable with nothing left for sale leaves the list.
+local function ApplyTiers(supply, tiers)
+    if not tiers[1] then
+        S.supplies[supply.id] = nil
+        return false
+    end
+    local stock = 0
+    for i = 1, #tiers do stock = stock + tiers[i].quantity end
+    supply.price, supply.quantity = tiers[1].price, stock
+    return true
+end
+
+local function SendLookup()
+    local lookup = run.lookup
+    lookup.deadline = GetTime() + JOB_TIMEOUT
+    Send(function()
+        lookup.deadline = GetTime() + JOB_TIMEOUT
+        AH.SendSearchQuery(lookup.supply.key, ITEM_SORTS, false, 0, 0)
+    end)
+end
+
+local function StepLookup(now)
+    local lookup = run.lookup
+    if now <= lookup.deadline then return end
+    if lookup.tries < JOB_RETRIES then
+        lookup.tries = lookup.tries + 1
+        SendLookup()
+    else
+        S.Stop(L.ERR_BROWSE)
+    end
+end
+
+local function FinishLookup(tiers)
+    local supply = run.lookup.supply
+    table.sort(tiers, function(a, b) return a.price < b.price end)
+    run.onDone = function()
+        if not ApplyTiers(supply, tiers) then
+            ns.Print(L.MSG_GONE:format(supply.link))
+            return
+        end
+        confirming = true
+        ns.Fire("CONFIRM_SUPPLY", supply, tiers)
+    end
+    FinishRun(true)
+end
+
+-- The answer for something sold by the piece.
+local function ReadLookupPieces(itemID)
+    local lookup = run and run.lookup
+    if not lookup or lookup.supply.itemID ~= itemID then return end
+    local tiers = {}
+    for i = 1, AH.GetNumCommoditySearchResults(itemID) or 0 do
+        local info = AH.GetCommoditySearchResultInfo(itemID, i)
+        -- The player's own pieces are in the list too, and cannot be bought.
+        local quantity = info and (info.quantity or 0) - (info.numOwnerItems or 0) or 0
+        if quantity > 0 and (info.unitPrice or 0) > 0 then
+            tiers[#tiers + 1] = { price = info.unitPrice, quantity = quantity }
+        end
+    end
+    FinishLookup(tiers)
+end
+
+-- The answer for something sold as separate auctions, which a few consumables are. Each
+-- auction is bought whole, so each is an entry of its own, with its auction and its price.
+function ReadLookupAuctions(itemKey)
+    if not ns.SameKey(itemKey, run.lookup.supply.key) then return end
+    local tiers = {}
+    for i = 1, AH.GetNumItemSearchResults(itemKey) or 0 do
+        local info = AH.GetItemSearchResultInfo(itemKey, i)
+        local buyout = info and info.buyoutAmount or 0
+        if buyout > 0 and not info.containsOwnerItem and not info.containsAccountItem then
+            local quantity = math.max(info.quantity or 1, 1)
+            tiers[#tiers + 1] = { price = buyout / quantity, quantity = quantity, cost = buyout, auctionID = info.auctionID }
+        end
+    end
+    FinishLookup(tiers)
+end
+
+-- Step one of a purchase. Fires CONFIRM_SUPPLY with the consumable and its price list.
+function S.BuySupply(supply)
+    if S.state ~= "idle" then
+        ns.Print(L.ERR_BUSY)
+        return
+    end
+    if not ahOpen then return end
+    S.CancelSupply()
+    S.suppliesNote = nil
+    NewRun("supply")
+    run.lookup = { supply = supply, tries = 0, deadline = 0 }
+    SetState("verify")
+    SendLookup()
+end
+
+-- Step three, from a click. SUPPLY_QUOTED follows with what `count` pieces cost in all.
+function S.QuoteSupply(supply, tiers, count)
+    quote = { supply = supply, tiers = tiers, count = count }
+    AH.StartCommoditiesPurchase(supply.itemID, count)
+end
+
+-- Step four, from a click: buys at the price the server named.
+function S.ConfirmSupply()
+    if not quote or not quote.total or quote.sent then return end
+    quote.sent = true
+    AH.ConfirmCommoditiesPurchase(quote.supply.itemID, quote.count)
+end
+
+-- From a click: buys the cheapest auction of a consumable that is sold as separate auctions.
+function S.BuySupplyAuction(supply, tiers)
+    local auction = tiers[1]
+    supplyBids[auction.auctionID] = { supply = supply, tiers = tiers }
+    AH.PlaceBid(auction.auctionID, auction.cost)
+end
+
+-- The player closed the box, at whatever step.
+function S.CancelSupply()
+    if quote then
+        -- The answer to a purchase that was confirmed is still to come.
+        if quote.sent then return end
+        AH.CancelCommoditiesPurchase()
+        quote = nil
+    end
+    if not confirming then return end
+    confirming = false
+    ns.Fire("OFFERS_CHANGED")
+end
+
+-- A purchase came through: the pieces that were bought leave the price list.
+local function SupplyBought(supply, tiers, count, cost)
+    confirming = false
+    ns.Print(L.MSG_BOUGHT_SUP:format(count, supply.link, ns.Money(cost)))
+    local left = count
+    while left > 0 and tiers[1] do
+        local take = math.min(left, tiers[1].quantity)
+        tiers[1].quantity = tiers[1].quantity - take
+        left = left - take
+        if tiers[1].quantity <= 0 then table.remove(tiers, 1) end
+    end
+    ApplyTiers(supply, tiers)
+    ns.Fire("SUPPLY_DONE")
+    ns.Fire("OFFERS_CHANGED")
+end
+
 function S.Step()
     if not run then return end
     Pump()
@@ -1109,7 +1440,7 @@ function S.Step()
     elseif S.state == "score" then
         StepScore(now)
     elseif S.state == "verify" then
-        StepJobs(now)
+        if run.lookup then StepLookup(now) else StepJobs(now) end
     end
 end
 
@@ -1125,6 +1456,7 @@ end)
 ns.On("AUCTION_HOUSE_CLOSED", function()
     ahOpen = false
     confirming = false
+    quote = nil         -- the server drops a purchase that was not confirmed
     S.Stop()
 end)
 
@@ -1164,7 +1496,39 @@ end
 ns.On("ITEM_DATA_LOAD_RESULT", OnItemLoaded)
 ns.On("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
 
+ns.On("COMMODITY_SEARCH_RESULTS_UPDATED", ReadLookupPieces)
+
+ns.On("COMMODITY_PRICE_UPDATED", function(_, total)
+    if not quote or quote.sent or type(total) ~= "number" then return end
+    quote.total = total
+    ns.Fire("SUPPLY_QUOTED", total)
+end)
+
+ns.On("COMMODITY_PURCHASE_SUCCEEDED", function()
+    if not quote or not quote.sent then return end
+    local done = quote
+    quote = nil
+    SupplyBought(done.supply, done.tiers, done.count, done.total)
+end)
+
+ns.On("COMMODITY_PURCHASE_FAILED", function()
+    if not quote then return end
+    local supply = quote.supply
+    quote = nil
+    confirming = false
+    ns.Print(L.MSG_BUY_FAILED:format(supply.link))
+    ns.Fire("SUPPLY_DONE")
+    ns.Fire("OFFERS_CHANGED")
+end)
+
 ns.On("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
+    local bid = supplyBids[auctionID]
+    if bid then
+        supplyBids[auctionID] = nil
+        local auction = bid.tiers[1]
+        SupplyBought(bid.supply, bid.tiers, auction.quantity, auction.cost)
+        return
+    end
     local offer = purchases[auctionID]
     if not offer then return end
     purchases[auctionID] = nil
