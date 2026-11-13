@@ -26,7 +26,8 @@ two picks are marked:
 - **Only what I can afford** hides what costs more than you have.
 - **Buy** from the list: the addon checks that the auction is still there and asks before paying.
 - A second tab, **Consumables**, lists the potions, food, elixirs, bandages and other consumables
-  you can use right now, the strongest of each kind first, at the price of one piece.
+  you can use right now, the ones worth the most to your character first: what an elixir or a flask
+  adds is scored on the same Pawn scale as gear. The price is for one piece.
 - Works for any class and level. English, Russian, German, French, Spanish, Brazilian Portuguese, Italian and Simplified Chinese.
 
 ## Requirements
@@ -78,18 +79,33 @@ as an alternative:
 ## Consumables
 
 The **Consumables** tab does the same for the game's Consumables category: potions, elixirs, flasks,
-food and drink, bandages, scrolls and the rest. Press **Scan** there; Pawn has no part in this list.
+food and drink, bandages, scrolls and the rest. Press **Scan** there.
 
 - **What is listed**: consumables you can use right now. Required level, class and skill are read
   from the item tooltip: nothing in it may be red.
 - **Blocks** are the game's subcategories. The second column is the game's own text for what the
   item does; the price is for one piece, and the last column is how many pieces are for sale.
-- **Best of each kind**: on by default, one row per kind. Turn it off to see every consumable, each
-  kind from its strongest down.
-  - Two consumables are of one kind when the text of their effect differs only in its numbers:
-    "Restores 70 to 90 health" and "Restores 700 to 900 health".
-  - The best of a kind is the one that requires the highest level. Equal levels are settled by the
-    bigger number in the text (bandages require a skill, not a level), and then by the lower price.
+- **Score**: what an elixir, a flask, a scroll, an oil or a meal adds (Strength, spell damage, mana
+  every five seconds...) is scored by Pawn on the scale chosen at the top, in the same points as
+  gear: +25 Agility from an elixir is worth what +25 Agility on a ring is. Choosing another scale
+  scores the list again without another scan.
+  - The numbers come from the game's own data tables, which the addon carries as `SupplyData.lua`.
+    A consumable the tables say nothing about, or whose effect is not a plain number (a proc, a
+    percentage, protection from fire), is listed without a score.
+  - Health and mana restored have no score: Pawn has no weight for "restores 700 health".
+- **Best for me**: on by default.
+  - One row per kind. Two consumables are of one kind when the text of their effect differs only in
+    its numbers: "Restores 70 to 90 health" and "Restores 700 to 900 health".
+  - The best of a kind is the one with the highest score. Without a score it is the one that
+    requires the highest level; equal levels are settled by the bigger number in the text (bandages
+    require a skill, not a level), and then by the lower price.
+  - What is of no use to your character is left out: a consumable whose stats your scale gives no
+    weight (an Intellect elixir for a warrior), and mana for a character without it. Food with such
+    a bonus is still food, and all of it counts as one kind.
+  - Turn it off to see every consumable: each kind from its best down, what is of no use in grey at
+    the end of its block.
+- **Order in a block**: what restores health or mana first, then what has a score, the highest
+  first, then the rest from the highest required level down.
 - **Only what I can afford** works here too, on the price of one piece.
 - **Buy** reads the current prices, then asks how many. The box shows what that many cost, cheapest
   pieces first. **Buy** in the box asks the auction house for its price, **Confirm** buys at it.
@@ -144,6 +160,8 @@ Safety nets, because none of this was assumed about the server:
 The scan for consumables is the first two steps with another question: one search for the
 Consumables category, then every row's tooltip is read. There is no price check, because
 consumables are sold by the piece without bids and a row's lowest price is the price of one piece.
+What a consumable is worth is worked out when the list is drawn, from the table of what it adds and
+the Pawn scale in use.
 The auctions are read only when you press **Buy**.
 
 `/upscout stats` prints what the last scan sent and how long each step took.
@@ -162,6 +180,10 @@ lua5.1 tests/run.lua buy        # one scenario
   not in the default place).
 - `scripts\make-textures.py` draws the tab's art into `UpgradeScout\Media` (needs Python with numpy
   and Pillow; the command is at the top of the file). Run it after changing a shape or a colour there.
+- `scripts\make-supply-data.py --build <client build>` writes `UpgradeScout\SupplyData.lua`, the table
+  of what consumables add, from the game's data tables as [wago.tools](https://wago.tools) publishes
+  them (plain Python, nothing to install). Run it when the game gets new consumables; one that is
+  not in the table is listed without a score.
 - A release is a tag named after the version in the `.toc` (for example `1.0.1`). Pushing it runs the
   tests, uploads `UpgradeScout-<version>-forever.zip` to CurseForge and attaches it to a GitHub
   release (`.github/workflows/release.yml`).
@@ -171,7 +193,8 @@ lua5.1 tests/run.lua buy        # one scenario
 | `PawnBridge.lua` | The only place that calls Pawn |
 | `Compare.lua` | Which slot an item goes into and how much better it is |
 | `Results.lua` | Rows for the list and the two picks per slot |
-| `Supplies.lua` | Consumables: which do the same thing, which of those is the best, and their rows |
+| `SupplyData.lua` | What each consumable adds or restores, from the game's tables. Written by `scripts/make-supply-data.py` |
+| `Supplies.lua` | Consumables: which do the same thing, what each is worth to the character, which is the best, and their rows |
 | `Scanner.lua` | Auction house requests: browse, score, price check, buy; the scan and the purchase of consumables |
 | `UI.lua` | The tab |
 | `Media/` | The tab's textures: the plate under the list, buttons, bars, marks. Drawn by `scripts/make-textures.py` |

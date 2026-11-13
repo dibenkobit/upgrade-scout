@@ -38,6 +38,7 @@ Core.lua
 PawnBridge.lua
 Compare.lua
 Results.lua
+SupplyData.lua
 Supplies.lua
 Scanner.lua
 UI.lua

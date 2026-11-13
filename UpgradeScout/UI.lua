@@ -43,6 +43,7 @@ local ICON_LEFT, ICON_SIZE = 6, 22
 local NAME_LEFT, NAME_WIDTH, NAME_MIN_WIDTH = 36, 228, 110
 local PICK_LEFT, PICK_WIDTH = 276, 140
 local UPGRADE_RIGHT, METER_WIDTH = 492, 72
+local SCORE_LEFT = UPGRADE_RIGHT - METER_WIDTH  -- where a consumable's score begins: its meter's left end
 local PRICE_RIGHT, PER_RIGHT = 596, 684
 local TITLES = {
     { text = L.COL_ITEM, at = 10 },
@@ -310,6 +311,11 @@ local function ShowSupplyTooltip(row)
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(supply.link, nil, nil, hideVendorPrice)
     GameTooltip_AddBlankLineToTooltip(GameTooltip)
+    if entry.value then
+        GameTooltip_AddNormalLine(GameTooltip, L.TT_SUP_SCORE:format("+" .. ns.Num(entry.value)))
+    elseif entry.why then
+        GameTooltip_AddNormalLine(GameTooltip, entry.why == "MANA" and L.TT_SUP_NO_MANA or L.TT_SUP_NO_WEIGHT)
+    end
     GameTooltip_AddHighlightLine(GameTooltip, L.TT_STOCK:format(supply.quantity, ns.Money(supply.price)))
     if not entry.affordable then
         GameTooltip_AddErrorLine(GameTooltip, L.TT_CANT_AFFORD:format(ns.Money(supply.price - GetMoney())))
@@ -514,13 +520,13 @@ local function BuildItemRow(row)
     row.PerPoint:SetFontObject(PriceFontWhite)
     row.PerPoint:SetAlpha(0.8)
 
-    -- A consumable's row says what the item does where a gear row has its pick and its gain,
-    -- and how many pieces are for sale where a gear row has its price per point. The list
-    -- hands a frame from one view to the other, so every row has both sets of parts and
-    -- shows the one its entry calls for (see InitItemRow).
+    -- A consumable's row says what the item does where a gear row has its pick, and how many
+    -- pieces are for sale where a gear row has its price per point. Its score stands where a
+    -- gear row has its gain, over the same meter; a row without a score gives that room to
+    -- the words. The list hands a frame from one view to the other, so every row has both
+    -- sets of parts and shows the one its entry calls for (see InitItemRow).
     row.Effect = NewText(row, 11.5, SOFT, "LEFT", true)
     row.Effect:SetPoint("LEFT", row, "LEFT", PICK_LEFT, 0)
-    row.Effect:SetWidth(UPGRADE_RIGHT - PICK_LEFT)
     row.Stock = NewText(row, 12, SOFT, "RIGHT", true)
     row.Stock:SetPoint("RIGHT", row, "LEFT", PER_RIGHT, 0)
 
@@ -577,21 +583,38 @@ local function CanBuy()
     return S.state == "idle" and S.IsOpen()
 end
 
--- A consumable: its name, what it does, the price of one piece and how many are for sale.
-local function InitSupplyRow(row, entry)
+-- A consumable: its name, what it does, what that is worth on the Pawn scale (when Pawn can
+-- say), the price of one piece and how many are for sale.
+local function InitSupplyRow(row, entry, share)
     local supply = entry.supply
     row.Icon:SetTexture(supply.icon)
+    -- What is of no use to the character is listed in grey (and only when everything is).
+    row.Icon:SetDesaturated(entry.useless)
     row.Rim:SetVertexColor(ns.QualityColor(supply.quality))
     row.Name:SetText(ns.QualityText(supply.name, supply.quality))
     row.Name:SetWidth(NAME_WIDTH)
     row.Hand:Hide()
     SetPick(row.Pick, nil)
 
-    -- The strongest of its kind reads brighter than the weaker ones listed under it.
-    local color = entry.best and CREAM or MUTED
+    -- The best of its kind reads brighter than the others listed under it.
+    local color = entry.best and not entry.useless and CREAM or MUTED
     row.Effect:SetTextColor(color[1], color[2], color[3])
     row.Effect:SetText(supply.effect or "")
     row.Stock:SetText(tostring(supply.quantity))
+
+    local scored = entry.value ~= nil
+    row.Upgrade:SetShown(scored)
+    row.Trough:SetShown(scored)
+    row.Meter:SetShown(scored)
+    row.Effect:SetWidth(scored and SCORE_LEFT - PAD - PICK_LEFT or UPGRADE_RIGHT - PICK_LEFT)
+    if scored then
+        -- The number alone, where a gear row has "+4.7 +80%".
+        row.Upgrade:ClearAllPoints()
+        row.Upgrade:SetPoint("RIGHT", row, "LEFT", UPGRADE_RIGHT, 3)
+        row.Upgrade:SetText("+" .. ns.Num(entry.value))
+        row.Meter:SetWidth(math.max((METER_WIDTH - 1) * share, 2))
+        row.Meter:SetTexCoord(0, math.max(share, 0.03), 0, 1)
+    end
 
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
     row.Price:SetAmount(ns.Copper(supply.price))
@@ -609,18 +632,21 @@ local function InitItemRow(row, element)
     -- The frame may have been a row of the other view a moment ago.
     local gear = entry.supply == nil
     row.Share:SetShown(gear)
-    row.Upgrade:SetShown(gear)
-    row.Trough:SetShown(gear)
-    row.Meter:SetShown(gear)
     row.PerPoint:SetShown(gear)
     row.Effect:SetShown(not gear)
     row.Stock:SetShown(not gear)
     if not gear then
-        InitSupplyRow(row, entry)
+        InitSupplyRow(row, entry, data.share or 1)
         return
     end
+    row.Upgrade:Show()
+    row.Trough:Show()
+    row.Meter:Show()
+    row.Upgrade:ClearAllPoints()
+    row.Upgrade:SetPoint("RIGHT", row.Share, "LEFT", -5, 0)
 
     row.Icon:SetTexture(offer.icon)
+    row.Icon:SetDesaturated(false)
     row.Rim:SetVertexColor(ns.QualityColor(offer.quality))
 
     local name = ns.QualityText(offer.name, offer.quality)
@@ -716,8 +742,9 @@ local function Fold(all)
             best = nil
             out[#out + 1] = row
         else
-            -- (A consumable has no gain and no meter.)
-            local delta = row.entry.delta
+            -- A consumable's meter measures its score against the best one under the heading.
+            -- (One without a score has no meter.)
+            local delta = row.entry.delta or row.entry.value
             if delta then
                 best = best or delta
                 row.share = best > 0 and math.min(delta / best, 1) or 1
@@ -899,7 +926,8 @@ local function ShowStatus()
         hint:SetText(text)
     elseif first then
         hint:SetPoint("TOP", intro, "BOTTOM", 0, -12)
-        -- Consumables are not scored, so their view has nothing to ask of Pawn.
+        -- Consumables can be listed without Pawn, only without scores: what is wrong with
+        -- Pawn is said in the Upgrades view, which cannot do without it.
         hint:SetText(view == "supplies" and L.SUP_HINT or ns.Pawn.Problem() or L.HINT:format(ScaleTitle()))
     else
         hint:SetPoint("CENTER", scrollBox, "CENTER", 0, 10)
@@ -923,6 +951,17 @@ local function SetCheck(check, checked)
     check.Tick:SetShown(checked)
 end
 
+-- How the list of consumables is to score what one of them adds: with Pawn, on the scale in
+-- use. Nothing when Pawn cannot be asked; the list then has no scores and leaves nothing out.
+local MANA = Enum.PowerType and Enum.PowerType.Mana or 0
+local function SupplyValue()
+    if ns.Pawn.Problem() then return nil end
+    local scale = ns.Pawn.CurrentScale()
+    if not scale then return nil end
+    local name = scale.name
+    return function(stats) return ns.Pawn.StatsValue(stats, name) end
+end
+
 function UI.Refresh()
     if not frame or not frame:IsShown() then return end
 
@@ -932,6 +971,8 @@ function UI.Refresh()
             money = GetMoney(),
             affordableOnly = ns.db.affordableOnly,
             bestOnly = ns.db.bestOnly,
+            value = SupplyValue(),
+            mana = (UnitPowerMax("player", MANA) or 0) > 0,
         })
     else
         all, summary = ns.Results.Build(S.offers, S.ctx, {
@@ -996,10 +1037,13 @@ local function ChooseScale(name)
     ns.db.scale = name
     -- The dropdown shows the choice by itself; it must not be rebuilt while its menu is open.
     scaleShown = ScaleKey()
-    -- Scores from another scale mean nothing now.
-    local rescan = S.finishedAt ~= nil or S.state ~= "idle"
+    -- Scores of gear from another scale mean nothing now, and the Upgrades view scans again.
+    -- Consumables are scored as their list is drawn, so theirs follow with the refresh; a
+    -- scan for gear is not started from their view, where it would grey out the Buy buttons.
+    local rescan = view == "gear" and (S.finishedAt ~= nil or S.state ~= "idle")
     S.Reset()
     if rescan and S.IsOpen() then S.Start() end
+    toTop = true
     UI.Refresh()
 end
 
@@ -1233,21 +1277,32 @@ local function ApplyView()
     local gear = view == "gear"
     local list = frame.List
 
-    -- Item, pick, gain, buyout, price per point; or item, effect, price of a piece, pieces.
+    -- Item, pick, gain, buyout, price per point; or item, effect, score, price of a piece, pieces.
     list.Titles[2]:SetText(ns.Upper(gear and L.COL_PICK or L.COL_EFFECT))
-    list.Titles[3]:SetShown(gear)
+    list.Titles[3]:SetText(ns.Upper(gear and L.COL_UPGRADE or L.COL_SCORE))
     list.Titles[4]:SetText(ns.Upper(gear and L.COL_PRICE or L.COL_UNIT))
     list.Titles[5]:SetText(ns.Upper(gear and L.COL_PER or L.COL_STOCK))
     intro.Heading:SetText(ns.Upper(gear and L.TITLE or L.TITLE_SUP))
 
-    -- Consumables are not scored by Pawn, and their second filter is another one. (The scale
-    -- field has no label where a language's words leave no room for one.)
-    if frame.ScaleLabel then frame.ScaleLabel:SetShown(gear) end
-    scaleDropdown:SetShown(gear)
+    -- Both views score with the Pawn scale; their second filter is another one.
+    local second = gear and topCheck or bestCheck
     topCheck:SetShown(gear)
     bestCheck:SetShown(not gear)
     affordCheck:ClearAllPoints()
-    affordCheck:SetPoint("LEFT", gear and topCheck or bestCheck, "LEFT", -(2 * PAD + CheckWidth(affordCheck)), 0)
+    affordCheck:SetPoint("LEFT", second, "LEFT", -(2 * PAD + CheckWidth(affordCheck)), 0)
+
+    -- The scale field takes the room this view's labels leave, as in Build; where they leave
+    -- too little, it stands without its own label.
+    local label = frame.ScaleLabel
+    local labelWidth = label and label:GetStringWidth() + PAD or 0
+    local room = AuctionHouseFrame:GetWidth() - (BAR_LEFT + SCAN_WIDTH + 2 * PAD
+        + 2 * PAD + CheckWidth(affordCheck) + 2 * PAD + CheckWidth(second) + BAR_RIGHT)
+    local labelled = label ~= nil and room - labelWidth >= DROPDOWN_MIN
+    if label then label:SetShown(labelled) end
+    if not labelled then labelWidth = 0 end
+    scaleDropdown:SetWidth(Clamp(room - labelWidth, DROPDOWN_MIN, DROPDOWN_MAX))
+    scaleDropdown:ClearAllPoints()
+    scaleDropdown:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD + labelWidth, 0)
 
     buyBox:Hide()
     toTop = true

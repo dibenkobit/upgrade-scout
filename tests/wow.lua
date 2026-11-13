@@ -65,7 +65,7 @@ W.Widget = Widget
 local function noop() end
 for _, name in ipairs({
     "SetPoint", "ClearAllPoints", "SetAllPoints", "SetJustifyH", "SetWordWrap", "SetSpacing",
-    "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetDesaturated", "SetAlpha",
+    "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetAlpha",
     "SetFontObject", "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent",
     "SetFrameStrata", "EnableMouse",
@@ -107,6 +107,7 @@ function M:SetAtlas(atlas)
 end
 function M:SetSize(w, h) self._width, self._height = w, h end
 function M:SetWidth(w) self._width = w end
+function M:SetDesaturated(grey) self._grey = grey and true or false end
 function M:GetParent() return self._parent end
 -- Six pixels a character, colour codes not counted.
 function M:GetStringWidth()
@@ -643,6 +644,8 @@ function UnitLevel() return W.player.level end
 function UnitClass() return "Class", W.player.class end
 function CanDualWield() return W.player.dualWield end
 function GetMoney() return W.player.money end
+-- How much mana the character can hold: none unless a test gives it some (W.player.mana).
+function UnitPowerMax(_, power) return power == 0 and (W.player.mana or 0) or 0 end
 function GetInventoryItemLink(_, slot) return W.equipped[slot] end
 -- W.modified: true for "some modifier is held", or the name of one action ("DRESSUP").
 function IsModifiedClick(action) return W.modified == true or (action ~= nil and W.modified == action) end
@@ -792,6 +795,7 @@ end
 
 Enum = {
     ItemClass = { Consumable = 0, Weapon = 2, Armor = 4 },
+    PowerType = { Mana = 0, Rage = 1, Energy = 3 },
     AuctionHouseSortOrder = { Price = 0, Name = 1, Level = 2, Bid = 3, Buyout = 4, TimeRemaining = 5 },
     AuctionHouseFilter = {
         PoorQuality = 6, CommonQuality = 7, UncommonQuality = 8, RareQuality = 9,
@@ -1198,6 +1202,24 @@ function PawnGetItemDataForInventorySlot(slot)
     return PawnGetItemData(link), true
 end
 function PawnIsArmorBestTypeForPlayer(record) return not record._item.wrongArmor end
+
+-- What each scale gives a point of a stat. Scoring a bare set of stats, as the addon does for
+-- what a consumable adds, is Pawn's own sum over these.
+W.pawnWeights = {
+    S1 = { Strength = 1.5, Agility = 1, Stamina = 0.5, Ap = 0.4, CritRating = 8, Health = 0.05 },
+    S2 = { Intellect = 1, Stamina = 0.5, SpellDamage = 0.8 },
+}
+W.pawnCalls = {}        -- the arguments of every PawnGetItemValue call after the stats
+function PawnGetAllStatValues(scale) return W.pawnWeights[scale] end
+function PawnGetItemValue(stats, level, socketBonus, scale, debug, noNormalization, noReforging)
+    W.pawnCalls[#W.pawnCalls + 1] = { level = level, socketBonus = socketBonus, scale = scale,
+        debug = debug, noNormalization = noNormalization, noReforging = noReforging }
+    local weights = W.pawnWeights[scale]
+    if not stats or not weights then return nil end
+    local total = 0
+    for name, amount in pairs(stats) do total = total + amount * (weights[name] or 0) end
+    return total, 0, 0
+end
 function PawnGetShowUpgradesForWeapons() return true end
 
 return W

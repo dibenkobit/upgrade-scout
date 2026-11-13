@@ -1287,6 +1287,12 @@ local function SuppliesWorld()
     -- Filed under Consumables with nothing to use, and a subcategory the game has no name for.
     Add({ id = 530, name = "Strange Dust", subClassID = 8, level = 1, stack = 20 })
     Add({ id = 531, name = "Rough Dynamite", subClassID = 0, level = 1, stack = 20, use = "Inflicts 26 to 34 Fire damage in a 5 yard radius." })
+    -- Elixirs: what they add is worth something on a Pawn scale, or nothing (see SupplyFacts).
+    Add({ id = 560, name = "Elixir of Ogre Strength", subClassID = 2, level = 20, stack = 5, use = "Increases Strength by 8 for 1 hr." })
+    Add({ id = 561, name = "Elixir of Lesser Agility", subClassID = 2, level = 18, stack = 5, use = "Increases Agility by 8 for 1 hr." })
+    Add({ id = 562, name = "Elixir of Agility", subClassID = 2, level = 27, stack = 5, use = "Increases Agility by 15 for 1 hr." })
+    Add({ id = 563, name = "Elixir of Wisdom", subClassID = 2, level = 10, stack = 5, use = "Increases Intellect by 6 for 1 hr." })
+    Add({ id = 564, name = "Elixir of Giants", subClassID = 2, level = 28, stack = 5, use = "Increases Strength by 25 for 1 hr." })
 
     W.AddAuction(500, 30, { quantity = 40 })
     W.AddAuction(501, 300, { quantity = 12 })
@@ -1303,6 +1309,32 @@ local function SuppliesWorld()
     W.AddAuction(522, 400, { quantity = 50 })
     W.AddAuction(530, 10, { quantity = 5 })
     W.AddAuction(531, 200, { quantity = 7 })
+    W.AddAuction(560, 300, { quantity = 9 })
+    W.AddAuction(561, 250, { quantity = 4 })
+    W.AddAuction(562, 600, { quantity = 2 })
+    W.AddAuction(563, 100, { quantity = 3 })
+    W.AddAuction(564, 50000, { quantity = 1 })             -- more than the character has
+end
+
+-- What the game's tables say of the consumables above, in place of the real table: the test
+-- items have numbers of their own. Call it after LoadAddon. (Nothing is said of the dynamite.)
+local function SupplyFacts()
+    ns.SupplyData.stats = {
+        [560] = { Strength = 8 }, [561] = { Agility = 8 }, [562] = { Agility = 15 },
+        [563] = { Intellect = 6 }, [564] = { Strength = 25 },
+        [540] = { Agility = 8 }, [541] = { Strength = 8 },
+    }
+    ns.SupplyData.restores = {
+        [500] = "H", [501] = "H", [502] = "H", [503] = "H", [504] = "M",
+        [510] = "H", [511] = "H", [512] = "H", [520] = "H", [521] = "H", [522] = "H",
+    }
+end
+
+-- How the tab asks for the list: scores from Pawn's scale, and whether the character has mana.
+local function SupplyOpts(scale, opts)
+    opts.money = opts.money or GetMoney()
+    opts.value = function(stats) return ns.Pawn.StatsValue(stats, scale) end
+    return opts
 end
 
 local function Supply(name)
@@ -1334,49 +1366,161 @@ function scenarios.supplies()
     kind, power = P.Describe("Eat me.")
     eq(kind, "Eat me.", "text without numbers stays"); eq(power, 0, "and has no number")
 
-    local function Make(id, sub, effect, level, price, quantity)
+    -- What the game's tables say of an item: `facts` is its stats, or the letters of what it restores.
+    local function Make(id, sub, effect, level, price, quantity, facts)
         local k, p = P.Describe(effect)
-        return { id = id, name = id, sub = sub, kind = k, power = p, effect = effect, reqLevel = level, price = price, quantity = quantity }
+        return { id = id, name = id, sub = sub, kind = k, power = p, effect = effect, reqLevel = level, price = price, quantity = quantity,
+            stats = type(facts) == "table" and facts or nil, restores = type(facts) == "string" and facts or nil }
     end
     local list = {
-        a = Make("a", 1, "Restores 70 to 90 health.", 1, 30, 40),
-        b = Make("b", 1, "Restores 455 to 585 health.", 21, 900, 13),
-        c = Make("c", 1, "Restores 455 to 585 mana.", 22, 30000, 6),
-        d = Make("d", 5, "Restores 874 health over 27 sec.", 25, 120, 60),
-        e = Make("e", 5, "Restores 874 health over 27 sec.", 25, 90, 20),
-        f = Make("f", 7, "Heals 161 damage over 7 sec.", 1, 15, 30),
-        g = Make("g", 7, "Heals 301 damage over 7 sec.", 1, 60, 25),
+        a = Make("a", 1, "Restores 70 to 90 health.", 1, 30, 40, "H"),
+        b = Make("b", 1, "Restores 455 to 585 health.", 21, 900, 13, "H"),
+        c = Make("c", 1, "Restores 455 to 585 mana.", 22, 30000, 6, "M"),
+        d = Make("d", 5, "Restores 874 health over 27 sec.", 25, 120, 60, "H"),
+        e = Make("e", 5, "Restores 874 health over 27 sec.", 25, 90, 20, "H"),
+        f = Make("f", 7, "Heals 161 damage over 7 sec.", 1, 15, 30, "H"),
+        g = Make("g", 7, "Heals 301 damage over 7 sec.", 1, 60, 25, "H"),
         h = Make("h", 42, "Does 5 things.", 1, 10, 1),
-        i = Make("i", 2, "Increases Agility by 8 for 1 hr.", 18, 500, 9),
+        i = Make("i", 2, "Increases Agility by 8 for 1 hr.", 18, 500, 9, { Agility = 8 }),
+        j = Make("j", 2, "Increases Agility by 15 for 1 hr.", 27, 700, 2, { Agility = 15 }),
+        k = Make("k", 2, "Increases Intellect by 25 for 1 hr.", 37, 400, 5, { Intellect = 25 }),
+        l = Make("l", 2, "Increases Strength by 8 for 1 hr.", 20, 300, 80, { Strength = 8 }),
+        m = Make("m", 2, "Allows breathing under water for 30 min.", 8, 50, 3),
+        n = Make("n", 1, "Restores 300 mana and 300 health.", 15, 200, 4, "HM"),
     }
+    -- A scale for someone who hits things: nothing for Intellect.
+    local weights = { Agility = 1, Strength = 1.5 }
+    local function Value(stats)
+        local total = 0
+        for name, amount in pairs(stats) do total = total + amount * (weights[name] or 0) end
+        return total
+    end
     local function Text(rows)
         local out = {}
         for _, row in ipairs(rows) do
             if row.kind == "header" then
                 out[#out + 1] = string.format("[%s %d/%d]", row.title, row.shown, row.total)
             else
-                out[#out + 1] = row.entry.supply.id .. (row.entry.best and "*" or "") .. (row.entry.affordable and "" or "!")
+                local entry = row.entry
+                out[#out + 1] = entry.supply.id .. (entry.best and "*" or "") .. (entry.affordable and "" or "!")
+                    .. (entry.useless and "~" or "") .. (entry.value and "=" .. entry.value or "")
             end
         end
         return table.concat(out, " ")
     end
 
-    -- The default view: the best of each kind, among what the character can pay for.
-    local rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true })
-    eq(Text(rows), "[Potions 1/2] b* [Elixirs 1/1] i* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
-        "one row per kind: the higher level, then the bigger number, then the lower price")
-    eq(summary.items, 5, "rows counted"); eq(summary.groups, 5, "subcategories counted")
-    eq(summary.hidden, 1, "the mana potion costs more than the character has")
+    -- The default view, for a character without mana: the best of each kind that is of use,
+    -- among what the character can pay for.
+    local rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
+        "what restores first, health before health and mana; then by score, the higher first; then what has none")
+    eq(summary.items, 8, "rows counted"); eq(summary.groups, 5, "subcategories counted")
+    eq(summary.useless, 2, "mana for a character without it and Intellect on a scale without it are left out")
+    eq(summary.hidden, 0, "and are not counted among what costs too much")
     eq(rows[1].group, "SUB1", "a heading is known by its subcategory")
 
-    -- Everything: kinds stay together, the one there is most of for sale first.
-    rows, summary = P.Build(list, { money = 20000, affordableOnly = false, bestOnly = false })
-    eq(Text(rows), "[Potions 3/3] b* a c*! [Elixirs 1/1] i* [Food & Drink 2/2] e* d [Bandages 2/2] g* f [Other 1/1] h*",
-        "every consumable, the strongest of its kind first and marked")
-    eq(summary.items, 9, "all listed"); eq(summary.hidden, 0, "nothing left out")
+    -- The same for a character with mana: the mana potion is of use, only too dear.
+    rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = true })
+    eq(summary.useless, 1, "with mana, only the Intellect elixir is of no use"); eq(summary.hidden, 1, "and the mana potion costs too much")
+
+    -- Everything: kinds stay together; what is of no use goes last and is marked.
+    rows, summary = P.Build(list, { money = 20000, affordableOnly = false, bestOnly = false, value = Value, mana = false })
+    eq(Text(rows), "[Potions 4/4] b* a n* c*!~ [Elixirs 5/5] j*=15 i=8 l*=12 m* k*~ [Food & Drink 2/2] e* d [Bandages 2/2] g* f [Other 1/1] h*",
+        "every consumable, the best of its kind first and marked")
+    eq(summary.items, 14, "all listed"); eq(summary.hidden, 0, "nothing left out"); eq(summary.useless, 0, "not even what is of no use")
+    local why = {}
+    for _, row in ipairs(rows) do
+        if row.entry and row.entry.useless then why[row.entry.supply.id] = row.entry.why end
+    end
+    eq(why.c, "MANA", "the mana potion says why it is of no use"); eq(why.k, "WEIGHT", "and so does the elixir")
+
+    -- Another scale turns the elixirs around without another scan.
+    weights = { Intellect = 1 }
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = true })
+    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 2/2] k*=25 m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
+        "on a scale for Intellect its elixir is the one worth having")
+    weights = { Agility = 1, Strength = 1.5 }
+
+    -- Without Pawn nothing has a score and nothing is left out; kinds keep an order all the
+    -- same: what restores, then the rest from the highest level down.
+    rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, mana = true })
+    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 4/5] k* j* l* m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
+        "no scores without Pawn, and no meter to order by: the level decides")
+    eq(summary.useless, 0, "what cannot be scored is not called useless")
+
+    -- A new rank the tables do not know yet: the kind goes by level, as before there were scores.
+    list.o = Make("o", 2, "Increases Agility by 35 for 1 hr.", 29, 900, 1)
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/5] l*=12 o* m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
+        "the unknown stronger elixir stands for its kind, without a score")
+    list.o = nil
+
+    -- Food that restores health and adds a stat the scale has no weight for is still food.
+    list.p = Make("p", 5, "Restores 874 health over 27 sec. Also increases your Intellect by 5.", 25, 100, 5)
+    list.p.stats, list.p.restores = { Intellect = 5 }, "H"
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 2/3] e* p* [Bandages 1/2] g* [Other 1/1] h*",
+        "it is listed for what it restores")
+    -- And all such food is one kind, whatever the bonuses: the one for the higher level stands for it.
+    list.q = Make("q", 5, "Restores 1392 health over 30 sec. Also increases your Spirit by 8.", 35, 150, 5)
+    list.q.stats, list.q.restores = { Spirit = 8 }, "H"
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 2/4] q* e* [Bandages 1/2] g* [Other 1/1] h*",
+        "one row for food with a bonus of no use, not one for every bonus")
+    -- On a scale that has a weight for one of the bonuses, that food is scored and stands apart.
+    weights = { Agility = 1, Strength = 1.5, Spirit = 0.5 }
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 3/4] e* p* q*=4 [Bandages 1/2] g* [Other 1/1] h*",
+        "food with a bonus of use has its score")
+    weights = { Agility = 1, Strength = 1.5 }
+    list.p, list.q = nil, nil
 
     rows, summary = P.Build({}, { money = 0, affordableOnly = true, bestOnly = true })
     eq(#rows, 0, "an empty list from nothing"); eq(summary.items, 0, "and nothing counted")
+
+    -- The score itself is Pawn's: the sum it makes for an item, asked the way Pawn asks itself.
+    eq(ns.Pawn.StatsValue({ Strength = 8, Agility = 4 }, "S1"), 16, "Pawn's sum for a set of stats")
+    local call = W.pawnCalls[#W.pawnCalls]
+    eq(call.scale, "S1", "on the scale asked for"); eq(call.level, nil, "no item level"); eq(call.socketBonus, nil, "no sockets")
+    eq(call.noNormalization, false, "normalized like the scores of gear"); eq(call.noReforging, true, "nothing to reforge")
+    eq(ns.Pawn.StatsValue({ Intellect = 6 }, "S1"), 0, "nothing for a stat the scale has no weight for")
+    eq(ns.Pawn.StatsValue({ Health = 400 }, "S1"), 20, "health by the scale's own weight where it has one")
+    eq(ns.Pawn.StatsValue({ Health = 400 }, "S2"), 16, "and as the Stamina that gives it where it has none")
+    eq(ns.Pawn.StatsValue({ Mana = 150 }, "S2"), 10, "mana as Intellect in the same way")
+    local saved = PawnGetItemValue
+    PawnGetItemValue = nil
+    eq(ns.Pawn.StatsValue({ Strength = 8 }, "S1"), nil, "a Pawn that cannot be asked gives no score")
+    eq(ns.Pawn.Problem(), nil, "and that is no reason to refuse to scan for gear")
+    PawnGetItemValue = saved
+
+    -- The table that comes with the addon, made from the game's own: a few items everyone knows.
+    local data = ns.SupplyData
+    check(type(data.build) == "string" and data.build ~= "", "the table says which build of the game it was made from")
+    local mongoose = data.stats[13452] or {}
+    eq(mongoose.Agility, 25, "Elixir of the Mongoose: Agility"); eq(mongoose.CritRating, 2, "and a chance to crit, in percent")
+    eq(mongoose.SpellCritRating, 2, "with spells as with weapons: Pawn weighs the two apart")
+    eq(data.stats[13512] and data.stats[13512].SpellDamage, 150, "Flask of Supreme Power")
+    eq(data.stats[20007] and data.stats[20007].Mp5, 12, "Mageblood Elixir: mana every five seconds, not a drink")
+    eq(data.restores[118], "H", "Minor Healing Potion restores health"); eq(data.restores[2455], "M", "Minor Mana Potion restores mana")
+    eq(data.restores[159], "M", "water is a drink"); eq(data.stats[159], nil, "and adds nothing")
+    eq(data.stats[724] and data.stats[724].Strength, 3, "Goretusk Liver Pie: what being well fed adds"); eq(data.restores[724], "H", "and it is food")
+    -- Every name in it must be one Pawn has a weight for, or the score silently leaves it out.
+    local known = {}
+    for name in ("Strength Agility Stamina Intellect Spirit Armor Health Mana Ap Rap SpellDamage Healing Mp5 Hp5 "
+        .. "CritRating HitRating HasteRating SpellCritRating SpellHitRating SpellHasteRating ExpertiseRating DodgeRating ParryRating BlockRating "
+        .. "FireResist FrostResist NatureResist ShadowResist ArcaneResist "
+        .. "FireSpellDamage FrostSpellDamage NatureSpellDamage ShadowSpellDamage ArcaneSpellDamage HolySpellDamage"):gmatch("%S+") do
+        known[name] = true
+    end
+    local count, strange = 0, nil
+    for _, stats in pairs(data.stats) do
+        count = count + 1
+        for name, amount in pairs(stats) do
+            if not known[name] or type(amount) ~= "number" or amount <= 0 then strange = name end
+        end
+    end
+    check(count > 100, "the table knows its elixirs, scrolls and food: " .. count)
+    eq(strange, nil, "under names Pawn knows, with amounts above zero")
 end
 
 function scenarios.supplies_scan()
@@ -1389,6 +1533,7 @@ function scenarios.supplies_scan()
     W.AddAuction(540, 700, { quantity = 4 })
     W.AddAuction(541, 650, { quantity = 2 })
     LoadAddon()
+    SupplyFacts()
     local S = ns.Scanner
 
     eq(S.StartSupplies(), false, "no scan while the auction house is closed")
@@ -1428,12 +1573,22 @@ function scenarios.supplies_scan()
     eq(silent.effect, nil, "without an effect"); eq(silent.kind, "item:541", "as a kind of its own")
     local count = 0
     for _ in pairs(S.supplies) do count = count + 1 end
-    eq(count, 12, "everything else is there")
+    eq(count, 17, "everything else is there")
 
-    -- The rows the tab would show.
-    local rows = ns.Supplies.Build(S.supplies, { money = GetMoney(), affordableOnly = true, bestOnly = true })
+    -- What the game's tables say of an item goes with it.
+    eq(potion.restores, "H", "what the potion restores"); eq(potion.stats, nil, "it adds no stats")
+    eq(Supply("Elixir of Agility").stats.Agility, 15, "what an elixir adds")
+    eq(Supply("Rough Dynamite").stats, nil, "nothing where the tables say nothing"); eq(Supply("Rough Dynamite").restores, nil, "of either kind")
+
+    -- The rows the tab would show a character without mana, on the scale "S1".
+    local rows, summary = ns.Supplies.Build(S.supplies, SupplyOpts("S1", { affordableOnly = true, bestOnly = true, mana = false }))
     eq(rows[1].title, "Potions", "potions first"); eq(rows[2].entry.supply.name, "Greater Healing Potion", "the best healing potion")
-    eq(rows[3].title, "Elixirs", "the mana potion is too dear, so elixirs come next")
+    eq(rows[3].title, "Elixirs", "the mana potion is of no use, so elixirs come next")
+    eq(rows[4].entry.supply.name, "Elixir of Agility", "the elixir Pawn scores highest"); eq(rows[4].entry.value, 15, "with its score")
+    eq(rows[5].entry.supply.name, "Elixir of Ogre Strength", "then the next kind"); eq(rows[5].entry.value, 12, "by its score")
+    eq(rows[6].entry.supply.name, "Silent Elixir", "an item without its effect line is scored all the same")
+    eq(rows[7].title, "Food & Drink", "nothing for the Intellect elixir on this scale")
+    eq(summary.useless, 2, "it and the mana potion are of no use"); eq(summary.hidden, 1, "and the best Strength elixir costs too much")
 
     -- A scan that is stopped keeps what it read, and the note is the consumables list's own.
     check(S.StartSupplies(), "second scan starts")
@@ -1580,6 +1735,7 @@ end
 function scenarios.supplies_ui()
     SuppliesWorld()
     LoadAddon()
+    SupplyFacts()
     W.OpenAuctionHouse()
     local frame = UpgradeScoutFrame
     local S = ns.Scanner
@@ -1639,11 +1795,11 @@ function scenarios.supplies_ui()
     lib:SetSelected("UpgradeScoutSupplies")
     eq(frame:IsShown(), true, "the same frame is up")
     eq(list.Titles[2]:GetText(), "EFFECT", "the second column is what the item does")
-    eq(list.Titles[3]:IsShown(), false, "no gain to show")
+    eq(list.Titles[3]:IsShown(), true, "the third column stays"); eq(list.Titles[3]:GetText(), "SCORE", "for what the item is worth")
     eq(list.Titles[4]:GetText(), "EACH", "the price is that of one piece"); eq(list.Titles[5]:GetText(), "FOR SALE", "then how many there are")
-    eq(frame.ScaleDropdown:IsShown(), false, "no Pawn scale: consumables are not scored")
+    eq(frame.ScaleDropdown:IsShown(), true, "the Pawn scale stays: consumables are scored on it")
     eq(frame.TopCheck:IsShown(), false, "the top-N filter is gone"); eq(frame.BestCheck:IsShown(), true, "another one is in its place")
-    eq(frame.BestCheck.Text:GetText(), "Best of each kind", "with its label"); eq(frame.BestCheck:GetChecked(), true, "ticked by default")
+    eq(frame.BestCheck.Text:GetText(), "Best for me", "with its label"); eq(frame.BestCheck:GetChecked(), true, "ticked by default")
     eq(frame.AffordCheck:IsShown(), true, "the price filter is shared")
     eq(list.Intro:IsShown(), true, "the emblem before the first scan")
     eq(list.Intro.Heading:GetText(), "CONSUMABLES FOR SALE", "under this view's title")
@@ -1657,9 +1813,10 @@ function scenarios.supplies_ui()
     W.RunUntil(function() return S.state == "idle" end, 120)
     W.Run(0.3)
     eq(scan.Label:GetText(), "SCAN", "back to Scan")
-    eq(Listed(), "[POTIONS 1 of 3], Greater Healing Potion, [FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite",
-        "the best of each kind the character can pay for, by subcategory")
-    check(Said("4 consumables in 4 categories. 1 more cost more than you have.") ~= nil, "the status line counts them")
+    eq(Listed(), "[POTIONS 1 of 3], Greater Healing Potion, [ELIXIRS 2 of 3], Elixir of Agility, Elixir of Ogre Strength, "
+        .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite",
+        "the best of each kind that is of use and that the character can pay for, by subcategory")
+    check(Said("6 consumables in 5 categories. 1 more cost more than you have.") ~= nil, "the status line counts them")
     check(Said("Sec ago") ~= nil, "and says how old the scan is")
     eq(list.Intro:IsShown(), false, "the emblem is gone")
 
@@ -1670,6 +1827,18 @@ function scenarios.supplies_ui()
     eq(potion.Pick:IsShown(), false, "no pick"); eq(potion.Upgrade:IsShown(), false, "no gain"); eq(potion.Share:IsShown(), false, "no share")
     eq(potion.Meter:IsShown(), false, "no meter"); eq(potion.PerPoint:IsShown(), false, "no price per point")
     eq(potion.Buy:IsEnabled(), true, "it can be bought")
+    eq(potion.Effect:GetWidth(), 216, "the words have the room of the score it does not have")
+
+    -- An elixir is scored on the Pawn scale, in the points of gear, with a meter like a gain's.
+    local agility, strength = Row("Elixir of Agility"), Row("Elixir of Ogre Strength")
+    eq(agility.Upgrade:IsShown(), true, "a scored row shows its score"); eq(agility.Upgrade:GetText(), "+15", "Pawn's number for +15 Agility")
+    eq(agility.Meter:IsShown(), true, "over a meter"); eq(agility.Meter:GetWidth(), 71, "full for the best under the heading")
+    eq(agility.Share:IsShown(), false, "no percentage: nothing is replaced")
+    eq(agility.Effect:GetWidth(), 136, "the words make room for it")
+    eq(strength.Upgrade:GetText(), "+12", "the next kind by its score"); check(math.abs(strength.Meter:GetWidth() - 71 * 12 / 15) < 0.01, "its meter to scale: " .. strength.Meter:GetWidth())
+    eq(agility.Icon._grey, false, "in colour")
+    local last = W.pawnCalls[#W.pawnCalls]
+    eq(last.scale, "S1", "scored on the scale in use")
 
     -- The age of this view's scan goes on counting.
     W.Run(6)
@@ -1681,20 +1850,44 @@ function scenarios.supplies_ui()
     local seen = {}
     for _, line in ipairs(GameTooltip._lines) do seen[#seen + 1] = line.text end
     check(table.concat(seen, "\n"):find("18 for sale, from 8s each.", 1, true) ~= nil, "the tooltip says how much there is: " .. table.concat(seen, " | "))
+    check(table.concat(seen, "\n"):find("Pawn score", 1, true) == nil, "and nothing of a score it does not have")
     potion:GetScript("OnLeave")(potion)
+    local function Tooltip(row)
+        row:GetScript("OnEnter")(row)
+        local lines = {}
+        for _, line in ipairs(GameTooltip._lines) do lines[#lines + 1] = line.text end
+        row:GetScript("OnLeave")(row)
+        return table.concat(lines, " | ")
+    end
+    check(Tooltip(agility):find("Pawn score of what it adds: +15", 1, true) ~= nil, "an elixir's tooltip has its score: " .. Tooltip(agility))
 
     -- Every consumable instead of the best of each kind.
     Tick(frame.BestCheck, false)
     eq(ns.db.bestOnly, false, "the setting is saved")
-    eq(Listed(), "[POTIONS], Greater Healing Potion, Healing Potion, Minor Healing Potion, "
-        .. "[FOOD & DRINK], Stormwind Brie, Wild Hog Shank, Mutton Chop, [BANDAGES], Heavy Wool Bandage, Wool Bandage, [OTHER], Rough Dynamite",
-        "each kind from its strongest down; of two equally strong the cheaper first")
+    -- The list is now longer than the plate: it is read at its top and at its bottom.
+    local top = Listed()
+    scrollBox:SetScrollPercentage(1)
+    local bottom = Listed()
+    scrollBox:SetScrollPercentage(0)
+    local first = "[POTIONS], Greater Healing Potion, Healing Potion, Minor Healing Potion, "
+        .. "[ELIXIRS], Elixir of Agility, Elixir of Lesser Agility, Elixir of Ogre Strength, Elixir of Wisdom, "
+        .. "[FOOD & DRINK], Stormwind Brie, Wild Hog Shank, Mutton Chop"
+    local last = "[BANDAGES], Heavy Wool Bandage, Wool Bandage, [OTHER], Rough Dynamite"
+    eq(top:sub(1, #first), first, "each kind from its best down; of two equally strong the cheaper first; what is of no use last")
+    eq(bottom:sub(-#last), last, "and so to the end of the list")
+    local wisdom = Row("Elixir of Wisdom")
+    eq(wisdom.Icon._grey, true, "what is of no use is grey"); eq(wisdom.Upgrade:IsShown(), false, "and has no score")
+    check(Tooltip(wisdom):find("your Pawn scale gives no weight", 1, true) ~= nil, "its tooltip says why: " .. Tooltip(wisdom))
+    eq(Row("Elixir of Lesser Agility").Upgrade:GetText(), "+8", "a weaker one of a kind has its own score")
 
     -- What costs too much comes back in red when the price filter is off.
     Tick(frame.AffordCheck, false)
     local mana = Row("Mana Potion")
     check(mana ~= nil, "the mana potion is listed")
     eq(mana.Price._font, PriceFontRed, "its price in red"); eq(mana.Buy:IsEnabled(), false, "and it cannot be bought")
+    check(Tooltip(mana):find("you have none", 1, true) ~= nil, "a character without mana is told so: " .. Tooltip(mana))
+    eq(Row("Elixir of Giants").Upgrade:GetText(), "+37.5", "the elixir that costs too much has the best score")
+    check(math.abs(Row("Elixir of Agility").Meter:GetWidth() - 71 * 15 / 37.5) < 0.01, "and the meters now measure against it")
     Tick(frame.AffordCheck, true)
     Tick(frame.BestCheck, true)
 
@@ -1702,9 +1895,29 @@ function scenarios.supplies_ui()
     local heading = Rows()[1]
     heading.Toggle:Click()
     eq(ns.db.collapsed.SUB1, true, "potions folded")
-    eq(Listed(), "[POTIONS 1 of 3], [FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite", "its rows are gone")
+    eq(Listed(), "[POTIONS 1 of 3], [ELIXIRS 2 of 3], Elixir of Agility, Elixir of Ogre Strength, "
+        .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite", "its rows are gone")
     Rows()[1].Toggle:Click()
     eq(ns.db.collapsed.SUB1, nil, "and unfolded again")
+
+    -- Another Pawn scale: the list is scored again as it stands. No scan, of either kind.
+    local scannedAt = S.suppliesAt
+    frame.ScaleDropdown:Pick(2)
+    W.Run(0.3)
+    eq(ns.db.scale, "S2", "the choice is saved"); eq(S.state, "idle", "nothing is scanned"); eq(S.suppliesAt, scannedAt, "the list is the same scan's")
+    eq(Listed(), "[POTIONS 1 of 3], Greater Healing Potion, [ELIXIRS], Elixir of Wisdom, "
+        .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite",
+        "on a scale for Intellect its elixir is the one of use")
+    eq(Row("Elixir of Wisdom").Upgrade:GetText(), "+6", "with its score on that scale")
+    check(Said("5 consumables in 5 categories.") ~= nil, "nothing of use costs too much now: " .. tostring(Said("consumables in")))
+    -- A character with mana has a use for the mana potion, which costs too much.
+    W.player.mana = 400
+    Tick(frame.BestCheck, true)
+    check(Said("5 consumables in 5 categories. 1 more cost more than you have.") ~= nil, "the mana potion is counted: " .. tostring(Said("consumables in")))
+    W.player.mana = nil
+    frame.ScaleDropdown:Pick(1)
+    W.Run(0.3)
+    eq(ns.db.scale, "S1", "back on the first scale"); check(Row("Elixir of Agility") ~= nil, "and to its elixirs")
 
     -- Buy: first the price list is read, then the box asks how many.
     eq(box:IsShown(), false, "no box before a purchase")

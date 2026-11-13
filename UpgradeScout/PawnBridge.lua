@@ -66,6 +66,39 @@ function P.Value(item, scaleName)
     return baseValue or value or 0
 end
 
+-- Pawn has no word for these two on every scale: the scales it ships with weigh them, a scale
+-- made by hand cannot. Where the scale has no weight, health counts as the Stamina that
+-- gives it (at the rate Pawn itself uses for "+100 health" on gear) and mana as Intellect.
+local HEALTH_PER_STAMINA = 12.5
+local MANA_PER_INTELLECT = 15
+
+-- Pawn's score for a set of stats that is not an item: what an elixir adds, say.
+--   stats  { Strength = 25, CritRating = 2, ... } under Pawn's names (see SupplyData.lua)
+-- The same sum Pawn makes for an item, so the number is in the points gear is scored in.
+-- nil when this Pawn cannot be asked.
+function P.StatsValue(stats, scaleName)
+    if type(PawnGetItemValue) ~= "function" or type(PawnGetAllStatValues) ~= "function" then return nil end
+    local weights = PawnGetAllStatValues(scaleName)
+    if type(weights) ~= "table" then return nil end
+
+    local set = stats
+    if (stats.Health and not weights.Health) or (stats.Mana and not weights.Mana) then
+        set = {}
+        for name, amount in pairs(stats) do set[name] = amount end
+        if set.Health and not weights.Health then
+            set.Stamina = (set.Stamina or 0) + set.Health / HEALTH_PER_STAMINA
+            set.Health = nil
+        end
+        if set.Mana and not weights.Mana then
+            set.Intellect = (set.Intellect or 0) + set.Mana / MANA_PER_INTELLECT
+            set.Mana = nil
+        end
+    end
+    -- The arguments Pawn itself passes for an item of a scale it does not show.
+    local value = PawnGetItemValue(set, nil, nil, scaleName, false, false, true)
+    return type(value) == "number" and value or nil
+end
+
 -- True when Pawn found lines in the tooltip that it cannot turn into a number
 -- (procs, on-use effects and the like).
 function P.HasUnscoredEffects(item)

@@ -756,7 +756,9 @@ end
 --           tooltip) and its tooltip says what it does: the line that starts with "Use:"
 -- There is no third step. Consumables are sold by the piece out of one pile per item, without
 -- bids, so the lowest price in a browse row is the price of one piece.
--- Which of them do the same thing, and which of those is the best, is Supplies.lua's business.
+-- Which of them do the same thing, what each is worth to this character and which is the
+-- best is Supplies.lua's business: it is settled when the list is drawn, so another Pawn
+-- scale needs no new scan.
 local ItemSpell = C_Item.GetItemSpell or GetItemSpell
 
 -- What the game says about a consumable:
@@ -823,6 +825,9 @@ local function ScoreSupply(row, final)
         effect = effect,
         kind = kind,            -- the same for every consumable that does the same thing
         power = power,
+        -- What the game's tables say it gives, where they say it (see SupplyData.lua):
+        stats = ns.SupplyData.stats[itemID],        -- { Strength = 25, ... } for Pawn to score
+        restores = ns.SupplyData.restores[itemID],  -- "H" health, "M" mana, "HM" both...
         price = row.minPrice,   -- of one piece
         quantity = row.quantity,
     }
@@ -1069,9 +1074,12 @@ function S.IsOpen()
     return ahOpen
 end
 
--- Forgets the last scan (its scores belong to another Pawn scale, for instance).
+-- Forgets the last scan for gear (its scores belong to another Pawn scale, for instance).
+-- Consumables are left alone, and so is a scan for them that is running: what they are worth
+-- is worked out when their list is drawn.
 function S.Reset()
-    S.Stop()
+    local mode = run and run.mode
+    if mode ~= "supplies" and mode ~= "supply" then S.Stop() end
     S.offers = {}
     S.ctx = nil
     S.finishedAt = nil
