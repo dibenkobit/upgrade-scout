@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+
+- The addon now speaks Korean and Traditional Chinese.
+
 ## 1.2.0
 
 - **Best set for a budget**: tick **Best set for** under the list of upgrades. The list then shows

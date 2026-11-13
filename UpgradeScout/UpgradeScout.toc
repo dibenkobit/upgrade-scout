@@ -5,10 +5,12 @@
 ## Notes-deDE: Findet im Auktionshaus Ausrüstung, die besser ist als deine und die du dir leisten kannst.
 ## Notes-frFR: Trouve à l'hôtel des ventes l'équipement meilleur que le vôtre et dans vos moyens.
 ## Notes-zhCN: 在拍卖行中找出比你身上更好、而且你买得起的装备。
+## Notes-zhTW: 在拍賣場中找出比你身上更好、而且你買得起的裝備。
+## Notes-koKR: 경매장에서 지금 장비보다 좋고 살 수 있는 장비를 찾아줍니다.
 ## Notes-esES: Encuentra en la casa de subastas equipo mejor que el tuyo y que puedes pagar.
 ## Notes-esMX: Encuentra en la casa de subastas equipo mejor que el tuyo y que puedes pagar.
 ## Notes-ptBR: Encontra na Casa de Leilões equipamentos melhores que os seus e que cabem no seu bolso.
-## Version: 1.2.0
+## Version: 1.3.0
 ## Author: Nikita Snetkov
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323
@@ -19,6 +21,8 @@
 ## Category-deDE: Auktionen
 ## Category-frFR: Enchères
 ## Category-zhCN: 拍卖
+## Category-zhTW: 拍賣
+## Category-koKR: 경매
 ## Category-ptBR: Leilões
 ## Category-esES: Subastas
 ## Category-esMX: Subastas

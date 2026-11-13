@@ -6,7 +6,7 @@
 
 **[Скачать на CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-[English](../README.md) · Русский · [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [简体中文](README.zh-CN.md)
+[English](../README.md) · Русский · [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
 
 Откройте аукцион, выберите вкладку **«Улучшения»** и нажмите **«Скан»**. Аддон покажет по слотам
 вещи, которые лучше надетых, и их цены. Нажмите **«Купить»** у той, что нравится.
@@ -25,7 +25,7 @@
 - Обе вкладки работают и для других ваших персонажей.
 
 Любой класс, любой уровень. Русский, английский, немецкий, французский, испанский, португальский
-(бразильский) и китайский (упрощённый).
+(бразильский), корейский и китайский (упрощённый и традиционный).
 
 ## Установка
 

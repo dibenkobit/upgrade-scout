@@ -971,4 +971,285 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
     for k, v in pairs(E) do L[k] = v end
 end
 
+-- Terms follow Pawn's own koKR text (능력치 비율: scale, 향상: upgrade) and the game's (즉시 구입가:
+-- buyout, 소비용품: consumables, the names of the slots). A name is never followed by a particle
+-- that depends on its last letter.
+if GetLocale() == "koKR" then
+    local K = {
+        TAB = "장비 향상",
+        TITLE = "경매장의 장비 향상",
+
+        SCAN = "스캔",
+        STOP = "중지",
+        BUY = "구매",
+        AFFORD = "살 수 있는 것만",
+        TOP = "부위별 상위 %d개",
+        TOP_TIP = "부위마다 최대 %d개까지, 가장 큰 향상부터 가성비가 가장 좋은 것까지 보여줍니다. 더 강한 아이템이 점수당 가격이 같거나 더 싸면 약한 아이템은 표시하지 않습니다.",
+        TOP_OF = "%d/%d",
+        TOP_OF_ABOUT = "%d/약 %d",
+        SCALE = "Pawn 능력치 비율:",
+        SCALE_TIP = "아이템 점수를 매기는 데 쓰는 Pawn 능력치 비율입니다. 능력치 비율은 Pawn(/pawn)에서 켜고 편집합니다.",
+
+        COL_ITEM = "아이템",
+        COL_PICK = "추천",
+        COL_UPGRADE = "향상",
+        COL_PRICE = "즉시 구입가",
+        COL_PER = "점수당 가격",
+
+        PICK_UPGRADE = "최고 향상",
+        PICK_VALUE = "최고 가성비",
+        PICK_BOTH = "둘 다 최고",
+
+        NEW = "신규",
+
+        HINT = "스캔을 누르세요. 경매장에서 지금 바로 착용할 수 있고 Pawn 능력치 비율 “%s” 기준으로 현재 장비보다 점수가 높은 장비를 보여줍니다.",
+        ST_BROWSE = "경매 목록 읽는 중: %d줄",
+        ST_SCORE = "아이템 점수 계산 중: %d/%d",
+        ST_VERIFY = "즉시 구입가 확인 중: %d/%d",
+        ST_LEFT = ", 약 %s 남음",
+        ST_BUYCHECK = "아이템이 아직 판매 중인지 확인하는 중…",
+        ST_DONE = "향상 %d개, 부위 %d곳.",
+        ST_DONE_HIDDEN = "향상 %d개, 부위 %d곳. %d개는 가진 골드보다 비쌉니다.",
+        ST_NONE = "지금은 즉시 구입가가 있는 향상 장비가 없습니다.",
+        ST_NONE_AFFORD = "살 수 있는 것이 없습니다. 향상 %d개가 가진 골드보다 비쌉니다.",
+        ST_PARTIAL = "스캔이 일찍 끝나서 목록이 완전하지 않을 수 있습니다.",
+        ST_STOPPED = "스캔을 중지했습니다.",
+        ST_INTERRUPTED = "다른 검색이 경매 목록을 바꿔서 스캔이 중지되었습니다. 스캔을 다시 누르세요.",
+        ST_AGE = "%s 전에 스캔함.",
+
+        ERR_PAWN_API = "Pawn은 불러왔지만 %s 함수가 없습니다. Pawn을 업데이트하세요.",
+        ERR_PAWN_NOT_READY = "Pawn이 아직 다 불러와지지 않았습니다. 잠시 후 다시 시도하세요.",
+        ERR_NO_SCALE = "이 캐릭터에 켜진 Pawn 능력치 비율이 없습니다. Pawn(/pawn)을 열고 하나를 켜세요.",
+        ERR_AH_CLOSED = "먼저 경매장을 여세요.",
+        ERR_BROWSE = "경매장이 검색에 응답하지 않았습니다. 다시 시도하세요.",
+        ERR_BUSY = "스캔이 끝날 때까지 기다리세요.",
+
+        STATS = "마지막 스캔: %d초. 경매 목록 %d초(요청 %d회, %d줄). 점수 계산 %d초(점수상 향상 %d개). 가격 %d초(아이템 검색 %d회, 추가 페이지 %d개, 무응답 %d회; 목록에 필요 없던 것 %d개).",
+        STATS_NONE = "아직 스캔한 적이 없습니다.",
+
+        TT_SCORE = "Pawn 점수: %s, 내 장비: %s (+%s)",
+        TT_SCORE_EMPTY = "Pawn 점수: %s, 빈 부위",
+        TT_REPLACES = "교체 대상: %s",
+        TT_COST = "점수당 가격: %s",
+        TT_EFFECTS = "Pawn이 점수에 넣지 않는 효과가 있습니다.",
+        TT_OFFHAND_EMPTY = "보조장비 칸이 비게 됩니다.",
+        TT_BOTH_HANDS = "양손을 모두 씁니다.",
+        TT_MORE = "%d개가 더 비싼 가격에 판매 중입니다.",
+        TT_MORE_SOME = "더 비싼 가격에 판매 중인 것이 더 있습니다.",
+        TT_CANT_AFFORD = "%s 부족합니다.",
+
+        MSG_GONE = "%s: 더 이상 판매하지 않습니다.",
+        MSG_PRICE = "%s: 이제 %s입니다(이전 %s).",
+        MSG_BOUGHT = "%s 구매 완료, %s. 우편으로 도착합니다.",
+        MSG_CANT_AFFORD = "골드가 부족합니다.",
+
+        -- The Consumables tab
+        TAB_SUP = "소비용품",
+        TITLE_SUP = "판매 중인 소비용품",
+        SUP_BEST = "나에게 가장 좋은 것",
+        SUP_BEST_TIP = "효과 종류마다 한 줄: 캐릭터에게 가장 도움이 되는 소비용품과 그 최저가입니다. 쓸모없는 것은 빠집니다: Pawn 능력치 비율에 가중치가 없는 능력치, 마나가 없는 캐릭터의 마나.",
+        SUP_HINT = "스캔을 누르세요. 경매장에서 지금 바로 쓸 수 있는 소비용품을 보여주고, 올려 주는 능력치를 Pawn 능력치 비율로 점수 매깁니다. 캐릭터에게 가장 가치 있는 것이 먼저 나옵니다.",
+        SUP_OTHER = "기타",
+        COL_EFFECT = "효과",
+        COL_UNIT = "개당",
+        COL_STOCK = "판매 중",
+        COL_SCORE = "점수",
+        TT_SUP_SCORE = "올려 주는 능력치의 Pawn 점수: %s",
+        TT_SUP_NO_WEIGHT = "내게 쓸모없음: Pawn 능력치 비율이 이 능력치에 가중치를 두지 않습니다.",
+        TT_SUP_NO_MANA = "내게 쓸모없음: 마나를 회복하지만 내 캐릭터는 마나가 없습니다.",
+        ST_SUP_SCORE = "아이템 읽는 중: %d/%d",
+        ST_SUP_DONE = "소비용품 %d개, 분류 %d개.",
+        ST_SUP_DONE_HIDDEN = "소비용품 %d개, 분류 %d개. %d개는 가진 골드보다 비쌉니다.",
+        ST_SUP_NONE = "지금은 쓸 수 있는 소비용품이 판매되지 않습니다.",
+        ST_SUP_NONE_AFFORD = "살 수 있는 것이 없습니다. 소비용품 %d개가 가진 골드보다 비쌉니다.",
+        QTY = "수량:",
+        QTY_OF = "판매 중 %d개",
+        QTY_TOTAL = "합계:",
+        QTY_FINAL = "최종 가격:",
+        QTY_CONFIRM = "확인",
+        TT_STOCK = "판매 중 %d개, 개당 %s부터.",
+        MSG_BOUGHT_SUP = "%d x %s 구매 완료, %s. 우편으로 도착합니다.",
+        MSG_BUY_FAILED = "%s: 구매하지 못했습니다.",
+
+        -- Lists for another character of the account
+        WHO_TIP = "다른 내 캐릭터도 이 목록에 있고, 캐릭터마다 자기 능력치 비율이 있습니다. 애드온을 설치한 채 한 번 접속한 캐릭터가 여기에 나타납니다. 캐릭터를 고르면 그 캐릭터에게 사 줄 만한 것을 볼 수 있습니다. 장비, 레벨, 기술은 마지막으로 플레이했을 때의 것입니다.",
+        WHO_SEEN = "%s, %d레벨. %s 전에 기록됨.",
+        HINT_WHO = "스캔을 누르세요. 경매장에서 %s 캐릭터가 지금 바로 착용할 수 있고 Pawn 능력치 비율 “%s” 기준으로 그 캐릭터의 장비보다 점수가 높은 장비를 보여줍니다.",
+        SUP_HINT_WHO = "스캔을 누르세요. 경매장에서 %s 캐릭터가 지금 바로 쓸 수 있는 소비용품을 보여주고, 올려 주는 능력치를 그 캐릭터의 Pawn 능력치 비율로 점수 매깁니다. 가장 가치 있는 것이 먼저 나옵니다.",
+        ST_WHO = "%s: %s",
+        TT_WHO = "대상: %s",
+        TT_SCORE_WHO = "Pawn 점수: %s, 착용 중: %s (+%s)",
+        TT_OFFHAND_EMPTY_WHO = "보조장비 칸이 비게 됩니다.",
+        TT_SUP_NO_WEIGHT_WHO = "이 캐릭터에게 쓸모없음: Pawn 능력치 비율이 이 능력치에 가중치를 두지 않습니다.",
+        TT_SUP_NO_MANA_WHO = "이 캐릭터에게 쓸모없음: 마나를 회복하지만 이 캐릭터는 마나가 없습니다.",
+        MSG_FORGOT = "%s 캐릭터를 잊었습니다. 다음에 그 캐릭터로 플레이하면 다시 기록됩니다.",
+        MSG_FORGET_WHO = "그 이름으로 기록된 다른 캐릭터가 없습니다. 기록된 캐릭터: %s. 잊으려면 /upscout forget 뒤에 이름을 입력하세요.",
+
+        -- The best set for a budget
+        PLAN = "예산 내 최고 세트",
+        PLAN_TIP = "함께 샀을 때 이 금액으로 가장 많이 향상되는 장비들입니다. 한 번에 착용할 수 있는 수를 넘지 않습니다. 금액을 그대로 두면 가진 골드를 모두 쓰고, 더 적은 금액을 입력할 수도 있습니다. 체크하면 세트에는 필요하지만 목록에는 필요 없던 가격을 조회합니다.",
+        PLAN_SUM = "%d개, +%s점, %s",
+        PLAN_NONE = "이 금액으로 살 수 있는 향상이 없습니다.",
+
+        -- Gear bought for another character, on its way by mail
+        MAIL_TITLE = "Upgrade Scout: 다른 캐릭터를 위해 산 물건",
+        MAIL_TO = "%s에게: 가방에 %d/%d개",
+        MAIL_TIP = "클릭: %s에게 보내는 편지에 넣습니다. 편지를 확인하고 보내기를 누르세요. 우클릭: 이 구매 기록을 잊습니다.",
+        MAIL_NOT_IN_BAGS = "(가방에 없음: 먼저 우편에서 꺼내세요)",
+        MAIL_DONE = "아이템 %d개를 %s에게 보내는 편지에 넣었습니다. 확인하고 보내기를 누르세요.",
+        MAIL_FULL = "아이템 %d개를 %s에게 보내는 편지에 넣었습니다. 편지가 가득 찼습니다. 보낸 뒤 다시 클릭해 나머지를 넣으세요.",
+        MAIL_BUSY = "편지에 이미 %s에게 보낼 아이템이 있습니다. 먼저 보내세요.",
+        MAIL_NONE = "%s에게 줄 물건이 가방에 없습니다. 먼저 우편에서 꺼내세요.",
+        MAIL_FORGOT = "%s에게 줄 구매 기록을 잊었습니다.",
+
+        HEAD = "머리", NECK = "목", SHOULDER = "어깨", BACK = "등", CHEST = "가슴",
+        WRIST = "손목", HANDS = "손", WAIST = "허리", LEGS = "다리", FEET = "발",
+        FINGER = "손가락", TRINKET = "장신구", MAINHAND = "주장비", OFFHAND = "보조장비", RANGED = "원거리 장비",
+
+        INVTYPE_WEAPON = "한손 장비", INVTYPE_2HWEAPON = "양손 장비", INVTYPE_WEAPONMAINHAND = "주장비",
+        INVTYPE_WEAPONOFFHAND = "보조장비", INVTYPE_SHIELD = "보조장비", INVTYPE_HOLDABLE = "보조장비",
+    }
+    for k, v in pairs(K) do L[k] = v end
+end
+
+-- Terms follow Pawn's own zhTW text (權重: scale, 提升: upgrade) and the game's (拍賣場, 直購價:
+-- buyout, the names of the slots).
+if GetLocale() == "zhTW" then
+    local T = {
+        TAB = "裝備提升",
+        TITLE = "拍賣場中的裝備提升",
+
+        SCAN = "掃描",
+        STOP = "停止",
+        BUY = "購買",
+        AFFORD = "只看買得起的",
+        TOP = "每個部位前%d件",
+        TOP_TIP = "每個部位最多顯示%d個選項，從提升最大的到最划算的。如果另一件物品更強，且每點提升的花費相同或更低，較弱的那件就不會顯示。",
+        TOP_OF = "%d/%d",
+        TOP_OF_ABOUT = "%d/約%d",
+        SCALE = "Pawn 權重：",
+        SCALE_TIP = "用來給物品評分的 Pawn 權重。權重在 Pawn（/pawn）中啟用和編輯。",
+
+        COL_ITEM = "物品",
+        COL_PICK = "推薦",
+        COL_UPGRADE = "提升",
+        COL_PRICE = "直購價",
+        COL_PER = "每點花費",
+
+        PICK_UPGRADE = "最大提升",
+        PICK_VALUE = "最划算",
+        PICK_BOTH = "兩項最佳",
+
+        NEW = "新增",
+
+        HINT = "點擊「掃描」。列表會顯示拍賣場中你現在就能裝備，並且按 Pawn 權重「%s」評分高於你目前裝備的物品。",
+        ST_BROWSE = "正在讀取拍賣列表：%d筆",
+        ST_SCORE = "正在給物品評分：%d/%d",
+        ST_VERIFY = "正在核對直購價：%d/%d",
+        ST_LEFT = "，大約還需%s",
+        ST_BUYCHECK = "正在確認物品是否仍在販售……",
+        ST_DONE = "找到%d件提升裝備，涵蓋%d個部位。",
+        ST_DONE_HIDDEN = "找到%d件提升裝備，涵蓋%d個部位。另有%d件你買不起。",
+        ST_NONE = "目前沒有帶直購價的提升裝備在販售。",
+        ST_NONE_AFFORD = "沒有你買得起的提升裝備。有%d件超出了你現有的金幣。",
+        ST_PARTIAL = "掃描提前結束，列表可能不完整。",
+        ST_STOPPED = "掃描已停止。",
+        ST_INTERRUPTED = "另一次搜尋取代了拍賣列表，掃描已停止。請再次點擊「掃描」。",
+        ST_AGE = "%s前掃描。",
+
+        ERR_PAWN_API = "Pawn 已載入，但缺少函式 %s。請更新 Pawn。",
+        ERR_PAWN_NOT_READY = "Pawn 尚未載入完成，請稍後再試。",
+        ERR_NO_SCALE = "目前角色沒有啟用任何 Pawn 權重。請打開 Pawn（/pawn）並啟用一個。",
+        ERR_AH_CLOSED = "請先打開拍賣場。",
+        ERR_BROWSE = "拍賣場沒有回應搜尋，請重試。",
+        ERR_BUSY = "請等待掃描完成。",
+
+        STATS = "上次掃描：%d秒。拍賣列表%d秒（%d次請求，%d筆）。評分%d秒（按評分有%d件提升裝備）。價格%d秒（%d次物品搜尋，%d個額外頁面，%d次無回應；%d件無需查價）。",
+        STATS_NONE = "還沒有掃描過。",
+
+        TT_SCORE = "Pawn 評分：%s，目前裝備：%s（+%s）",
+        TT_SCORE_EMPTY = "Pawn 評分：%s，該部位為空",
+        TT_REPLACES = "取代：%s",
+        TT_COST = "每點提升花費：%s",
+        TT_EFFECTS = "帶有 Pawn 不計入評分的效果。",
+        TT_OFFHAND_EMPTY = "你的副手將會空出。",
+        TT_BOTH_HANDS = "佔用雙手。",
+        TT_MORE = "另有%d件以更高的價格在販售。",
+        TT_MORE_SOME = "還有更多以更高的價格在販售。",
+        TT_CANT_AFFORD = "還差 %s。",
+
+        MSG_GONE = "%s 已不再販售。",
+        MSG_PRICE = "%s 現在售價 %s（之前為 %s）。",
+        MSG_BOUGHT = "已購買 %s，花費 %s。物品將透過郵件送達。",
+        MSG_CANT_AFFORD = "你的金幣不夠。",
+
+        -- The Consumables tab
+        TAB_SUP = "消耗品",
+        TITLE_SUP = "販售中的消耗品",
+        SUP_BEST = "最適合我的",
+        SUP_BEST_TIP = "每種效果一列：對你的角色提升最大的消耗品，以及它的最低價。對你沒用的不會顯示：Pawn 權重中沒有權重的屬性，以及沒有法力的角色用不上的法力。",
+        SUP_HINT = "點擊「掃描」。列表會顯示拍賣場中你現在就能使用的消耗品，並按你的 Pawn 權重為它們所加的屬性評分：對你的角色最有價值的排在前面。",
+        SUP_OTHER = "其他",
+        COL_EFFECT = "效果",
+        COL_UNIT = "單價",
+        COL_STOCK = "販售中",
+        COL_SCORE = "評分",
+        TT_SUP_SCORE = "所加屬性的 Pawn 評分：%s",
+        TT_SUP_NO_WEIGHT = "對你沒用：你的 Pawn 權重沒有給它所加的屬性任何權重。",
+        TT_SUP_NO_MANA = "對你沒用：它恢復法力，而你沒有法力。",
+        ST_SUP_SCORE = "正在讀取物品：%d/%d",
+        ST_SUP_DONE = "%d 件消耗品，%d 個分類。",
+        ST_SUP_DONE_HIDDEN = "%d 件消耗品，%d 個分類。另有 %d 件超出你的金幣。",
+        ST_SUP_NONE = "目前沒有你能使用的消耗品在販售。",
+        ST_SUP_NONE_AFFORD = "沒有買得起的。%d 件消耗品超出你的金幣。",
+        QTY = "數量：",
+        QTY_OF = "販售中 %d 件",
+        QTY_TOTAL = "合計：",
+        QTY_FINAL = "最終價格：",
+        QTY_CONFIRM = "確認",
+        TT_STOCK = "販售中 %d 件，單價 %s 起。",
+        MSG_BOUGHT_SUP = "已購買 %d x %s，花費 %s。物品將透過郵件送達。",
+        MSG_BUY_FAILED = "%s 購買失敗。",
+
+        -- Lists for another character of the account
+        WHO_TIP = "你的其他角色也在這個列表裡，各有自己的權重：用本插件登入過一次的角色就會出現在這裡。選擇一個角色，就能看到值得為它購買的物品：它的裝備、等級和技能以你上次玩它時為準。",
+        WHO_SEEN = "%s，%d 級。記錄於 %s前。",
+        HINT_WHO = "點擊「掃描」。列表會顯示拍賣場中 %s 現在就能裝備，並且按 Pawn 權重「%s」評分高於該角色目前裝備的物品。",
+        SUP_HINT_WHO = "點擊「掃描」。列表會顯示拍賣場中 %s 現在就能使用的消耗品，並按該角色的 Pawn 權重為它們所加的屬性評分：最有價值的排在前面。",
+        ST_WHO = "%s：%s",
+        TT_WHO = "角色：%s",
+        TT_SCORE_WHO = "Pawn 評分：%s，已裝備：%s（+%s）",
+        TT_OFFHAND_EMPTY_WHO = "副手將會空出。",
+        TT_SUP_NO_WEIGHT_WHO = "對該角色沒用：它的 Pawn 權重沒有給這些屬性任何權重。",
+        TT_SUP_NO_MANA_WHO = "對該角色沒用：它恢復法力，而該角色沒有法力。",
+        MSG_FORGOT = "已忘記 %s。下次你玩這個角色時會重新記錄。",
+        MSG_FORGET_WHO = "沒有記錄這個名字的其他角色。已記錄：%s。要忘記某個角色，請輸入 /upscout forget 加角色名。",
+
+        -- The best set for a budget
+        PLAN = "預算內的最佳組合",
+        PLAN_TIP = "一起買下後，用這筆錢提升最多的裝備：數量不超過能同時穿戴的件數。金額保持不變即花光所有金幣，也可以輸入更小的數目。勾選後會查詢組合需要而列表不需要的價格。",
+        PLAN_SUM = "%d 件，+%s 分，%s",
+        PLAN_NONE = "這筆錢買不到任何提升。",
+
+        -- Gear bought for another character, on its way by mail
+        MAIL_TITLE = "Upgrade Scout：為你的其他角色購買的物品",
+        MAIL_TO = "給 %s：背包裡有 %d / %d 件",
+        MAIL_TIP = "點擊：把它們放進寄給 %s 的信裡。你檢查信件後按「發送」。右鍵點擊：忘記這些購買記錄。",
+        MAIL_NOT_IN_BAGS = "（不在背包裡：請先從郵箱取出）",
+        MAIL_DONE = "已把 %d 件物品放進寄給 %s 的信裡。請檢查後按「發送」。",
+        MAIL_FULL = "已把 %d 件物品放進寄給 %s 的信裡。信件已滿：先發送，再點擊一次放入其餘物品。",
+        MAIL_BUSY = "信裡已有給 %s 的物品。請先把它寄出。",
+        MAIL_NONE = "為 %s 購買的物品都不在背包裡。請先從郵箱取出。",
+        MAIL_FORGOT = "已忘記為 %s 購買的物品。",
+
+        HEAD = "頭部", NECK = "頸部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
+        WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "腳",
+        FINGER = "手指", TRINKET = "飾品", MAINHAND = "主手", OFFHAND = "副手", RANGED = "遠程",
+
+        INVTYPE_WEAPON = "單手", INVTYPE_2HWEAPON = "雙手", INVTYPE_WEAPONMAINHAND = "主手",
+        INVTYPE_WEAPONOFFHAND = "副手", INVTYPE_SHIELD = "副手", INVTYPE_HOLDABLE = "副手物品",
+    }
+    for k, v in pairs(T) do L[k] = v end
+end
+
 ns.L =setmetatable(L, { __index = function(_, k) return k end })
