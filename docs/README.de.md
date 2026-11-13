@@ -6,7 +6,7 @@
 
 **[Auf CurseForge herunterladen](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · Deutsch · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md) · [繁體中文](README.zh-TW.md)
+[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · Deutsch · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md)
 
 Öffne das Auktionshaus, klicke auf den Tab **Verbesserungen** und drücke **Scannen**. Du bekommst
 eine Liste mit Ausrüstung, die besser ist als das, was du trägst, Slot für Slot und mit Preisen.
@@ -25,8 +25,8 @@ Drücke **Kaufen** bei dem Gegenstand, den du willst.
   Das Nützlichste für deinen Charakter steht oben.
 - Beide Tabs funktionieren auch für deine anderen Charaktere.
 
-Jede Klasse, jede Stufe. Englisch, vereinfachtes Chinesisch, Deutsch, Russisch, Französisch,
-Spanisch, brasilianisches Portugiesisch, Koreanisch und traditionelles Chinesisch.
+Jede Klasse, jede Stufe. Englisch, Chinesisch (vereinfacht und traditionell), Deutsch, Russisch,
+Französisch, Spanisch, brasilianisches Portugiesisch und Koreanisch.
 
 ## Installation
 

@@ -6,7 +6,7 @@
 
 **[Descargar en CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · Español · [Português](README.pt-BR.md) · [한국어](README.ko.md) · [繁體中文](README.zh-TW.md)
+[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · Español · [Português](README.pt-BR.md) · [한국어](README.ko.md)
 
 Abre la casa de subastas, haz clic en la pestaña **Mejoras** y pulsa **Escanear**. Verás una lista
 de equipo mejor que el que llevas, ranura por ranura, con sus precios. Pulsa **Comprar** en el
@@ -25,8 +25,8 @@ objeto que quieras.
   lo más útil para tu personaje.
 - Las dos pestañas sirven también para tus otros personajes.
 
-Cualquier clase, cualquier nivel. Inglés, chino simplificado, alemán, ruso, francés, español,
-portugués de Brasil, coreano y chino tradicional.
+Cualquier clase, cualquier nivel. Inglés, chino (simplificado y tradicional), alemán, ruso,
+francés, español, portugués de Brasil y coreano.
 
 ## Instalación
 

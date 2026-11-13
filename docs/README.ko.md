@@ -6,7 +6,7 @@
 
 **[CurseForge에서 내려받기](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · 한국어 · [繁體中文](README.zh-TW.md)
+[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · 한국어
 
 경매장을 열고 **장비 향상** 탭을 누른 다음 **스캔**을 누르세요. 지금 착용한 것보다 좋은 장비가 부위별로, 가격과 함께 나옵니다. 마음에 드는 장비에서 **구매**를 누르면 됩니다.
 
@@ -19,7 +19,7 @@
 - **소비용품** 탭은 쓸 수 있는 물약, 비약, 음식, 붕대를 보여줍니다. 캐릭터에게 가장 쓸모 있는 것이 먼저 나옵니다.
 - 두 탭 모두 다른 내 캐릭터용으로도 쓸 수 있습니다.
 
-모든 직업, 모든 레벨. 영어, 중국어 간체, 독일어, 러시아어, 프랑스어, 스페인어, 브라질 포르투갈어, 한국어, 중국어 번체.
+모든 직업, 모든 레벨. 영어, 중국어(간체와 번체), 독일어, 러시아어, 프랑스어, 스페인어, 브라질 포르투갈어, 한국어.
 
 ## 설치
 
