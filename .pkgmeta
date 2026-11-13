@@ -1,6 +1,6 @@
 # Read by the BigWigsMods packager (https://github.com/BigWigsMods/packager), which builds the
 # release archive and uploads it to CurseForge when a version tag is pushed
-# (.github/workflows/release.yml). scripts/release.ps1 builds the same archive by hand.
+# (.github/workflows/release.yml).
 
 package-as: UpgradeScout
 

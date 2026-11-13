@@ -132,8 +132,6 @@ lua5.1 tests/run.lua buy        # one scenario
 - A release is a tag named after the version in the `.toc` (for example `1.0.1`). Pushing it runs the
   tests, uploads `UpgradeScout-<version>-forever.zip` to CurseForge and attaches it to a GitHub
   release (`.github/workflows/release.yml`).
-- `scripts\release.ps1` builds `dist\UpgradeScout-<version>.zip`; the version is the one in the
-  `.toc`.
 
 | File | Purpose |
 | --- | --- |
