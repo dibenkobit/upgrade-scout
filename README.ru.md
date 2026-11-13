@@ -27,10 +27,14 @@
 
 ## Установка
 
+**[Установить с CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
+
+Приложение CurseForge всё сделает само и поставит Pawn.
+
 Нужны World of Warcraft Forever (1.60.1) и [Pawn](https://www.curseforge.com/wow/addons/pawn).
 Без Pawn аддон не загрузится.
 
-Проще всего поставить через приложение CurseForge. Вручную:
+Вручную:
 
 1. Скачайте `UpgradeScout-<версия>-forever.zip` с [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)
    или из [релизов на GitHub](https://github.com/dibenkobit/upgrade-scout/releases).
