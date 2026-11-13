@@ -2,13 +2,13 @@
 ## Title: Upgrade Scout
 ## Notes: Finds gear upgrades on the auction house that you can equip and afford.
 ## Notes-ruRU: Находит на аукционе вещи, которые лучше твоих и тебе по карману.
-## Notes-deDE: Findet im Auktionshaus Ausrüstungsverbesserungen, die du anlegen und dir leisten kannst.
-## Notes-frFR: Trouve à l'hôtel des ventes les améliorations d'équipement que vous pouvez utiliser et vous offrir.
-## Notes-zhCN: 在拍卖行中找出你能使用且买得起的装备提升。
-## Notes-esES: Encuentra en la casa de subastas mejoras de equipo que puedes usar y permitirte.
-## Notes-esMX: Encuentra en la casa de subastas mejoras de equipo que puedes usar y permitirte.
-## Notes-ptBR: Encontra na Casa de Leilões melhorias de equipamento que você pode usar e pagar.
-## Notes-itIT: Trova alla Casa d'Aste i miglioramenti di equipaggiamento che puoi usare e permetterti.
+## Notes-deDE: Findet im Auktionshaus Ausrüstung, die besser ist als deine und die du dir leisten kannst.
+## Notes-frFR: Trouve à l'hôtel des ventes l'équipement meilleur que le vôtre et dans vos moyens.
+## Notes-zhCN: 在拍卖行中找出比你身上更好、而且你买得起的装备。
+## Notes-esES: Encuentra en la casa de subastas equipo mejor que el tuyo y que puedes pagar.
+## Notes-esMX: Encuentra en la casa de subastas equipo mejor que el tuyo y que puedes pagar.
+## Notes-ptBR: Encontra na Casa de Leilões equipamentos melhores que os seus e que cabem no seu bolso.
+## Notes-itIT: Trova alla Casa d'Aste equipaggiamento migliore del tuo e che puoi permetterti.
 ## Version: 1.2.0
 ## Author: Nikita Snetkov
 ## X-License: All Rights Reserved

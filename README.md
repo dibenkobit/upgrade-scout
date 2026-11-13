@@ -4,7 +4,9 @@
 
 **Finds gear upgrades on the auction house that you can equip and afford.** An addon for World of Warcraft Forever.
 
-**[Download on CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)** · [Русская версия](README.ru.md)
+**[Download on CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
+
+English · [Русский](docs/README.ru.md) · [Deutsch](docs/README.de.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md) · [Português](docs/README.pt-BR.md) · [Italiano](docs/README.it.md) · [简体中文](docs/README.zh-CN.md)
 
 Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list of gear that is
 better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.

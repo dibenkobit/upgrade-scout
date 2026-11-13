@@ -13,7 +13,6 @@ ignore:
   - scripts
   - docs
   - README.md
-  - README.ru.md
   - CHANGELOG.md
   - LICENSE
 
