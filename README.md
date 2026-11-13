@@ -24,6 +24,8 @@ two picks are marked:
   auctions are ignored.
 - **Top 5 per slot** keeps the options worth considering and drops the rest.
 - **Only what I can afford** hides what costs more than you have.
+- **Best set for a budget**: the upgrades that, bought together, add the most for the gold you
+  have, or for a sum you name.
 - **Buy** from the list: the addon checks that the auction is still there and asks before paying.
 - A second tab, **Consumables**, lists the potions, food, elixirs, bandages and other consumables
   you can use right now, the ones worth the most to your character first: what an elixir or a flask
@@ -93,6 +95,26 @@ as an alternative:
 - The game has one list of auctions for every search. A search on the Buy tab, or by another addon,
   while the scan is reading that list (its first step) stops the scan, and the status line says so.
   Press **Scan** again.
+
+## The best set for a budget
+
+The list answers "what is the best for this slot". The strip under it answers another question:
+"I have five gold. What do I buy to gain the most?"
+
+Tick **Best set for** under the list. The list then shows one set of upgrades: the offers that,
+bought together, add the most Pawn points for the sum in the two fields, with no more of a kind
+than can be worn at once (one chest, two rings, what two hands hold). The strip says what the set
+comes to: how many items, how many points, for how much.
+
+- **The sum** is all your gold until you type another. Empty both fields to go back to all of it.
+- **It is exact**: every combination that could be the best is compared. That is why ticking the
+  box may look up a few more prices. A set can need an offer that **Top 5 per slot** hides, such as
+  a weaker chest that leaves gold for boots.
+- **Buy** the items from their rows, one by one, as in the list. What you have bought counts as
+  worn from then on, and a sum you typed goes down by what you paid, so the rest of the set stays
+  as it was.
+- The two filters above the list have no say while the box is ticked.
+- It works for another character as well: the set is for that character, the gold is yours.
 
 ## Consumables
 
@@ -201,6 +223,9 @@ that slot, so a tiny upgrade for a few copper does not win (`VALUE_MIN_SHARE` in
    - With **Top 5 per slot** on, a candidate is not searched when an offer already checked is
      stronger and costs no more per point than the candidate would at the lowest price in its row.
      Candidates are checked strongest first, so each checked offer rules out the weaker ones it beats.
+   - With **Best set for** ticked, a candidate is not searched when the lowest price in its row is
+     more than the sum, or when as many checked offers as can be worn at once are worn the same
+     way, are at least as strong and cost no more than that lowest price.
 
    Skipping never changes the list: both rules only skip what the list would hide anyway. The
    candidates are kept, so when you switch a filter off, buy an offer or come into money, the prices
@@ -242,7 +267,7 @@ lua5.1 tests/run.lua buy        # one scenario
   of what consumables add, from the game's data tables as [wago.tools](https://wago.tools) publishes
   them (plain Python, nothing to install). Run it when the game gets new consumables; one that is
   not in the table is listed without a score.
-- A release is a tag named after the version in the `.toc` (for example `1.1.0`). Pushing it runs the
+- A release is a tag named after the version in the `.toc` (for example `1.2.0`). Pushing it runs the
   tests, uploads `UpgradeScout-<version>-forever.zip` to CurseForge and attaches it to a GitHub
   release (`.github/workflows/release.yml`).
 
@@ -254,6 +279,7 @@ lua5.1 tests/run.lua buy        # one scenario
 | `PawnBridge.lua` | The only place that calls Pawn |
 | `Compare.lua` | Which slot an item goes into and how much better it is |
 | `Results.lua` | Rows for the list and the two picks per slot |
+| `Plan.lua` | The best set of upgrades for a sum of money |
 | `SupplyData.lua` | What each consumable adds or restores, from the game's tables. Written by `scripts/make-supply-data.py` |
 | `Supplies.lua` | Consumables: which do the same thing, what each is worth to the character, which is the best, and their rows |
 | `Scanner.lua` | Auction house requests: browse, score, price check, buy; the scan and the purchase of consumables |

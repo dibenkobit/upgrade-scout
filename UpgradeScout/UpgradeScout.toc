@@ -9,7 +9,7 @@
 ## Notes-esMX: Encuentra en la casa de subastas mejoras de equipo y consumibles que puedes usar y permitirte, puntuados por Pawn.
 ## Notes-ptBR: Encontra na Casa de Leilões melhorias de equipamento e consumíveis que você pode usar e pagar, avaliados pelo Pawn.
 ## Notes-itIT: Trova alla Casa d'Aste i miglioramenti di equipaggiamento e i consumabili che puoi usare e permetterti, valutati da Pawn.
-## Version: 1.1.0
+## Version: 1.2.0
 ## Author: Nikita Snetkov
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323
@@ -40,6 +40,7 @@ Roster.lua
 PawnBridge.lua
 Compare.lua
 Results.lua
+Plan.lua
 SupplyData.lua
 Supplies.lua
 Scanner.lua

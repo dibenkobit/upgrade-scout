@@ -89,6 +89,23 @@ function C.HandLabel(invType)
     return L[invType]
 end
 
+-- Items that compete for the same place: no more than `room` of a kind can be worn at once.
+-- Everything held in the hands is one kind: a two-hander, a shield and a pair of swords all
+-- take their place from one another. Returns kind, room; nil for what is not handled.
+function C.Kind(invType)
+    if SINGLE[invType] then return SINGLE[invType], 1 end
+    if PAIRED[invType] then return PAIRED[invType], 2 end
+    if WEAPON[invType] then return "HANDS", 2 end
+    return nil
+end
+
+-- Puts the item on in a snapshot of gear, the way the placement says: the item into its slot,
+-- and the off hand emptied by a two-hander. `equipped` is changed in place.
+function C.Wear(equipped, item, placement)
+    equipped[placement.slot] = { link = item.link, itemID = item.itemID, invType = item.invType, value = item.value }
+    if item.invType == "INVTYPE_2HWEAPON" then equipped[OFF_HAND] = nil end
+end
+
 -- Pawn only calls an item an upgrade when it scores at least 0.5% higher; same rule here.
 local MIN_GAIN = 1.005
 
@@ -97,9 +114,10 @@ local function Beats(value, base)
     return value > base * MIN_GAIN
 end
 
-local function Placement(group, value, base, replaced, note)
+local function Placement(group, slot, value, base, replaced, note)
     return {
         group = group,
+        slot = slot,           -- the inventory slot the item goes into
         delta = value - base,
         base = base,
         percent = base > 0 and (value - base) / base or nil,
@@ -131,10 +149,11 @@ function C.Place(item, ctx)
 
     local single = SINGLE[invType]
     if single then
-        local worn = equipped[GROUP_BY_ID[single].slots[1]]
+        local slot = GROUP_BY_ID[single].slots[1]
+        local worn = equipped[slot]
         local base = worn and worn.value or 0
         if Beats(value, base) then
-            out[1] = Placement(single, value, base, worn and { worn.link } or nil)
+            out[1] = Placement(single, slot, value, base, worn and { worn.link } or nil)
         end
         return out
     end
@@ -146,10 +165,10 @@ function C.Place(item, ctx)
         local first, second = equipped[slots[1]], equipped[slots[2]]
         local firstValue = first and first.value or 0
         local secondValue = second and second.value or 0
-        local worn, base = first, firstValue
-        if secondValue < firstValue then worn, base = second, secondValue end
+        local worn, base, slot = first, firstValue, slots[1]
+        if secondValue < firstValue then worn, base, slot = second, secondValue, slots[2] end
         if Beats(value, base) then
-            out[1] = Placement(paired, value, base, worn and { worn.link } or nil)
+            out[1] = Placement(paired, slot, value, base, worn and { worn.link } or nil)
         end
         return out
     end
@@ -169,7 +188,7 @@ function C.Place(item, ctx)
                 local replaced = {}
                 if main then replaced[#replaced + 1] = main.link end
                 if off then replaced[#replaced + 1] = off.link end
-                out[1] = Placement("MAINHAND", value, base, #replaced > 0 and replaced or nil, off and "BOTH_HANDS" or nil)
+                out[1] = Placement("MAINHAND", MAIN_HAND, value, base, #replaced > 0 and replaced or nil, off and "BOTH_HANDS" or nil)
             end
         end
         return out
@@ -180,7 +199,7 @@ function C.Place(item, ctx)
     if invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND" then
         -- Against a two-hander the comparison is honest only if the off hand is counted as empty.
         if Beats(value, mainValue) then
-            out[#out + 1] = Placement("MAINHAND", value, mainValue, main and { main.link } or nil,
+            out[#out + 1] = Placement("MAINHAND", MAIN_HAND, value, mainValue, main and { main.link } or nil,
                 holdingTwoHander and "OFFHAND_EMPTY" or nil)
         end
     end
@@ -188,7 +207,7 @@ function C.Place(item, ctx)
     if invType ~= "INVTYPE_WEAPONMAINHAND" and not holdingTwoHander then
         local isWeapon = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONOFFHAND"
         if (not isWeapon or ctx.dualWield) and Beats(value, offValue) then
-            out[#out + 1] = Placement("OFFHAND", value, offValue, off and { off.link } or nil)
+            out[#out + 1] = Placement("OFFHAND", OFF_HAND, value, offValue, off and { off.link } or nil)
         end
     end
 

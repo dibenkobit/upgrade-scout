@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0
+
+New:
+
+- **Best set for a budget**: tick **Best set for** under the list of upgrades, and the list shows
+  the offers that, bought together, add the most for the gold you have, or for a smaller sum you
+  type. No more of a kind than you can wear at once: one chest, two rings, what two hands hold.
+  - The answer is exact. A set can need an offer the list hides (a weaker chest that leaves gold
+    for boots), so ticking the box may look up a few more prices.
+  - What you buy from the set counts as worn from then on, and a sum you typed goes down by what
+    you paid: the rest of the set stays as it was.
+
 ## 1.1.0
 
 New:

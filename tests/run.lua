@@ -10,7 +10,7 @@ local names = {
     "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
-    "buy", "buy_gone", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
+    "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
     "roster", "roster_order", "alt", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_it",
 }
@@ -1379,6 +1379,253 @@ end
 local function ScanSupplies()
     check(ns.Scanner.StartSupplies(), "consumables scan starts")
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 120)
+end
+
+---------------------------------------------------------------------------
+-- The best set for a budget (Plan.lua): which offers, bought together, add the most.
+function scenarios.plan()
+    StandardWorld()
+    LoadAddon()
+    local Plan = ns.Plan
+    local GOLD = 10000
+    local function Worn(id, invType, value)
+        return { link = "worn" .. id, itemID = id, invType = invType, value = value }
+    end
+    local function For(id, invType, value, buyout)
+        return { id = "o" .. id, itemID = id, invType = invType, value = value, buyout = buyout, link = "link" .. id, name = "Item " .. id, count = 1 }
+    end
+    local function Offers(list)
+        local out = {}
+        for _, offer in ipairs(list) do out[offer.id] = offer end
+        return out
+    end
+    -- What a set holds, as "name:gain" in the order of the slots, with its sums.
+    local function Read(set)
+        local rows, summary = Plan.Rows(set)
+        local out = {}
+        for _, row in ipairs(rows) do
+            if row.kind == "item" then out[#out + 1] = row.entry.offer.itemID .. ":+" .. ns.Num(row.entry.delta) end
+        end
+        return table.concat(out, " "), summary, rows
+    end
+    local function Best(offers, ctx, budget, cap)
+        return Read(Plan.Choose(Plan.Ladder(offers, ctx, cap or budget), budget))
+    end
+
+    -- A chest worth 10 and boots worth 10. For sale: a strong chest (+10) for 4 gold, a
+    -- weaker one (+6) for 3 gold, which costs more per point, and boots (+8) for 2 gold.
+    local ctx = { equipped = { [5] = Worn(1, "INVTYPE_CHEST", 10), [8] = Worn(2, "INVTYPE_FEET", 10) }, dualWield = false }
+    local offers = Offers({
+        For(11, "INVTYPE_CHEST", 20, 4 * GOLD), For(12, "INVTYPE_CHEST", 16, 3 * GOLD), For(13, "INVTYPE_FEET", 18, 2 * GOLD),
+    })
+    local set, summary, rows = Best(offers, ctx, 5 * GOLD)
+    eq(set, "12:+6 13:+8", "five gold: the weaker chest and the boots add more than the strong chest alone")
+    eq(summary.cost, 5 * GOLD, "for exactly five gold"); near(summary.gain, 14, "fourteen points")
+    eq(summary.upgrades, 2, "two items"); eq(summary.slots, 2, "in two slots")
+    eq(rows[1].kind, "header", "a heading first"); eq(rows[1].group, "CHEST", "the chest's, as the list orders its slots")
+    eq(rows[1].plain, true, "with nothing to fold or count")
+    near(rows[2].share, 6 / 8, "an item's meter measures its gain against the biggest of the set")
+    eq(Best(offers, ctx, 6 * GOLD), "11:+10 13:+8", "six gold: the strong chest and the boots")
+    eq(Best(offers, ctx, 4 * GOLD), "11:+10", "four gold: the strong chest alone, +10, beats the boots, +8")
+    eq(Best(offers, ctx, 3 * GOLD), "13:+8", "three gold: the boots, +8, not the chest that fits, +6")
+    eq(Best(offers, ctx, 1 * GOLD), "", "one gold: nothing")
+    eq(Plan.Choose(Plan.Ladder(offers, ctx, GOLD), GOLD), nil, "which is no set at all")
+    -- One ladder, made for all the money, answers every smaller budget.
+    local ladder = Plan.Ladder(offers, ctx, 10 * GOLD)
+    eq(Read(Plan.Choose(ladder, 5 * GOLD)), "12:+6 13:+8", "the same ladder at five gold")
+    eq(Read(Plan.Choose(ladder, 10 * GOLD)), "11:+10 13:+8", "and at ten: more money buys nothing better")
+    for i = 2, #ladder do
+        check(ladder[i].cost > ladder[i - 1].cost and ladder[i].gain > ladder[i - 1].gain, "each rung dearer and stronger than the one below")
+    end
+
+    -- Rings: two are worn (4 and 6), so two can be bought, and the second replaces the better one.
+    ctx = { equipped = { [11] = Worn(1, "INVTYPE_FINGER", 4), [12] = Worn(2, "INVTYPE_FINGER", 6) }, dualWield = false }
+    offers = Offers({ For(21, "INVTYPE_FINGER", 10, GOLD), For(22, "INVTYPE_FINGER", 9, GOLD), For(23, "INVTYPE_FINGER", 5, 1000) })
+    set, summary, rows = Best(offers, ctx, 2 * GOLD)
+    eq(set, "21:+6 22:+3", "two gold: both strong rings, the first for the weak one worn, the second for the other")
+    near(summary.gain, 9, "nineteen worn in place of ten")
+    eq(rows[2].entry.replaced[1], "worn1", "the first takes the place of the weaker ring")
+    eq(rows[3].entry.replaced[1], "worn2", "the second of the ring that was left")
+    eq(Best(offers, ctx, GOLD + 1000), "21:+6", "one gold ten: the cheap ring would not be worn beside it, so it is not bought")
+    eq(Best(offers, ctx, 1000), "23:+1", "ten silver: the cheap ring alone")
+    -- A ring that two others outdo for no more money is no part of any set.
+    offers.o24 = For(24, "INVTYPE_FINGER", 8, GOLD)
+    eq(Best(offers, ctx, 3 * GOLD), "21:+6 22:+3", "three gold: still the two best")
+
+    -- Hands: a sword (20) and a shield (5). A two-hander has to beat both; a sword and a shield
+    -- are bought together.
+    ctx = { equipped = { [16] = Worn(1, "INVTYPE_WEAPON", 20), [17] = Worn(2, "INVTYPE_SHIELD", 5) }, dualWield = false }
+    offers = Offers({ For(31, "INVTYPE_2HWEAPON", 30, 2 * GOLD), For(32, "INVTYPE_WEAPON", 24, GOLD), For(33, "INVTYPE_SHIELD", 8, GOLD) })
+    eq(Best(offers, ctx, 2 * GOLD), "32:+4 33:+3", "two gold: a sword and a shield, +7, not the two-hander, +5")
+    eq(Best(offers, ctx, GOLD), "32:+4", "one gold: the sword")
+    offers.o32 = nil
+    eq(Best(offers, ctx, 3 * GOLD), "31:+5", "without the sword: the two-hander, and no shield with it")
+    -- A dual wielder buys two one-handers.
+    ctx = { equipped = { [16] = Worn(1, "INVTYPE_WEAPON", 20), [17] = Worn(2, "INVTYPE_WEAPON", 10) }, dualWield = true }
+    offers = Offers({ For(41, "INVTYPE_WEAPON", 26, GOLD), For(42, "INVTYPE_WEAPON", 22, GOLD) })
+    set, summary = Best(offers, ctx, 2 * GOLD)
+    near(summary.gain, 18, "two swords for a dual wielder: 48 in place of 30"); eq(summary.upgrades, 2, "both bought")
+
+    -- A second copy of a unique item is not worn, so not bought.
+    ctx = { equipped = { [13] = Worn(1, "INVTYPE_TRINKET", 1) }, dualWield = false }
+    local first, second = For(51, "INVTYPE_TRINKET", 9, GOLD), For(51, "INVTYPE_TRINKET", 9, GOLD + 1)
+    first.unique, second.unique, second.id = true, true, "o51b"
+    eq(Best(Offers({ first, second }), ctx, 3 * GOLD), "51:+9", "one of a unique trinket, not two")
+
+    -- What was bought and is still in the mail counts as worn.
+    ctx = { equipped = { [5] = Worn(1, "INVTYPE_CHEST", 10) }, dualWield = false }
+    local wearing = Plan.Wearing(ctx, { { link = "bought", itemID = 12, invType = "INVTYPE_CHEST", value = 16 } })
+    eq(ctx.equipped[5].value, 10, "the gear snapshot itself is left as it is")
+    eq(wearing.equipped[5].link, "bought", "the chest that was bought is on in the copy")
+    set, _, rows = Best(Offers({ For(11, "INVTYPE_CHEST", 20, GOLD), For(14, "INVTYPE_CHEST", 15, 100) }), wearing, 5 * GOLD)
+    eq(set, "11:+4", "another chest is worth what it adds to the one bought; a weaker one is nothing")
+    eq(rows[2].entry.replaced[1], "bought", "and replaces that one")
+    eq(Plan.Wearing(ctx, {}), ctx, "nothing bought: the snapshot as it is")
+
+    -- Nothing for sale, nothing worn.
+    eq(Best({}, { equipped = {}, dualWield = false }, GOLD), "", "no offers, no set")
+end
+
+-- The strip under the list, and the list showing the set.
+function scenarios.plan_ui()
+    StandardWorld()
+    -- A chest that "top five" has no use for: weaker than the Good Chest and dearer per point.
+    W.AddItem({ id = 220, name = "Plain Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 13, level = 8 })
+    W.AddAuction(220, 2000)
+    LoadAddon()
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    local frame = UpgradeScoutFrame
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local bar = frame.PlanBar
+    check(bar ~= nil, "the strip is built with the tab")
+    eq(bar:IsShown(), false, "and out of view before there is a scan")
+    local box
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then box = w end
+    end
+    -- The list as the player reads it: "[HEAD] Helm | [CHEST] ...".
+    local function Listed()
+        local out = {}
+        for _, w in ipairs(box:GetFrames()) do
+            if w._shown and w._kind == "Button" and w.entry then
+                out[#out + 1] = w.entry.offer.name
+            elseif w._shown and w.Title then
+                out[#out + 1] = "[" .. w.Title:GetText() .. "]"
+            end
+        end
+        return table.concat(out, " ")
+    end
+    local function Row(name)
+        for _, w in ipairs(box:GetFrames()) do
+            if w._shown and w._kind == "Button" and w.entry and w.entry.offer.name == name then return w end
+        end
+    end
+    local function Settle()
+        W.RunUntil(function() return S.state == "idle" end, 120)
+        W.Run(0.3)
+    end
+
+    ScanToEnd()
+    W.Run(0.3)
+    eq(bar:IsShown(), true, "the strip comes with the first scan")
+    eq(bar.Check.Text:GetText(), "Best set for", "its tick box")
+    eq(bar.Check:GetChecked(), false, "not ticked")
+    eq(bar.Gold:GetText(), "10", "the sum is all the gold there is"); eq(bar.Silver:GetText(), "00", "and its silver")
+    eq(bar.Summary:GetText(), "", "nothing is summed while the list is the list")
+    eq(Offer("Plain Chest"), nil, "the list had no use for the plain chest's price")
+    check(Listed():find("[CHEST] Great Chest Good Chest", 1, true) ~= nil, "the list as ever: " .. Listed())
+
+    -- Ticked: the prices the set can need are looked up, and the list is the set.
+    local searches = W.AH.calls.search
+    bar.Check:SetChecked(true)
+    bar.Check:Click()
+    eq(ns.db.plan, true, "the setting is kept")
+    eq(S.mode, "more", "the missing price is asked for")
+    Settle()
+    eq(W.AH.calls.search, searches + 1, "one search: the plain chest")
+    check(Offer("Plain Chest") ~= nil, "which now has its price")
+    -- Ten gold: the robe (+20, 9 gold), the helm (+12), the ring (+6) and the shield (+7,
+    -- which leaves the sword where it is; the two-hander would add +6).
+    eq(Listed(), "[HEAD] Helm [CHEST] Great Chest [FINGER] New Ring [OFF HAND] Shield", "the set for ten gold: " .. Listed())
+    eq(bar.Summary:GetText(), "4 items, +45 points, 9g 40s", "what it comes to")
+    eq(frame.AffordCheck:IsEnabled(), false, "the price filter has no say in a set")
+    eq(frame.TopCheck:IsEnabled(), false, "nor has top five")
+    local heading = box:GetFrames()[1]
+    eq(heading.Toggle:IsShown(), false, "a heading of the set does not fold"); eq(heading.Count:GetText(), "", "and counts nothing")
+    eq(Row("Helm").Pick:IsShown(), false, "no picks in a set: all of it is the pick")
+    eq(Row("Helm").Buy:IsEnabled(), true, "each item is bought from its row")
+
+    -- A smaller sum.
+    W.Type(bar.Gold, "0")
+    eq(bar.Silver:GetText(), "00", "a sum typed in gold is in whole gold")
+    W.Run(0.3)
+    eq(S.budget, 0, "no gold: a budget of nothing")
+    eq(Listed(), "", "which buys nothing")
+    eq(bar.Summary:GetText(), "No upgrade fits this sum.", "and the strip says so")
+    check(frame.List.Hint:GetText():find("No upgrade fits this sum.", 1, true) ~= nil, "as does the middle of the empty list")
+    W.Type(bar.Silver, "60")
+    W.Run(0.3)
+    eq(S.budget, 6000, "sixty silver")
+    -- Helm, ring and shield come to 40 silver; the 20 left buy the plain chest (+3), which
+    -- the good chest (+8, 40 silver) had hidden from the list.
+    eq(Listed(), "[HEAD] Helm [CHEST] Plain Chest [FINGER] New Ring [OFF HAND] Shield", "the set for sixty silver: " .. Listed())
+    eq(bar.Summary:GetText(), "4 items, +28 points, 60s", "what it comes to")
+    W.Type(bar.Silver, "45")
+    W.Run(0.3)
+    eq(Listed(), "[HEAD] Helm [FINGER] New Ring [OFF HAND] Shield", "forty-five silver: without a chest")
+
+    -- Buying from the set: what is bought counts as worn, and the sum goes down by its price.
+    W.Type(bar.Silver, "60")
+    W.Run(0.3)
+    Row("Helm").Buy:Click()
+    Settle()
+    eq(#W.popups, 1, "the usual question")
+    W.AcceptPopup(W.popups[1])
+    W.RunUntil(function() return #S.acquired == 1 end, 30)
+    Settle()
+    eq(S.budget, 3500, "the helm's 25 silver are spent")
+    eq(bar.Gold:GetText(), "0", "the sum in the strip"); eq(bar.Silver:GetText(), "35", "follows")
+    eq(Listed(), "[CHEST] Plain Chest [FINGER] New Ring [OFF HAND] Shield", "the rest of the set stays as it was: " .. Listed())
+    eq(bar.Summary:GetText(), "3 items, +16 points, 35s", "and comes to the rest of the sum")
+    -- The helm arrives and is put on: nothing changes for the set.
+    W.equipped[1] = W.Link(211)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    eq(#S.acquired, 0, "what is worn is gear now")
+    eq(Listed(), "[CHEST] Plain Chest [FINGER] New Ring [OFF HAND] Shield", "the set after the helm is on: " .. Listed())
+
+    -- Both fields emptied: all the gold there is again.
+    W.Type(bar.Gold, "")
+    W.Type(bar.Silver, "")
+    W.Run(0.3)
+    eq(S.budget, nil, "no sum of one's own")
+    eq(bar.Gold:GetText(), "9", "the strip shows the purse: ten gold less the helm"); eq(bar.Silver:GetText(), "75", "to the silver")
+    eq(Listed(), "[CHEST] Great Chest [FINGER] New Ring [OFF HAND] Shield", "and the set is the one for all of it: " .. Listed())
+
+    -- Unticked: the list again, filters and all.
+    bar.Check:SetChecked(false)
+    bar.Check:Click()
+    W.Run(0.3)
+    eq(ns.db.plan, false, "the setting is kept")
+    eq(frame.AffordCheck:IsEnabled(), true, "the filters are back")
+    eq(bar.Summary:GetText(), "", "nothing summed")
+    check(Listed():find("[CHEST] Great Chest Good Chest", 1, true) ~= nil, "the list as ever: " .. Listed())
+    check(box:GetFrames()[1].Toggle:IsShown(), "its headings fold again")
+
+    -- A scan with the box ticked looks up what the set needs from the start.
+    bar.Check:SetChecked(true)
+    bar.Check:Click()
+    ScanToEnd()
+    W.Run(0.3)
+    check(Offer("Plain Chest") ~= nil, "the plain chest is priced by the scan itself")
+    eq(Listed(), "[CHEST] Great Chest [FINGER] New Ring [OFF HAND] Shield", "the set after a new scan: " .. Listed())
+
+    -- The Consumables view has no strip.
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScoutSupplies")
+    W.Run(0.3)
+    eq(bar:IsShown(), false, "no strip over consumables")
+    eq(frame.AffordCheck:IsEnabled(), true, "and their price filter works")
 end
 
 -- Which consumables do the same thing, which of them is the best, and the rows of the list.

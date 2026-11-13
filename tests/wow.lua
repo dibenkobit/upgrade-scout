@@ -90,6 +90,8 @@ function M:SetNumber(number)
     if self._scripts.OnTextChanged then self._scripts.OnTextChanged(self, false) end
 end
 function M:GetNumber() return tonumber(self._text) or 0 end
+-- Nobody is typing while a test runs: what W.Type writes is there at once.
+function M:HasFocus() return false end
 function W.Type(box, text)
     assert(box._kind == "EditBox" and box._enabled and box:IsVisible(), "an edit box that takes typing")
     box._text = text
@@ -1277,7 +1279,12 @@ function C_AuctionHouse.PlaceBid(auctionID, amount)
     for i = #A.auctions, 1, -1 do
         if A.auctions[i].auctionID == auctionID then table.remove(A.auctions, i) end
     end
-    C_Timer.After(0.2, function() W.Fire("AUCTION_HOUSE_PURCHASE_COMPLETED", auctionID) end)
+    -- The gold is gone with the bid.
+    W.player.money = W.player.money - amount
+    C_Timer.After(0.2, function()
+        W.Fire("AUCTION_HOUSE_PURCHASE_COMPLETED", auctionID)
+        W.Fire("PLAYER_MONEY")
+    end)
 end
 function C_AuctionHouse.SearchForFavorites() end
 function C_AuctionHouse.SearchForItemKeys() end

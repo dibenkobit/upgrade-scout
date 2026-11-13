@@ -51,6 +51,12 @@ S.partial = false              -- the last scan did not see everything
 S.halted = false               -- the price checks were stopped and wait for S.Resume()
 S.finishedAt = nil
 S.stats = nil                  -- what the last scan sent and how long it took (see NewStats)
+S.changes = 0                  -- goes up whenever the offers or the gear snapshot change
+
+-- For the best set for a budget (see Plan.lua), which the list shows when ns.db.plan is on.
+S.budget = nil                 -- the most the set may cost, in copper; nil for all the gold there is
+S.acquired = {}                -- gear bought here and not yet put on: { link, itemID, invType,
+                               -- value, unique }. A set is measured against it as if it were worn.
 
 -- The same for consumables, which have a scan and a list of their own.
 S.supplies = {}                -- id -> consumable for sale that the player can use (see ScoreSupply)
@@ -109,6 +115,8 @@ end
 ---------------------------------------------------------------------------
 local driver = CreateFrame("Frame")
 driver:Hide()
+
+local Reacquire
 
 local function IsScanMode(mode)
     return mode == "scan" or mode == "more"
@@ -337,6 +345,50 @@ local function Front()
     return front.groups
 end
 
+-- The most the best set for a budget may cost: the budget, and never more than there is.
+function S.PlanCap()
+    local money = GetMoney()
+    return S.budget and math.min(S.budget, money) or money
+end
+
+-- The verified offers by the way they are worn, put together again when they have changed.
+local byType = {}
+local function OffersWornAs(invType)
+    if byType.changes ~= S.changes or byType.offers ~= S.offers then
+        byType = { changes = S.changes, offers = S.offers, lists = {} }
+        for _, offer in pairs(S.offers) do
+            local list = byType.lists[offer.invType]
+            if not list then
+                list = {}
+                byType.lists[offer.invType] = list
+            end
+            list[#list + 1] = offer
+        end
+    end
+    return byType.lists[invType]
+end
+
+-- Can no set need the candidate? True when as many verified offers as can be worn at once
+-- (two rings, one chest) are worn the same way, are at least as strong and cost no more than
+-- the lowest price in the candidate's row: whatever set the candidate could be in, one of
+-- those would stand in its place for no more money. It must stay in step with Plan.lua's
+-- own rule for the offers a set can need.
+local function Outdone(cand)
+    local list = OffersWornAs(cand.eval.invType)
+    if not list then return false end
+    local _, room = ns.Compare.Kind(cand.eval.invType)
+    room = room or 1
+    local better = 0
+    for i = 1, #list do
+        local offer = list[i]
+        if offer.value >= cand.eval.value and offer.buyout <= cand.minPrice then
+            better = better + 1
+            if better >= room then return true end
+        end
+    end
+    return false
+end
+
 -- Why the candidate's price is not worth an item search right now; nil when it is. Every
 -- reason is a proof that the list, as the player has it set up, would not show the item
 -- whatever the search found, so skipping it never changes what the list shows:
@@ -347,11 +399,21 @@ end
 -- The last two rest on the row's lowest price being a floor under its buyouts. ReadJob checks
 -- that against every row it reads; if the server turns out to mean something else by that
 -- number (scan.floorBroken), nothing is skipped for its price any more.
+-- With the best set for a budget on, the list shows that set, and the two filters have no say.
+-- A set can need an offer that "top N" would hide: the strongest chest may leave no money for
+-- anything else. So the reasons are then:
+--   price      even the row's lowest price is more than the budget
+--   outdone    no set can need it (see Outdone)
 local function SkipReason(cand)
     if not cand.eval or scan.bucketsVary then return nil end
     local placements = Placements(cand)
     if #placements == 0 then return "worse" end
     if scan.floorBroken then return nil end
+    if ns.db.plan then
+        if cand.minPrice > S.PlanCap() then return "price" end
+        if Outdone(cand) then return "outdone" end
+        return nil
+    end
     if ns.db.affordableOnly and cand.minPrice > GetMoney() then return "price" end
     if ns.db.topOnly then
         local groups = Front()
@@ -609,6 +671,7 @@ local function ReadJob(job)
         S.offers[id] = offer
     end
     front.dirty = true
+    S.changes = S.changes + 1
 
     -- Is the row's lowest price really a floor under its buyouts? Now and then a cheaper
     -- auction is posted between the browse and this search; more than that means the server
@@ -658,7 +721,7 @@ end
 -- the last scan's and gives way to this run's own as its searches come back.
 function S.TimeLeft()
     if S.state ~= "verify" or not run or not scan or not IsScanMode(run.mode) then return nil end
-    if ns.db.topOnly and not scan.bucketsVary and not scan.floorBroken then return nil end
+    if (ns.db.topOnly or ns.db.plan) and not scan.bucketsVary and not scan.floorBroken then return nil end
     local left = S.info.toVerify - S.info.verified
     if left <= 0 then return nil end
     local done = S.info.verified
@@ -1014,6 +1077,7 @@ local function FinishBrowse(partial)
     if run.mode ~= "supplies" and S.ctx and S.ctx.pending then
         S.ctx = ns.Pawn.Context(S.ctx.scale, S.ctx.who)
         Recheck()
+        S.changes = S.changes + 1
     end
     S.info.toScore = #run.toScore
     S.info.scored = 0
@@ -1122,6 +1186,7 @@ function S.Reset()
     local mode = run and run.mode
     if mode ~= "supplies" and mode ~= "supply" then S.Stop() end
     S.offers = {}
+    S.changes = S.changes + 1
     S.ctx = nil
     S.finishedAt = nil
     S.message = nil
@@ -1135,12 +1200,37 @@ end
 function S.Retarget()
     S.Stop()
     S.Reset()
+    S.acquired = {}
+    S.budget = nil
     S.supplies = {}
     S.suppliesAt = nil
     S.suppliesPartial = false
     S.suppliesNote = nil
     S.suppliesWho = nil
     ns.Fire("OFFERS_CHANGED")
+end
+
+-- Brings what was bought (S.acquired) in line with a gear snapshot that was just made: what
+-- has been put on since is gear now, and the rest is scored on the snapshot's scale, which
+-- may be another one than it was bought under.
+function Reacquire()
+    local ctx = S.ctx
+    for i = #S.acquired, 1, -1 do
+        local item = S.acquired[i]
+        local worn = false
+        -- Only the character being played puts anything on while the addon looks.
+        if not ctx.who then
+            for _, gear in pairs(ctx.equipped) do
+                if gear.itemID == item.itemID then worn = true break end
+            end
+        end
+        local scored = not worn and ns.Pawn.Item(item.link) or nil
+        if scored then
+            item.value = ns.Pawn.Value(scored, ctx.scale)
+        else
+            table.remove(S.acquired, i)
+        end
+    end
 end
 
 -- Starts a full scan for the character the lists are for. Returns false and sets S.message
@@ -1165,7 +1255,9 @@ function S.Start()
     S.ctx = ns.Pawn.Context(scale.name, who)
     contextTries = 0
     Recheck()
+    Reacquire()
     S.offers = {}
+    S.changes = S.changes + 1
     S.partial = false
     S.halted = false
     S.finishedAt = nil
@@ -1302,6 +1394,8 @@ function S.RefreshContext()
     if not S.ctx or ns.Pawn.Problem() then return end
     S.ctx = ns.Pawn.Context(S.ctx.scale, S.ctx.who)
     Recheck()
+    Reacquire()
+    S.changes = S.changes + 1
     ns.Fire("OFFERS_CHANGED")
 end
 
@@ -1618,6 +1712,13 @@ ns.On("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
     ns.Print(L.MSG_BOUGHT:format(offer.link, ns.Money(offer.buyout)))
     S.offers[offer.id] = nil
     front.dirty = true
+    S.changes = S.changes + 1
+    -- It is on its way by mail: until it is put on, a set is measured against it.
+    S.acquired[#S.acquired + 1] = {
+        link = offer.link, itemID = offer.itemID, invType = offer.invType, value = offer.value, unique = offer.unique,
+    }
+    -- A budget that was set is for what is still to be spent.
+    if S.budget then S.budget = math.max(0, S.budget - offer.buyout) end
     ns.Fire("OFFERS_CHANGED")
     -- More of the same item may be for sale at a higher price: look it up again.
     if (offer.count > 1 or offer.more) and S.state == "idle" and ahOpen and S.ctx then

@@ -111,6 +111,12 @@ local L = {
     MSG_FORGOT = "%s is forgotten. The character will be remembered again the next time you play it.",
     MSG_FORGET_WHO = "No other character by that name is remembered. Remembered: %s. To forget one, type /upscout forget and its name.",
 
+    -- The best set for a budget
+    PLAN = "Best set for",
+    PLAN_TIP = "The upgrades that, bought together, add the most for this much gold: no more of them than can be worn at once. Leave the sum as it is to spend all you have, or type a smaller one. Ticking the box looks up the prices the set needs and the list did not.",
+    PLAN_SUM = "%d items, +%s points, %s",
+    PLAN_NONE = "No upgrade fits this sum.",
+
     HEAD = "Head", NECK = "Neck", SHOULDER = "Shoulders", BACK = "Back", CHEST = "Chest",
     WRIST = "Wrist", HANDS = "Hands", WAIST = "Waist", LEGS = "Legs", FEET = "Feet",
     FINGER = "Finger", TRINKET = "Trinket", MAINHAND = "Main Hand", OFFHAND = "Off Hand", RANGED = "Ranged",
@@ -230,6 +236,12 @@ if GetLocale() == "ruRU" then
         TT_SUP_NO_MANA_WHO = "Этому персонажу не пригодится: восстанавливает ману, а у него её нет.",
         MSG_FORGOT = "Персонаж %s забыт. Он запомнится снова, когда ты в следующий раз на него зайдёшь.",
         MSG_FORGET_WHO = "Другого персонажа с таким именем в памяти нет. В памяти: %s. Чтобы забыть персонажа, набери /upscout forget и его имя.",
+
+        -- The best set for a budget
+        PLAN = "Лучший набор на",
+        PLAN_TIP = "Улучшения, которые вместе дают больше всего за эту сумму: не больше, чем можно надеть сразу. Оставь сумму как есть, чтобы потратить всё золото, или впиши меньше. Когда ставишь галочку, проверяются цены, которые нужны набору и не были нужны списку.",
+        PLAN_SUM = "Вещей: %d, очков: +%s, цена: %s",
+        PLAN_NONE = "На эту сумму нет ни одного улучшения.",
 
         HEAD = "Голова", NECK = "Шея", SHOULDER = "Плечи", BACK = "Спина", CHEST = "Грудь",
         WRIST = "Запястья", HANDS = "Кисти рук", WAIST = "Пояс", LEGS = "Ноги", FEET = "Ступни",
@@ -351,6 +363,12 @@ if GetLocale() == "deDE" then
         TT_SUP_NO_MANA_WHO = "Nützt diesem Charakter nichts: Es stellt Mana wieder her, und er hat keins.",
         MSG_FORGOT = "%s ist vergessen. Der Charakter wird wieder gemerkt, wenn du ihn das nächste Mal spielst.",
         MSG_FORGET_WHO = "Kein anderer Charakter mit diesem Namen ist gemerkt. Gemerkt: %s. Um einen zu vergessen, gib /upscout forget und seinen Namen ein.",
+
+        -- The best set for a budget
+        PLAN = "Bestes Set für",
+        PLAN_TIP = "Die Verbesserungen, die zusammen gekauft für diese Summe am meisten bringen: nicht mehr davon, als sich gleichzeitig tragen lässt. Lass die Summe stehen, um alles auszugeben, was du hast, oder gib eine kleinere ein. Mit dem Häkchen werden die Preise nachgeschlagen, die das Set braucht und die Liste nicht brauchte.",
+        PLAN_SUM = "%d Gegenstände, +%s Punkte, %s",
+        PLAN_NONE = "Für diese Summe gibt es keine Verbesserung.",
 
         HEAD = "Kopf", NECK = "Hals", SHOULDER = "Schultern", BACK = "Rücken", CHEST = "Brust",
         WRIST = "Handgelenke", HANDS = "Hände", WAIST = "Taille", LEGS = "Beine", FEET = "Füße",
@@ -474,6 +492,12 @@ if GetLocale() == "frFR" then
         MSG_FORGOT = "%s est oublié. Le personnage sera de nouveau mémorisé la prochaine fois que vous le jouerez.",
         MSG_FORGET_WHO = "Aucun autre personnage de ce nom n'est mémorisé. Mémorisés : %s. Pour en oublier un, tapez /upscout forget suivi de son nom.",
 
+        -- The best set for a budget
+        PLAN = "Meilleur ensemble pour",
+        PLAN_TIP = "Les améliorations qui, achetées ensemble, apportent le plus pour cette somme : pas plus qu'on ne peut en porter à la fois. Laissez la somme telle quelle pour dépenser tout votre or, ou saisissez-en une plus petite. Cocher la case fait rechercher les prix dont l'ensemble a besoin et dont la liste n'avait pas besoin.",
+        PLAN_SUM = "%d objets, +%s points, %s",
+        PLAN_NONE = "Aucune amélioration ne tient dans cette somme.",
+
         HEAD = "Tête", NECK = "Cou", SHOULDER = "Épaules", BACK = "Dos", CHEST = "Torse",
         WRIST = "Poignets", HANDS = "Mains", WAIST = "Taille", LEGS = "Jambes", FEET = "Pieds",
         FINGER = "Doigt", TRINKET = "Bijou", MAINHAND = "Main droite", OFFHAND = "Main gauche", RANGED = "À distance",
@@ -595,6 +619,12 @@ if GetLocale() == "zhCN" then
         TT_SUP_NO_MANA_WHO = "对该角色没用：它恢复法力，而该角色没有法力。",
         MSG_FORGOT = "已忘记 %s。下次你玩这个角色时会重新记录。",
         MSG_FORGET_WHO = "没有记录这个名字的其他角色。已记录：%s。要忘记某个角色，请输入 /upscout forget 加角色名。",
+
+        -- The best set for a budget
+        PLAN = "预算内的最佳组合",
+        PLAN_TIP = "一起买下后，用这笔钱提升最多的装备：数量不超过能同时穿戴的件数。金额保持不变即花光所有金币，也可以输入更小的数目。勾选后会查询组合需要而列表不需要的价格。",
+        PLAN_SUM = "%d 件，+%s 分，%s",
+        PLAN_NONE = "这笔钱买不到任何提升。",
 
         HEAD = "头部", NECK = "颈部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
         WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "脚",
@@ -719,6 +749,12 @@ if GetLocale() == "ptBR" then
         MSG_FORGOT = "%s foi esquecido. O personagem será lembrado de novo na próxima vez que você jogar com ele.",
         MSG_FORGET_WHO = "Nenhum outro personagem com esse nome está na memória. Na memória: %s. Para esquecer um, digite /upscout forget e o nome dele.",
 
+        -- The best set for a budget
+        PLAN = "Melhor conjunto por",
+        PLAN_TIP = "As melhorias que, compradas juntas, mais acrescentam por esta quantia: não mais do que se pode usar ao mesmo tempo. Deixe a quantia como está para gastar tudo o que você tem, ou digite uma menor. Ao marcar a caixa, são consultados os preços de que o conjunto precisa e de que a lista não precisava.",
+        PLAN_SUM = "%d itens, +%s pontos, %s",
+        PLAN_NONE = "Nenhuma melhoria cabe nesta quantia.",
+
         HEAD = "Cabeça", NECK = "Pescoço", SHOULDER = "Ombros", BACK = "Costas", CHEST = "Torso",
         WRIST = "Pulsos", HANDS = "Mãos", WAIST = "Cintura", LEGS = "Pernas", FEET = "Pés",
         FINGER = "Dedo", TRINKET = "Berloque", MAINHAND = "Mão Principal", OFFHAND = "Mão Secundária", RANGED = "Longo Alcance",
@@ -842,6 +878,12 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         MSG_FORGOT = "%s ha sido olvidado. El personaje se recordará de nuevo la próxima vez que juegues con él.",
         MSG_FORGET_WHO = "No se recuerda ningún otro personaje con ese nombre. Recordados: %s. Para olvidar uno, escribe /upscout forget y su nombre.",
 
+        -- The best set for a budget
+        PLAN = "Mejor conjunto por",
+        PLAN_TIP = "Las mejoras que, compradas juntas, más aportan por esta suma: no más de las que se pueden llevar a la vez. Deja la suma como está para gastar todo lo que tienes, o escribe una menor. Al marcar la casilla se consultan los precios que el conjunto necesita y la lista no necesitaba.",
+        PLAN_SUM = "%d objetos, +%s puntos, %s",
+        PLAN_NONE = "Ninguna mejora cabe en esta suma.",
+
         HEAD = "Cabeza", NECK = "Cuello", SHOULDER = "Hombros", BACK = "Espalda", CHEST = "Pecho",
         WRIST = "Muñecas", HANDS = "Manos", WAIST = "Cintura", LEGS = "Piernas", FEET = "Pies",
         FINGER = "Dedo", TRINKET = "Abalorio", MAINHAND = "Mano derecha", OFFHAND = "Mano izquierda", RANGED = "A distancia",
@@ -963,6 +1005,12 @@ if GetLocale() == "itIT" then
         TT_SUP_NO_MANA_WHO = "Non serve a questo personaggio: ripristina mana, e lui non ne ha.",
         MSG_FORGOT = "%s è stato dimenticato. Il personaggio verrà ricordato di nuovo la prossima volta che ci giochi.",
         MSG_FORGET_WHO = "Nessun altro personaggio con quel nome è in memoria. In memoria: %s. Per dimenticarne uno, scrivi /upscout forget e il suo nome.",
+
+        -- The best set for a budget
+        PLAN = "Miglior insieme per",
+        PLAN_TIP = "I miglioramenti che, comprati insieme, danno di più per questa somma: non più di quanti se ne possono indossare contemporaneamente. Lascia la somma com'è per spendere tutto quello che hai, oppure scrivine una più piccola. Spuntando la casella vengono cercati i prezzi che servono all'insieme e che non servivano all'elenco.",
+        PLAN_SUM = "%d oggetti, +%s punti, %s",
+        PLAN_NONE = "Nessun miglioramento rientra in questa somma.",
 
         HEAD = "Testa", NECK = "Collo", SHOULDER = "Spalle", BACK = "Schiena", CHEST = "Torso",
         WRIST = "Polsi", HANDS = "Mani", WAIST = "Fianchi", LEGS = "Gambe", FEET = "Piedi",

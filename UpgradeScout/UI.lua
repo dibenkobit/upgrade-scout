@@ -74,6 +74,7 @@ local scanButton, scaleDropdown, affordCheck, topCheck
 local view = "gear"         -- what the frame shows: "gear" (Upgrades) or "supplies" (Consumables)
 local holder                -- the frame the Consumables tab is made with (see Build)
 local bestCheck, buyBox     -- the Consumables view's own filter, and its box for buying
+local planBar               -- the strip under the list for the best set for a budget (see BuildPlan)
 local rows = {}
 local summary               -- what the last refresh counted, for the status line
 local elements = {}       -- row key -> the table the scroll box knows the row by (see SyncList)
@@ -771,6 +772,9 @@ local function InitHeaderRow(row, element)
     end
     row.Count:SetText(count)
     row.Arrow:SetTexture(File(data.collapsed and "ChevronRight" or "Chevron"))
+    -- A heading of the best set for a budget has nothing to fold away.
+    row.Arrow:SetShown(not data.plain)
+    row.Toggle:SetShown(not data.plain)
 end
 
 ---------------------------------------------------------------------------
@@ -949,7 +953,12 @@ local function StatusText()
 
     local parts = {}
     if S.message then parts[#parts + 1] = S.message end
-    if S.finishedAt then
+    if S.finishedAt and summary.cost then
+        -- The best set for a budget: what it comes to stands in the strip under the list.
+        if summary.upgrades == 0 then parts[#parts + 1] = L.PLAN_NONE end
+        if (S.partial or S.halted) and not S.message then parts[#parts + 1] = L.ST_PARTIAL end
+        parts[#parts + 1] = L.ST_AGE:format(ns.Ago(time() - S.finishedAt))
+    elseif S.finishedAt then
         if summary.upgrades == 0 then
             parts[#parts + 1] = summary.hidden > 0 and L.ST_NONE_AFFORD:format(summary.hidden) or L.ST_NONE
         elseif summary.hidden > 0 then
@@ -1060,6 +1069,74 @@ local function SupplyValue(who)
     return function(stats) return ns.Pawn.StatsValue(stats, name) end
 end
 
+---------------------------------------------------------------------------
+-- The best set for a budget
+---------------------------------------------------------------------------
+-- A strip along the bottom of the list's plate, in the Upgrades view once there is a scan: a
+-- tick box, the budget in gold and silver, and what the set comes to. With the box ticked
+-- the list shows that set and nothing else (see Plan.lua), and the two filters above the
+-- list have no say.
+local PLAN_HEIGHT = 30
+local planCache = {}
+
+local function Planned()
+    return view == "gear" and ns.db.plan and S.ctx ~= nil
+end
+
+-- The set for the budget, as rows for the list.
+local function PlanRows()
+    local money = GetMoney()
+    -- The ladder of sets is made for all the gold there is, and made again only when what it
+    -- is made of has changed; a budget picks a rung of it.
+    if planCache.changes ~= S.changes or planCache.ctx ~= S.ctx or planCache.money ~= money
+        or planCache.bought ~= #S.acquired then
+        planCache = {
+            changes = S.changes, ctx = S.ctx, money = money, bought = #S.acquired,
+            ladder = ns.Plan.Ladder(S.offers, ns.Plan.Wearing(S.ctx, S.acquired), money),
+        }
+    end
+    return ns.Plan.Rows(ns.Plan.Choose(planCache.ladder, S.PlanCap()))
+end
+
+-- The budget in its two fields: the sum that was typed, or, in a dimmer ink, all the gold
+-- there is. A field that is being typed in is left alone.
+local function PaintBudget()
+    local gold, silver = planBar.Gold, planBar.Silver
+    if gold:HasFocus() or silver:HasFocus() then return end
+    local copper = S.budget or GetMoney()
+    local ink = S.budget and CREAM or MUTED
+    gold:SetText(tostring(math.floor(copper / 10000)))
+    silver:SetText(("%02d"):format(math.floor(copper / 100) % 100))
+    gold:SetTextColor(ink[1], ink[2], ink[3])
+    silver:SetTextColor(ink[1], ink[2], ink[3])
+end
+
+local function PaintPlan()
+    local shown = view == "gear" and S.ctx ~= nil
+    if shown ~= planBar:IsShown() then
+        planBar:SetShown(shown)
+        -- The list gives up the height of the strip.
+        scrollBox:SetPoint("BOTTOMRIGHT", frame.List, "BOTTOMRIGHT", -LIST_RIGHT, LIST_BOTTOM + (shown and PLAN_HEIGHT or 0))
+    end
+    local planned = Planned()
+    -- What the set holds is not for the two filters to say.
+    affordCheck:SetEnabled(not planned)
+    affordCheck:SetAlpha(planned and 0.4 or 1)
+    topCheck:SetEnabled(not planned)
+    topCheck:SetAlpha(planned and 0.4 or 1)
+    if not shown then return end
+
+    SetCheck(planBar.Check, ns.db.plan)
+    PaintBudget()
+    local text = ""
+    if planned and summary.upgrades > 0 then
+        text = L.PLAN_SUM:format(summary.upgrades, ns.Num(summary.gain), ns.Money(summary.cost))
+    elseif planned then
+        text = L.PLAN_NONE
+    end
+    planBar.Summary:SetText(text)
+end
+
 function UI.Refresh()
     if not frame or not frame:IsShown() then return end
 
@@ -1078,6 +1155,8 @@ function UI.Refresh()
             value = SupplyValue(who),
             mana = mana,
         })
+    elseif Planned() then
+        all, summary = PlanRows()
     else
         all, summary = ns.Results.Build(S.offers, S.ctx, {
             money = GetMoney(),
@@ -1086,8 +1165,10 @@ function UI.Refresh()
             unchecked = S.Unchecked(),
         })
     end
-    rows = Fold(all)
+    -- Nothing of a set is folded away: it is all meant to be bought.
+    rows = summary.cost and all or Fold(all)
     SyncList()
+    PaintPlan()
 
     local idle = S.state == "idle"
     ShowStatus()
@@ -1254,8 +1335,8 @@ end
 
 -- A tick box for one of the list's two filters: a recess, a gold tick, the label beside it.
 -- A click on the label ticks the box, as everywhere in the game.
-local function NewFilterCheck(text, setting, tip)
-    local check = CreateFrame("CheckButton", nil, frame)
+local function NewFilterCheck(text, setting, tip, parent)
+    local check = CreateFrame("CheckButton", nil, parent or frame)
     check:SetSize(CHECK_SIZE, CHECK_SIZE)
     NewSlices(check, "Inset", 0.25, 6, "BACKGROUND")
     local glow = NewTexture(check, "Glow", "HIGHLIGHT")
@@ -1434,6 +1515,89 @@ local function BuildBuyBox()
 end
 
 ---------------------------------------------------------------------------
+-- The strip for the best set for a budget
+---------------------------------------------------------------------------
+-- What is typed into a field of the budget. Both fields empty is no budget of one's own: all
+-- the gold there is.
+local function BudgetTyped(box, userInput)
+    if not userInput then return end
+    local gold, silver = planBar.Gold, planBar.Silver
+    -- The first thing typed into the gold field of a budget that was not one's own starts a
+    -- sum in whole gold: the silver the purse happens to hold is not meant.
+    if not S.budget and box == gold then silver:SetText("00") end
+    if gold:GetText() == "" and silver:GetText() == "" then
+        S.budget = nil
+    else
+        S.budget = gold:GetNumber() * 10000 + silver:GetNumber() * 100
+    end
+    toTop = true
+    -- The player changed what the list shows: price checks that were stopped may go on.
+    S.Resume()
+    QueueRefresh()
+end
+
+local function BudgetDone(box)
+    box:ClearFocus()
+end
+
+-- A field for a number: an edit box of the game's in a recess of ours, a coin after it.
+local function NewCoinField(width, letters, coin, tip)
+    local field = CreateFrame("EditBox", nil, planBar)
+    field:SetSize(width, 20)
+    NewSlices(field, "Inset", 0.25, 6, "BACKGROUND")
+    field:SetFont(numberFont, 12, "")
+    field:SetJustifyH("CENTER")
+    field:SetAutoFocus(false)
+    field:SetNumeric(true)
+    field:SetMaxLetters(letters)
+    field:SetScript("OnTextChanged", BudgetTyped)
+    field:SetScript("OnEnterPressed", BudgetDone)
+    field:SetScript("OnEscapePressed", BudgetDone)
+    field:SetScript("OnEditFocusLost", PaintBudget)
+    field:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip_SetTitle(GameTooltip, L.PLAN)
+        GameTooltip_AddNormalLine(GameTooltip, tip)
+        GameTooltip:Show()
+    end)
+    field:SetScript("OnLeave", GameTooltip_Hide)
+    field.Coin = field:CreateTexture(nil, "ARTWORK")
+    field.Coin:SetTexture("Interface\\MoneyFrame\\UI-" .. coin .. "Icon")
+    field.Coin:SetSize(13, 13)
+    field.Coin:SetPoint("LEFT", field, "RIGHT", 3, 0)
+    return field
+end
+
+local function BuildPlan()
+    local list = frame.List
+    planBar = CreateFrame("Frame", nil, list)
+    planBar:SetPoint("BOTTOMLEFT", list, "BOTTOMLEFT", LIST_LEFT, LIST_BOTTOM)
+    planBar:SetPoint("BOTTOMRIGHT", list, "BOTTOMRIGHT", -LIST_LEFT, LIST_BOTTOM)
+    planBar:SetHeight(PLAN_HEIGHT)
+    planBar:Hide()
+    local rule = NewLine(planBar)
+    rule:SetVertexColor(0.80, 0.60, 0.26, 0.55)
+    rule:SetPoint("TOPLEFT", planBar, "TOPLEFT", 0, 0)
+    rule:SetPoint("TOPRIGHT", planBar, "TOPRIGHT", 0, 0)
+
+    local check = NewFilterCheck(L.PLAN, "plan", L.PLAN_TIP, planBar)
+    check:SetPoint("LEFT", planBar, "LEFT", 6, -1)
+    planBar.Check = check
+
+    planBar.Gold = NewCoinField(54, 6, "Gold", L.PLAN_TIP)
+    planBar.Gold:SetPoint("LEFT", check, "RIGHT", CHECK_GAP + check.Text:GetStringWidth() + PAD, 0)
+    planBar.Silver = NewCoinField(30, 2, "Silver", L.PLAN_TIP)
+    planBar.Silver:SetPoint("LEFT", planBar.Gold.Coin, "RIGHT", 6, 0)
+    planBar.Gold:SetScript("OnTabPressed", function() planBar.Silver:SetFocus() end)
+    planBar.Silver:SetScript("OnTabPressed", function() planBar.Gold:SetFocus() end)
+
+    -- What the set comes to: how many items, how many points, for how much.
+    planBar.Summary = NewText(planBar, 11, CREAM, "RIGHT")
+    planBar.Summary:SetPoint("RIGHT", planBar, "RIGHT", -8, -1)
+    frame.PlanBar = planBar
+end
+
+---------------------------------------------------------------------------
 -- The two views
 ---------------------------------------------------------------------------
 local function CheckWidth(check)
@@ -1485,6 +1649,7 @@ local function BuildViews(auction)
     bestCheck = NewFilterCheck(L.SUP_BEST, "bestOnly", L.SUP_BEST_TIP)
     bestCheck:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + CheckWidth(bestCheck)), -BAR_MIDDLE)
     BuildBuyBox()
+    BuildPlan()
     frame.BestCheck, frame.BuyBox = bestCheck, buyBox
 
     -- The library that makes the tabs shows and hides the frame a tab was made with. So the
