@@ -1,58 +1,295 @@
-local _, ns = ...
+local ADDON, ns = ...
 local L = ns.L
 local S = ns.Scanner
 
 -- The "Upgrades" tab of the auction house window.
 --
--- It is put together from the parts the game builds its own auction tabs from, sized and
--- placed as the Buy tab has them, so that it looks and works like one of those tabs:
---   the list        WowScrollBoxList and MinimalScrollBar; rows with the height, stripes,
---                   highlight, fonts and icon frame of AuctionHouseItemListLineTemplate
---   column titles   ColumnDisplayButtonShortTemplate
+-- The tab has a look of its own: a dark plate in a fine gold edge, headings in gold capitals,
+-- buttons in gold rims. Its art is the textures in Media, drawn by scripts/make-textures.py at
+-- two texture pixels per window unit; frames and buttons are cut in nine, so one small picture
+-- serves any size (see NewSlices).
+-- The parts that do the work are still the game's own:
+--   the list        WowScrollBoxList and MinimalScrollBar
 --   prices          MoneyDisplayFrameTemplate
---   the Pawn scale  WowStyle1DropdownTemplate
+--   the Pawn scale  WowStyle1DropdownTemplate: its menu and its text, under a face of ours
 --   buying          a StaticPopup shaped like the game's own BUYOUT_AUCTION
--- Blizzard_AuctionHouseUI is the reference for every number and name below.
 local UI = {}
 ns.UI = UI
 
 local TAB_ID = "UpgradeScout"
 local POPUP = "UPGRADESCOUT_BUY"
+local MEDIA = "Interface\\AddOns\\" .. ADDON .. "\\Media\\"
 
--- Layout, in the coordinates of the auction window (800 by 538). The Buy tab keeps a bar 40
--- high for its search controls, 29 below the top; its lists start under that bar, 4 in from
--- the left, leave 27 on the right for the scroll bar and end 2 above the gold display.
-local BAR_MIDDLE = 49
-local BAR_LEFT, BAR_RIGHT = 72, 12          -- left: clear of the portrait in the corner
-local LIST_LEFT, LIST_RIGHT, LIST_TOP, LIST_BOTTOM = 4, 27, 74, 27
+-- Layout, in the coordinates of the auction window (800 by 538). The game keeps the strip
+-- under the title for a tab's controls and the strip at the bottom for the gold display; the
+-- plate with the list takes what is between them.
+local BAR_MIDDLE = 49                       -- the controls above the list are centred on this line
+local BAR_LEFT, BAR_RIGHT = 72, 14          -- left: clear of the portrait in the corner
+local PANEL_LEFT, PANEL_RIGHT, PANEL_TOP, PANEL_BOTTOM = 6, 6, 72, 28
+local LIST_LEFT, LIST_RIGHT, LIST_TOP, LIST_BOTTOM = 8, 24, 30, 7   -- the rows, inside the plate
 local GOLD_RIGHT, GOLD_BOTTOM = 167, 3      -- the frame around the gold display (MoneyFrameInset)
-local TITLES_HEIGHT = 19
-local ROW_HEIGHT = 20
+local ROW_HEIGHT = 30
 local REFRESH_INTERVAL = 0.1                -- seconds between redraws while a scan reports progress
 
--- Columns, in the coordinates of a row: left edge and width. Numbers sit against the right
--- edge of their column, and so do the titles above them.
-local COLUMNS = {
-    { key = "item", title = L.COL_ITEM, left = 0, width = 262 },
-    { key = "pick", title = L.COL_PICK, left = 262, width = 126 },
-    { key = "upgrade", title = L.COL_UPGRADE, left = 388, width = 88, numeric = true },
-    { key = "price", title = L.COL_PRICE, left = 476, width = 122, numeric = true },
-    { key = "per", title = L.COL_PER, left = 598, width = 104, numeric = true },
-    { key = "buy", title = "", left = 702 },            -- to the right edge
+-- Across a row, from its left edge. Numbers sit against the right edge of their column, and
+-- so do the titles above them.
+local PAD = 8                               -- between neighbours
+local ICON_LEFT, ICON_SIZE = 6, 22
+local NAME_LEFT, NAME_WIDTH, NAME_MIN_WIDTH = 36, 228, 110
+local PICK_LEFT, PICK_WIDTH = 276, 140
+local UPGRADE_RIGHT, METER_WIDTH = 492, 72
+local PRICE_RIGHT, PER_RIGHT = 596, 684
+local TITLES = {
+    { text = L.COL_ITEM, at = 10 },
+    { text = L.COL_PICK, at = PICK_LEFT },
+    { text = L.COL_UPGRADE, at = UPGRADE_RIGHT, numeric = true },
+    { text = L.COL_PRICE, at = PRICE_RIGHT, numeric = true },
+    { text = L.COL_PER, at = PER_RIGHT, numeric = true },
 }
-local COLUMN = {}
-for i = 1, #COLUMNS do COLUMN[COLUMNS[i].key] = COLUMNS[i] end
-local PAD = 8                               -- between the edge of a column and what is in it
-local NAME_LEFT, NAME_MIN_WIDTH = 24, 110   -- a name starts after the icon; the least it keeps
-local NAME_WIDTH = COLUMN.item.width - NAME_LEFT - PAD
+local SCAN_WIDTH, STATUS_BAR_WIDTH = 118, 140
+local DROPDOWN_MIN, DROPDOWN_MAX = 110, 200
+local CHECK_SIZE, CHECK_GAP = 16, 6         -- a tick box and the room before its label
 
-local frame, scrollBox, provider, hint, spinner, status, scanButton, scaleDropdown, affordCheck, topCheck
+-- Colours of the text.
+local GOLD, GOLD_DIM = { 1.00, 0.83, 0.32 }, { 0.76, 0.61, 0.32 }
+local CREAM, SOFT, MUTED = { 0.95, 0.91, 0.83 }, { 0.74, 0.70, 0.63 }, { 0.54, 0.50, 0.45 }
+local GREEN = { 0.45, 0.92, 0.38 }
+
+-- The plates the two picks are named on.
+local PICKS = {
+    UPGRADE = { text = L.PICK_UPGRADE, fill = { 1.00, 0.78, 0.26, 0.16 }, edge = { 1.00, 0.78, 0.26, 0.80 }, ink = { 1.00, 0.86, 0.42 } },
+    VALUE = { text = L.PICK_VALUE, fill = { 0.42, 0.86, 0.36, 0.15 }, edge = { 0.42, 0.86, 0.36, 0.75 }, ink = { 0.56, 0.94, 0.48 } },
+    -- Both at once: solid gold, dark letters.
+    BOTH = { text = L.PICK_BOTH, fill = { 1.00, 0.80, 0.30, 1 }, edge = { 1.00, 0.92, 0.62, 1 }, ink = { 0.17, 0.10, 0.02 }, solid = true },
+}
+
+local frame, scrollBox, provider, hint, intro, status, statusBar, listBar
+local scanButton, scaleDropdown, affordCheck, topCheck
 local rows = {}
 local summary               -- what the last refresh counted, for the status line
 local elements = {}       -- row key -> the table the scroll box knows the row by (see SyncList)
 local syncCount = 0
 local toTop = false         -- scroll back to the top at the next refresh
+local keepPlace = false     -- the next refresh must not move the list (see SyncList)
 local scaleShown            -- what the scale dropdown was last built from (see ScaleKey)
+local textFont, numberFont  -- font files, settled when the tab is built (see Build)
+
+---------------------------------------------------------------------------
+-- Drawing
+---------------------------------------------------------------------------
+local function File(name)
+    return MEDIA .. name
+end
+
+local function NewTexture(parent, name, layer, sublevel)
+    local texture = parent:CreateTexture(nil, layer or "ARTWORK", nil, sublevel or 0)
+    -- The game moves textures onto whole screen pixels. Pieces of one picture must meet edge
+    -- to edge at any interface scale instead.
+    if texture.SetSnapToPixelGrid then
+        texture:SetSnapToPixelGrid(false)
+        texture:SetTexelSnappingBias(0)
+    end
+    if name then texture:SetTexture(File(name)) end
+    return texture
+end
+
+-- A fine line that fades out at both ends, one screen pixel thick where the game can say how
+-- much that is.
+local function NewLine(parent, layer)
+    local line = parent:CreateTexture(nil, layer or "ARTWORK")
+    line:SetTexture(File("Line"))
+    if PixelUtil and PixelUtil.SetHeight then
+        PixelUtil.SetHeight(line, 1, 1)
+    else
+        line:SetHeight(1)
+    end
+    return line
+end
+
+-- A picture cut in nine: the corners keep their size, the edges and the middle stretch.
+--   corner   the side of a corner in the picture, as a share of the picture's side
+--   edge     the side of a corner on screen
+--   outset   how far the picture reaches beyond the frame (the soft shadow around a button)
+-- Pieces are numbered row by row: 1 2 3, 4 5 6, 7 8 9.
+local Slices = {}
+Slices.__index = Slices
+
+local function NewSlices(parent, name, corner, edge, layer, sublevel, outset)
+    local stops = { 0, corner, 1 - corner, 1 }
+    local parts = {}
+    for i = 1, 9 do
+        local across, down = (i - 1) % 3 + 1, math.floor((i - 1) / 3) + 1
+        local part = NewTexture(parent, nil, layer, sublevel)
+        part.coords = { stops[across], stops[across + 1], stops[down], stops[down + 1] }
+        parts[i] = part
+    end
+    outset = outset or 0
+    parts[1]:SetSize(edge, edge)
+    parts[1]:SetPoint("TOPLEFT", parent, "TOPLEFT", -outset, outset)
+    parts[3]:SetSize(edge, edge)
+    parts[3]:SetPoint("TOPRIGHT", parent, "TOPRIGHT", outset, outset)
+    parts[7]:SetSize(edge, edge)
+    parts[7]:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", -outset, -outset)
+    parts[9]:SetSize(edge, edge)
+    parts[9]:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", outset, -outset)
+    parts[2]:SetPoint("TOPLEFT", parts[1], "TOPRIGHT")
+    parts[2]:SetPoint("BOTTOMRIGHT", parts[3], "BOTTOMLEFT")
+    parts[8]:SetPoint("TOPLEFT", parts[7], "TOPRIGHT")
+    parts[8]:SetPoint("BOTTOMRIGHT", parts[9], "BOTTOMLEFT")
+    parts[4]:SetPoint("TOPLEFT", parts[1], "BOTTOMLEFT")
+    parts[4]:SetPoint("BOTTOMRIGHT", parts[7], "TOPRIGHT")
+    parts[6]:SetPoint("TOPLEFT", parts[3], "BOTTOMLEFT")
+    parts[6]:SetPoint("BOTTOMRIGHT", parts[9], "TOPRIGHT")
+    parts[5]:SetPoint("TOPLEFT", parts[1], "BOTTOMRIGHT")
+    parts[5]:SetPoint("BOTTOMRIGHT", parts[9], "TOPLEFT")
+
+    local slices = setmetatable({ parts = parts }, Slices)
+    slices:SetFile(name)
+    return slices
+end
+
+function Slices:SetFile(name)
+    if self.file == name then return end
+    self.file = name
+    for i = 1, 9 do
+        local part = self.parts[i]
+        part:SetTexture(File(name))
+        part:SetTexCoord(part.coords[1], part.coords[2], part.coords[3], part.coords[4])
+    end
+end
+
+function Slices:SetVertexColor(r, g, b, a)
+    for i = 1, 9 do self.parts[i]:SetVertexColor(r, g, b, a or 1) end
+end
+
+function Slices:SetDesaturated(desaturated)
+    for i = 1, 9 do self.parts[i]:SetDesaturated(desaturated) end
+end
+
+function Slices:SetBlendMode(mode)
+    for i = 1, 9 do self.parts[i]:SetBlendMode(mode) end
+end
+
+function Slices:SetShown(shown)
+    for i = 1, 9 do self.parts[i]:SetShown(shown) end
+end
+
+-- Text in the game's own fonts, so that it reads right in every language and follows a font
+-- the player has put in their place: the standard one for words, the narrow one the game
+-- writes numbers and auction lists in for the rows. `color` is one of the tables above.
+local function NewText(parent, size, color, justify, narrow)
+    local text = parent:CreateFontString(nil, "ARTWORK")
+    text:SetFont(narrow and numberFont or textFont, size, "")
+    text:SetTextColor(color[1], color[2], color[3])
+    text:SetShadowColor(0, 0, 0, 0.9)
+    text:SetShadowOffset(1, -1)
+    text:SetJustifyH(justify or "LEFT")
+    text:SetWordWrap(false)
+    return text
+end
+
+-- How wide a text is when nothing cuts it short.
+local function TextWidth(text)
+    if text.GetUnboundedStringWidth then return text:GetUnboundedStringWidth() end
+    return text:GetStringWidth()
+end
+
+---------------------------------------------------------------------------
+-- Buttons, tick boxes, bars
+---------------------------------------------------------------------------
+-- A button looks the part it is in: pressed is darker with the label a step down, switched
+-- off is grey. Under the mouse it lights up by itself (the HIGHLIGHT layer).
+local function PaintButton(button)
+    local enabled = button:IsEnabled()
+    local down = enabled and button.down
+    local shade = (not enabled and 0.55) or (down and 0.80) or 1
+    button.Face:SetDesaturated(not enabled)
+    button.Face:SetVertexColor(shade, shade, shade)
+    button.Glow:SetShown(enabled)
+    local color = enabled and GOLD or MUTED
+    button.Label:SetTextColor(color[1], color[2], color[3])
+    button.Label:SetPoint("CENTER", button, "CENTER", down and 1 or 0, down and -1 or 0)
+end
+
+local function ButtonDown(button)
+    button.down = true
+    PaintButton(button)
+end
+
+local function ButtonUp(button)
+    button.down = false
+    PaintButton(button)
+end
+
+-- face: "ButtonRed" for the one button that matters, "ButtonDark" for the rest.
+local function NewButton(parent, width, height, face, fontSize)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(width, height)
+    local edge = math.min(8, (height + 2) / 3)
+    button.Face = NewSlices(button, face, 0.25, edge, "BACKGROUND", 0, 1)
+    button.Glow = NewSlices(button, "ButtonGlow", 0.25, edge, "HIGHLIGHT", 0, 1)
+    button.Glow:SetBlendMode("ADD")
+    button.Label = NewText(button, fontSize, GOLD, "CENTER")
+    button:SetScript("OnMouseDown", ButtonDown)
+    button:SetScript("OnMouseUp", ButtonUp)
+    -- Hidden while held down, a button never hears that the mouse let go.
+    button:SetScript("OnHide", ButtonUp)
+    button:SetScript("OnEnable", PaintButton)
+    button:SetScript("OnDisable", PaintButton)
+    PaintButton(button)
+    return button
+end
+
+-- A bar that fills with gold: SetBar(bar, 0..1). Work whose end is not known, SetBar(bar, nil),
+-- shows as a piece of gold going to and fro.
+local function BarOnUpdate(bar)
+    local piece = bar.room * 0.3
+    local at = (bar.room - piece) * (0.5 - 0.5 * math.cos(GetTime() * 2.4))
+    bar.Fill:SetWidth(piece)
+    bar.Fill:SetPoint("LEFT", bar, "LEFT", 1.5 + at, 0)
+end
+
+local function SetBar(bar, value)
+    bar.value = value
+    if not value then
+        bar.Fill:Show()
+        bar.Fill:SetTexCoord(0, 0.3, 0, 1)
+        if not bar:GetScript("OnUpdate") then
+            bar:SetScript("OnUpdate", BarOnUpdate)
+            BarOnUpdate(bar)
+        end
+        return
+    end
+    bar:SetScript("OnUpdate", nil)
+    value = Clamp(value, 0, 1)
+    bar.Fill:SetShown(value > 0)
+    bar.Fill:SetWidth(math.max(bar.room * value, 1))
+    -- As much of the picture as the bar is full, so that the gold keeps its grain.
+    bar.Fill:SetTexCoord(0, math.max(value, 0.02), 0, 1)
+    bar.Fill:SetPoint("LEFT", bar, "LEFT", 1.5, 0)
+end
+
+local function NewBar(parent, width, height)
+    local bar = CreateFrame("Frame", nil, parent)
+    bar:SetSize(width, height)
+    NewSlices(bar, "Inset", 0.25, height / 2, "BACKGROUND")
+    bar.room = width - 3
+    bar.Fill = NewTexture(bar, "Bar", "ARTWORK")
+    bar.Fill:SetHeight(height - 3)
+    SetBar(bar, 0)
+    return bar
+end
+
+-- How far the scanner is with what it is doing, 0 to 1; nil when it cannot tell.
+local function Progress()
+    local info = S.info
+    if S.state == "score" and info.toScore > 0 then
+        return info.scored / info.toScore
+    elseif S.state == "verify" and (S.mode == "scan" or S.mode == "more") and info.toVerify > 0 then
+        return info.verified / info.toVerify
+    end
+    return nil
+end
 
 ---------------------------------------------------------------------------
 -- Rows
@@ -142,70 +379,112 @@ local function BuyOnClick(button)
     S.Buy(button:GetParent().entry.offer)
 end
 
-local function NewText(parent, font, justify)
-    local text = parent:CreateFontString(nil, "ARTWORK", font)
-    text:SetJustifyH(justify or "LEFT")
-    text:SetWordWrap(false)
-    return text
+-- A click on a slot's heading folds the slot away, or brings it back.
+local function HeaderOnClick(toggle)
+    local group = toggle:GetParent().group
+    local collapsed = not ns.db.collapsed[group]
+    PlaySound(collapsed and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+    ns.db.collapsed[group] = collapsed or nil
+    -- The heading under the mouse stays where it is, however many rows come or go below it.
+    keepPlace = true
+    UI.Refresh()
 end
 
--- A coin display against the right edge of a column.
-local function NewMoney(row, column)
+-- A coin display against a line `right` from the row's left edge.
+local function NewMoney(row, right)
     local money = CreateFrame("Frame", nil, row, "MoneyDisplayFrameTemplate")
-    money:SetPoint("RIGHT", row, "LEFT", column.left + column.width - PAD, 0)
+    money:SetPoint("RIGHT", row, "LEFT", right, 0)
     return money
+end
+
+-- The plate a pick is named on.
+local function NewPick(row)
+    local pick = CreateFrame("Frame", nil, row)
+    pick:SetHeight(17)
+    pick:SetPoint("LEFT", row, "LEFT", PICK_LEFT, 0)
+    pick.Fill = NewSlices(pick, "Chip", 0.3125, 5, "BACKGROUND")
+    pick.Edge = NewSlices(pick, "ChipEdge", 0.3125, 5, "BORDER")
+    pick.Text = NewText(pick, 10.5, CREAM)
+    pick.Text:SetPoint("LEFT", pick, "LEFT", 7, 0)
+    return pick
+end
+
+local function SetPick(pick, kind)
+    local look = PICKS[kind]
+    pick:SetShown(look ~= nil)
+    if not look then
+        pick.Text:SetText("")
+        return
+    end
+    local text = pick.Text
+    text:SetText(look.text)
+    text:SetTextColor(look.ink[1], look.ink[2], look.ink[3])
+    text:SetShadowColor(0, 0, 0, look.solid and 0 or 0.9)
+    -- A long translation is cut short before it reaches the next column.
+    local width = math.min(TextWidth(text), PICK_WIDTH - 14)
+    text:SetWidth(width)
+    pick:SetWidth(width + 14)
+    pick.Fill:SetVertexColor(look.fill[1], look.fill[2], look.fill[3], look.fill[4])
+    pick.Edge:SetVertexColor(look.edge[1], look.edge[2], look.edge[3], look.edge[4])
 end
 
 -- The scroll box hands out bare frames; each gets its parts here the first time it is used.
 local function BuildItemRow(row)
     row.built = true
 
-    row.Stripe = row:CreateTexture(nil, "BACKGROUND")
-    row.Stripe:SetAllPoints()
+    local glow = NewTexture(row, "RowGlow", "HIGHLIGHT")
+    glow:SetBlendMode("ADD")
+    glow:SetVertexColor(1, 0.72, 0.30, 0.16)
+    glow:SetAllPoints()
 
-    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAtlas("auctionhouse-ui-row-highlight")
-    highlight:SetBlendMode("ADD")
-    highlight:SetAllPoints()
+    local line = NewLine(row, "BACKGROUND")
+    line:SetVertexColor(0.70, 0.52, 0.24, 0.22)
+    line:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 4, 0)
+    line:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 0)
 
+    -- The icon without the edge the game draws into it, in a rim of the item's quality colour.
     row.Icon = row:CreateTexture(nil, "ARTWORK")
-    row.Icon:SetSize(14, 14)
-    row.Icon:SetPoint("LEFT", 4, 0)
-    local border = row:CreateTexture(nil, "ARTWORK", nil, 1)
-    border:SetAtlas("auctionhouse-itemicon-small-border")
-    border:SetSize(16, 16)
-    border:SetPoint("CENTER", row.Icon)
+    row.Icon:SetSize(ICON_SIZE - 3, ICON_SIZE - 3)
+    row.Icon:SetPoint("CENTER", row, "LEFT", ICON_LEFT + ICON_SIZE / 2, 0)
+    row.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.Rim = NewTexture(row, "IconRim", "ARTWORK", 1)
+    row.Rim:SetSize(ICON_SIZE, ICON_SIZE)
+    row.Rim:SetPoint("CENTER", row.Icon, "CENTER", 0, 0)
 
-    row.Name = NewText(row, "Number14FontWhite")
+    row.Name = NewText(row, 13, CREAM, "LEFT", true)
     row.Name:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
 
     -- "One-Hand", "Two-Hand"...: at the right end of the name column, on weapon rows only.
-    row.Hand = NewText(row, "Number13FontGray", "RIGHT")
+    row.Hand = NewText(row, 11, MUTED, "RIGHT", true)
     row.Hand:SetPoint("RIGHT", row, "LEFT", NAME_LEFT + NAME_WIDTH, 0)
 
-    row.Pick = NewText(row, "Number13FontWhite")
-    row.Pick:SetPoint("LEFT", row, "LEFT", COLUMN.pick.left + PAD, 0)
-    row.Pick:SetWidth(COLUMN.pick.width - PAD)
+    row.Pick = NewPick(row)
 
-    row.Upgrade = NewText(row, "Number14FontWhite", "RIGHT")
-    row.Upgrade:SetPoint("RIGHT", row, "LEFT", COLUMN.upgrade.left + COLUMN.upgrade.width - PAD, 0)
-    row.Upgrade:SetWidth(COLUMN.upgrade.width - PAD)
+    -- "+4.7 +80%" over a meter: how the gain compares with the best one in the slot.
+    row.Share = NewText(row, 11, MUTED, "RIGHT", true)
+    row.Share:SetPoint("RIGHT", row, "LEFT", UPGRADE_RIGHT, 3)
+    row.Upgrade = NewText(row, 14, GREEN, "RIGHT", true)
+    row.Upgrade:SetPoint("RIGHT", row.Share, "LEFT", -5, 0)
+    local trough = row:CreateTexture(nil, "BACKGROUND", nil, 1)
+    trough:SetColorTexture(0, 0, 0, 0.6)
+    trough:SetSize(METER_WIDTH, 4)
+    trough:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT", UPGRADE_RIGHT, 5)
+    row.Meter = NewTexture(row, "Bar", "ARTWORK")
+    row.Meter:SetHeight(3)
+    row.Meter:SetPoint("LEFT", trough, "LEFT", 0.5, 0)
 
-    row.Price = NewMoney(row, COLUMN.price)
+    row.Price = NewMoney(row, PRICE_RIGHT)
     -- An auction house that deals in whole silver shows no copper in its prices.
     if not C_AuctionHouse.SupportsCopperValues() then
         row.Price.CopperDisplay:SetForcedHidden(true)
     end
-    row.PerPoint = NewMoney(row, COLUMN.per)
+    row.PerPoint = NewMoney(row, PER_RIGHT)
     row.PerPoint:SetFontObject(PriceFontWhite)
+    row.PerPoint:SetAlpha(0.8)
 
-    row.Buy = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    row.Buy:SetSize(56, 18)
-    row.Buy:SetPoint("RIGHT", row, "RIGHT", -2, 0)
-    row.Buy:SetNormalFontObject("GameFontNormalSmall")
-    row.Buy:SetHighlightFontObject("GameFontHighlightSmall")
-    row.Buy:SetDisabledFontObject("GameFontDisableSmall")
-    row.Buy:SetText(L.BUY)
+    row.Buy = NewButton(row, 58, 20, "ButtonDark", 9.5)
+    row.Buy:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    row.Buy.Label:SetText(ns.Upper(L.BUY))
     row.Buy:SetScript("OnClick", BuyOnClick)
 
     row:SetScript("OnEnter", ItemRowOnEnter)
@@ -217,22 +496,40 @@ local function BuildItemRow(row)
     row.UpdateTooltip = ShowItemTooltip
 end
 
+-- A slot's heading: an amber band with the slot's name on it. The whole band is the switch
+-- that folds the slot away; the arrow at its end shows which way it is.
 local function BuildHeaderRow(row)
     row.built = true
 
-    local band = row:CreateTexture(nil, "BACKGROUND")
-    band:SetAllPoints()
-    band:SetColorTexture(NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, 0.10)
+    local band = NewTexture(row, "HeaderBand", "BACKGROUND")
+    band:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -3)
+    band:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 3)
 
-    row.Title = NewText(row, "GameFontNormal")
-    row.Title:SetPoint("LEFT", row, "LEFT", PAD, 0)
+    local diamond = NewTexture(row, "Diamond", "ARTWORK")
+    diamond:SetSize(12, 12)
+    diamond:SetPoint("LEFT", row, "LEFT", 6, 0)
+
+    row.Title = NewText(row, 11.5, GOLD)
+    row.Title:SetPoint("LEFT", row, "LEFT", 24, 0)
+
+    row.Arrow = NewTexture(row, "Chevron", "ARTWORK")
+    row.Arrow:SetSize(12, 12)
+    row.Arrow:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    row.Arrow:SetVertexColor(GOLD[1], GOLD[2], GOLD[3])
+
+    -- "5 of 17": how many of the slot's upgrades are listed.
+    row.Count = NewText(row, 10.5, SOFT, "RIGHT")
+    row.Count:SetPoint("RIGHT", row.Arrow, "LEFT", -6, 0)
+
+    row.Toggle = CreateFrame("Button", nil, row)
+    row.Toggle:SetAllPoints()
+    local glow = NewTexture(row.Toggle, "RowGlow", "HIGHLIGHT")
+    glow:SetBlendMode("ADD")
+    glow:SetVertexColor(1, 0.72, 0.30, 0.20)
+    glow:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -3)
+    glow:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 3)
+    row.Toggle:SetScript("OnClick", HeaderOnClick)
 end
-
-local PICK_TEXT = {
-    BOTH = GREEN_FONT_COLOR:WrapTextInColorCode(L.PICK_BOTH),
-    UPGRADE = NORMAL_FONT_COLOR:WrapTextInColorCode(L.PICK_UPGRADE),
-    VALUE = GREEN_FONT_COLOR:WrapTextInColorCode(L.PICK_VALUE),
-}
 
 local function CanBuy()
     return S.state == "idle" and S.IsOpen()
@@ -240,12 +537,13 @@ end
 
 local function InitItemRow(row, element)
     if not row.built then BuildItemRow(row) end
-    local entry = element.data.entry
+    local data = element.data
+    local entry = data.entry
     local offer = entry.offer
     row.entry = entry
 
-    row.Stripe:SetAtlas(element.odd and "auctionhouse-rowstripe-1" or "auctionhouse-rowstripe-2")
     row.Icon:SetTexture(offer.icon)
+    row.Rim:SetVertexColor(ns.QualityColor(offer.quality))
 
     local name = ns.QualityText(offer.name, offer.quality)
     if offer.effects then name = name .. " " .. NORMAL_FONT_COLOR:WrapTextInColorCode("*") end
@@ -262,11 +560,12 @@ local function InitItemRow(row, element)
         row.Name:SetWidth(NAME_WIDTH)
     end
 
-    row.Pick:SetText(entry.pick and PICK_TEXT[entry.pick] or "")
+    SetPick(row.Pick, entry.pick)
 
-    local gain = GREEN_FONT_COLOR:WrapTextInColorCode("+" .. ns.Num(entry.delta))
-    local share = entry.percent and ("+" .. FormatPercentage(entry.percent, true)) or L.NEW
-    row.Upgrade:SetText(gain .. " " .. GRAY_FONT_COLOR:WrapTextInColorCode("(" .. share .. ")"))
+    row.Upgrade:SetText("+" .. ns.Num(entry.delta))
+    row.Share:SetText(entry.percent and ("+" .. FormatPercentage(entry.percent, true)) or L.NEW)
+    row.Meter:SetWidth(math.max((METER_WIDTH - 1) * data.share, 2))
+    row.Meter:SetTexCoord(0, math.max(data.share, 0.03), 0, 1)
 
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
     row.Price:SetAmount(offer.buyout)
@@ -278,14 +577,20 @@ end
 local function InitHeaderRow(row, element)
     if not row.built then BuildHeaderRow(row) end
     local data = element.data
-    local title = ns.Compare.GroupLabel(data.group)
+    row.group = data.group
+    row.Title:SetText(ns.Upper(ns.Compare.GroupLabel(data.group)))
+
+    local count = ""
     if data.shown < data.total then
         -- "3 of about 19": some of the 19 have not had their price looked up. The word is
         -- spelled out because the game's font draws "~" raised, like an accent.
-        local count = (data.approx and L.TOP_OF_ABOUT or L.TOP_OF):format(data.shown, data.total)
-        title = title .. " " .. GRAY_FONT_COLOR:WrapTextInColorCode("(" .. count .. ")")
+        count = (data.approx and L.TOP_OF_ABOUT or L.TOP_OF):format(data.shown, data.total)
+    elseif data.collapsed then
+        -- A folded slot still says how much there is in it.
+        count = tostring(data.total)
     end
-    row.Title:SetText(title)
+    row.Count:SetText(count)
+    row.Arrow:SetTexture(File(data.collapsed and "ChevronRight" or "Chevron"))
 end
 
 ---------------------------------------------------------------------------
@@ -317,15 +622,37 @@ local function ByOrder(a, b)
     return a.order < b.order
 end
 
+-- What the list shows of the rows Results.Build made: a folded slot keeps its heading and
+-- nothing else. Every offer also learns how its gain compares with the best one in its slot,
+-- for its meter; a slot lists its biggest gain first.
+local function Fold(all)
+    local collapsed = ns.db.collapsed
+    local out, hidden, best = {}, false, nil
+    for i = 1, #all do
+        local row = all[i]
+        if row.kind == "header" then
+            hidden = collapsed[row.group] == true
+            row.collapsed = hidden
+            best = nil
+            out[#out + 1] = row
+        else
+            best = best or row.entry.delta
+            row.share = best > 0 and math.min(row.entry.delta / best, 1) or 1
+            if not hidden then out[#out + 1] = row end
+        end
+    end
+    return out
+end
+
 -- More rows than this coming or going at once (a filter switched, a new scan) are not worth
--- patching in: the collection is emptied and filled again.
+-- patching in: the collection is emptied and filled again. That starts the list from its
+-- top, so a slot folded or unfolded is patched in whatever its size (keepPlace).
 local PATCH_LIMIT = 40
 
 -- Makes the scroll box show `rows`.
 local function SyncList()
     syncCount = syncCount + 1
     local fresh = {}
-    local odd = true
     for i = 1, #rows do
         local row = rows[i]
         local key = RowKey(row)
@@ -335,9 +662,7 @@ local function SyncList()
             elements[key] = element
             fresh[#fresh + 1] = element
         end
-        -- The stripes alternate from the top of each slot.
-        odd = row.kind == "header" or not odd
-        element.data, element.order, element.odd, element.seen = row, i, odd, syncCount
+        element.data, element.order, element.seen = row, i, syncCount
     end
     local stale = {}
     for key, element in pairs(elements) do
@@ -347,7 +672,9 @@ local function SyncList()
         end
     end
 
-    if #stale + #fresh > PATCH_LIMIT then
+    local patch = keepPlace or #stale + #fresh <= PATCH_LIMIT
+    keepPlace = false
+    if not patch then
         local all = {}
         for i = 1, #rows do all[i] = elements[RowKey(rows[i])] end
         provider:Flush()
@@ -427,17 +754,40 @@ local function ScaleTitle()
     return scale and scale.title or NONE
 end
 
--- The status line. An empty list says the same in its middle, or what to do, or why it is
--- empty; while a scan fills it, the game's spinner turns there instead.
+-- The status line, with a bar beside it while the scanner works. An empty list has the
+-- middle of the plate to say more:
+--   before the first scan   the addon's emblem and what to do (or what is wrong with Pawn)
+--   during a scan           the same words as the status line, over a wider bar
+--   after one               why the list is empty
 local function ShowStatus()
     local text = StatusText()
+    local idle = S.state == "idle"
+    local progress = not idle and Progress() or nil
+
     status:SetText(text)
-    if #rows > 0 or S.state ~= "idle" then
+    -- The line gives way to the bar only while there is one.
+    status:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT",
+        idle and -PAD or -(BAR_RIGHT + STATUS_BAR_WIDTH + PAD), PANEL_BOTTOM - 1)
+    statusBar:SetShown(not idle)
+    if not idle then SetBar(statusBar, progress) end
+
+    local empty = #rows == 0
+    local first = empty and idle and not (S.finishedAt or S.message)
+    intro:SetShown(first)
+    listBar:SetShown(empty and not idle)
+    hint:ClearAllPoints()
+    if not empty then
         hint:SetText("")
-    elseif S.finishedAt or S.message then
+    elseif not idle then
+        SetBar(listBar, progress)
+        hint:SetPoint("BOTTOM", listBar, "TOP", 0, 10)
         hint:SetText(text)
-    else
+    elseif first then
+        hint:SetPoint("TOP", intro, "BOTTOM", 0, -12)
         hint:SetText(ns.Pawn.Problem() or L.HINT:format(ScaleTitle()))
+    else
+        hint:SetPoint("CENTER", scrollBox, "CENTER", 0, 10)
+        hint:SetText(text)
     end
 end
 
@@ -451,24 +801,33 @@ local function ClockOnUpdate()
     if S.state == "idle" and S.finishedAt then ShowStatus() end
 end
 
+local function SetCheck(check, checked)
+    checked = checked and true or false
+    check:SetChecked(checked)
+    check.Tick:SetShown(checked)
+end
+
 function UI.Refresh()
     if not frame or not frame:IsShown() then return end
 
-    rows, summary = ns.Results.Build(S.offers, S.ctx, {
+    local all
+    all, summary = ns.Results.Build(S.offers, S.ctx, {
         money = GetMoney(),
         affordableOnly = ns.db.affordableOnly,
         limit = ns.db.topOnly and ns.Results.TOP_COUNT or nil,
         unchecked = S.Unchecked(),
     })
+    rows = Fold(all)
     SyncList()
 
     local idle = S.state == "idle"
     ShowStatus()
-    spinner:SetShown(#rows == 0 and not idle)
-    scanButton:SetText(idle and L.SCAN or L.STOP)
+    -- Red while it starts a scan, dark while it stops one.
+    scanButton.Label:SetText(ns.Upper(idle and L.SCAN or L.STOP))
+    scanButton.Face:SetFile(idle and "ButtonRed" or "ButtonDark")
     scanButton:SetEnabled(idle or S.mode == "scan" or S.mode == "more")
-    affordCheck:SetChecked(ns.db.affordableOnly and true or false)
-    topCheck:SetChecked(ns.db.topOnly and true or false)
+    SetCheck(affordCheck, ns.db.affordableOnly)
+    SetCheck(topCheck, ns.db.topOnly)
 
     local scaleKey = ScaleKey()
     if scaleKey ~= scaleShown then
@@ -526,6 +885,22 @@ local function ScaleMenu(_, root)
     end
 end
 
+-- The game's dropdown under a face of ours: a recess with a gold arrow. Its own plate and
+-- arrow are made see-through, not removed, because the dropdown goes on setting them as its
+-- state changes; its text and its menu are left as they are.
+local function SkinDropdown(dropdown)
+    for _, key in ipairs({ "Background", "Arrow" }) do
+        local art = dropdown[key]
+        if type(art) == "table" and art.SetAlpha then art:SetAlpha(0) end
+    end
+    NewSlices(dropdown, "Inset", 0.25, 8, "BACKGROUND", -1)
+    NewSlices(dropdown, "ButtonGlow", 0.25, 8, "HIGHLIGHT"):SetBlendMode("ADD")
+    local arrow = NewTexture(dropdown, "Chevron", "OVERLAY")
+    arrow:SetSize(14, 14)
+    arrow:SetPoint("RIGHT", dropdown, "RIGHT", -7, 0)
+    arrow:SetVertexColor(GOLD[1], GOLD[2], GOLD[3])
+end
+
 local function ScanOnClick()
     PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
     if S.state == "idle" then
@@ -536,14 +911,24 @@ local function ScanOnClick()
     UI.Refresh()
 end
 
--- A checkbox for one of the list's two filters. Its label is the template's own, and a click
--- on the label ticks the box, as everywhere in the game.
+-- A tick box for one of the list's two filters: a recess, a gold tick, the label beside it.
+-- A click on the label ticks the box, as everywhere in the game.
 local function NewFilterCheck(text, setting, tip)
-    local check = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-    check:SetSize(24, 24)
-    check.Text:SetFontObject(GameFontHighlightSmall)
+    local check = CreateFrame("CheckButton", nil, frame)
+    check:SetSize(CHECK_SIZE, CHECK_SIZE)
+    NewSlices(check, "Inset", 0.25, 6, "BACKGROUND")
+    local glow = NewTexture(check, "Glow", "HIGHLIGHT")
+    glow:SetBlendMode("ADD")
+    glow:SetVertexColor(1, 0.74, 0.32, 0.55)
+    glow:SetPoint("TOPLEFT", check, "TOPLEFT", -7, 7)
+    glow:SetPoint("BOTTOMRIGHT", check, "BOTTOMRIGHT", 7, -7)
+    check.Tick = NewTexture(check, "Check", "OVERLAY")
+    check.Tick:SetSize(18, 18)
+    check.Tick:SetPoint("CENTER", check, "CENTER", 1, 1)
+    check.Text = NewText(check, 11, CREAM)
+    check.Text:SetPoint("LEFT", check, "RIGHT", CHECK_GAP, 0)
     check.Text:SetText(text)
-    check:SetHitRectInsets(0, -check.Text:GetStringWidth(), 0, 0)
+    check:SetHitRectInsets(0, -(CHECK_GAP + check.Text:GetStringWidth()), -4, -4)
     check:SetScript("OnClick", function(self)
         local checked = self:GetChecked() and true or false
         PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
@@ -565,35 +950,53 @@ local function NewFilterCheck(text, setting, tip)
     return check
 end
 
+-- The label of the scale field: the words of L.SCALE without the colon they end in.
+local function ScaleLabel()
+    return ns.Upper((L.SCALE:gsub("%s*:%s*$", ""):gsub("：$", "")))
+end
+
 local function Build()
     local auction = AuctionHouseFrame
+    -- By now the game has settled on its fonts for the player's language, and so has any
+    -- addon that replaces them.
+    textFont = STANDARD_TEXT_FONT
+    numberFont = Number13FontWhite and Number13FontWhite:GetFont() or textFont
+
     frame = CreateFrame("Frame", "UpgradeScoutFrame", auction)
     frame:SetAllPoints()
     frame:Hide()
 
-    -- The bar above the list, where the Buy tab has its search box.
-    scanButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    scanButton:SetSize(110, 22)
+    -- The strip above the list, where the Buy tab has its search box.
+    scanButton = NewButton(frame, SCAN_WIDTH, 26, "ButtonRed", 12)
     scanButton:SetPoint("LEFT", frame, "TOPLEFT", BAR_LEFT, -BAR_MIDDLE)
-    scanButton:SetText(L.SCAN)
+    scanButton.Label:SetText(ns.Upper(L.SCAN))
     scanButton:SetScript("OnClick", ScanOnClick)
 
     topCheck = NewFilterCheck(L.TOP:format(ns.Results.TOP_COUNT), "topOnly", L.TOP_TIP:format(ns.Results.TOP_COUNT))
-    topCheck:SetPoint("RIGHT", frame, "TOPRIGHT", -(BAR_RIGHT + topCheck.Text:GetStringWidth()), -BAR_MIDDLE)
+    local topWidth = CHECK_SIZE + CHECK_GAP + topCheck.Text:GetStringWidth()
+    topCheck:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + topWidth), -BAR_MIDDLE)
     affordCheck = NewFilterCheck(L.AFFORD, "affordableOnly")
-    affordCheck:SetPoint("RIGHT", topCheck, "LEFT", -(PAD + affordCheck.Text:GetStringWidth()), 0)
+    local affordWidth = CHECK_SIZE + CHECK_GAP + affordCheck.Text:GetStringWidth()
+    affordCheck:SetPoint("LEFT", topCheck, "LEFT", -(2 * PAD + affordWidth), 0)
 
-    local scaleLabel = NewText(frame, "GameFontNormalSmall")
+    local scaleLabel = NewText(frame, 9.5, GOLD_DIM)
     scaleLabel:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD, 0)
-    scaleLabel:SetText(L.SCALE)
+    scaleLabel:SetText(ScaleLabel())
 
-    -- The dropdown takes the room the labels leave, within reason.
-    local taken = BAR_LEFT + scanButton:GetWidth() + 2 * PAD + scaleLabel:GetStringWidth() + PAD
-        + 2 * PAD + affordCheck:GetWidth() + affordCheck.Text:GetStringWidth()
-        + PAD + topCheck:GetWidth() + topCheck.Text:GetStringWidth() + BAR_RIGHT
+    -- The dropdown takes the room the labels leave, within reason. Where a language's labels
+    -- leave too little, the field stands without its label; its tooltip says what it is.
+    local labelWidth = scaleLabel:GetStringWidth() + PAD
+    local room = auction:GetWidth() - (BAR_LEFT + SCAN_WIDTH + 2 * PAD + labelWidth
+        + 2 * PAD + affordWidth + 2 * PAD + topWidth + BAR_RIGHT)
+    if room < DROPDOWN_MIN then
+        scaleLabel:Hide()
+        room = room + labelWidth
+        labelWidth = 0
+    end
     scaleDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
-    scaleDropdown:SetWidth(Clamp(auction:GetWidth() - taken, 110, 200))
-    scaleDropdown:SetPoint("LEFT", scaleLabel, "RIGHT", PAD, 0)
+    scaleDropdown:SetSize(Clamp(room, DROPDOWN_MIN, DROPDOWN_MAX), 24)
+    scaleDropdown:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD + labelWidth, 0)
+    SkinDropdown(scaleDropdown)
     scaleDropdown:SetDefaultText(NONE)
     scaleDropdown:SetupMenu(ScaleMenu)
     scaleDropdown:SetTooltip(function(tooltip)
@@ -601,45 +1004,35 @@ local function Build()
         GameTooltip_AddNormalLine(tooltip, L.SCALE_TIP)
     end)
 
-    -- Column titles stand on the top edge of the list's frame, as on the Buy tab.
-    local titles = CreateFrame("Frame", nil, frame)
-    titles:SetHeight(TITLES_HEIGHT)
-    titles:SetPoint("TOPLEFT", frame, "TOPLEFT", LIST_LEFT + 4, -(LIST_TOP + 1))
-    titles:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -(LIST_RIGHT + 4), -(LIST_TOP + 1))
-    for i = 1, #COLUMNS do
-        local column = COLUMNS[i]
-        local title = CreateFrame("Button", nil, titles, "ColumnDisplayButtonShortTemplate")
-        title:SetPoint("LEFT", titles, "LEFT", column.left, 0)
-        if column.width then
-            title:SetWidth(column.width)
-        else
-            title:SetPoint("RIGHT", titles, "RIGHT", 0, 0)
-        end
-        title:SetText(column.title)
-        if column.numeric then
-            title.Text:ClearAllPoints()
-            title.Text:SetPoint("RIGHT", title, "RIGHT", -PAD, 0)
-        end
-        -- The list has one order, best upgrade first in every slot: nothing to click.
-        title:SetEnabled(false)
-    end
+    -- The plate the list lies on, with the column titles along its top.
+    local list = CreateFrame("Frame", nil, frame)
+    list:SetPoint("TOPLEFT", frame, "TOPLEFT", PANEL_LEFT, -PANEL_TOP)
+    list:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -PANEL_RIGHT, PANEL_BOTTOM)
+    NewSlices(list, "Panel", 0.375, 12, "BACKGROUND", 0, 1.5)
 
-    local list = CreateFrame("Frame", nil, frame, "InsetFrameTemplate")
-    list:SetPoint("TOPLEFT", frame, "TOPLEFT", LIST_LEFT, -(LIST_TOP + TITLES_HEIGHT))
-    list:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -LIST_RIGHT, LIST_BOTTOM)
-    local background = list:CreateTexture(nil, "BACKGROUND")
-    background:SetAtlas("auctionhouse-background-index")
-    background:SetPoint("TOPLEFT", list, "TOPLEFT", 3, -3)
-    background:SetPoint("BOTTOMRIGHT", list, "BOTTOMRIGHT", -3, 3)
+    list.Titles = {}
+    for i = 1, #TITLES do
+        local column = TITLES[i]
+        local point = column.numeric and "RIGHT" or "LEFT"
+        local title = NewText(list, 9.5, GOLD_DIM, point)
+        title:SetPoint(point, list, "TOPLEFT", LIST_LEFT + column.at, -16)
+        -- The list has one order, best upgrade first in every slot: a title is not a button.
+        title:SetText(ns.Upper(column.text))
+        list.Titles[i] = title
+    end
+    local rule = NewLine(list)
+    rule:SetVertexColor(0.80, 0.60, 0.26, 0.55)
+    rule:SetPoint("TOPLEFT", list, "TOPLEFT", LIST_LEFT, -(LIST_TOP - 3))
+    rule:SetPoint("TOPRIGHT", list, "TOPRIGHT", -LIST_LEFT, -(LIST_TOP - 3))
 
     -- The game's scroll box and scroll bar, set up the way Blizzard_AuctionHouseItemList sets
     -- up the Buy tab's list. Scrolling, the mouse wheel and the bar are all the scroll box's own.
-    scrollBox = CreateFrame("Frame", nil, frame, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", titles, "BOTTOMLEFT", 0, -6)
-    scrollBox:SetPoint("BOTTOMRIGHT", list, "BOTTOMRIGHT", -4, 3)
-    local scrollBar = CreateFrame("EventFrame", nil, frame, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 9, 0)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 9, 4)
+    scrollBox = CreateFrame("Frame", nil, list, "WowScrollBoxList")
+    scrollBox:SetPoint("TOPLEFT", list, "TOPLEFT", LIST_LEFT, -LIST_TOP)
+    scrollBox:SetPoint("BOTTOMRIGHT", list, "BOTTOMRIGHT", -LIST_RIGHT, LIST_BOTTOM)
+    local scrollBar = CreateFrame("EventFrame", nil, list, "MinimalScrollBar")
+    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 8, -2)
+    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 8, 2)
 
     local view = CreateScrollBoxListLinearView()
     view:SetElementFactory(RowFactory)
@@ -651,20 +1044,44 @@ local function Build()
     provider:SetSortComparator(ByOrder, true)       -- true: nothing to sort yet
     scrollBox:SetDataProvider(provider)
 
-    spinner = CreateFrame("Frame", nil, frame, "SpinnerTemplate")
-    spinner:SetSize(90, 90)
-    spinner:SetPoint("CENTER", scrollBox, "CENTER", 0, 0)
-    spinner:Hide()
+    -- The middle of an empty list (see ShowStatus).
+    intro = CreateFrame("Frame", nil, list)
+    intro:SetSize(320, 86)
+    intro:SetPoint("CENTER", scrollBox, "CENTER", 0, 36)
+    local emblem = intro:CreateTexture(nil, "ARTWORK")
+    emblem:SetTexture("Interface\\AddOns\\" .. ADDON .. "\\icon")
+    emblem:SetSize(52, 52)
+    emblem:SetPoint("TOP", intro, "TOP", 0, 0)
+    local heading = NewText(intro, 12.5, GOLD, "CENTER")
+    heading:SetPoint("TOP", emblem, "BOTTOM", 0, -12)
+    heading:SetText(ns.Upper(L.TITLE))
+    local underline = NewLine(intro)
+    underline:SetVertexColor(0.85, 0.64, 0.28, 0.7)
+    underline:SetPoint("BOTTOMLEFT", intro, "BOTTOMLEFT", 0, 0)
+    underline:SetPoint("BOTTOMRIGHT", intro, "BOTTOMRIGHT", 0, 0)
 
-    hint = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    hint:SetPoint("TOP", scrollBox, "TOP", 0, -45)
-    hint:SetPoint("LEFT", list, "LEFT", 45, 0)
-    hint:SetPoint("RIGHT", list, "RIGHT", -45, 0)
+    listBar = NewBar(list, 300, 10)
+    listBar:SetPoint("TOP", scrollBox, "CENTER", 0, -6)
+    listBar:Hide()
+
+    hint = NewText(list, 12, SOFT, "CENTER")
+    hint:SetWordWrap(true)
+    hint:SetSpacing(3)
+    hint:SetWidth(460)
 
     -- The strip at the bottom, to the right of the gold display.
-    status = NewText(frame, "GameFontHighlightSmall")
+    status = NewText(frame, 11, SOFT)
     status:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", GOLD_RIGHT + PAD, GOLD_BOTTOM)
-    status:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", -PAD, LIST_BOTTOM)
+    status:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", -PAD, PANEL_BOTTOM - 1)
+    statusBar = NewBar(frame, STATUS_BAR_WIDTH, 10)
+    statusBar:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -BAR_RIGHT, GOLD_BOTTOM + 12)
+    statusBar:Hide()
+
+    -- The parts by name, as the game's own windows have theirs.
+    frame.ScanButton, frame.ScaleDropdown = scanButton, scaleDropdown
+    frame.AffordCheck, frame.TopCheck = affordCheck, topCheck
+    frame.List, frame.Progress = list, statusBar
+    list.Intro, list.Hint, list.Progress = intro, hint, listBar
 
     CreateFrame("Frame", nil, frame):SetScript("OnUpdate", ClockOnUpdate)
 

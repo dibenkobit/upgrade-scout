@@ -49,13 +49,15 @@ end
 ---------------------------------------------------------------------------
 -- Saved settings (per character)
 ---------------------------------------------------------------------------
-ns.db = { affordableOnly = true, topOnly = true }
+-- collapsed: slot id -> true for the slots the player folded away in the list.
+ns.db = { affordableOnly = true, topOnly = true, collapsed = {} }
 
 EventUtil.ContinueOnAddOnLoaded(ADDON, function()
     if type(UpgradeScoutCharDB) ~= "table" then UpgradeScoutCharDB = {} end
     local db = UpgradeScoutCharDB
     if db.affordableOnly == nil then db.affordableOnly = true end
     if db.topOnly == nil then db.topOnly = true end
+    if type(db.collapsed) ~= "table" then db.collapsed = {} end
     ns.db = db
 end)
 
@@ -120,6 +122,36 @@ end
 function ns.QualityText(name, quality)
     local data = ColorManager.GetColorDataForItemQuality(quality)
     return data and data.color:WrapTextInColorCode(name) or name
+end
+
+-- The same colour as three numbers, white for a quality the game has no colour for.
+function ns.QualityColor(quality)
+    local data = ColorManager.GetColorDataForItemQuality(quality)
+    if data then return data.color:GetRGB() end
+    return 1, 1, 1
+end
+
+-- Capitals, for headings: A to Z and the two-byte letters of UTF-8, accented Latin and
+-- Cyrillic, which covers every language the addon has (Chinese has no capitals). Letters are
+-- picked out byte by byte: string.upper on a whole text goes by the computer's own alphabet
+-- and can break the bytes of another. Not for text with colour codes or format placeholders.
+function ns.Upper(text)
+    return (text:gsub("[a-z]", string.upper):gsub("[\195\208\209][\128-\191]", function(pair)
+        local lead, tail = pair:byte(1, 2)
+        if lead == 195 then
+            -- U+00E0 to U+00FE, "à" to "þ", but for the division sign U+00F7
+            if tail >= 160 and tail <= 190 and tail ~= 183 then return string.char(195, tail - 32) end
+        elseif lead == 208 then
+            -- U+0430 to U+043F, "а" to "п"
+            if tail >= 176 then return string.char(208, tail - 32) end
+        elseif tail <= 143 then
+            -- U+0440 to U+044F, "р" to "я"
+            return string.char(208, tail + 32)
+        elseif tail == 145 then
+            -- U+0451, "ё"
+            return string.char(208, 129)
+        end
+    end))
 end
 
 -- An auction item key as one string, to index tables with.

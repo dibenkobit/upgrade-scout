@@ -64,7 +64,10 @@ as an alternative:
     best value are always part of it.
   - If more than five remain, the slot keeps the best upgrade and the next two steps below it, the
     best value and the next step below it.
-  - The slot title shows how many upgrades there are in all, for example "Chest (5 of 17)".
+  - The right end of a slot's heading shows how many upgrades there are in all, for example "5 of 17".
+- **The meter under an upgrade's number** shows how big it is next to the best one in the same slot.
+- **A slot folds away**: click its heading and one line is left, with the number of upgrades in it;
+  another click brings it back. Folded slots are remembered for the character.
 - A yellow `*` after a name means the item has effects Pawn cannot score (procs, on-use effects).
 - Blocks are equipment slots, so **Main Hand** holds everything that goes into that hand: one-hand,
   main-hand and two-hand weapons together. Each weapon row says which it is in grey after the name,
@@ -131,6 +134,8 @@ lua5.1 tests/run.lua buy        # one scenario
 
 - `scripts\install.ps1` copies the addon into the game's AddOns folder (`-Game <path>` if the game is
   not in the default place).
+- `scripts\make-textures.py` draws the tab's art into `UpgradeScout\Media` (needs Python with numpy
+  and Pillow; the command is at the top of the file). Run it after changing a shape or a colour there.
 - A release is a tag named after the version in the `.toc` (for example `1.0.1`). Pushing it runs the
   tests, uploads `UpgradeScout-<version>-forever.zip` to CurseForge and attaches it to a GitHub
   release (`.github/workflows/release.yml`).
@@ -142,7 +147,8 @@ lua5.1 tests/run.lua buy        # one scenario
 | `Results.lua` | Rows for the list and the two picks per slot |
 | `Scanner.lua` | Auction house requests: browse, score, price check, buy |
 | `UI.lua` | The tab |
-| `icon.tga` | The icon in the game's AddOns list, exported from `docs/logo/logo.svg` |
+| `Media/` | The tab's textures: the plate under the list, buttons, bars, marks. Drawn by `scripts/make-textures.py` |
+| `icon.tga` | The icon in the game's AddOns list and on the tab before the first scan, exported from `docs/logo/logo.svg` |
 | `Libs/` | LibStub (public domain) and LibAHTab (MIT), which adds auction house tabs without clashing with other addons' tabs |
 
 ## License

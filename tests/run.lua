@@ -307,6 +307,13 @@ function scenarios.picks()
     eq(ns.Num(0.5), "0.5", "no trailing zero"); eq(ns.Num(0.048), "0.048", "three decimals below a tenth")
     eq(ns.Num(1.548, 3), "1.548", "precision on request"); eq(ns.Num(1.5, 3), "1.5", "trailing zeros dropped")
     eq(ns.Num(10, 3), "10", "whole number with a precision")
+
+    -- Headings are written in capitals, in every alphabet the addon's languages use.
+    eq(ns.Upper("Best value"), "BEST VALUE", "Latin")
+    eq(ns.Upper("Лучшее улучшение, ёж"), "ЛУЧШЕЕ УЛУЧШЕНИЕ, ЁЖ", "Cyrillic")
+    eq(ns.Upper("Amélioration à l'hôtel"), "AMÉLIORATION À L'HÔTEL", "accented Latin")
+    eq(ns.Upper("Größe ÷ 2"), "GRÖßE ÷ 2", "letters without a capital of their own stay as they are")
+    eq(ns.Upper("装备提升"), "装备提升", "Chinese has no capitals")
 end
 
 ---------------------------------------------------------------------------
@@ -833,7 +840,7 @@ end
 
 ---------------------------------------------------------------------------
 function scenarios.ui()
-    local PAGE, ROW = 20, 20             -- rows in view and the height of one (see W.listHeight)
+    local PAGE, ROW = 14, 30             -- rows in view and the height of one (see W.listHeight)
     StandardWorld()
     W.player.money = 50000               -- 5 gold: the 9 gold robe is out of reach
     LoadAddon()
@@ -848,12 +855,8 @@ function scenarios.ui()
     lib:SetSelected("UpgradeScout")
     eq(frame:IsShown(), true, "shown when selected")
 
-    -- Find the widgets by what they say, or by the game template they are made from.
-    local function FindText(text, kindOf)
-        for _, w in ipairs(W.frames) do
-            if w._text == text and (not kindOf or w._kind == kindOf) then return w end
-        end
-    end
+    -- The tab's own parts are on its frame by name; what the game provides is found by the
+    -- template it is made from.
     local function Made(template)
         local out = {}
         for _, w in ipairs(W.frames) do
@@ -861,27 +864,49 @@ function scenarios.ui()
         end
         return out
     end
-    local scan = FindText("Scan", "Button")
-    check(scan ~= nil and scan._template == "UIPanelButtonTemplate", "scan button")
-    local spinner = Made("SpinnerTemplate")[1]
-    eq(spinner:IsShown(), false, "no spinner before a scan")
+    -- The name of a texture's file, without its folder.
+    local function Art(texture) return texture:GetTexture():match("[^\\]+$") end
+    local list, scan = frame.List, frame.ScanButton
+    eq(scan.Label:GetText(), "SCAN", "the scan button, in capitals like every heading")
+    eq(scan.Face.file, "ButtonRed", "red: the one button that matters")
+    check(Art(scan.Face.parts[1]):find("ButtonRed", 1, true) ~= nil and scan.Face.parts[1]:GetTexture():find("AddOns\\UpgradeScout\\Media\\", 1, true) ~= nil,
+        "drawn with the addon's own art")
+
+    -- Before the first scan the middle of the list says what the tab is for.
+    eq(list.Intro:IsShown(), true, "the emblem before the first scan")
+    check(list.Hint:GetText():find("Press Scan", 1, true) ~= nil and list.Hint:GetText():find("\"Arms\"", 1, true) ~= nil,
+        "with what to do and the scale it will use: " .. list.Hint:GetText())
+    eq(list.Progress:IsShown(), false, "no progress bar before a scan")
+    eq(frame.Progress:IsShown(), false, "nor beside the status line")
     local sounds = #W.sounds
     scan:Click()
     eq(#W.sounds, sounds + 1, "the button clicks")
     eq(ns.Scanner.state, "browse", "the button starts a scan")
-    eq(spinner:IsShown(), true, "the game's spinner turns while the list is empty")
+    eq(list.Intro:IsShown(), false, "the emblem goes")
+    eq(list.Progress:IsShown(), true, "a bar in the middle of the list while it is empty")
+    eq(frame.Progress:IsShown(), true, "and a small one beside the status line")
+    eq(list.Progress.value, nil, "reading the auction list has no known end: the gold goes to and fro")
+    check(list.Progress:GetScript("OnUpdate") ~= nil, "moved by the clock")
+    check(list.Hint:GetText():find("Reading the auction list", 1, true) ~= nil, "the status stands over the bar")
     W.Run(0.2)
-    eq(scan:GetText(), "Stop", "and turns into Stop")
+    eq(scan.Label:GetText(), "STOP", "and the button turns into Stop")
+    eq(scan.Face.file, "ButtonDark", "in the dark face")
+    W.RunUntil(function() return ns.Scanner.state == "verify" and ns.Scanner.info.verified >= 2 end, 120)
+    W.Run(0.2)
+    local filled = frame.Progress.value
+    check(type(filled) == "number" and filled > 0 and filled <= 1, "the bar fills as prices are checked")
+    eq(frame.Progress:GetScript("OnUpdate"), nil, "and stands still at what is done")
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 120)
     W.Run(0.3)
-    eq(scan:GetText(), "Scan", "back to Scan")
-    eq(spinner:IsShown(), false, "the spinner goes once there is a list")
+    eq(scan.Label:GetText(), "SCAN", "back to Scan")
+    eq(scan.Face.file, "ButtonRed", "and to red")
+    eq(list.Progress:IsShown(), false, "the bar in the list goes once there is a list")
+    eq(frame.Progress:IsShown(), false, "the one beside the status line goes with the scan")
+    eq(list.Hint:GetText(), "", "nothing is written over a list with rows")
 
-    -- Column titles are the game's own header buttons.
-    local titles = Made("ColumnDisplayButtonShortTemplate")
-    eq(#titles, 6, "a title for every column")
-    eq(titles[1]:GetText(), "Item", "first column"); eq(titles[4]:GetText(), "Buyout", "price column")
-    eq(titles[1]:IsEnabled(), false, "nothing to click: the list has one order")
+    -- Column titles: words in capitals, nothing to click, the list having one order.
+    eq(#list.Titles, 5, "a title for every column")
+    eq(list.Titles[1]:GetText(), "ITEM", "first column"); eq(list.Titles[4]:GetText(), "BUYOUT", "price column")
 
     -- Read the list as the player would.
     local box = Made("WowScrollBoxList")[1]
@@ -895,20 +920,23 @@ function scenarios.ui()
     end
     local function Data(row) return row:GetElementData().data end
     local rows = Rows()
-    eq(Data(rows[1]).kind, "header", "first row is a slot header"); eq(rows[1].Title:GetText(), "Head", "head first")
-    eq(rows[1]._kind, "Frame", "a heading is a plain frame: nothing to hover or click")
+    eq(Data(rows[1]).kind, "header", "first row is a slot header"); eq(rows[1].Title:GetText(), "HEAD", "head first, in capitals")
+    eq(rows[1]._kind, "Frame", "a heading is a frame of its own kind")
+    eq(rows[1].Toggle._kind, "Button", "under a button that folds the slot away")
+    eq(Art(rows[1].Arrow), "Chevron", "its arrow points down: the slot is open")
     eq(rows[2]._kind, "Button", "an offer is a button")
     eq(rows[2].Name:GetText(), "|cff1eff00Helm|r", "item name in quality colour")
-    check(rows[2].Upgrade:GetText():find("+12", 1, true) ~= nil and rows[2].Upgrade:GetText():find("new", 1, true) ~= nil, "empty slot shown as new")
-    check(rows[2].Pick:GetText():find("Best of both", 1, true) ~= nil, "single offer is both picks")
+    eq(rows[2].Upgrade:GetText(), "+12", "the gain"); eq(rows[2].Share:GetText(), "new", "an empty slot shown as new")
+    eq(rows[2].Pick:IsShown(), true, "a plate for the pick"); eq(rows[2].Pick.Text:GetText(), "Best of both", "single offer is both picks")
+    eq(rows[2].Buy.Label:GetText(), "BUY", "the buy button")
     eq(rows[2].Price._template, "MoneyDisplayFrameTemplate", "the price is the game's coin display")
     eq(rows[2].Price:GetAmount(), 2500, "25 silver")
     eq(rows[2].Price._font, PriceFontWhite, "in white: the player can pay")
     eq(rows[2].PerPoint:GetAmount(), 208, "price per point, in whole copper")
     eq(rows[2].Buy:IsEnabled(), true, "can buy")
-    eq(rows[3].Title:GetText(), "Chest", "chest block")
+    eq(rows[3].Title:GetText(), "CHEST", "chest block")
     eq(rows[4].Name:GetText(), "|cff1eff00Good Chest|r", "the robe is hidden: too expensive")
-    check(rows[4].Upgrade:GetText():find("+8", 1, true) ~= nil and rows[4].Upgrade:GetText():find("+80%", 1, true) ~= nil, "delta and percent")
+    eq(rows[4].Upgrade:GetText(), "+8", "delta"); eq(rows[4].Share:GetText(), "+80%", "and percent")
 
     -- Weapon rows say how the weapon is held; the hand slots mix one-hand and two-hand items.
     local function RowNamed(text)
@@ -928,15 +956,12 @@ function scenarios.ui()
     eq(ns.Compare.HandLabel("INVTYPE_WEAPON"), "One-Hand", "one-hand weapons are named too")
     eq(ns.Compare.HandLabel("INVTYPE_CHEST"), nil, "nothing for armor")
 
-    -- The two filters: checkboxes with the template's own label.
-    local checkbox, topBox
-    for _, w in ipairs(Made("UICheckButtonTemplate")) do
-        if w.Text:GetText() == "Only what I can afford" then checkbox = w end
-        if w.Text:GetText() == "Top 5 per slot" then topBox = w end
-    end
-    check(checkbox ~= nil and topBox ~= nil, "both filters are there")
-    eq(topBox:GetChecked(), true, "top five on by default")
-    eq(rows[3].Title:GetText(), "Chest", "nothing cut, so no count in the header")
+    -- The two filters: tick boxes with their labels beside them.
+    local checkbox, topBox = frame.AffordCheck, frame.TopCheck
+    eq(checkbox._kind, "CheckButton", "a filter is a tick box")
+    eq(checkbox.Text:GetText(), "Only what I can afford", "the price filter"); eq(topBox.Text:GetText(), "Top 5 per slot", "and top five")
+    eq(topBox:GetChecked(), true, "top five on by default"); eq(topBox.Tick:IsShown(), true, "with its tick showing")
+    eq(rows[3].Count:GetText(), "", "nothing cut, so no count in the header")
     eq(checkbox:GetChecked(), true, "afford filter on by default")
     local function Status()
         for _, text in ipairs(W.texts) do
@@ -971,11 +996,14 @@ function scenarios.ui()
     eq(W.sounds[#W.sounds], SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF, "unticking sounds like unticking")
     eq(#W.sounds, sounds + 1, "once")
     eq(ns.db.affordableOnly, false, "setting saved")
+    eq(checkbox.Tick:IsShown(), false, "the tick is gone")
     -- The robe's price was not looked up while it was hidden; now it is.
     eq(ns.Scanner.mode, "more", "the list asks for the missing price")
     W.Run(0.2)
     check(Status():find("Checking buyout prices", 1, true) ~= nil, "and says so")
-    eq(scan:GetText(), "Stop", "the lookup can be stopped")
+    eq(scan.Label:GetText(), "STOP", "the lookup can be stopped")
+    eq(frame.Progress:IsShown(), true, "its bar is beside the status line")
+    eq(list.Progress:IsShown(), false, "and not over the list, which has rows")
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
     W.Run(0.3)
     eq(W.AH.calls.search, searches + 1, "one item search, for the robe")
@@ -984,9 +1012,10 @@ function scenarios.ui()
     eq(rows[4].Price:GetAmount(), 90000, "its price")
     eq(rows[4].Price._font, PriceFontRed, "in red")
     eq(rows[4].Buy:IsEnabled(), false, "cannot buy it")
-    check(rows[4].Pick:GetText():find("Best upgrade", 1, true) ~= nil, "robe is the best upgrade")
-    check(rows[5].Pick:GetText():find("Best value", 1, true) ~= nil, "Good Chest is the best value")
-    check(rows[4].Stripe._atlas ~= rows[5].Stripe._atlas, "rows are striped like the game's auction lists")
+    eq(rows[4].Pick.Text:GetText(), "Best upgrade", "robe is the best upgrade")
+    eq(rows[5].Pick.Text:GetText(), "Best value", "Good Chest is the best value")
+    -- The meter under a gain measures it against the best one in the slot: +8 against +20.
+    near(rows[5].Meter:GetWidth() / rows[4].Meter:GetWidth(), 8 / 20, "the meter of the smaller gain is shorter by as much")
 
     -- Tooltip
     rows[5]:GetScript("OnEnter")(rows[5])
@@ -1061,13 +1090,14 @@ function scenarios.ui()
     for i, row in ipairs(rows) do
         if Data(row).kind == "header" and Data(row).group == "LEGS" then legs = i end
     end
-    check(rows[legs].Title:GetText():find("^Legs ") ~= nil and rows[legs].Title:GetText():find("(5 of about 41)", 1, true) ~= nil,
-        "header counts the cut and the one not looked up: " .. rows[legs].Title:GetText())
+    eq(rows[legs].Title:GetText(), "LEGS", "the legs block")
+    eq(rows[legs].Count:GetText(), "5 of about 41", "its header counts the cut and the one not looked up")
     eq(Offer("Poor Deal Legs"), nil, "no item search for an offer the list would hide")
     eq(rows[legs + 1].Name:GetText(), "|cff1eff00Legs 40|r", "best legs first")
     eq(rows[legs + 3].Name:GetText(), "|cff1eff00Legs 38|r", "two steps below the best")
     eq(rows[legs + 4].Name:GetText(), "|cff1eff00Legs 10|r", "best value")
-    check(rows[legs + 4].Pick:GetText():find("Best value", 1, true) ~= nil, "marked as best value")
+    eq(rows[legs + 4].Pick.Text:GetText(), "Best value", "marked as best value")
+    eq(rows[legs + 3].Pick:IsShown(), false, "no plate on a row that is neither pick")
     eq(rows[legs + 4].PerPoint:GetAmount(), 10, "ten copper a point")
     eq(rows[legs + 5].Name:GetText(), "|cff1eff00Legs 9|r", "one step below the best value")
     check(rows[legs + 6] == nil or Data(rows[legs + 6]).kind == "header", "no sixth legs row")
@@ -1083,7 +1113,7 @@ function scenarios.ui()
     W.RunUntil(function() return ns.Scanner.state == "idle" and Offer("Poor Deal Legs") ~= nil end, 30)
     W.Run(0.3)
     rows = Rows()
-    eq(rows[legs].Title:GetText(), "Legs", "everything listed, nothing left to count")
+    eq(rows[legs].Count:GetText(), "", "everything listed, nothing left to count")
     eq(#rows, PAGE, "a full page of rows")
 
     -- Scrolling is the scroll box's own; the bar beside it is the game's too.
@@ -1176,13 +1206,42 @@ function scenarios.ui()
     ns.UI.Refresh()
     bar:Drag(0)
 
-    -- A short list has nothing to scroll: the bar shows no thumb, and a filter change starts
-    -- the list from the top.
+    -- A click on a slot's heading folds the slot away: the heading stays, its offers go.
+    rows = Rows()
+    local heading = rows[legs]
+    sounds = #W.sounds
+    heading.Toggle:Click()
+    eq(#W.sounds, sounds + 1, "the heading clicks")
+    eq(ns.db.collapsed.LEGS, true, "folded, and kept with the character's settings")
+    eq(UpgradeScoutCharDB.collapsed.LEGS, true, "which are the saved ones")
+    rows = Rows()
+    check(rows[legs] == heading, "the heading keeps its frame")
+    eq(Art(heading.Arrow), "ChevronRight", "its arrow points to the side")
+    eq(heading.Count:GetText(), "41", "and it says how many upgrades are folded away")
+    eq(Data(rows[legs + 1]).kind, "header", "the next slot follows at once")
+    for _, row in ipairs(rows) do
+        check(not (Data(row).kind == "item" and Data(row).entry.group == "LEGS"), "no legs are listed")
+    end
+    check(Status():find("upgrades in 6 slots", 1, true) ~= nil, "the status line counts a folded slot as before: " .. Status())
+    -- What is left is a short list with nothing to scroll: the bar shows no thumb.
+    eq(bar:GetVisibleExtentPercentage(), 1, "everything in view")
+    -- A refresh leaves the slot folded.
+    ns.UI.Refresh()
+    eq(Data(Rows()[legs + 1]).kind, "header", "still folded after a refresh")
+    -- Another click brings the slot back.
+    heading.Toggle:Click()
+    eq(ns.db.collapsed.LEGS, nil, "unfolded")
+    rows = Rows()
+    eq(Art(heading.Arrow), "Chevron", "the arrow points down again")
+    eq(heading.Count:GetText(), "", "nothing to count")
+    eq(Data(rows[legs + 1]).kind, "item", "the legs are back")
+    eq(#rows, PAGE, "and the page is full")
+
+    -- A filter change starts the list from the top.
     box:OnMouseWheel(-1)
     topBox:SetChecked(true)
     topBox:Click()
     W.Run(0.3)
-    eq(bar:GetVisibleExtentPercentage(), 1, "everything in view")
     eq(box:GetScrollPercentage(), 0, "at the top")
     topBox:SetChecked(false)
     topBox:Click()

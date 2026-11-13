@@ -64,12 +64,19 @@ W.Widget = Widget
 
 local function noop() end
 for _, name in ipairs({
-    "SetPoint", "ClearAllPoints", "SetAllPoints", "SetJustifyH", "SetWordWrap",
-    "SetTexture", "SetColorTexture", "SetBlendMode", "SetFontObject",
-    "SetNormalFontObject", "SetHighlightFontObject", "SetDisabledFontObject",
+    "SetPoint", "ClearAllPoints", "SetAllPoints", "SetJustifyH", "SetWordWrap", "SetSpacing",
+    "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetDesaturated", "SetAlpha",
+    "SetFontObject", "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent",
 }) do
     M[name] = noop
+end
+
+function M:SetTexture(file) self._texture = file end
+function M:GetTexture() return self._texture end
+function M:SetFont(file, size, flags)
+    assert(type(file) == "string" and type(size) == "number" and type(flags) == "string", "a font file, a size and flags")
+    self._font = file
 end
 
 function M:SetAtlas(atlas)
@@ -123,9 +130,20 @@ end
 function M:RegisterEvent(event) self._events[event] = true end
 function M:CreateTexture() return Widget("Texture", nil, self) end
 function M:CreateFontString() return Widget("FontString", nil, self) end
-function M:SetText(text) self._text = text end
+function M:SetText(text)
+    -- The game refuses to write with no font. (The tab of the window gets its font from a template.)
+    if self._kind == "FontString" then assert(self._font, "a font is set before the text") end
+    self._text = text
+end
 function M:GetText() return self._text end
-function M:SetEnabled(enabled) self._enabled = enabled and true or false end
+-- As in the game, a button is told when it is switched on or off, and only when that changes.
+function M:SetEnabled(enabled)
+    enabled = enabled and true or false
+    if enabled == self._enabled then return end
+    self._enabled = enabled
+    local script = self._scripts[enabled and "OnEnable" or "OnDisable"]
+    if script then script(self) end
+end
 function M:IsEnabled() return self._enabled end
 function M:SetChecked(checked) self._checked = checked and true or false end
 function M:GetChecked() return self._checked end
@@ -301,7 +319,7 @@ local function ScrollBarModel(bar)
     function bar:ClickArrow(direction) self:SetScrollPercentage(self._percentage + self._pan * direction) end
 end
 
-W.listHeight = 400                              -- 20 rows of 20
+W.listHeight = 420                              -- 14 rows of 30
 
 local function ScrollBoxModel(box)
     box._percentage, box._frames, box._pools = 0, {}, {}
@@ -494,11 +512,6 @@ local TEMPLATES = {
     WowScrollBoxList = ScrollBoxModel,
     MoneyDisplayFrameTemplate = MoneyDisplayModel,
     WowStyle1DropdownTemplate = DropdownModel,
-    UICheckButtonTemplate = function(check) check.Text = Widget("FontString", nil, check) end,
-    ColumnDisplayButtonShortTemplate = function(button) button.Text = Widget("FontString", nil, button) end,
-    UIPanelButtonTemplate = function() end,
-    InsetFrameTemplate = function() end,
-    SpinnerTemplate = function() end,
     AuctionHouseFrameDisplayModeTabTemplate = function() end,       -- a tab of the window (LibAHTab)
 }
 
@@ -630,7 +643,10 @@ RETRIEVING_ITEM_INFO = "Retrieving item information"
 ACCEPT, CANCEL, NONE = "Accept", "Cancel", "None"
 BUYOUT_AUCTION_CONFIRMATION = "Buyout auction for:"
 SECONDS_ABBR, MINUTES_ABBR, HOURS_ABBR = "%d Sec", "%d Min", "%d Hr"
-PriceFontWhite, PriceFontRed, GameFontHighlightSmall = { name = "PriceFontWhite" }, { name = "PriceFontRed" }, {}
+PriceFontWhite, PriceFontRed = { name = "PriceFontWhite" }, { name = "PriceFontRed" }
+-- The font files the tab writes with: the standard one, and the one behind the game's number fonts.
+STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
+Number13FontWhite = { GetFont = function() return "Fonts\\ARIALN.TTF", 13, "" end }
 ITEM_QUALITY_COLORS = { [2] = { color = Color(0.118, 1, 0) }, [3] = { color = Color(0, 0.44, 0.87) } }
 ColorManager = {}
 function ColorManager.GetColorDataForItemQuality(quality) return ITEM_QUALITY_COLORS[quality] end
