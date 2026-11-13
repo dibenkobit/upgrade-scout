@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- Fixed: the status line always said "Scanned 1 Sec ago". The age of the scan now counts up while
+  the tab is open.
+
 ## 1.0.0
 
 First release, for World of Warcraft Forever 1.60.1 (interface 16001).

@@ -9,7 +9,7 @@
 ## Notes-esMX: Encuentra en la casa de subastas mejoras de equipo que puedes equiparte y permitirte, puntuadas por Pawn.
 ## Notes-ptBR: Encontra na Casa de Leilões melhorias de equipamento que você pode equipar e pagar, avaliadas pelo Pawn.
 ## Notes-itIT: Trova alla Casa d'Aste i miglioramenti di equipaggiamento che puoi indossare e permetterti, valutati da Pawn.
-## Version: 1.0.0
+## Version: 1.0.1
 ## Author: Nikita Snetkov
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323
