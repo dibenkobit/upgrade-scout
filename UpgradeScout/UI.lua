@@ -48,7 +48,8 @@ local NAME_WIDTH = COLUMN.item.width - NAME_LEFT - PAD
 
 local frame, scrollBox, provider, hint, spinner, status, scanButton, scaleDropdown, affordCheck, topCheck
 local rows = {}
-local elements = {}         -- row key -> the table the scroll box knows the row by (see SyncList)
+local summary               -- what the last refresh counted, for the status line
+local elements = {}       -- row key -> the table the scroll box knows the row by (see SyncList)
 local syncCount = 0
 local toTop = false         -- scroll back to the top at the next refresh
 local scaleShown            -- what the scale dropdown was last built from (see ScaleKey)
@@ -378,7 +379,7 @@ end
 ---------------------------------------------------------------------------
 -- Status line and refresh
 ---------------------------------------------------------------------------
-local function StatusText(summary)
+local function StatusText()
     if S.state == "browse" then
         return L.ST_BROWSE:format(S.info.rows)
     elseif S.state == "score" then
@@ -426,10 +427,33 @@ local function ScaleTitle()
     return scale and scale.title or NONE
 end
 
+-- The status line. An empty list says the same in its middle, or what to do, or why it is
+-- empty; while a scan fills it, the game's spinner turns there instead.
+local function ShowStatus()
+    local text = StatusText()
+    status:SetText(text)
+    if #rows > 0 or S.state ~= "idle" then
+        hint:SetText("")
+    elseif S.finishedAt or S.message then
+        hint:SetText(text)
+    else
+        hint:SetText(ns.Pawn.Problem() or L.HINT:format(ScaleTitle()))
+    end
+end
+
+-- The age of the scan in the status line grows with the clock, and no event comes when a
+-- second passes. This runs on a frame inside the tab, so only while the tab is in view.
+local clockAt
+local function ClockOnUpdate()
+    local now = time()
+    if now == clockAt then return end
+    clockAt = now
+    if S.state == "idle" and S.finishedAt then ShowStatus() end
+end
+
 function UI.Refresh()
     if not frame or not frame:IsShown() then return end
 
-    local summary
     rows, summary = ns.Results.Build(S.offers, S.ctx, {
         money = GetMoney(),
         affordableOnly = ns.db.affordableOnly,
@@ -439,7 +463,8 @@ function UI.Refresh()
     SyncList()
 
     local idle = S.state == "idle"
-    status:SetText(StatusText(summary))
+    ShowStatus()
+    spinner:SetShown(#rows == 0 and not idle)
     scanButton:SetText(idle and L.SCAN or L.STOP)
     scanButton:SetEnabled(idle or S.mode == "scan" or S.mode == "more")
     affordCheck:SetChecked(ns.db.affordableOnly and true or false)
@@ -449,17 +474,6 @@ function UI.Refresh()
     if scaleKey ~= scaleShown then
         scaleShown = scaleKey
         scaleDropdown:GenerateMenu()
-    end
-
-    -- An empty list says what to do or why it is empty; while a scan fills it, the game's
-    -- spinner turns in its place.
-    spinner:SetShown(#rows == 0 and not idle)
-    if #rows > 0 or not idle then
-        hint:SetText("")
-    elseif S.finishedAt or S.message then
-        hint:SetText(StatusText(summary))
-    else
-        hint:SetText(ns.Pawn.Problem() or L.HINT:format(ScaleTitle()))
     end
 
     -- The scan looks up only the prices the list can show. If the list now needs more of them
@@ -651,6 +665,8 @@ local function Build()
     status = NewText(frame, "GameFontHighlightSmall")
     status:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", GOLD_RIGHT + PAD, GOLD_BOTTOM)
     status:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", -PAD, LIST_BOTTOM)
+
+    CreateFrame("Frame", nil, frame):SetScript("OnUpdate", ClockOnUpdate)
 
     frame:SetScript("OnShow", UI.Refresh)
     -- Another tab, or the window closed: a question about buying must not stay up.

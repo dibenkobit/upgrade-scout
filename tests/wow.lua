@@ -534,7 +534,7 @@ function W.Fire(event, ...)
     end
 end
 
--- Advances the clock by dt: due timers run, then every shown frame gets its OnUpdate.
+-- Advances the clock by dt: due timers run, then every frame in view gets its OnUpdate.
 function W.Tick(dt)
     dt = dt or 0.05
     W.now = W.now + dt
@@ -549,7 +549,7 @@ function W.Tick(dt)
     for i = 1, #due do due[i].fn() end
     for i = 1, #W.frames do
         local frame = W.frames[i]
-        if frame._shown and frame._scripts.OnUpdate then frame._scripts.OnUpdate(frame, dt) end
+        if frame._scripts.OnUpdate and frame:IsVisible() then frame._scripts.OnUpdate(frame, dt) end
     end
 end
 

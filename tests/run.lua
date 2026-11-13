@@ -948,6 +948,20 @@ function scenarios.ui()
     -- Helm, Good Chest, New Ring, Big Axe and Shield are listed; the robe costs 9 gold.
     check(Status():find("5 upgrades in 5 slots. 1 more cost more than you have.", 1, true) ~= nil, "status counts the robe that was not looked up: " .. Status())
     check(Status():find("Sec ago", 1, true) ~= nil, "the age of the scan in the game's units: " .. Status())
+    -- The age goes on counting while the tab is only looked at: no event comes with a second.
+    local finished = ns.Scanner.finishedAt
+    W.Run(7)
+    check(time() - finished >= 7, "seven seconds on")
+    check(Status():find("Scanned " .. ns.Ago(time() - finished) .. " ago.", 1, true) ~= nil, "the age keeps up with the clock: " .. Status())
+    W.Run(120, 0.5)
+    check(Status():find("Scanned 2 Min ago.", 1, true) ~= nil, "and goes on to minutes: " .. Status())
+    -- Not while the tab is out of view.
+    frame:Hide()
+    local said = Status()
+    W.Run(60, 0.5)
+    eq(Status(), said, "nothing is written while the tab is hidden")
+    frame:Show()
+    check(Status():find("Scanned 3 Min ago.", 1, true) ~= nil, "the age is right again when the tab comes back: " .. Status())
 
     -- Showing everything brings the robe back, marked as too expensive.
     local searches = W.AH.calls.search
