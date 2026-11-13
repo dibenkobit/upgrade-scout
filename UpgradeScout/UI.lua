@@ -1386,8 +1386,9 @@ end
 --   quote    "Buy" was pressed: the server is being asked what exactly they cost
 --   confirm  the server's price is shown and the button reads "Confirm"
 --   wait     pressed again: the purchase is on its way
--- A consumable sold as separate auctions has nothing to choose: the box offers its cheapest
--- auction (`auction`) as it is, and one press buys it.
+-- A consumable sold as separate auctions is bought a piece at a time, each with a press of its
+-- own: the box offers one piece from the cheapest auction (`auction`), and there is nothing to
+-- choose.
 local BOX_WIDTH, BOX_HEIGHT, BOX_EDGE = 330, 162, 18
 
 -- A caption beside a field: the words of a label without the colon they end in.
@@ -1403,7 +1404,7 @@ local function PaintBox()
     if settled then
         cost = buyBox.quoted
     elseif buyBox.auction then
-        cost = buyBox.auction.cost
+        cost = buyBox.auction.price
     else
         local count = buyBox.Count:GetNumber()
         cost = count > 0 and S.SupplyCost(buyBox.tiers, count) or nil
@@ -1435,7 +1436,7 @@ local function BoxBuyOnClick()
     elseif step ~= "choose" then
         return
     elseif buyBox.auction then
-        buyBox.step, buyBox.quoted = "wait", buyBox.auction.cost
+        buyBox.step, buyBox.quoted = "wait", buyBox.auction.price
         S.BuySupplyAuction(buyBox.supply, buyBox.tiers)
     else
         buyBox.step = "quote"
@@ -1902,10 +1903,12 @@ ns.Listen("CONFIRM_SUPPLY", function(supply, tiers)
     buyBox.Stock:SetText(L.QTY_OF:format(supply.quantity))
     buyBox:Show()
 
-    -- To begin with: one stack, or as much of one as there is for sale and money for.
-    local count = buyBox.auction and buyBox.auction.quantity or math.min(supply.stack, supply.quantity)
+    -- To begin with: one stack, or as much of one as there is for sale and money for. Of what
+    -- is sold as separate auctions, the one piece a press buys.
+    local count = 1
     if not buyBox.auction then
         local money = GetMoney()
+        count = math.min(supply.stack, supply.quantity)
         while count > 1 and S.SupplyCost(tiers, count) > money do count = count - 1 end
     end
     buyBox.Count:SetNumber(count)

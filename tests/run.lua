@@ -1933,7 +1933,7 @@ function scenarios.supplies_buy()
     -- A consumable that does not stack is sold as separate auctions.
     W.AddItem({ id = 550, name = "Odd Flask", classID = 0, subClassID = 3, level = 20, stack = 1, quality = 1, use = "Does 1 thing." })
     W.AddAuction(550, 6000)
-    local cheapFlask = W.AddAuction(550, 5000)
+    local cheapFlask = W.AddAuction(550, 5000, { quantity = 3 })    -- one seller, three auctions at one price
     LoadAddon()
     W.OpenAuctionHouse()
     local S = ns.Scanner
@@ -2030,18 +2030,23 @@ function scenarios.supplies_buy()
     check(W.printed[#W.printed]:find("no longer for sale", 1, true) ~= nil, "the chat says it is gone")
     eq(Supply("Stormwind Brie"), nil, "gone from the list")
 
-    -- A consumable sold as separate auctions is bought one auction at a time.
+    -- A consumable sold as separate auctions is bought one piece at a time. A buyout is the
+    -- price of one piece, however many auctions the seller has at it.
     local flask = Supply("Odd Flask")
     check(flask ~= nil, "a consumable that does not stack is listed")
+    eq(flask.price, 5000, "at the price of one"); eq(flask.quantity, 4, "four for sale in all")
     local sixth = Lookup(flask)
-    eq(#sixth.tiers, 2, "two auctions"); eq(sixth.tiers[1].auctionID, cheapFlask.auctionID, "the cheaper one first")
-    eq(sixth.tiers[1].cost, 5000, "at its buyout price")
+    eq(#sixth.tiers, 2, "two prices"); eq(sixth.tiers[1].auctionID, cheapFlask.auctionID, "the cheaper one first")
+    eq(sixth.tiers[1].price, 5000, "a piece costs the buyout, not a third of it"); eq(sixth.tiers[1].quantity, 3, "three at that price")
+    eq(S.SupplyCost(sixth.tiers, 4), 3 * 5000 + 6000, "the four of them")
     money = W.player.money
     S.BuySupplyAuction(flask, sixth.tiers)
     W.RunUntil(function() return done == 5 end, 10)
     eq(W.AH.calls.bids[#W.AH.calls.bids].auctionID, cheapFlask.auctionID, "that auction is bought out")
     eq(W.AH.calls.bids[#W.AH.calls.bids].amount, 5000, "for its buyout price")
-    eq(flask.price, 6000, "the other one is what the list shows now"); eq(flask.quantity, 1, "one left")
+    eq(W.player.money, money - 5000, "which is what was paid")
+    check(W.printed[#W.printed]:find("Bought 1 x", 1, true) ~= nil, "the chat says one piece was bought: " .. W.printed[#W.printed])
+    eq(flask.price, 5000, "the next one costs the same"); eq(flask.quantity, 3, "three left")
 
     -- The auction house closes in the middle of a lookup.
     local food = Supply("Wild Hog Shank")

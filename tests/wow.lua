@@ -1025,7 +1025,8 @@ function W.AddAuction(id, buyout, opts)
     opts = opts or {}
     -- bid: what a bidder pays. A lot without a buyout always has one; a lot with a buyout has
     -- one only if the seller set it.
-    -- quantity: for things sold by the piece, how many pieces the seller put up at this price.
+    -- quantity: how many the seller put up at this price: pieces of what is sold by the piece,
+    -- auctions of one item each of everything else. The buyout is the price of one.
     local auction = { auctionID = A.nextID, id = id, suffix = opts.suffix or 0, buyout = buyout, own = opts.own,
         bid = opts.bid or (buyout == 0 and 1 or nil), quantity = opts.quantity or 1 }
     A.nextID = A.nextID + 1
@@ -1290,10 +1291,16 @@ function C_AuctionHouse.GetItemSearchResultInfo(key, index)
         quantity = auction.quantity,
     }
 end
+-- A buyout takes one item. A line of several (a seller's auctions at one price, `quantity`)
+-- is one shorter for it.
 function C_AuctionHouse.PlaceBid(auctionID, amount)
     A.calls.bids[#A.calls.bids + 1] = { auctionID = auctionID, amount = amount }
     for i = #A.auctions, 1, -1 do
-        if A.auctions[i].auctionID == auctionID then table.remove(A.auctions, i) end
+        local auction = A.auctions[i]
+        if auction.auctionID == auctionID then
+            auction.quantity = auction.quantity - 1
+            if auction.quantity <= 0 then table.remove(A.auctions, i) end
+        end
     end
     -- The gold is gone with the bid.
     W.player.money = W.player.money - amount

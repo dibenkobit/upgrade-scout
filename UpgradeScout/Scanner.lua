@@ -1514,8 +1514,11 @@ local function ReadLookupPieces(itemID)
     FinishLookup(tiers)
 end
 
--- The answer for something sold as separate auctions, which a few consumables are. Each
--- auction is bought whole, so each is an entry of its own, with its auction and its price.
+-- The answer for something sold as separate auctions, which the consumables that do not stack
+-- are. An auction is one piece, and its buyout is the price of that piece; a seller's auctions
+-- at one price come as one line, whose `quantity` says how many they are (the game shows
+-- that number beside the price). So a line is an entry of the price list like any other, with
+-- the auction to bid on.
 function ReadLookupAuctions(itemKey)
     if not ns.SameKey(itemKey, run.lookup.supply.key) then return end
     local tiers = {}
@@ -1523,8 +1526,7 @@ function ReadLookupAuctions(itemKey)
         local info = AH.GetItemSearchResultInfo(itemKey, i)
         local buyout = info and info.buyoutAmount or 0
         if buyout > 0 and not info.containsOwnerItem and not info.containsAccountItem then
-            local quantity = math.max(info.quantity or 1, 1)
-            tiers[#tiers + 1] = { price = buyout / quantity, quantity = quantity, cost = buyout, auctionID = info.auctionID }
+            tiers[#tiers + 1] = { price = buyout, quantity = info.quantity, auctionID = info.auctionID }
         end
     end
     FinishLookup(tiers)
@@ -1558,11 +1560,11 @@ function S.ConfirmSupply()
     AH.ConfirmCommoditiesPurchase(quote.supply.itemID, quote.count)
 end
 
--- From a click: buys the cheapest auction of a consumable that is sold as separate auctions.
+-- From a click: buys one piece of a consumable that is sold as separate auctions, the cheapest.
 function S.BuySupplyAuction(supply, tiers)
     local auction = tiers[1]
     supplyBids[auction.auctionID] = { supply = supply, tiers = tiers }
-    AH.PlaceBid(auction.auctionID, auction.cost)
+    AH.PlaceBid(auction.auctionID, auction.price)
 end
 
 -- The player closed the box, at whatever step.
@@ -1703,8 +1705,7 @@ ns.On("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
     local bid = supplyBids[auctionID]
     if bid then
         supplyBids[auctionID] = nil
-        local auction = bid.tiers[1]
-        SupplyBought(bid.supply, bid.tiers, auction.quantity, auction.cost)
+        SupplyBought(bid.supply, bid.tiers, 1, bid.tiers[1].price)
         return
     end
     local offer = purchases[auctionID]
