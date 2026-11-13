@@ -116,8 +116,6 @@ end
 local driver = CreateFrame("Frame")
 driver:Hide()
 
-local Reacquire
-
 local function IsScanMode(mode)
     return mode == "scan" or mode == "more"
 end
@@ -206,12 +204,6 @@ end
 ---------------------------------------------------------------------------
 -- Scoring one item
 ---------------------------------------------------------------------------
--- The seventh field of an item link is its random suffix ("of the Bear"); 0 when it has none.
-local function LinkSuffix(link)
-    local suffix = link:match("item:%-?%d*:%-?%d*:%-?%d*:%-?%d*:%-?%d*:%-?%d*:(%-?%d*)")
-    return tonumber(suffix) or 0
-end
-
 local function IsUnique(itemID)
     return itemID ~= nil and C_Item.GetItemUniquenessByID(itemID) == true
 end
@@ -589,6 +581,49 @@ local function ContinueJob(job)
     job.state = "read"
 end
 
+-- Counts one auction of a search towards its offers. An offer is what a row holds of one item,
+-- at the price of the cheapest auction of it.
+-- Its id is the row's key and the item's score. The key is the item, variant and all: two
+-- variants that score the same are rows of their own, and so offers of their own. The score
+-- is there for a row that holds more than one item after all (scan.bucketsVary).
+--   found   offer id -> offer, false for an item that is no better than the gear
+local function CountAuction(found, job, eval, info)
+    local id = job.ks .. ":" .. string.format("%.2f", eval.value)
+    local offer = found[id]
+    if offer == nil and #ns.Compare.Place(eval, S.ctx) == 0 then
+        -- For sale and wearable, but no better than what the character has.
+        offer = false
+        found[id] = false
+    end
+    if offer == false then return end
+    if offer and info.buyoutAmount >= offer.buyout then
+        offer.count = offer.count + 1
+        return
+    end
+    found[id] = {
+        id = id,
+        ks = job.ks,
+        key = job.key,
+        link = eval.link,
+        name = eval.name,
+        quality = eval.quality,
+        icon = eval.icon,
+        reqLevel = eval.reqLevel,
+        invType = eval.invType,
+        itemID = eval.itemID,
+        unique = eval.unique,
+        value = eval.value,
+        effects = eval.effects,
+        buyout = info.buyoutAmount,
+        auctionID = info.auctionID,
+        count = offer and offer.count + 1 or 1,
+        -- Not every auction of the item was read: there may be more of it.
+        more = job.partial or nil,
+        -- Every auction in this row is this item (see CheapestLoaded).
+        uniform = job.stopAt ~= nil or nil,
+    }
+end
+
 local function ReadJob(job)
     local key = job.key
     local count = math.min(AH.GetNumItemSearchResults(key) or 0, MAX_AUCTIONS)
@@ -602,8 +637,7 @@ local function ReadJob(job)
         if buyout > 0 and (not lowest or buyout < lowest) then lowest = buyout end
         -- Buyout only: an auction without a buyout price is skipped, and so are the
         -- player's own auctions.
-        if info and info.itemLink and (info.buyoutAmount or 0) > 0
-            and not info.containsOwnerItem and not info.containsAccountItem then
+        if buyout > 0 and info.itemLink and not info.containsOwnerItem and not info.containsAccountItem then
             local eval = EvalLink(info.itemLink)
             if eval == nil then
                 notReady = true
@@ -617,40 +651,7 @@ local function ReadJob(job)
                     if job.expect and scan and math.abs(eval.value - job.expect) > job.expect * 0.005 then
                         scan.bucketsVary = true
                     end
-                    local id = eval.itemID .. ":" .. LinkSuffix(eval.link) .. ":" .. string.format("%.2f", eval.value)
-                    local offer = found[id]
-                    if #ns.Compare.Place(eval, S.ctx) == 0 then
-                        -- For sale and wearable, but no better than what the player has.
-                    elseif not offer then
-                        found[id] = {
-                            id = id,
-                            ks = job.ks,
-                            key = key,
-                            link = eval.link,
-                            name = eval.name,
-                            quality = eval.quality,
-                            icon = eval.icon,
-                            reqLevel = eval.reqLevel,
-                            invType = eval.invType,
-                            itemID = eval.itemID,
-                            unique = eval.unique,
-                            value = eval.value,
-                            effects = eval.effects,
-                            buyout = info.buyoutAmount,
-                            auctionID = info.auctionID,
-                            count = 1,
-                            -- Not every auction of the item was read: there may be more of it.
-                            more = job.partial or nil,
-                            -- Every auction in this row is this item (see CheapestLoaded).
-                            uniform = job.stopAt ~= nil or nil,
-                        }
-                    else
-                        offer.count = offer.count + 1
-                        if info.buyoutAmount < offer.buyout then
-                            offer.buyout = info.buyoutAmount
-                            offer.auctionID = info.auctionID
-                        end
-                    end
+                    CountAuction(found, job, eval, info)
                 end
             end
         end
@@ -663,12 +664,12 @@ local function ReadJob(job)
         return
     end
 
-    -- Replace whatever this item had in the list with what is for sale now.
+    -- Replace whatever this row had in the list with what is for sale now.
     for id, offer in pairs(S.offers) do
         if offer.ks == job.ks then S.offers[id] = nil end
     end
     for id, offer in pairs(found) do
-        S.offers[id] = offer
+        if offer then S.offers[id] = offer end
     end
     front.dirty = true
     S.changes = S.changes + 1
@@ -797,30 +798,25 @@ local function ScoreRow(row)
         return false
     end
 
-    -- The link of one real auction in this row. Without it the score would be a guess for
-    -- items with random suffixes, so then the item search decides instead.
-    local suffix = key.itemSuffix or 0
+    -- The link of one real auction in this row: the item as it is for sale, "of the Tiger"
+    -- and all. No link made from the row's key could stand in for it: the variant is in no
+    -- field of a link that the key could fill in, and the plain item scores as something else.
+    -- So a row without a sample waits for one, and if none comes the item search decides
+    -- (see StepScore).
     local link = AH.GetItemKeySampleLink(key)
     if not link then
-        if suffix > 0 then
-            link = "item:" .. itemID .. "::::::" .. suffix
-        else
-            if not row.asked then
-                row.asked = true
-                AH.GetItemKeyInfo(key)      -- asks the server; the answer is a sample link
-            end
-            return false
+        if not row.asked then
+            row.asked = true
+            -- Has the client fetch what it lacks about the row's item; it says
+            -- ITEM_KEY_ITEM_INFO_RECEIVED when it has. (Whether that brings a sample link
+            -- is not written down anywhere, hence the wait and not a promise.)
+            AH.GetItemKeyInfo(key)
         end
+        return false
     end
 
     local eval = EvalLink(link)
     if eval == nil then return false end
-
-    if suffix == 0 and LinkSuffix(link) ~= 0 then
-        -- One row covers several suffix variants; only the item search can tell them apart.
-        AddCandidate(row)
-        return true
-    end
 
     local upgrade = false
     if eval then
@@ -1213,18 +1209,21 @@ end
 -- Brings what was bought (S.acquired) in line with a gear snapshot that was just made: what
 -- has been put on since is gear now, and the rest is scored on the snapshot's scale, which
 -- may be another one than it was bought under.
-function Reacquire()
+local function Reacquire()
     local ctx = S.ctx
+    -- Only the character being played puts anything on while the addon looks. What is worn
+    -- is told by the item as the player sees it: another variant of the item that was bought
+    -- ("of the Whale" on, "of the Tiger" in the mail) is not the purchase.
+    local worn = {}
+    if not ctx.who then
+        for _, gear in pairs(ctx.equipped) do
+            local key = ns.ItemKey(gear.link)
+            if key then worn[key] = true end
+        end
+    end
     for i = #S.acquired, 1, -1 do
         local item = S.acquired[i]
-        local worn = false
-        -- Only the character being played puts anything on while the addon looks.
-        if not ctx.who then
-            for _, gear in pairs(ctx.equipped) do
-                if gear.itemID == item.itemID then worn = true break end
-            end
-        end
-        local scored = not worn and ns.Pawn.Item(item.link) or nil
+        local scored = not worn[ns.ItemKey(item.link) or ""] and ns.Pawn.Item(item.link) or nil
         if scored then
             item.value = ns.Pawn.Value(scored, ctx.scale)
         else

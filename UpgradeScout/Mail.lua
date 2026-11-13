@@ -31,14 +31,8 @@ local panel
 local attached          -- the parcels put into the letter that is being written: { to = key, parcels = {...} }
 local refreshing = false
 
--- An item by what the player sees of it: its number and its name, suffix and all. The other
--- fields of a link (the level of the one looking, for one) change without the item changing.
-local function ItemKey(link)
-    if type(link) ~= "string" then return nil end
-    local id = link:match("item:(%d+)")
-    if not id then return nil end
-    return id .. ":" .. (link:match("%[(.-)%]") or "")
-end
+-- A parcel and the item in the bags are the same thing when the player would say so.
+local ItemKey = ns.ItemKey
 
 local function Parcels()
     local account = ns.account

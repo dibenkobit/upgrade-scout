@@ -402,34 +402,76 @@ function scenarios.scan_async()
     eq(Offer("Ghost"), nil, "an item the client never loads is left out, and the scan still ends")
 end
 
+-- A belt that comes in variants, as random-suffix gear does on Forever: the plain item has
+-- nothing on it, each variant is an item of its own with a row of its own at the auction house.
+local function AddBelts()
+    local function Belt(suffix, name, value)
+        W.AddItem({ id = 400, suffix = suffix, name = name, equipLoc = "INVTYPE_WAIST", subClassID = 3, level = 8,
+            value = value or 0, noStats = value == nil })
+    end
+    Belt(0, "Belt")
+    Belt(7, "Belt of the Bear", 9)
+    Belt(8, "Belt of the Owl", 0.2)
+    Belt(9, "Belt of the Tiger", 9)             -- scores the same as the Bear
+    W.AddAuction(400, 50, { suffix = 8 })
+    W.AddAuction(400, 900, { suffix = 7 })
+    W.AddAuction(400, 700, { suffix = 7 })
+    W.AddAuction(400, 800, { suffix = 9 })
+end
+
 function scenarios.scan_no_sample()
     StandardWorld()
+    AddBelts()
     W.AH.sampleLinks = false             -- the client has no sample link for any row
     LoadAddon()
     W.OpenAuctionHouse()
     ScanToEnd()
-    CheckStandardOffers("no sample link")
     check(W.AH.calls.search > 6, "falls back to searching every candidate row")
+    -- A row's key cannot be made into a link of its variant: the plain belt would be scored,
+    -- which has nothing on it, and the row dropped.
+    check(Offer("Belt of the Bear") ~= nil, "a variant is found by its item search, not guessed from the row's key")
+    for id, offer in pairs(ns.Scanner.offers) do
+        if offer.itemID == 400 then ns.Scanner.offers[id] = nil end
+    end
+    CheckStandardOffers("no sample link")
 end
 
 function scenarios.scan_suffix_rows()
     StandardWorld()
-    -- One browse row that hides three random-suffix variants of the same item.
-    W.AH.bucketBySuffix = false
-    W.AddItem({ id = 400, name = "Belt", equipLoc = "INVTYPE_WAIST", subClassID = 3, value = 1, level = 8 })
-    W.AddItem({ id = 400, suffix = 7, name = "Belt of the Bear", equipLoc = "INVTYPE_WAIST", subClassID = 3, value = 9, level = 8 })
-    W.AddItem({ id = 400, suffix = 8, name = "Belt of the Owl", equipLoc = "INVTYPE_WAIST", subClassID = 3, value = 0.2, level = 8 })
-    W.AddAuction(400, 50, { suffix = 8 })       -- the cheapest one is the sample, and it is poor
-    W.AddAuction(400, 900, { suffix = 7 })
-    W.AddAuction(400, 700, { suffix = 7 })
+    AddBelts()
     LoadAddon()
+    SetView(false, false)                -- every upgrade is listed, not the best few of a slot
     W.OpenAuctionHouse()
     ScanToEnd()
-    local bear = Offer("Belt of the Bear")
-    check(bear ~= nil, "the good variant is found behind a poor sample")
+    local S = ns.Scanner
+    local bear, tiger, owl = Offer("Belt of the Bear"), Offer("Belt of the Tiger"), Offer("Belt of the Owl")
+    check(bear ~= nil and tiger ~= nil and owl ~= nil, "each variant is an offer of its own")
     eq(bear.buyout, 700, "cheapest of that variant"); eq(bear.count, 2, "two of that variant")
-    local owl = Offer("Belt of the Owl")
-    check(owl ~= nil and owl.buyout == 50, "the other variant is its own offer")
+    eq(tiger.buyout, 800, "a variant with the same score keeps its own price"); eq(tiger.count, 1, "and its own count")
+    check(bear.id ~= tiger.id, "and is another offer")
+    eq(owl.buyout, 50, "the poor variant at its price")
+    eq(ns.ItemKey(bear.link), "400:Belt of the Bear", "a variant by its number and name")
+    check(not bear.link:find(":7:", 1, true), "its link does not carry the suffix of the row's key")
+
+    -- The character wears one variant and buys another: the one in the mail is not the one worn.
+    W.equipped[6] = owl.link
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    S.Buy(Offer("Belt of the Bear"))
+    W.RunUntil(function() return #W.popups == 1 end, 30)
+    W.AcceptPopup(W.popups[1])
+    W.RunUntil(function() return #S.acquired == 1 end, 30)
+    W.RunUntil(function() return S.state == "idle" end, 30)
+    eq(Offer("Belt of the Bear").buyout, 900, "the next Bear is listed at its own price")
+    eq(Offer("Belt of the Tiger").buyout, 800, "and the Tiger is still there")
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    eq(#S.acquired, 1, "with the Owl on, the Bear that was bought is still on its way")
+    W.equipped[6] = bear.link
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    eq(#S.acquired, 0, "put on, it is gear")
 end
 
 function scenarios.scan_varying_rows()
@@ -2510,7 +2552,9 @@ function scenarios.alt()
     PawnCommon.Scales.D2 = { ClassID = 11, PerCharacterOptions = { ["Alty-Testrealm"] = { Visible = true } } }
 
     -- The druid is played.
-    W.Login(Druid(), { [5] = W.Link(300), [13] = W.Link(303), [16] = W.Link(301) })
+    -- (Its gear after it has logged in: a link is written for the one who looks at the item.)
+    W.Login(Druid())
+    W.equipped = { [5] = W.Link(300), [13] = W.Link(303), [16] = W.Link(301) }
     ScalesFor("DRUID")
     LoadAddon()
     W.Fire("PLAYER_ENTERING_WORLD")
@@ -2523,12 +2567,13 @@ function scenarios.alt()
     eq(card.skills.Leatherworking, 120, "its profession")
     eq(ns.Roster.Target(), nil, "its own lists are its own")
     -- It puts on a necklace and logs out at once: the logout is the last word.
-    W.equipped[2] = W.Link(302)
+    local charm = W.Link(302)
+    W.equipped[2] = charm
     ScalesFor("WARRIOR")
     Relog(warrior, warriorGear)
     Facts()
     card = UpgradeScoutDB.chars["Alty-Testrealm"]
-    eq(card.gear[2], W.Link(302), "what the druid wore when it logged out")
+    eq(card.gear[2], charm, "what the druid wore when it logged out")
     eq(#ns.Roster.List(), 2, "the warrior knows of two characters"); eq(ns.Roster.List()[1].name, "Tester", "itself first")
     eq(ns.Roster.Target(), nil, "the lists are the warrior's own until asked otherwise")
 
@@ -2624,7 +2669,7 @@ function scenarios.alt()
     local tip = Tooltip(GameTooltip)
     check(tip:find("For " .. ALTY, 1, true) ~= nil, "the tooltip says whom the item is for: " .. tip)
     check(tip:find("Pawn score: 20, worn: 12 (+8)", 1, true) ~= nil, "what is worn in the slot, not 'yours'")
-    check(tip:find("Replaces: " .. W.Link(300), 1, true) ~= nil, "and which item it replaces")
+    check(tip:find("Replaces: " .. UpgradeScoutDB.chars["Alty-Testrealm"].gear[5], 1, true) ~= nil, "and which item it replaces")
     eq(W.compared, nil, "the game's own comparison would show the warrior's chest")
     eq(ShoppingTooltip1:IsShown(), true, "the druid's chest is shown beside it instead")
     eq(ShoppingTooltip1._lines[1].text, "Alt's Jerkin", "in the game's second tooltip")

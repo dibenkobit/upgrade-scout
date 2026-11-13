@@ -37,16 +37,27 @@ function W.AddItem(def)
     return def
 end
 
+-- An item link as the Forever client writes one, after a real one from the game
+-- ("item:9788::::::::15:1491:::1:12727::::::"). The seventh field, where the first game had the
+-- random suffix, is empty. The variant ("of the Tiger") is named by a bonus ID, the fourteenth
+-- field, and that is another number than the suffix in the key of an auction row. The ninth is
+-- the level of the character looking at the item: the same item has another link for another
+-- character.
+local BONUS_BASE = 12000
 function W.Link(id, suffix)
-    local item = W.items[id .. ":" .. (suffix or 0)]
-    return "|cff1eff00|Hitem:" .. id .. "::::::" .. ((suffix or 0) ~= 0 and suffix or "") .. "::::|h[" .. item.name .. "]|h|r"
+    suffix = suffix or 0
+    local item = W.items[id .. ":" .. suffix]
+    local bonus = suffix ~= 0 and ("1:" .. (BONUS_BASE + suffix)) or ":"
+    return "|cff1eff00|Hitem:" .. id .. "::::::::" .. W.player.level .. "::::" .. bonus .. "::::::|h[" .. item.name .. "]|h|r"
 end
 
 local function ParseItem(info)
     if type(info) == "number" then return W.items[info .. ":0"], info, 0 end
-    local id = tonumber(info:match("item:(%d+)"))
+    local fields = {}
+    for field in ((info:match("item:([%-%d:]+)") or "") .. ":"):gmatch("([^:]*):") do fields[#fields + 1] = field end
+    local id = tonumber(fields[1])
     if not id then return nil end
-    local suffix = tonumber(info:match("item:%d+:%-?%d*:%-?%d*:%-?%d*:%-?%d*:%-?%d*:(%-?%d*)")) or 0
+    local suffix = fields[13] == "1" and tonumber(fields[14]) - BONUS_BASE or 0
     return W.items[id .. ":" .. suffix], id, suffix
 end
 W.ParseItem = ParseItem

@@ -166,7 +166,24 @@ function ns.Upper(text)
     end))
 end
 
--- An auction item key as one string, to index tables with.
+---------------------------------------------------------------------------
+-- Telling items apart
+---------------------------------------------------------------------------
+-- An item by what the player sees of it: its number and its name, "of the Tiger" and all.
+-- On Forever a link does not carry the variant in a field of its own that could be read (the
+-- seventh, where the first game had the suffix, is empty; a bonus ID names it), and its other
+-- fields (the level of the one looking, for one) change without the item changing.
+-- nil for what is not an item link.
+function ns.ItemKey(link)
+    if type(link) ~= "string" then return nil end
+    local id = link:match("item:(%d+)")
+    if not id then return nil end
+    return id .. ":" .. (link:match("%[(.-)%]") or "")
+end
+
+-- An auction item key as one string, to index tables with. A row of the auction house is one
+-- item, variant and all: "of the Tiger" and "of the Whale" have rows of their own, told apart
+-- by the key's itemSuffix.
 function ns.KeyString(key)
     return (key.itemID or 0) .. ":" .. (key.itemLevel or 0) .. ":" .. (key.itemSuffix or 0)
 end
