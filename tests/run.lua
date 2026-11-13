@@ -947,6 +947,23 @@ function scenarios.ui()
     eq(rows[2].Price:GetAmount(), 2500, "25 silver")
     eq(rows[2].Price._font, PriceFontWhite, "in white: the player can pay")
     eq(rows[2].PerPoint:GetAmount(), 208, "price per point, in whole copper")
+    -- The coins of a price stand close together: each part of it a fixed step to the left of
+    -- the part after it, not in the game's slots, which leave a hole before a single digit.
+    local function Laid(money)
+        local names = { [money] = "frame", [money.CopperDisplay] = "copper", [money.SilverDisplay] = "silver" }
+        local out = {}
+        for _, key in ipairs({ "GoldDisplay", "SilverDisplay", "CopperDisplay" }) do
+            local part = money[key]
+            eq(#part._points, 1, "one anchor for each part of a price")
+            if part:IsShown() then
+                local at = part._points[1]
+                out[#out + 1] = key:sub(1, 1) .. part._amount .. " " .. at.point .. " to " .. tostring(names[at.to]) .. " " .. at.toPoint .. " " .. at.x
+            end
+        end
+        return table.concat(out, ", ")
+    end
+    eq(Laid(rows[2].Price), "S25 RIGHT to copper LEFT -9, C0 RIGHT to frame RIGHT 0", "25 silver: the copper at the right edge, the silver close before it")
+    eq(Laid(rows[2].PerPoint), "S2 RIGHT to copper LEFT -9, C8 RIGHT to frame RIGHT 0", "the same for a price per point")
     eq(rows[2].Buy:IsEnabled(), true, "can buy")
     eq(rows[3].Title:GetText(), "CHEST", "chest block")
     eq(rows[4].Name:GetText(), "|cff1eff00Good Chest|r", "the robe is hidden: too expensive")
@@ -1025,6 +1042,8 @@ function scenarios.ui()
     eq(rows[4].Name:GetText(), "|cff1eff00Great Chest|r |cffffd100*|r", "robe listed first, with the effects mark")
     eq(rows[4].Price:GetAmount(), 90000, "its price")
     eq(rows[4].Price._font, PriceFontRed, "in red")
+    eq(Laid(rows[4].Price), "G9 RIGHT to silver LEFT -9, S0 RIGHT to copper LEFT -9, C0 RIGHT to frame RIGHT 0",
+        "with gold in a price its three parts still stand a step apart")
     eq(rows[4].Buy:IsEnabled(), false, "cannot buy it")
     eq(rows[4].Pick.Text:GetText(), "Best upgrade", "robe is the best upgrade")
     eq(rows[5].Pick.Text:GetText(), "Best value", "Good Chest is the best value")

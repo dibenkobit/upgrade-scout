@@ -531,13 +531,47 @@ function ScrollUtil.InitScrollBoxListWithScrollBar(box, bar, view)
     bar:RegisterCallback("OnScroll", function(owner, percentage) owner:SetScrollPercentage(percentage) end, box)
 end
 
--- MoneyDisplayFrameTemplate: gold, silver and copper as coins.
+-- MoneyDisplayFrameTemplate: gold, silver and copper as coins. Written after Blizzard's
+-- MoneyFrame.lua. Each of the three parts is as wide as its number and its coin. Setting an
+-- amount shows the parts that have something to show (gold only when there is gold) and lays
+-- them out the game's way: copper against the right edge, silver and gold each a fixed slot
+-- (36: room for two digits) to the left of the part after it.
+--   part._amount   the number it shows
+--   part._points   where it is anchored: { { point, to, toPoint, x, y }, ... }
+local MONEY_SLOT = 36
 local function MoneyDisplayModel(money)
-    money.CopperDisplay = {}
-    function money.CopperDisplay:SetForcedHidden(hidden) money._copperHidden = hidden end
-    function money:SetAmount(copper)
-        assert(type(copper) == "number" and copper >= 0 and copper == math.floor(copper), "a whole number of copper")
-        self._amount = copper
+    local function Part(key)
+        local part = { _amount = 0, _points = {}, _shown = false }
+        function part:ClearAllPoints() self._points = {} end
+        function part:SetPoint(point, to, toPoint, x, y)
+            -- The short forms: SetPoint("RIGHT") and SetPoint("RIGHT", x, y).
+            if to == nil or type(to) == "number" then to, toPoint, x, y = money, point, to, toPoint end
+            self._points[#self._points + 1] = { point = point, to = to, toPoint = toPoint, x = x or 0, y = y or 0 }
+        end
+        function part:ShouldBeShown()
+            return not self._forced and (self._amount > 0 or key ~= "GoldDisplay")
+        end
+        function part:IsShown() return self._shown end
+        function part:SetForcedHidden(hidden)
+            self._forced = hidden and true or false
+            self._shown = self:ShouldBeShown()
+            if key == "CopperDisplay" then money._copperHidden = hidden end
+        end
+        money[key] = part
+        return part
+    end
+    local gold, silver, copper = Part("GoldDisplay"), Part("SilverDisplay"), Part("CopperDisplay")
+    function money:SetAmount(amount)
+        assert(type(amount) == "number" and amount >= 0 and amount == math.floor(amount), "a whole number of copper")
+        self._amount = amount
+        gold._amount, silver._amount, copper._amount = math.floor(amount / 10000), math.floor(amount / 100) % 100, amount % 100
+        for _, part in ipairs({ gold, silver, copper }) do
+            part._shown = part:ShouldBeShown()
+            part:ClearAllPoints()
+        end
+        copper:SetPoint("RIGHT")
+        if copper:ShouldBeShown() then silver:SetPoint("RIGHT", -MONEY_SLOT, 0) else silver:SetPoint("RIGHT", copper, "RIGHT") end
+        if silver:ShouldBeShown() then gold:SetPoint("RIGHT", silver, "RIGHT", -MONEY_SLOT, 0) else gold:SetPoint("RIGHT", silver, "RIGHT") end
     end
     function money:GetAmount() return self._amount end
     function money:SetFontObject(font)

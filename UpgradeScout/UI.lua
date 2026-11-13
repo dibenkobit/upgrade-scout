@@ -484,6 +484,32 @@ local function NewMoney(row, right)
     return money
 end
 
+-- Shows an amount in a coin display, the coins standing close together.
+-- The game lays a price out for a table: silver and copper each get a slot wide enough for two
+-- digits, so that the coins of all rows stand in columns. A price with one digit of silver or
+-- copper then has a hole in it ("2g 90s    0c") that money has nowhere else in the game. So
+-- after the game has set the amount, its three parts (each as wide as its number and its
+-- coin) are put side by side from the right, every number the same step after the coin
+-- before it: the step a two-digit number has in the game's own layout.
+local COIN_GAP = 9
+local COINS = { "CopperDisplay", "SilverDisplay", "GoldDisplay" }
+local function SetMoney(money, copper)
+    money:SetAmount(copper)
+    local after         -- the nearest part to the right that is shown
+    for i = 1, #COINS do
+        local coin = money[COINS[i]]
+        if coin then
+            coin:ClearAllPoints()
+            if after then
+                coin:SetPoint("RIGHT", after, "LEFT", -COIN_GAP, 0)
+            else
+                coin:SetPoint("RIGHT", money, "RIGHT", 0, 0)
+            end
+            if coin:IsShown() then after = coin end
+        end
+    end
+end
+
 -- The plate a pick is named on.
 local function NewPick(row)
     local pick = CreateFrame("Frame", nil, row)
@@ -666,7 +692,7 @@ local function InitSupplyRow(row, entry, share)
     end
 
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
-    row.Price:SetAmount(ns.Copper(supply.price))
+    SetMoney(row.Price, ns.Copper(supply.price))
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
 end
@@ -721,8 +747,8 @@ local function InitItemRow(row, element)
     row.Meter:SetTexCoord(0, math.max(data.share, 0.03), 0, 1)
 
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
-    row.Price:SetAmount(offer.buyout)
-    row.PerPoint:SetAmount(ns.Copper(entry.costPer))
+    SetMoney(row.Price, offer.buyout)
+    SetMoney(row.PerPoint, ns.Copper(entry.costPer))
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
 end
@@ -1308,7 +1334,7 @@ local function PaintBox()
     buyBox.Total:SetShown(cost ~= nil)
     if cost then
         buyBox.Total:SetFontObject(affordable and PriceFontWhite or PriceFontRed)
-        buyBox.Total:SetAmount(ns.Copper(cost))
+        SetMoney(buyBox.Total, ns.Copper(cost))
     end
     buyBox.Buy.Label:SetText(ns.Upper(step == "confirm" and L.QTY_CONFIRM or L.BUY))
     buyBox.Buy:SetEnabled((step == "choose" or step == "confirm") and affordable and S.Ready())
