@@ -4,6 +4,8 @@
 
 **Finds gear upgrades on the auction house that you can equip and afford, scored by Pawn.** An addon for World of Warcraft Forever.
 
+**[Download on CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
+
 [Русская версия](README.ru.md)
 
 Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list, slot by slot,

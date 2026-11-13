@@ -4,6 +4,8 @@
 
 **Находит на аукционе улучшения экипировки, которые можно надеть и которые по карману, с оценкой по Pawn.** Аддон для World of Warcraft Forever.
 
+**[Скачать на CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
+
 [English version](README.md)
 
 Откройте аукцион, выберите вкладку **«Улучшения»** и нажмите **«Скан»**. Аддон покажет по слотам
