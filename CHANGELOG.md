@@ -22,10 +22,10 @@ New:
   - Progress bars show how far the scan is.
 - **Cheaper under the same name**: the auction house keeps every variant of an item ("of the
   Tiger", "of the Whale") in one list, and the game shows that list with one lowest price. When
-  the list has auctions cheaper than an offer, the offer's tooltip and the question before buying
-  now say how many and from what price, and that they are other items with other stats.
-- A red `?` after a name marks an offer when some of those cheaper auctions could not be read, so
-  its price may not be the lowest for the item.
+  other variants cost less than an offer, a line in its tooltip now says how many and from what
+  price.
+- A red `?` after a name marks the rare offer whose price cannot be vouched for: cheaper auctions
+  of the same list could not be read. Before, such auctions were passed over in silence.
 - `/upscout probe Name` writes down what the auction house answers about an item, to check a price
   that looks wrong. `/upscout forget Name` takes a character out of the scale dropdown.
 

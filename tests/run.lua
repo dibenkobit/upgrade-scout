@@ -935,16 +935,14 @@ function scenarios.row_cheaper()
     check(row ~= nil, "the tiger boots are in the list")
     check(row.Name:GetText():find("?", 1, true) == nil, "no question mark at a price that is known: " .. row.Name:GetText())
     local tip = RowTip(TIGER)
-    check(tip:find("41 in that list cost less, from 4s 9c, but they are other items", 1, true) ~= nil,
+    check(tip:find("Other variants of this item sell for less: 41, from 4s 9c.", 1, true) ~= nil,
         "the tooltip says what the game's own list would show, and that it is not this item: " .. tip)
-    check(RowTip("Good Chest"):find("cost less", 1, true) == nil, "nothing of the kind for a row with one item")
+    check(RowTip("Good Chest"):find("sell for less", 1, true) == nil, "nothing of the kind for a row with one item")
 
-    -- Money is about to be paid: the question says it too.
+    -- The question before paying is the game's own: cheaper variants are not its business.
     local box = BuyQuestion(TIGER)
-    check(box.arg1:find("Buyout auction for:", 1, true) == 1, "the game's own question first: " .. box.arg1)
-    check(box.arg1:find("41 in that list cost less, from 4s 9c", 1, true) ~= nil, "then the cheaper auctions of the row: " .. box.arg1)
+    eq(box.arg1, "Buyout auction for:", "the game's own question, and nothing more")
     eq(box.dialog.MoneyFrame._amount, 2000, "the price is the tiger boots' own")
-    eq(BuyQuestion("Good Chest").arg1, "Buyout auction for:", "an item alone in its row is asked about as before")
 end
 
 function scenarios.row_unread()
@@ -973,11 +971,13 @@ function scenarios.row_unread()
     check(row ~= nil, "the tiger boots are in the list")
     check(row.Name:GetText():find("?|r", 1, true) ~= nil, "with a question mark at the name: " .. row.Name:GetText())
     local tip = RowTip(TIGER)
-    check(tip:find("2 in that list cost less, from 4s 9c, and it did not say what they are: this may not be the lowest price", 1, true) ~= nil,
+    check(tip:find("2 cheaper auctions, from 4s 9c, could not be read: they may be this same item", 1, true) ~= nil,
         "the tooltip does not vouch for the price: " .. tip)
-    check(tip:find("1 in that list cost less, from 3s, but they are other items", 1, true) ~= nil, "and tells the known cheaper one apart: " .. tip)
+    check(tip:find("Other variants of this item sell for less: 1, from 3s.", 1, true) ~= nil, "and tells the known cheaper one apart: " .. tip)
     local box = BuyQuestion(TIGER)
-    check(box.arg1:find("it did not say what they are", 1, true) ~= nil, "the question before paying says it as well: " .. box.arg1)
+    check(box.arg1:find("Buyout auction for:", 1, true) == 1, "the game's own question first: " .. box.arg1)
+    check(box.arg1:find("2 cheaper auctions, from 4s 9c, could not be read", 1, true) ~= nil, "then what the price cannot be vouched against: " .. box.arg1)
+    check(box.arg1:find("Other variants", 1, true) == nil, "and nothing about the variants: " .. box.arg1)
 end
 
 -- The reading of a row stops at its first page only when that page proves the price: the

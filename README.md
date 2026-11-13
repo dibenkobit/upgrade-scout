@@ -81,11 +81,11 @@ as an alternative:
 - A yellow `*` after a name means the item has effects Pawn cannot score (procs, on-use effects).
 - **One name, several items**: the auction house keeps every variant of an item ("of the Tiger",
   "of the Whale") in one list, and the game's Buy and Sell tabs show that list with one lowest
-  price. The addon prices each variant on its own. When the same list has cheaper auctions, the
-  row's tooltip and the question before buying say how many and from what price, and that they are
-  other items with other stats.
-- A red `?` after a name means some of those cheaper auctions could not be read: the auction house
-  did not say what they hold, so the price shown may not be the lowest for the item.
+  price. The addon prices each variant on its own. When other variants cost less, a grey line in
+  the row's tooltip says how many and from what price.
+- A red `?` after a name is rare. It means some cheaper auctions of that list could not be read:
+  the auction house did not say what they hold, so the price shown may not be the lowest for the
+  item. The tooltip and the question before buying say so in red.
 - Blocks are equipment slots, so **Main Hand** holds everything that goes into that hand: one-hand,
   main-hand and two-hand weapons together. Each weapon row says which it is in grey after the name,
   in the same words as the item tooltip.

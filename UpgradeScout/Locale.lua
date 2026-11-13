@@ -112,8 +112,8 @@ local L = {
     MSG_FORGET_WHO = "No other character by that name is remembered. Remembered: %s. To forget one, type /upscout forget and its name.",
 
     -- What else a row of the auction house sells, and the record of its answers
-    TT_ROW_CHEAPER = "The auction house keeps this item in one list with others like it. %d in that list cost less, from %s, but they are other items: their stats are not the same.",
-    TT_ROW_UNREAD = "The auction house keeps this item in one list with others like it. %d in that list cost less, from %s, and it did not say what they are: this may not be the lowest price.",
+    TT_ROW_CHEAPER = "Other variants of this item sell for less: %d, from %s.",
+    TT_ROW_UNREAD = "%d cheaper auctions, from %s, could not be read: they may be this same item, so this may not be its lowest price.",
     STATS_UNREAD = "Auctions that could not be read: %d.",
     PROBE_USAGE = "At the auction house, type /upscout probe and the name of a piece of gear: the addon will write down what the auction house answers about it.",
     PROBE_NONE = "The auction house found no gear by the name \"%s\". Try the name without its ending (\"of the Tiger\").",
@@ -242,8 +242,8 @@ if GetLocale() == "ruRU" then
         MSG_FORGET_WHO = "Другого персонажа с таким именем в памяти нет. В памяти: %s. Чтобы забыть персонажа, набери /upscout forget и его имя.",
 
         -- What else a row of the auction house sells, and the record of its answers
-        TT_ROW_CHEAPER = "Аукцион держит эту вещь в одном списке с похожими. Дешевле в нём %d шт., от %s, но это другие вещи: характеристики у них не такие.",
-        TT_ROW_UNREAD = "Аукцион держит эту вещь в одном списке с похожими. Дешевле в нём %d шт., от %s, и что это за вещи, аукцион не сообщил: эта цена может быть не самой низкой.",
+        TT_ROW_CHEAPER = "Другие варианты этой вещи есть дешевле: %d шт., от %s.",
+        TT_ROW_UNREAD = "Не удалось прочитать лоты дешевле: %d шт., от %s. Возможно, это та же вещь, и цена здесь не самая низкая.",
         STATS_UNREAD = "Лотов, которые не удалось прочитать: %d.",
         PROBE_USAGE = "Стоя у аукциона, набери /upscout probe и название вещи: аддон запишет, что аукцион о ней отвечает.",
         PROBE_NONE = "Аукцион не нашёл экипировки с названием «%s». Попробуй без окончания («со знаком тигра»).",
@@ -373,8 +373,8 @@ if GetLocale() == "deDE" then
         MSG_FORGET_WHO = "Kein anderer Charakter mit diesem Namen ist gemerkt. Gemerkt: %s. Um einen zu vergessen, gib /upscout forget und seinen Namen ein.",
 
         -- What else a row of the auction house sells, and the record of its answers
-        TT_ROW_CHEAPER = "Das Auktionshaus führt diesen Gegenstand in einer Liste mit ähnlichen. %d davon kosten weniger, ab %s, aber es sind andere Gegenstände: Ihre Werte sind nicht dieselben.",
-        TT_ROW_UNREAD = "Das Auktionshaus führt diesen Gegenstand in einer Liste mit ähnlichen. %d davon kosten weniger, ab %s, und es hat nicht mitgeteilt, was sie sind: Dieser Preis ist vielleicht nicht der niedrigste.",
+        TT_ROW_CHEAPER = "Andere Varianten dieses Gegenstands gibt es günstiger: %d, ab %s.",
+        TT_ROW_UNREAD = "%d günstigere Auktionen, ab %s, konnten nicht gelesen werden: Vielleicht ist es derselbe Gegenstand, und dieser Preis ist nicht der niedrigste.",
         STATS_UNREAD = "Auktionen, die nicht gelesen werden konnten: %d.",
         PROBE_USAGE = "Gib am Auktionshaus /upscout probe und den Namen eines Ausrüstungsteils ein: Das Addon schreibt auf, was das Auktionshaus dazu antwortet.",
         PROBE_NONE = "Das Auktionshaus hat keine Ausrüstung mit dem Namen »%s« gefunden. Versuche es ohne die Endung (»des Tigers«).",
@@ -505,8 +505,8 @@ if GetLocale() == "frFR" then
         MSG_FORGET_WHO = "Aucun autre personnage de ce nom n'est mémorisé. Mémorisés : %s. Pour en oublier un, tapez /upscout forget suivi de son nom.",
 
         -- What else a row of the auction house sells, and the record of its answers
-        TT_ROW_CHEAPER = "L'hôtel des ventes range cet objet dans une même liste avec d'autres qui lui ressemblent. %d d'entre eux coûtent moins cher, à partir de %s, mais ce sont d'autres objets : leurs caractéristiques ne sont pas les mêmes.",
-        TT_ROW_UNREAD = "L'hôtel des ventes range cet objet dans une même liste avec d'autres qui lui ressemblent. %d d'entre eux coûtent moins cher, à partir de %s, et il n'a pas dit ce qu'ils sont : ce prix n'est peut-être pas le plus bas.",
+        TT_ROW_CHEAPER = "D'autres variantes de cet objet se vendent moins cher : %d, à partir de %s.",
+        TT_ROW_UNREAD = "%d enchères moins chères, à partir de %s, n'ont pas pu être lues : c'est peut-être ce même objet, et ce prix n'est peut-être pas le plus bas.",
         STATS_UNREAD = "Enchères qui n'ont pas pu être lues : %d.",
         PROBE_USAGE = "À l'hôtel des ventes, tapez /upscout probe suivi du nom d'une pièce d'équipement : l'addon notera ce que l'hôtel des ventes répond à son sujet.",
         PROBE_NONE = "L'hôtel des ventes n'a trouvé aucun équipement du nom de « %s ». Essayez sans la fin du nom (« du tigre »).",
@@ -637,8 +637,8 @@ if GetLocale() == "zhCN" then
         MSG_FORGET_WHO = "没有记录这个名字的其他角色。已记录：%s。要忘记某个角色，请输入 /upscout forget 加角色名。",
 
         -- What else a row of the auction house sells, and the record of its answers
-        TT_ROW_CHEAPER = "拍卖行把这件物品和相似的物品放在同一个列表里。其中有 %d 件更便宜，最低 %s，但它们是别的物品：属性并不相同。",
-        TT_ROW_UNREAD = "拍卖行把这件物品和相似的物品放在同一个列表里。其中有 %d 件更便宜，最低 %s，而拍卖行没有说明它们是什么：这个价格可能不是最低价。",
+        TT_ROW_CHEAPER = "这件物品的其他版本有更便宜的：%d 件，最低 %s。",
+        TT_ROW_UNREAD = "有 %d 件更便宜的拍卖（最低 %s）无法读取：它们可能就是这件物品，这个价格可能不是最低价。",
         STATS_UNREAD = "无法读取的拍卖：%d。",
         PROBE_USAGE = "在拍卖行输入 /upscout probe 加装备名称：插件会记下拍卖行对它的答复。",
         PROBE_NONE = "拍卖行没有找到名为“%s”的装备。请试试不带后缀的名称（例如去掉“猛虎之”）。",
@@ -770,8 +770,8 @@ if GetLocale() == "ptBR" then
         MSG_FORGET_WHO = "Nenhum outro personagem com esse nome está na memória. Na memória: %s. Para esquecer um, digite /upscout forget e o nome dele.",
 
         -- What else a row of the auction house sells, and the record of its answers
-        TT_ROW_CHEAPER = "A Casa de Leilões mantém este item numa mesma lista com outros parecidos. %d deles custam menos, a partir de %s, mas são outros itens: os atributos não são os mesmos.",
-        TT_ROW_UNREAD = "A Casa de Leilões mantém este item numa mesma lista com outros parecidos. %d deles custam menos, a partir de %s, e ela não informou o que são: este preço pode não ser o mais baixo.",
+        TT_ROW_CHEAPER = "Outras variantes deste item são vendidas por menos: %d, a partir de %s.",
+        TT_ROW_UNREAD = "%d leilões mais baratos, a partir de %s, não puderam ser lidos: podem ser este mesmo item, e este preço pode não ser o mais baixo.",
         STATS_UNREAD = "Leilões que não puderam ser lidos: %d.",
         PROBE_USAGE = "Na Casa de Leilões, digite /upscout probe e o nome de um equipamento: o addon anotará o que a Casa de Leilões responde sobre ele.",
         PROBE_NONE = "A Casa de Leilões não encontrou equipamento com o nome \"%s\". Tente sem o final do nome (\"do Tigre\").",
@@ -903,8 +903,8 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         MSG_FORGET_WHO = "No se recuerda ningún otro personaje con ese nombre. Recordados: %s. Para olvidar uno, escribe /upscout forget y su nombre.",
 
         -- What else a row of the auction house sells, and the record of its answers
-        TT_ROW_CHEAPER = "La casa de subastas guarda este objeto en una misma lista con otros parecidos. %d de ellos cuestan menos, desde %s, pero son otros objetos: sus estadísticas no son las mismas.",
-        TT_ROW_UNREAD = "La casa de subastas guarda este objeto en una misma lista con otros parecidos. %d de ellos cuestan menos, desde %s, y no ha dicho qué son: puede que este precio no sea el más bajo.",
+        TT_ROW_CHEAPER = "Otras variantes de este objeto se venden por menos: %d, desde %s.",
+        TT_ROW_UNREAD = "%d subastas más baratas, desde %s, no se pudieron leer: puede que sean este mismo objeto y que este precio no sea el más bajo.",
         STATS_UNREAD = "Subastas que no se pudieron leer: %d.",
         PROBE_USAGE = "En la casa de subastas, escribe /upscout probe y el nombre de una pieza de equipo: el addon apuntará lo que la casa de subastas responde sobre ella.",
         PROBE_NONE = "La casa de subastas no ha encontrado equipo con el nombre «%s». Prueba sin el final del nombre («del tigre»).",
@@ -1035,8 +1035,8 @@ if GetLocale() == "itIT" then
         MSG_FORGET_WHO = "Nessun altro personaggio con quel nome è in memoria. In memoria: %s. Per dimenticarne uno, scrivi /upscout forget e il suo nome.",
 
         -- What else a row of the auction house sells, and the record of its answers
-        TT_ROW_CHEAPER = "La Casa d'Aste tiene questo oggetto in un unico elenco con altri simili. %d di questi costano meno, da %s, ma sono altri oggetti: le loro statistiche non sono le stesse.",
-        TT_ROW_UNREAD = "La Casa d'Aste tiene questo oggetto in un unico elenco con altri simili. %d di questi costano meno, da %s, e non ha detto che cosa sono: questo prezzo potrebbe non essere il più basso.",
+        TT_ROW_CHEAPER = "Altre varianti di questo oggetto si vendono a meno: %d, da %s.",
+        TT_ROW_UNREAD = "%d aste più economiche, da %s, non è stato possibile leggerle: potrebbero essere questo stesso oggetto, e questo prezzo potrebbe non essere il più basso.",
         STATS_UNREAD = "Aste che non è stato possibile leggere: %d.",
         PROBE_USAGE = "Alla Casa d'Aste, scrivi /upscout probe e il nome di un pezzo di equipaggiamento: l'addon annoterà che cosa la Casa d'Aste risponde su di esso.",
         PROBE_NONE = "La Casa d'Aste non ha trovato equipaggiamento con il nome «%s». Prova senza la parte finale del nome («della Tigre»).",
