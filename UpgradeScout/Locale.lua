@@ -117,6 +117,17 @@ local L = {
     PLAN_SUM = "%d items, +%s points, %s",
     PLAN_NONE = "No upgrade fits this sum.",
 
+    -- Gear bought for another character, on its way by mail
+    MAIL_TITLE = "Upgrade Scout: bought for your other characters",
+    MAIL_TO = "For %s: %d of %d in your bags",
+    MAIL_TIP = "Click: put them into a letter to %s. You check the letter and press Send. Right-click: forget these purchases.",
+    MAIL_NOT_IN_BAGS = "(not in your bags: take it out of the mail first)",
+    MAIL_DONE = "Put %d items into a letter to %s. Check it and press Send.",
+    MAIL_FULL = "Put %d items into a letter to %s. The letter is full: send it, then click again for the rest.",
+    MAIL_BUSY = "The letter already holds items for %s. Send it first.",
+    MAIL_NONE = "Nothing bought for %s is in your bags. Take it out of the mail first.",
+    MAIL_FORGOT = "Forgot what was bought for %s.",
+
     HEAD = "Head", NECK = "Neck", SHOULDER = "Shoulders", BACK = "Back", CHEST = "Chest",
     WRIST = "Wrist", HANDS = "Hands", WAIST = "Waist", LEGS = "Legs", FEET = "Feet",
     FINGER = "Finger", TRINKET = "Trinket", MAINHAND = "Main Hand", OFFHAND = "Off Hand", RANGED = "Ranged",
@@ -242,6 +253,17 @@ if GetLocale() == "ruRU" then
         PLAN_TIP = "Улучшения, которые вместе дают больше всего за эту сумму: не больше, чем можно надеть сразу. Оставь сумму как есть, чтобы потратить всё золото, или впиши меньше. Когда ставишь галочку, проверяются цены, которые нужны набору и не были нужны списку.",
         PLAN_SUM = "Вещей: %d, очков: +%s, цена: %s",
         PLAN_NONE = "На эту сумму нет ни одного улучшения.",
+
+        -- Gear bought for another character, on its way by mail
+        MAIL_TITLE = "Upgrade Scout: куплено для других персонажей",
+        MAIL_TO = "Для %s: в сумках %d из %d",
+        MAIL_TIP = "Клик: вложить их в письмо для %s. Тебе останется проверить письмо и нажать «Отправить». Правый клик: забыть эти покупки.",
+        MAIL_NOT_IN_BAGS = "(нет в сумках: сначала забери из почты)",
+        MAIL_DONE = "Вложено вещей: %d, письмо для %s. Проверь его и нажми «Отправить».",
+        MAIL_FULL = "Вложено вещей: %d, письмо для %s. Письмо заполнено: отправь его и нажми ещё раз, чтобы вложить остальное.",
+        MAIL_BUSY = "В письме уже лежат вещи для %s. Сначала отправь его.",
+        MAIL_NONE = "В сумках нет ничего из купленного для %s. Сначала забери покупки из почты.",
+        MAIL_FORGOT = "Покупки для %s забыты.",
 
         HEAD = "Голова", NECK = "Шея", SHOULDER = "Плечи", BACK = "Спина", CHEST = "Грудь",
         WRIST = "Запястья", HANDS = "Кисти рук", WAIST = "Пояс", LEGS = "Ноги", FEET = "Ступни",
@@ -369,6 +391,17 @@ if GetLocale() == "deDE" then
         PLAN_TIP = "Die Verbesserungen, die zusammen gekauft für diese Summe am meisten bringen: nicht mehr davon, als sich gleichzeitig tragen lässt. Lass die Summe stehen, um alles auszugeben, was du hast, oder gib eine kleinere ein. Mit dem Häkchen werden die Preise nachgeschlagen, die das Set braucht und die Liste nicht brauchte.",
         PLAN_SUM = "%d Gegenstände, +%s Punkte, %s",
         PLAN_NONE = "Für diese Summe gibt es keine Verbesserung.",
+
+        -- Gear bought for another character, on its way by mail
+        MAIL_TITLE = "Upgrade Scout: für deine anderen Charaktere gekauft",
+        MAIL_TO = "Für %s: %d von %d in den Taschen",
+        MAIL_TIP = "Klick: in einen Brief an %s legen. Du prüfst den Brief und drückst auf Senden. Rechtsklick: diese Käufe vergessen.",
+        MAIL_NOT_IN_BAGS = "(nicht in den Taschen: hole es zuerst aus der Post)",
+        MAIL_DONE = "%d Gegenstände in einen Brief an %s gelegt. Prüfe ihn und drücke auf Senden.",
+        MAIL_FULL = "%d Gegenstände in einen Brief an %s gelegt. Der Brief ist voll: Sende ihn und klicke dann noch einmal für den Rest.",
+        MAIL_BUSY = "Im Brief liegen schon Gegenstände für %s. Sende ihn zuerst.",
+        MAIL_NONE = "Nichts von dem, was für %s gekauft wurde, ist in deinen Taschen. Hole es zuerst aus der Post.",
+        MAIL_FORGOT = "Die Käufe für %s sind vergessen.",
 
         HEAD = "Kopf", NECK = "Hals", SHOULDER = "Schultern", BACK = "Rücken", CHEST = "Brust",
         WRIST = "Handgelenke", HANDS = "Hände", WAIST = "Taille", LEGS = "Beine", FEET = "Füße",
@@ -498,6 +531,17 @@ if GetLocale() == "frFR" then
         PLAN_SUM = "%d objets, +%s points, %s",
         PLAN_NONE = "Aucune amélioration ne tient dans cette somme.",
 
+        -- Gear bought for another character, on its way by mail
+        MAIL_TITLE = "Upgrade Scout : acheté pour vos autres personnages",
+        MAIL_TO = "Pour %s : %d sur %d dans vos sacs",
+        MAIL_TIP = "Clic : les mettre dans une lettre pour %s. Vous vérifiez la lettre et appuyez sur Envoyer. Clic droit : oublier ces achats.",
+        MAIL_NOT_IN_BAGS = "(pas dans vos sacs : sortez-le d'abord du courrier)",
+        MAIL_DONE = "%d objets mis dans une lettre pour %s. Vérifiez-la et appuyez sur Envoyer.",
+        MAIL_FULL = "%d objets mis dans une lettre pour %s. La lettre est pleine : envoyez-la, puis cliquez de nouveau pour le reste.",
+        MAIL_BUSY = "La lettre contient déjà des objets pour %s. Envoyez-la d'abord.",
+        MAIL_NONE = "Rien de ce qui a été acheté pour %s n'est dans vos sacs. Sortez-le d'abord du courrier.",
+        MAIL_FORGOT = "Les achats pour %s sont oubliés.",
+
         HEAD = "Tête", NECK = "Cou", SHOULDER = "Épaules", BACK = "Dos", CHEST = "Torse",
         WRIST = "Poignets", HANDS = "Mains", WAIST = "Taille", LEGS = "Jambes", FEET = "Pieds",
         FINGER = "Doigt", TRINKET = "Bijou", MAINHAND = "Main droite", OFFHAND = "Main gauche", RANGED = "À distance",
@@ -625,6 +669,17 @@ if GetLocale() == "zhCN" then
         PLAN_TIP = "一起买下后，用这笔钱提升最多的装备：数量不超过能同时穿戴的件数。金额保持不变即花光所有金币，也可以输入更小的数目。勾选后会查询组合需要而列表不需要的价格。",
         PLAN_SUM = "%d 件，+%s 分，%s",
         PLAN_NONE = "这笔钱买不到任何提升。",
+
+        -- Gear bought for another character, on its way by mail
+        MAIL_TITLE = "Upgrade Scout：为你的其他角色购买的物品",
+        MAIL_TO = "给 %s：背包里有 %d / %d 件",
+        MAIL_TIP = "点击：把它们放进寄给 %s 的信里。你检查信件后按“发送”。右键点击：忘记这些购买记录。",
+        MAIL_NOT_IN_BAGS = "（不在背包里：请先从邮箱取出）",
+        MAIL_DONE = "已把 %d 件物品放进寄给 %s 的信里。请检查后按“发送”。",
+        MAIL_FULL = "已把 %d 件物品放进寄给 %s 的信里。信件已满：先发送，再点击一次放入其余物品。",
+        MAIL_BUSY = "信里已有给 %s 的物品。请先把它寄出。",
+        MAIL_NONE = "为 %s 购买的物品都不在背包里。请先从邮箱取出。",
+        MAIL_FORGOT = "已忘记为 %s 购买的物品。",
 
         HEAD = "头部", NECK = "颈部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
         WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "脚",
@@ -755,6 +810,17 @@ if GetLocale() == "ptBR" then
         PLAN_SUM = "%d itens, +%s pontos, %s",
         PLAN_NONE = "Nenhuma melhoria cabe nesta quantia.",
 
+        -- Gear bought for another character, on its way by mail
+        MAIL_TITLE = "Upgrade Scout: comprado para seus outros personagens",
+        MAIL_TO = "Para %s: %d de %d nas bolsas",
+        MAIL_TIP = "Clique: colocá-los numa carta para %s. Você confere a carta e aperta Enviar. Clique direito: esquecer estas compras.",
+        MAIL_NOT_IN_BAGS = "(não está nas bolsas: retire-o do correio primeiro)",
+        MAIL_DONE = "%d itens colocados numa carta para %s. Confira e aperte Enviar.",
+        MAIL_FULL = "%d itens colocados numa carta para %s. A carta está cheia: envie-a e clique de novo para o resto.",
+        MAIL_BUSY = "A carta já tem itens para %s. Envie-a primeiro.",
+        MAIL_NONE = "Nada do que foi comprado para %s está nas suas bolsas. Retire do correio primeiro.",
+        MAIL_FORGOT = "As compras para %s foram esquecidas.",
+
         HEAD = "Cabeça", NECK = "Pescoço", SHOULDER = "Ombros", BACK = "Costas", CHEST = "Torso",
         WRIST = "Pulsos", HANDS = "Mãos", WAIST = "Cintura", LEGS = "Pernas", FEET = "Pés",
         FINGER = "Dedo", TRINKET = "Berloque", MAINHAND = "Mão Principal", OFFHAND = "Mão Secundária", RANGED = "Longo Alcance",
@@ -884,6 +950,17 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         PLAN_SUM = "%d objetos, +%s puntos, %s",
         PLAN_NONE = "Ninguna mejora cabe en esta suma.",
 
+        -- Gear bought for another character, on its way by mail
+        MAIL_TITLE = "Upgrade Scout: comprado para tus otros personajes",
+        MAIL_TO = "Para %s: %d de %d en tus bolsas",
+        MAIL_TIP = "Clic: ponerlos en una carta para %s. Tú revisas la carta y pulsas Enviar. Clic derecho: olvidar estas compras.",
+        MAIL_NOT_IN_BAGS = "(no está en tus bolsas: sácalo primero del correo)",
+        MAIL_DONE = "%d objetos puestos en una carta para %s. Revísala y pulsa Enviar.",
+        MAIL_FULL = "%d objetos puestos en una carta para %s. La carta está llena: envíala y haz clic otra vez para el resto.",
+        MAIL_BUSY = "La carta ya tiene objetos para %s. Envíala primero.",
+        MAIL_NONE = "Nada de lo comprado para %s está en tus bolsas. Sácalo primero del correo.",
+        MAIL_FORGOT = "Las compras para %s se han olvidado.",
+
         HEAD = "Cabeza", NECK = "Cuello", SHOULDER = "Hombros", BACK = "Espalda", CHEST = "Pecho",
         WRIST = "Muñecas", HANDS = "Manos", WAIST = "Cintura", LEGS = "Piernas", FEET = "Pies",
         FINGER = "Dedo", TRINKET = "Abalorio", MAINHAND = "Mano derecha", OFFHAND = "Mano izquierda", RANGED = "A distancia",
@@ -1011,6 +1088,17 @@ if GetLocale() == "itIT" then
         PLAN_TIP = "I miglioramenti che, comprati insieme, danno di più per questa somma: non più di quanti se ne possono indossare contemporaneamente. Lascia la somma com'è per spendere tutto quello che hai, oppure scrivine una più piccola. Spuntando la casella vengono cercati i prezzi che servono all'insieme e che non servivano all'elenco.",
         PLAN_SUM = "%d oggetti, +%s punti, %s",
         PLAN_NONE = "Nessun miglioramento rientra in questa somma.",
+
+        -- Gear bought for another character, on its way by mail
+        MAIL_TITLE = "Upgrade Scout: comprato per i tuoi altri personaggi",
+        MAIL_TO = "Per %s: %d di %d nelle borse",
+        MAIL_TIP = "Clic: metterli in una lettera per %s. Tu controlli la lettera e premi Invia. Clic destro: dimenticare questi acquisti.",
+        MAIL_NOT_IN_BAGS = "(non è nelle borse: prendilo prima dalla posta)",
+        MAIL_DONE = "%d oggetti messi in una lettera per %s. Controllala e premi Invia.",
+        MAIL_FULL = "%d oggetti messi in una lettera per %s. La lettera è piena: inviala e fai di nuovo clic per il resto.",
+        MAIL_BUSY = "La lettera contiene già oggetti per %s. Inviala prima.",
+        MAIL_NONE = "Niente di ciò che è stato comprato per %s è nelle tue borse. Prendilo prima dalla posta.",
+        MAIL_FORGOT = "Gli acquisti per %s sono stati dimenticati.",
 
         HEAD = "Testa", NECK = "Collo", SHOULDER = "Spalle", BACK = "Schiena", CHEST = "Torso",
         WRIST = "Polsi", HANDS = "Mani", WAIST = "Fianchi", LEGS = "Gambe", FEET = "Piedi",

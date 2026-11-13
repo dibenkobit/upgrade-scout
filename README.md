@@ -170,6 +170,17 @@ stands at the auction house, pays, and mails what it bought.
   character. A tooltip puts the item that character wears in the slot beside the one for sale.
 - **How fresh it is**: the character is known as it was when you last played it, and the dropdown's
   tooltip says how long ago that was. Log in to it again after it has gained levels or changed gear.
+- **Sending it there**: gear you buy for another character is remembered. Take it out of the
+  auction house's mail, and at the mailbox a button under the mail window reads "For Name: 2 of 2 in
+  your bags". A click opens the Send Mail page, writes the character's name and attaches the
+  items; you check the letter and press **Send**.
+  - The button counts what is in your bags; its tooltip lists the purchases and which of them are
+    still in the mail.
+  - A letter holds twelve items. With more than that, send the letter and click again.
+  - A right-click on the button forgets the purchases, if you have seen to them yourself. They are
+    forgotten by themselves after thirty days.
+  - Only gear is followed: consumables stack with your own, and the addon cannot tell which of a
+    stack were bought for the other character.
 - **Which scales**: the ones Pawn has switched on for that character (Pawn keeps this for the whole
   account). The scale you pick for a character is remembered with the character, whichever
   character you were playing when you picked it.
@@ -283,6 +294,7 @@ lua5.1 tests/run.lua buy        # one scenario
 | `SupplyData.lua` | What each consumable adds or restores, from the game's tables. Written by `scripts/make-supply-data.py` |
 | `Supplies.lua` | Consumables: which do the same thing, what each is worth to the character, which is the best, and their rows |
 | `Scanner.lua` | Auction house requests: browse, score, price check, buy; the scan and the purchase of consumables |
+| `Mail.lua` | Gear bought for another character: what is on its way, and the button at the mailbox that puts it into a letter |
 | `UI.lua` | The tab |
 | `Media/` | The tab's textures: the plate under the list, buttons, bars, marks. Drawn by `scripts/make-textures.py` |
 | `icon.tga` | The icon in the game's AddOns list and on the tab before the first scan, exported from `docs/logo/logo.svg` |

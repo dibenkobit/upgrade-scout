@@ -11,7 +11,7 @@ local names = {
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
-    "roster", "roster_order", "alt", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
+    "roster", "roster_order", "alt", "mail", "pawn_missing", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_it",
 }
 
@@ -2698,6 +2698,168 @@ function scenarios.alt()
     eq(#ns.Roster.List(), 1, "and is out of the list"); eq(UpgradeScoutDB.chars["Tester-Testrealm"], nil, "and out of the saved file")
     SlashCmdList["UPGRADESCOUT"]("forget Alty")
     eq(#ns.Roster.List(), 1, "the character being played cannot be forgotten")
+end
+
+-- Gear bought for another character goes to it by mail: the purchase is written down, and at
+-- a mailbox a button puts it into a letter.
+function scenarios.mail()
+    StandardWorld()
+    local warriorGear = W.equipped
+    local warrior = W.player
+    W.AddItem({ id = 300, name = "Alt's Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, values = { D1 = 12 }, level = 15 })
+    local function Sell(def, price)
+        def.value = 0
+        W.AddItem(def)
+        W.AddAuction(def.id, price)
+    end
+    Sell({ id = 310, name = "Druid Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, values = { D1 = 20 }, level = 18 }, 2000)
+    Sell({ id = 315, name = "Grove Ring", equipLoc = "INVTYPE_FINGER", values = { D1 = 6 }, level = 10 }, 500)
+    W.pawnWeights.D1 = { Intellect = 1 }
+    PawnCommon.Scales.D1 = { ClassID = 11, PerCharacterOptions = { ["Alty-Testrealm"] = { Visible = true } } }
+
+    -- The druid is played once, then the warrior.
+    W.Login(Druid(), { [5] = W.Link(300) })
+    ScalesFor("DRUID")
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    ScalesFor("WARRIOR")
+    Relog(warrior, warriorGear)
+    local S = ns.Scanner
+    local ALTY = "|cffff7c0aAlty|r"
+    local function Printed(words)
+        return W.printed[#W.printed]:find(words, 1, true) ~= nil
+    end
+
+    -- Nothing bought: a mailbox is a mailbox.
+    W.OpenMailbox()
+    W.Run(0.5)
+    eq(UpgradeScoutMailFrame, nil, "nothing is built while there is nothing to send")
+    W.CloseMailbox()
+
+    -- The warrior buys the helm for itself: that is no parcel.
+    W.OpenAuctionHouse()
+    local frame = UpgradeScoutFrame
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    SetView(false, false)
+    ScanToEnd()
+    local function Buy(name)
+        W.RunUntil(function() return S.state == "idle" and W.AH.ready end, 30)
+        local count = #W.popups
+        S.Buy(Offer(name))
+        W.RunUntil(function() return #W.popups == count + 1 end, 30)
+        W.AcceptPopup(W.popups[#W.popups])
+        W.RunUntil(function() return Offer(name) == nil and S.state == "idle" end, 30)
+    end
+    Buy("Helm")
+    eq(#UpgradeScoutDB.parcels, 0, "what is bought for oneself is nobody's parcel")
+
+    -- The lists are made for the druid, and its jerkin and ring are bought.
+    frame.ScaleDropdown:Pick(3)
+    eq(ns.Roster.Target().name, "Alty", "the lists are for the druid")
+    -- (Choosing another character scans again by itself.)
+    W.RunUntil(function() return S.state == "idle" and Offer("Druid Jerkin") ~= nil end, 600)
+    Buy("Druid Jerkin")
+    Buy("Grove Ring")
+    local parcels = UpgradeScoutDB.parcels
+    eq(#parcels, 2, "both purchases are written down for the account")
+    eq(parcels[1].to, "Alty-Testrealm", "for the druid"); eq(parcels[1].from, "Tester-Testrealm", "held by the warrior")
+    eq(parcels[1].link, W.Link(310), "the jerkin"); eq(parcels[2].link, W.Link(315), "and the ring")
+    W.CloseAuctionHouse()
+
+    -- At the mailbox, before the auction house's mail has been opened.
+    W.OpenMailbox()
+    W.Run(0.5)
+    local panel = UpgradeScoutMailFrame
+    check(panel ~= nil and panel:IsShown(), "a strip of the addon's under the mail window")
+    local button = panel.Buttons[1]
+    eq(button:IsShown(), true, "a button for the druid"); eq(panel.Buttons[2]:IsShown(), false, "and for nobody else")
+    eq(button:GetText(), "For " .. ALTY .. ": 0 of 2 in your bags", "it says how much of it is at hand")
+    button:Click()
+    W.Run(0.5)
+    check(Printed("Nothing bought for " .. ALTY .. " is in your bags."), "nothing to put in yet, and it says so")
+    eq(W.mail.sendPage, false, "the mail window is left alone")
+
+    -- The jerkin is taken out of the mail; the ring is still there. A jerkin the warrior
+    -- wears is not for sending either.
+    W.PutInBags(W.Link(200), { bound = true })
+    W.PutInBags(W.Link(310))
+    W.Run(0.5)
+    eq(button:GetText(), "For " .. ALTY .. ": 1 of 2 in your bags", "the button follows the bags")
+    button:GetScript("OnEnter")(button)
+    local seen = {}
+    for _, line in ipairs(GameTooltip._lines) do seen[#seen + 1] = line.text end
+    local tip = table.concat(seen, " | ")
+    check(tip:find("Druid Jerkin", 1, true) ~= nil and tip:find("Grove Ring]|h|r (not in your bags", 1, true) ~= nil,
+        "its tooltip lists the parcels and which of them is missing: " .. tip)
+    button:Click()
+    W.Run(1)
+    eq(W.mail.sendPage, true, "the Send Mail page is brought up")
+    eq(SendMailNameEditBox:GetText(), "Alty", "the letter is addressed to the druid")
+    eq(SendMailSubjectEditBox:GetText(), "Upgrade Scout", "with a subject")
+    eq(W.mail.attached[1].link, W.Link(310), "the jerkin is in it"); eq(W.mail.attached[2], nil, "and nothing else")
+    check(Printed("Put 1 items into a letter to " .. ALTY .. ". Check it and press Send."), "the chat says what to do next")
+    eq(#W.mail.sent, 0, "sending is left to the player")
+    eq(#UpgradeScoutDB.parcels, 2, "nothing is struck off before the letter has gone")
+
+    -- The player sends it.
+    W.SendLetter()
+    W.Run(1)
+    eq(#W.mail.sent, 1, "one letter"); eq(W.mail.sent[1].to, "Alty", "to the druid"); eq(W.mail.sent[1].items[1], W.Link(310), "with the jerkin")
+    eq(#UpgradeScoutDB.parcels, 1, "the jerkin is struck off"); eq(UpgradeScoutDB.parcels[1].link, W.Link(315), "the ring is still to go")
+    eq(button:GetText(), "For " .. ALTY .. ": 0 of 1 in your bags", "the button counts what is left")
+
+    -- The ring comes out of the mail, is put into a letter and taken out of it again by hand:
+    -- a letter sent without it leaves it a parcel.
+    W.PutInBags(W.Link(315))
+    local oldRing = W.PutInBags(W.Link(101))
+    W.Run(0.5)
+    button:Click()
+    W.Run(1)
+    eq(W.mail.attached[1].link, W.Link(315), "the ring is in the letter")
+    W.Detach(1)
+    C_Container.UseContainerItem(0, oldRing)    -- the player's own old ring instead
+    W.SendLetter()
+    W.Run(1)
+    eq(#UpgradeScoutDB.parcels, 1, "the ring was not in the letter that went, so it is still a parcel")
+    eq(button:GetText(), "For " .. ALTY .. ": 1 of 1 in your bags", "and still at hand")
+
+    -- A letter that already holds something for someone else is not touched.
+    local sword = W.PutInBags(W.Link(102))
+    MailFrameTab2:Click()
+    SendMailNameEditBox:SetText("Somebody")
+    C_Container.UseContainerItem(0, sword)
+    button:Click()
+    W.Run(1)
+    check(Printed("The letter already holds items for Somebody. Send it first."), "it says why not")
+    eq(W.mail.attached[2], nil, "nothing was added to the other letter")
+    eq(SendMailNameEditBox:GetText(), "Somebody", "and its name stands")
+    W.SendLetter()
+    W.Run(1)
+
+    -- The mailbox closed and opened again: the parcel is remembered. A right-click forgets it.
+    W.CloseMailbox()
+    eq(panel:IsShown(), false, "the strip goes with the mail window")
+    W.OpenMailbox()
+    W.Run(0.5)
+    eq(panel:IsShown(), true, "and comes back with it")
+    button:GetScript("OnClick")(button, "RightButton")
+    W.Run(0.5)
+    eq(#UpgradeScoutDB.parcels, 0, "forgotten at a right-click")
+    check(Printed("Forgot what was bought for " .. ALTY .. "."), "and said")
+    eq(panel:IsShown(), false, "with nothing left to send, the strip goes")
+
+    -- A parcel nobody sent for a month is dropped, and so is one for a character forgotten.
+    UpgradeScoutDB.parcels = {
+        { to = "Alty-Testrealm", from = "Tester-Testrealm", link = W.Link(310), itemID = 310, name = "Druid Jerkin", at = time() - 31 * 86400 },
+        { to = "Nobody-Testrealm", from = "Tester-Testrealm", link = W.Link(310), itemID = 310, name = "Druid Jerkin", at = time() },
+        { to = "Alty-Testrealm", from = "Tester-Testrealm", link = W.Link(315), itemID = 315, name = "Grove Ring", at = time() },
+    }
+    eq(#ns.Mail.Pending(), 1, "one character with parcels"); eq(#UpgradeScoutDB.parcels, 1, "of which one is left")
+    eq(UpgradeScoutDB.parcels[1].link, W.Link(315), "the one that is neither old nor nobody's")
+    -- A surname, as the characters of this game have: the letter is addressed with it.
+    eq(ns.Mail.Address({ name = "Alty", last = "Greenleaf" }), "Alty Greenleaf", "a name and a surname")
+    eq(ns.Mail.Address({ name = "Alty" }), "Alty", "a name alone")
 end
 
 function scenarios.pawn_missing()

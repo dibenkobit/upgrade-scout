@@ -1377,6 +1377,8 @@ function S.ConfirmPurchase(offer)
     confirming = false
     if not ahOpen then return end
     purchases[offer.auctionID] = offer
+    -- Whom it is bought for, should the lists be for someone else by the time it is bought.
+    offer.boughtFor = S.ctx and S.ctx.who or nil
     AH.PlaceBid(offer.auctionID, offer.buyout)
 end
 
@@ -1719,6 +1721,8 @@ ns.On("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
     }
     -- A budget that was set is for what is still to be spent.
     if S.budget then S.budget = math.max(0, S.budget - offer.buyout) end
+    -- Bought for another character: Mail.lua sees it on its way there.
+    ns.Fire("GEAR_BOUGHT", offer, offer.boughtFor)
     ns.Fire("OFFERS_CHANGED")
     -- More of the same item may be for sale at a higher price: look it up again.
     if (offer.count > 1 or offer.more) and S.state == "idle" and ahOpen and S.ctx then

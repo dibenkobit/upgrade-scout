@@ -11,6 +11,10 @@ New:
     for boots), so ticking the box may look up a few more prices.
   - What you buy from the set counts as worn from then on, and a sum you typed goes down by what
     you paid: the rest of the set stays as it was.
+- **Purchases for another character go to it by mail**: gear you buy while the lists are for
+  another character of yours is remembered. At a mailbox a button under the mail window puts what
+  is in your bags into a letter to that character, name and all; you check the letter and press
+  Send.
 
 ## 1.1.0
 

@@ -44,4 +44,5 @@ Plan.lua
 SupplyData.lua
 Supplies.lua
 Scanner.lua
+Mail.lua
 UI.lua

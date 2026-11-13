@@ -74,7 +74,7 @@ for _, name in ipairs({
     "SetPoint", "ClearAllPoints", "SetAllPoints", "SetJustifyH", "SetWordWrap", "SetSpacing",
     "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetAlpha",
     "SetFontObject", "SetTextColor", "SetShadowColor", "SetShadowOffset",
-    "SetHitRectInsets", "SetTitle", "UnregisterEvent",
+    "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks",
     "SetFrameStrata", "EnableMouse",
     -- edit boxes
     "SetAutoFocus", "SetNumeric", "SetMaxLetters", "SetFocus", "ClearFocus", "HighlightText",
@@ -161,7 +161,11 @@ function M:HookScript(name, fn)
 end
 function M:RegisterEvent(event) self._events[event] = true end
 function M:CreateTexture() return Widget("Texture", nil, self) end
-function M:CreateFontString() return Widget("FontString", nil, self) end
+function M:CreateFontString(name, layer, template)
+    local text = Widget("FontString", nil, self)
+    text._font = template       -- a font string made from a font template can be written at once
+    return text
+end
 function M:SetText(text)
     -- The game refuses to write with no font. (The tab of the window gets its font from a template.)
     if self._kind == "FontString" then assert(self._font, "a font is set before the text") end
@@ -640,6 +644,7 @@ local TEMPLATES = {
     MoneyDisplayFrameTemplate = MoneyDisplayModel,
     WowStyle1DropdownTemplate = DropdownModel,
     AuctionHouseFrameDisplayModeTabTemplate = function() end,       -- a tab of the window (LibAHTab)
+    UIPanelButtonTemplate = function() end,                         -- the game's plain red button
 }
 
 function CreateFrame(kind, name, parent, template)
@@ -1289,6 +1294,107 @@ end
 function C_AuctionHouse.SearchForFavorites() end
 function C_AuctionHouse.SearchForItemKeys() end
 function C_AuctionHouse.SupportsCopperValues() return W.AH.copper ~= false end
+
+---------------------------------------------------------------------------
+-- Bags and the mailbox
+---------------------------------------------------------------------------
+-- W.bags[bag][slot] = { link = item link, bound = soulbound, locked = attached to a letter }
+W.bags = { [0] = {} }
+NUM_BAG_SLOTS = 4
+ATTACHMENTS_MAX_SEND = 12
+-- The letter being written and the letters sent: { to, subject, items = { link, ... } }.
+W.mail = { sendPage = false, attached = {}, sent = {} }
+
+-- Into the first empty slot of the backpack; returns that slot.
+function W.PutInBags(link, opts)
+    local bag = W.bags[0]
+    local slot = 1
+    while bag[slot] do slot = slot + 1 end
+    bag[slot] = { link = link, bound = opts and opts.bound or false }
+    W.Fire("BAG_UPDATE", 0)
+    return slot
+end
+
+C_Container = {}
+function C_Container.GetContainerNumSlots(bag)
+    return W.bags[bag] and 16 or 0
+end
+function C_Container.GetContainerItemInfo(bag, slot)
+    local item = W.bags[bag] and W.bags[bag][slot]
+    if not item then return nil end
+    return {
+        hyperlink = item.link, itemID = tonumber(item.link:match("item:(%d+)")), stackCount = 1,
+        isBound = item.bound, isLocked = item.locked or false,
+    }
+end
+-- A right-click on an item. With the Send Mail page up it goes into the letter's first empty
+-- place; anything else a right-click would do (putting gear on, say) is not what a test means.
+function C_Container.UseContainerItem(bag, slot)
+    local item = assert(W.bags[bag] and W.bags[bag][slot], "an item to right-click")
+    assert(MailFrame:IsShown() and W.mail.sendPage, "the Send Mail page is up when an item is right-clicked")
+    assert(not item.bound and not item.locked, "an item that can be attached")
+    for i = 1, ATTACHMENTS_MAX_SEND do
+        if not W.mail.attached[i] then
+            W.mail.attached[i] = { bag = bag, slot = slot, link = item.link }
+            item.locked = true
+            return
+        end
+    end
+    error("the letter is full")
+end
+function CursorHasItem() return false end
+function GetSendMailItem(index)
+    local attached = W.mail.attached[index]
+    if not attached then return nil end
+    return attached.link:match("%[(.-)%]"), tonumber(attached.link:match("item:(%d+)")), 134400, 1
+end
+
+MailFrame = Widget("Frame", "MailFrame")
+MailFrame:Hide()
+MailFrameTab2 = Widget("Button", "MailFrameTab2", MailFrame)
+-- (The tab is the game's own: what a click on it does outlasts a logout of the addon.)
+function MailFrameTab2:Click() W.mail.sendPage = true end
+SendMailNameEditBox = Widget("EditBox", "SendMailNameEditBox", MailFrame)
+SendMailSubjectEditBox = Widget("EditBox", "SendMailSubjectEditBox", MailFrame)
+SendMailNameEditBox:SetText("")
+SendMailSubjectEditBox:SetText("")
+
+function W.OpenMailbox()
+    W.mail.sendPage = false
+    MailFrame:Show()
+    W.Fire("MAIL_SHOW")
+end
+-- The player takes an item out of the letter again.
+function W.Detach(index)
+    local attached = assert(W.mail.attached[index], "an item in the letter")
+    W.bags[attached.bag][attached.slot].locked = false
+    W.mail.attached[index] = nil
+end
+function W.CloseMailbox()
+    for i = 1, ATTACHMENTS_MAX_SEND do
+        if W.mail.attached[i] then W.Detach(i) end
+    end
+    MailFrame:Hide()
+    W.Fire("MAIL_CLOSED")
+end
+-- The player presses the game's own Send.
+function W.SendLetter()
+    local letter = { to = SendMailNameEditBox:GetText(), subject = SendMailSubjectEditBox:GetText(), items = {} }
+    for i = 1, ATTACHMENTS_MAX_SEND do
+        local attached = W.mail.attached[i]
+        if attached then
+            letter.items[#letter.items + 1] = attached.link
+            W.bags[attached.bag][attached.slot] = nil
+            W.mail.attached[i] = nil
+        end
+    end
+    assert(letter.to ~= "" and #letter.items > 0, "a letter with a name on it and something in it")
+    W.mail.sent[#W.mail.sent + 1] = letter
+    SendMailNameEditBox:SetText("")
+    SendMailSubjectEditBox:SetText("")
+    W.Fire("MAIL_SEND_SUCCESS")
+    W.Fire("BAG_UPDATE", 0)
+end
 
 -- The auction window, as far as LibAHTab and the addon touch it.
 -- The game loads the window (the addon Blizzard_AuctionHouseUI) the first time it is needed.
