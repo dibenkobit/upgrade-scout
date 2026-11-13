@@ -406,11 +406,6 @@ local function ShowItemTooltip(row)
     elseif offer.count > 1 then
         GameTooltip_AddDisabledLine(GameTooltip, L.TT_MORE:format(offer.count - 1))
     end
-    -- Cheaper auctions of the offer's row that could not be read: any of them may be this
-    -- same item, so the price cannot be vouched for.
-    if offer.unread then
-        GameTooltip_AddErrorLine(GameTooltip, L.TT_ROW_UNREAD:format(offer.unread, ns.Money(offer.unreadFrom)))
-    end
     if not entry.affordable then
         GameTooltip_AddErrorLine(GameTooltip, L.TT_CANT_AFFORD:format(ns.Money(offer.buyout - GetMoney())))
     end
@@ -731,8 +726,6 @@ local function InitItemRow(row, element)
 
     local name = ns.QualityText(offer.name, offer.quality)
     if offer.effects then name = name .. " " .. NORMAL_FONT_COLOR:WrapTextInColorCode("*") end
-    -- A price that may not be the lowest: cheaper auctions of the same row could not be read.
-    if offer.unread then name = name .. " " .. RED_FONT_COLOR:WrapTextInColorCode("?") end
     row.Name:SetText(name)
 
     -- "Main Hand" lists one-hand and two-hand weapons together, so each row says which it is.
@@ -950,7 +943,6 @@ local function StatusText()
             if left then text = text .. L.ST_LEFT:format(ns.Duration(left)) end
             return text
         end
-        if S.mode == "probe" then return L.ST_PROBE:format(S.info.verified, S.info.toVerify) end
         return L.ST_BUYCHECK
     end
     if view == "supplies" then return SuppliesText() end
@@ -1701,8 +1693,7 @@ local function PopupOnEvent(dialog, event, ...)
 end
 
 StaticPopupDialogs[POPUP] = {
-    -- The game's own words, and under them what the buyer should know (see CONFIRM_BUY).
-    text = "%s",
+    text = BUYOUT_AUCTION_CONFIRMATION,
     button1 = ACCEPT,
     button2 = CANCEL,
     OnAccept = GenerateClosure(StaticPopup_OnAcceptWithSpinner, PopupOnAccept, PopupOnEvent,
@@ -1724,15 +1715,8 @@ ns.Listen("CONFIRM_BUY", function(offer)
         S.CancelPurchase()
         return
     end
-    -- Money is about to be paid. The question is the game's own, and has one more thing to
-    -- say only when the price cannot be vouched for: cheaper auctions of the row that could
-    -- not be read (see ShowItemTooltip).
-    local text = BUYOUT_AUCTION_CONFIRMATION
-    if offer.unread then
-        text = text .. "\n\n" .. RED_FONT_COLOR:WrapTextInColorCode(L.TT_ROW_UNREAD:format(offer.unread, ns.Money(offer.unreadFrom)))
-    end
     -- link and useLinkForItemInfo are for the popup's item frame, which fills in the rest.
-    StaticPopup_Show(POPUP, text, nil, { offer = offer, link = offer.link, useLinkForItemInfo = true })
+    StaticPopup_Show(POPUP, nil, nil, { offer = offer, link = offer.link, useLinkForItemInfo = true })
 end)
 
 ---------------------------------------------------------------------------
@@ -1784,8 +1768,7 @@ end)
 ---------------------------------------------------------------------------
 -- /upscout opens the tab when the auction house is open; /upscout stats tells how the last
 -- scan went; /upscout forget Name takes a character that is gone (deleted, renamed) out of
--- the scale field's menu; /upscout probe Name writes down what the auction house says about
--- the gear of that name (see "The probe" in Scanner.lua)
+-- the scale field's menu
 ---------------------------------------------------------------------------
 local function Forget(name)
     local was = ns.Roster.Target()
@@ -1814,22 +1797,6 @@ SlashCmdList["UPGRADESCOUT"] = function(message)
     end
     if message:lower():match("^%s*forget") then
         Forget(message:match("^%s*%a+%s*(.-)%s*$"))
-        return
-    end
-    if message:lower():match("^%s*probe") then
-        local text = message:match("^%s*%a+%s*(.-)%s*$")
-        -- An item put into the line with Shift-click. The auction house finds gear by the name
-        -- of the item itself, without "of the Tiger" and the like, and that is the name the
-        -- item's number has.
-        local itemID = text:match("|Hitem:(%d+)")
-        if itemID then
-            text = C_Item.GetItemInfo(tonumber(itemID)) or text:match("|h%[(.-)%]|h") or ""
-        end
-        if text == "" then
-            ns.Print(L.PROBE_USAGE)
-        elseif S.Probe(text) then
-            UI.Refresh()
-        end
         return
     end
     if not (frame and S.IsOpen()) then

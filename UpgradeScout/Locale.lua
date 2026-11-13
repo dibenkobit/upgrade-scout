@@ -111,15 +111,6 @@ local L = {
     MSG_FORGOT = "%s is forgotten. The character will be remembered again the next time you play it.",
     MSG_FORGET_WHO = "No other character by that name is remembered. Remembered: %s. To forget one, type /upscout forget and its name.",
 
-    -- Auctions that could not be read, and the record of the auction house's answers
-    TT_ROW_UNREAD = "%d cheaper auctions, from %s, could not be read: they may be this same item, so this may not be its lowest price.",
-    STATS_UNREAD = "Auctions that could not be read: %d.",
-    PROBE_USAGE = "At the auction house, type /upscout probe and the name of a piece of gear: the addon will write down what the auction house answers about it.",
-    PROBE_NONE = "The auction house found no gear by the name \"%s\". Try the name without its ending (\"of the Tiger\").",
-    PROBE_DONE = "Wrote down %d rows for \"%s\". Type /reload to save the record.",
-    PROBE_UNREAD = "not read",
-    ST_PROBE = "Recording auctions: %d of %d",
-
     HEAD = "Head", NECK = "Neck", SHOULDER = "Shoulders", BACK = "Back", CHEST = "Chest",
     WRIST = "Wrist", HANDS = "Hands", WAIST = "Waist", LEGS = "Legs", FEET = "Feet",
     FINGER = "Finger", TRINKET = "Trinket", MAINHAND = "Main Hand", OFFHAND = "Off Hand", RANGED = "Ranged",
@@ -239,15 +230,6 @@ if GetLocale() == "ruRU" then
         TT_SUP_NO_MANA_WHO = "Этому персонажу не пригодится: восстанавливает ману, а у него её нет.",
         MSG_FORGOT = "Персонаж %s забыт. Он запомнится снова, когда ты в следующий раз на него зайдёшь.",
         MSG_FORGET_WHO = "Другого персонажа с таким именем в памяти нет. В памяти: %s. Чтобы забыть персонажа, набери /upscout forget и его имя.",
-
-        -- Auctions that could not be read, and the record of the auction house's answers
-        TT_ROW_UNREAD = "Не удалось прочитать лоты дешевле: %d шт., от %s. Возможно, это та же вещь, и цена здесь не самая низкая.",
-        STATS_UNREAD = "Лотов, которые не удалось прочитать: %d.",
-        PROBE_USAGE = "Стоя у аукциона, набери /upscout probe и название вещи: аддон запишет, что аукцион о ней отвечает.",
-        PROBE_NONE = "Аукцион не нашёл экипировки с названием «%s». Попробуй без окончания («со знаком тигра»).",
-        PROBE_DONE = "Записано строк: %d, запрос «%s». Набери /reload, чтобы запись попала в файл.",
-        PROBE_UNREAD = "не прочитано",
-        ST_PROBE = "Записываю лоты: %d из %d",
 
         HEAD = "Голова", NECK = "Шея", SHOULDER = "Плечи", BACK = "Спина", CHEST = "Грудь",
         WRIST = "Запястья", HANDS = "Кисти рук", WAIST = "Пояс", LEGS = "Ноги", FEET = "Ступни",
@@ -369,15 +351,6 @@ if GetLocale() == "deDE" then
         TT_SUP_NO_MANA_WHO = "Nützt diesem Charakter nichts: Es stellt Mana wieder her, und er hat keins.",
         MSG_FORGOT = "%s ist vergessen. Der Charakter wird wieder gemerkt, wenn du ihn das nächste Mal spielst.",
         MSG_FORGET_WHO = "Kein anderer Charakter mit diesem Namen ist gemerkt. Gemerkt: %s. Um einen zu vergessen, gib /upscout forget und seinen Namen ein.",
-
-        -- Auctions that could not be read, and the record of the auction house's answers
-        TT_ROW_UNREAD = "%d günstigere Auktionen, ab %s, konnten nicht gelesen werden: Vielleicht ist es derselbe Gegenstand, und dieser Preis ist nicht der niedrigste.",
-        STATS_UNREAD = "Auktionen, die nicht gelesen werden konnten: %d.",
-        PROBE_USAGE = "Gib am Auktionshaus /upscout probe und den Namen eines Ausrüstungsteils ein: Das Addon schreibt auf, was das Auktionshaus dazu antwortet.",
-        PROBE_NONE = "Das Auktionshaus hat keine Ausrüstung mit dem Namen »%s« gefunden. Versuche es ohne die Endung (»des Tigers«).",
-        PROBE_DONE = "%d Zeilen zu »%s« aufgeschrieben. Gib /reload ein, damit die Aufzeichnung gespeichert wird.",
-        PROBE_UNREAD = "nicht gelesen",
-        ST_PROBE = "Zeichne Auktionen auf: %d von %d",
 
         HEAD = "Kopf", NECK = "Hals", SHOULDER = "Schultern", BACK = "Rücken", CHEST = "Brust",
         WRIST = "Handgelenke", HANDS = "Hände", WAIST = "Taille", LEGS = "Beine", FEET = "Füße",
@@ -501,15 +474,6 @@ if GetLocale() == "frFR" then
         MSG_FORGOT = "%s est oublié. Le personnage sera de nouveau mémorisé la prochaine fois que vous le jouerez.",
         MSG_FORGET_WHO = "Aucun autre personnage de ce nom n'est mémorisé. Mémorisés : %s. Pour en oublier un, tapez /upscout forget suivi de son nom.",
 
-        -- Auctions that could not be read, and the record of the auction house's answers
-        TT_ROW_UNREAD = "%d enchères moins chères, à partir de %s, n'ont pas pu être lues : c'est peut-être ce même objet, et ce prix n'est peut-être pas le plus bas.",
-        STATS_UNREAD = "Enchères qui n'ont pas pu être lues : %d.",
-        PROBE_USAGE = "À l'hôtel des ventes, tapez /upscout probe suivi du nom d'une pièce d'équipement : l'addon notera ce que l'hôtel des ventes répond à son sujet.",
-        PROBE_NONE = "L'hôtel des ventes n'a trouvé aucun équipement du nom de « %s ». Essayez sans la fin du nom (« du tigre »).",
-        PROBE_DONE = "%d lignes notées pour « %s ». Tapez /reload pour que le relevé soit enregistré.",
-        PROBE_UNREAD = "non lu",
-        ST_PROBE = "Relevé des enchères : %d sur %d",
-
         HEAD = "Tête", NECK = "Cou", SHOULDER = "Épaules", BACK = "Dos", CHEST = "Torse",
         WRIST = "Poignets", HANDS = "Mains", WAIST = "Taille", LEGS = "Jambes", FEET = "Pieds",
         FINGER = "Doigt", TRINKET = "Bijou", MAINHAND = "Main droite", OFFHAND = "Main gauche", RANGED = "À distance",
@@ -631,15 +595,6 @@ if GetLocale() == "zhCN" then
         TT_SUP_NO_MANA_WHO = "对该角色没用：它恢复法力，而该角色没有法力。",
         MSG_FORGOT = "已忘记 %s。下次你玩这个角色时会重新记录。",
         MSG_FORGET_WHO = "没有记录这个名字的其他角色。已记录：%s。要忘记某个角色，请输入 /upscout forget 加角色名。",
-
-        -- Auctions that could not be read, and the record of the auction house's answers
-        TT_ROW_UNREAD = "有 %d 件更便宜的拍卖（最低 %s）无法读取：它们可能就是这件物品，这个价格可能不是最低价。",
-        STATS_UNREAD = "无法读取的拍卖：%d。",
-        PROBE_USAGE = "在拍卖行输入 /upscout probe 加装备名称：插件会记下拍卖行对它的答复。",
-        PROBE_NONE = "拍卖行没有找到名为“%s”的装备。请试试不带后缀的名称（例如去掉“猛虎之”）。",
-        PROBE_DONE = "已记录 %d 行，搜索词“%s”。输入 /reload 保存记录。",
-        PROBE_UNREAD = "未读取",
-        ST_PROBE = "正在记录拍卖：%d / %d",
 
         HEAD = "头部", NECK = "颈部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
         WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "脚",
@@ -764,15 +719,6 @@ if GetLocale() == "ptBR" then
         MSG_FORGOT = "%s foi esquecido. O personagem será lembrado de novo na próxima vez que você jogar com ele.",
         MSG_FORGET_WHO = "Nenhum outro personagem com esse nome está na memória. Na memória: %s. Para esquecer um, digite /upscout forget e o nome dele.",
 
-        -- Auctions that could not be read, and the record of the auction house's answers
-        TT_ROW_UNREAD = "%d leilões mais baratos, a partir de %s, não puderam ser lidos: podem ser este mesmo item, e este preço pode não ser o mais baixo.",
-        STATS_UNREAD = "Leilões que não puderam ser lidos: %d.",
-        PROBE_USAGE = "Na Casa de Leilões, digite /upscout probe e o nome de um equipamento: o addon anotará o que a Casa de Leilões responde sobre ele.",
-        PROBE_NONE = "A Casa de Leilões não encontrou equipamento com o nome \"%s\". Tente sem o final do nome (\"do Tigre\").",
-        PROBE_DONE = "%d linhas anotadas para \"%s\". Digite /reload para salvar o registro.",
-        PROBE_UNREAD = "não lido",
-        ST_PROBE = "Anotando leilões: %d de %d",
-
         HEAD = "Cabeça", NECK = "Pescoço", SHOULDER = "Ombros", BACK = "Costas", CHEST = "Torso",
         WRIST = "Pulsos", HANDS = "Mãos", WAIST = "Cintura", LEGS = "Pernas", FEET = "Pés",
         FINGER = "Dedo", TRINKET = "Berloque", MAINHAND = "Mão Principal", OFFHAND = "Mão Secundária", RANGED = "Longo Alcance",
@@ -896,15 +842,6 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         MSG_FORGOT = "%s ha sido olvidado. El personaje se recordará de nuevo la próxima vez que juegues con él.",
         MSG_FORGET_WHO = "No se recuerda ningún otro personaje con ese nombre. Recordados: %s. Para olvidar uno, escribe /upscout forget y su nombre.",
 
-        -- Auctions that could not be read, and the record of the auction house's answers
-        TT_ROW_UNREAD = "%d subastas más baratas, desde %s, no se pudieron leer: puede que sean este mismo objeto y que este precio no sea el más bajo.",
-        STATS_UNREAD = "Subastas que no se pudieron leer: %d.",
-        PROBE_USAGE = "En la casa de subastas, escribe /upscout probe y el nombre de una pieza de equipo: el addon apuntará lo que la casa de subastas responde sobre ella.",
-        PROBE_NONE = "La casa de subastas no ha encontrado equipo con el nombre «%s». Prueba sin el final del nombre («del tigre»).",
-        PROBE_DONE = "%d filas apuntadas para «%s». Escribe /reload para que el registro se guarde.",
-        PROBE_UNREAD = "no leído",
-        ST_PROBE = "Apuntando subastas: %d de %d",
-
         HEAD = "Cabeza", NECK = "Cuello", SHOULDER = "Hombros", BACK = "Espalda", CHEST = "Pecho",
         WRIST = "Muñecas", HANDS = "Manos", WAIST = "Cintura", LEGS = "Piernas", FEET = "Pies",
         FINGER = "Dedo", TRINKET = "Abalorio", MAINHAND = "Mano derecha", OFFHAND = "Mano izquierda", RANGED = "A distancia",
@@ -1026,15 +963,6 @@ if GetLocale() == "itIT" then
         TT_SUP_NO_MANA_WHO = "Non serve a questo personaggio: ripristina mana, e lui non ne ha.",
         MSG_FORGOT = "%s è stato dimenticato. Il personaggio verrà ricordato di nuovo la prossima volta che ci giochi.",
         MSG_FORGET_WHO = "Nessun altro personaggio con quel nome è in memoria. In memoria: %s. Per dimenticarne uno, scrivi /upscout forget e il suo nome.",
-
-        -- Auctions that could not be read, and the record of the auction house's answers
-        TT_ROW_UNREAD = "%d aste più economiche, da %s, non è stato possibile leggerle: potrebbero essere questo stesso oggetto, e questo prezzo potrebbe non essere il più basso.",
-        STATS_UNREAD = "Aste che non è stato possibile leggere: %d.",
-        PROBE_USAGE = "Alla Casa d'Aste, scrivi /upscout probe e il nome di un pezzo di equipaggiamento: l'addon annoterà che cosa la Casa d'Aste risponde su di esso.",
-        PROBE_NONE = "La Casa d'Aste non ha trovato equipaggiamento con il nome «%s». Prova senza la parte finale del nome («della Tigre»).",
-        PROBE_DONE = "%d righe annotate per «%s». Scrivi /reload per salvare la registrazione.",
-        PROBE_UNREAD = "non letto",
-        ST_PROBE = "Registro le aste: %d di %d",
 
         HEAD = "Testa", NECK = "Collo", SHOULDER = "Spalle", BACK = "Schiena", CHEST = "Torso",
         WRIST = "Polsi", HANDS = "Mani", WAIST = "Fianchi", LEGS = "Gambe", FEET = "Piedi",

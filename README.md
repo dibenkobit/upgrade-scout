@@ -80,9 +80,6 @@ as an alternative:
   their stats, are scored apart, and each has its own lowest price. The game's Sell tab is another
   matter: put a piece of gear into it, and the list beside it holds every variant of that item, so
   the lowest price there is usually that of a variant nobody wants. It is not the price of yours.
-- A red `?` after a name is rare. It means some cheaper auctions of the item could not be read: the
-  auction house did not say what they hold, so the price shown may not be the lowest. The tooltip
-  and the question before buying say so in red.
 - Blocks are equipment slots, so **Main Hand** holds everything that goes into that hand: one-hand,
   main-hand and two-hand weapons together. Each weapon row says which it is in grey after the name,
   in the same words as the item tooltip.
@@ -170,17 +167,6 @@ stands at the auction house, pays, and mails what it bought.
 | `/upscout` | Opens the Upgrades tab while the auction house is open. `/upgradescout` is the same command. |
 | `/upscout stats` | Prints what the last scan sent to the auction house and how long each step took. |
 | `/upscout forget Name` | Takes a character that no longer exists out of the scale dropdown. |
-| `/upscout probe Name` | At the auction house: writes down what the auction house answers about gear of that name. |
-
-`/upscout probe` is there to check a price that looks wrong. It records every auction of the rows
-it finds (up to twelve rows) with buyout, bid, item link and Pawn score, before any of the scan's
-judgement. No sellers' names are recorded.
-
-- Type the name of the item itself, without "of the Tiger" and the like, or put the item into the
-  command with Shift-click.
-- A summary goes to the chat: each row, and under it what is sold in it, how many and from what price.
-- The whole record is saved by `/reload` (or on logout) as `UpgradeScoutDB.probe` in
-  `WTF\Account\<account>\SavedVariables\UpgradeScout.lua`.
 
 ## How an item is judged
 
@@ -228,9 +214,6 @@ Safety nets, because none of this was assumed about the server:
 - If rows turn out to have buyouts below their own "lowest price", that number is no longer used to
   skip anything.
 - Three item searches in a row without an answer end the price checks instead of waiting out the rest.
-- An item search stops at its first page only when that page proves the price: its auctions come
-  cheapest first and every one of them is the item the row was taken to hold. Otherwise the row is
-  read to the end.
 
 The scan for consumables is the first two steps with another question: one search for the
 Consumables category, then every row's tooltip is read. There is no price check, because

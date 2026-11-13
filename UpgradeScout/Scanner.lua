@@ -43,7 +43,6 @@ S.mode = nil                   -- what the current work is for:
                                --   refresh  the lookup after one
                                --   supplies a scan for consumables (see "Consumables" below)
                                --   supply   the lookup before a consumable is bought
-                               --   probe    a record of what the auction house says (see "The probe")
 S.offers = {}                  -- offer id -> offer
 S.ctx = nil                    -- comparison context of the last scan (see PawnBridge.Context)
 S.info = { rows = 0, scored = 0, toScore = 0, verified = 0, toVerify = 0 }
@@ -163,7 +162,6 @@ local function NewStats()
         skipped = 0,                        -- candidates whose price the list did not need
         checked = 0,                        -- rows whose auctions were read
         belowFloor = 0,                     -- of those, rows with a buyout below the row's lowest price
-        unread = 0,                         -- auctions in them that could not be told what they are
         early = false,                      -- the browse stopped before the last page
     }
 end
@@ -189,14 +187,12 @@ function S.StatsText()
     local stats = S.stats or ns.db.lastScan
     if type(stats) ~= "table" then return L.STATS_NONE end
     local function Sec(value) return math.floor((value or 0) + 0.5) end
-    local text = L.STATS:format(
+    return L.STATS:format(
         Sec((stats.browse or 0) + (stats.score or 0) + (stats.verify or 0)),
         Sec(stats.browse), stats.requests or 0, stats.rows or 0,
         Sec(stats.score), stats.candidates or 0,
         Sec(stats.verify), stats.searches or 0, stats.pages or 0, stats.timeouts or 0,
         stats.skipped or 0)
-    if (stats.unread or 0) > 0 then text = text .. " " .. L.STATS_UNREAD:format(stats.unread) end
-    return text
 end
 
 ---------------------------------------------------------------------------
@@ -249,12 +245,6 @@ local function EvalLink(link)
     end
     cache[link] = result
     return result
-end
-
--- What makes two auctions the same thing to the list: the item, its random suffix and its
--- score on the scale.
-local function OfferID(eval)
-    return eval.itemID .. ":" .. LinkSuffix(eval.link) .. ":" .. string.format("%.2f", eval.value)
 end
 
 -- The game colours a tooltip line red when the player does not meet it: level, class, armor
@@ -472,9 +462,6 @@ function NextJob()
     local job
     if run.single then
         job, run.single = run.single, nil
-    elseif run.queue then
-        -- A probe goes through its rows one after another.
-        job = table.remove(run.queue, 1)
     elseif IsScanMode(run.mode) then
         local left
         job, left = PickCandidate()
@@ -501,31 +488,12 @@ function NextJob()
     SendJob(job)
 end
 
--- Are the auctions that have arrived in the order they were asked for, the cheapest buyout
--- first? (Auctions without a buyout have no place in that order.)
-local function InOrder(key, count)
-    local last = 0
-    for i = 1, count do
-        local info = AH.GetItemSearchResultInfo(key, i)
-        local buyout = info and info.buyoutAmount or 0
-        if buyout > 0 then
-            if buyout < last then return false end
-            last = buyout
-        end
-    end
-    return true
-end
-
--- A job with `stopAt` covers auctions none of which has a buyout below that price. Once one
--- at exactly that price has arrived (not the player's own), the cheapest buyout is known and
--- further pages cannot change it.
--- That is relied on only while the auctions come cheapest first: then whatever is cheaper
--- than an auction that has arrived has arrived too. In any other order something cheaper
--- could be on a page not asked for, so without that order the pages are read to the end.
+-- A job with `stopAt` covers auctions that are all the same item, none of them with a buyout
+-- below that price. Once one at exactly that price has arrived (not the player's own), the
+-- cheapest buyout is known and further pages cannot change it.
 local function CheapestLoaded(job, count)
     if not job.stopAt then return false end
     if job.minPrice and scan.floorBroken then return false end
-    if not InOrder(job.key, count) then return false end
     for i = 1, count do
         local info = AH.GetItemSearchResultInfo(job.key, i)
         if info and info.buyoutAmount == job.stopAt
@@ -559,29 +527,10 @@ local function ContinueJob(job)
     job.state = "read"
 end
 
-local ReadProbe
-
--- Reads the auctions of the current job's row into offers.
--- On this client every variant of an item is a row of its own: "Soldier's Boots of the
--- Tiger" and "of the Whale" have different suffixes in their keys. (It is the game's Sell tab
--- that lists all variants of an item together, with one lowest price: see the README.) The
--- code does not lean on that: an offer is the cheapest auction of one thing, told apart by
--- its Pawn score, whatever else its row may hold.
--- Every auction that can be bought is accounted for (`seen`), so that none is passed over in
--- silence. An offer says how many auctions of its row below its price the client could not
--- tell what they are, and the lowest of their prices (unread, unreadFrom): no link from the
--- auction house, or an item that never loaded. Any of those may be the offer's own item for
--- less, so its price cannot be vouched for.
 local function ReadJob(job)
-    if job.probe then
-        ReadProbe(job)
-        return
-    end
     local key = job.key
     local count = math.min(AH.GetNumItemSearchResults(key) or 0, MAX_AUCTIONS)
     local found = {}
-    local seen = {}             -- { buyout, id }: id as offers have it, "-" for what is of no
-                                -- use to the character, false for what could not be read
     local notReady = false
     local lowest                -- the cheapest buyout in the row, whoever sells it
 
@@ -591,30 +540,22 @@ local function ReadJob(job)
         if buyout > 0 and (not lowest or buyout < lowest) then lowest = buyout end
         -- Buyout only: an auction without a buyout price is skipped, and so are the
         -- player's own auctions.
-        if info and buyout > 0 and not info.containsOwnerItem and not info.containsAccountItem then
-            local mark = { buyout = buyout, id = false }
-            seen[#seen + 1] = mark
-            local eval = nil
-            if info.itemLink then eval = EvalLink(info.itemLink) end
-            if not info.itemLink then
-                -- The auction house says what the row is and not what this auction holds.
-            elseif eval == nil then
+        if info and info.itemLink and (info.buyoutAmount or 0) > 0
+            and not info.containsOwnerItem and not info.containsAccountItem then
+            local eval = EvalLink(info.itemLink)
+            if eval == nil then
                 notReady = true
             elseif eval == false then
-                mark.id = "-"
                 if job.expect and scan then scan.bucketsVary = true end
             else
                 if eval.usable == nil then eval.usable = Usable(eval.link) end
                 if eval.usable == nil then
                     notReady = true
-                elseif not eval.usable then
-                    mark.id = "-"
-                else
+                elseif eval.usable then
                     if job.expect and scan and math.abs(eval.value - job.expect) > job.expect * 0.005 then
                         scan.bucketsVary = true
                     end
-                    local id = OfferID(eval)
-                    mark.id = id
+                    local id = eval.itemID .. ":" .. LinkSuffix(eval.link) .. ":" .. string.format("%.2f", eval.value)
                     local offer = found[id]
                     if #ns.Compare.Place(eval, S.ctx) == 0 then
                         -- For sale and wearable, but no better than what the player has.
@@ -660,42 +601,6 @@ local function ReadJob(job)
         return
     end
 
-    -- The item the row was taken to hold when its search was sent: the one the scan scored,
-    -- or the offer a purchase is about.
-    local want = job.want or (job.eval and OfferID(job.eval)) or (seen[1] and seen[1].id)
-    local unreadable, mixed = 0, false
-    for i = 1, #seen do
-        if not seen[i].id then unreadable = unreadable + 1 end
-        if seen[i].id ~= want then mixed = true end
-    end
-    -- The reading stopped at the first page because the row was taken to hold that one item,
-    -- whose cheapest auction had come (see CheapestLoaded). The page holds something else as
-    -- well, or auctions that cannot be told: what is on the other pages is not known after
-    -- all, so they are read too.
-    if job.partial and mixed then
-        job.partial = false
-        job.stopAt = nil
-        job.evalTries = 0
-        ContinueJob(job)
-        return
-    end
-
-    -- Auctions below an offer's price that could be the offer's own item.
-    if unreadable > 0 then
-        for _, offer in pairs(found) do
-            for i = 1, #seen do
-                local other = seen[i]
-                if not other.id and other.buyout < offer.buyout then
-                    offer.unread = (offer.unread or 0) + 1
-                    offer.unreadFrom = math.min(offer.unreadFrom or other.buyout, other.buyout)
-                end
-            end
-        end
-    end
-    if run.stats and IsScanMode(run.mode) then
-        run.stats.unread = (run.stats.unread or 0) + unreadable
-    end
-
     -- Replace whatever this item had in the list with what is for sale now.
     for id, offer in pairs(S.offers) do
         if offer.ks == job.ks then S.offers[id] = nil end
@@ -725,122 +630,6 @@ local function ReadJob(job)
     NextJob()
 end
 
----------------------------------------------------------------------------
--- The probe: what the auction house really says (/upscout probe Name)
----------------------------------------------------------------------------
--- The game cannot be run where the addon is written, so when a price in the list looks wrong
--- there is nothing to check it against. The probe is that: it searches the auction house for
--- gear by name and writes down every auction of the rows it finds, as the client gets them
--- and before any of the scan's judgement: buyout, bid, whether a link came with it, what Pawn
--- makes of it. A summary goes to the chat, the whole record into the account's saved file
--- (UpgradeScoutDB.probe), where it can be read after the interface is loaded again.
--- No names of sellers are kept.
-local PROBE_ROWS = 12           -- rows of the auction house one probe goes through
-
-local function ProbeLines(row)
-    local low, high
-    local groups, order = {}, {}
-    for i = 1, #row.auctions do
-        local auction = row.auctions[i]
-        if auction.buyout > 0 then
-            low = math.min(low or auction.buyout, auction.buyout)
-            high = math.max(high or auction.buyout, auction.buyout)
-        end
-        local label
-        if auction.value then
-            label = (auction.name or "?") .. ", Pawn " .. ns.Num(auction.value, 2)
-        else
-            label = (auction.name or "?") .. ", " .. L.PROBE_UNREAD .. " (" .. (auction.note or "?") .. ")"
-        end
-        local group = groups[label]
-        if not group then
-            group = { label = label, count = 0 }
-            groups[label] = group
-            order[#order + 1] = group
-        end
-        group.count = group.count + 1
-        if auction.buyout > 0 then group.from = math.min(group.from or auction.buyout, auction.buyout) end
-    end
-    table.sort(order, function(a, b)
-        if (a.from or math.huge) ~= (b.from or math.huge) then return (a.from or math.huge) < (b.from or math.huge) end
-        return a.label < b.label
-    end)
-    local lines = { ("%s [%d:%d:%d]: %d"):format(row.name, row.itemID, row.itemLevel or 0, row.itemSuffix or 0, #row.auctions) }
-    if low then lines[1] = lines[1] .. ", " .. ns.Money(low) .. " - " .. ns.Money(high) end
-    for i = 1, math.min(#order, 8) do
-        local group = order[i]
-        lines[#lines + 1] = "    " .. group.label .. " x" .. group.count .. (group.from and ", " .. ns.Money(group.from) or "")
-    end
-    return lines
-end
-
-function ReadProbe(job)
-    local key = job.key
-    local count = math.min(AH.GetNumItemSearchResults(key) or 0, MAX_AUCTIONS)
-    local scale = run.probe.scale
-    local auctions, waiting, name = {}, false, nil
-    for i = 1, count do
-        local info = AH.GetItemSearchResultInfo(key, i)
-        if info then
-            local auction = {
-                buyout = info.buyoutAmount or 0,
-                bid = info.bidAmount or info.minBid or 0,
-                quantity = info.quantity,
-                own = (info.containsOwnerItem or info.containsAccountItem) and true or nil,
-            }
-            local link = info.itemLink
-            if not link then
-                auction.note = "no link"
-            else
-                -- The link without its colour and name: the numbers are what tells items apart.
-                auction.link = link:match("|H(.-)|h") or link
-                local itemName = C_Item.GetItemInfo(link)
-                if not itemName then
-                    waiting = true
-                    auction.note = "not loaded"
-                else
-                    auction.name = itemName
-                    name = name or itemName
-                    local item = scale and ns.Pawn.Item(link) or nil
-                    if item then
-                        auction.value = ns.Pawn.Value(item, scale)
-                    else
-                        auction.note = "no stats"
-                    end
-                end
-            end
-            auctions[#auctions + 1] = auction
-        end
-    end
-    if waiting and job.evalTries < EVAL_RETRIES then
-        job.evalTries = job.evalTries + 1
-        job.state = "wait"
-        job.retryAt = GetTime() + 0.3
-        return
-    end
-
-    local sample = AH.GetItemKeySampleLink and AH.GetItemKeySampleLink(key) or nil
-    local row = {
-        itemID = key.itemID, itemLevel = key.itemLevel, itemSuffix = key.itemSuffix,
-        -- The name of the item itself: the row may hold it "of the Tiger" and "of the Whale".
-        name = C_Item.GetItemInfo(key.itemID) or name or ("item:" .. key.itemID),
-        required = AH.GetItemKeyRequiredLevel(key),
-        minPrice = job.minPrice,                -- the row's lowest price, as the browse said it
-        quantity = job.quantity,                -- and how many it said the row holds
-        full = AH.HasFullItemSearchResults(key) and true or false,
-        inOrder = InOrder(key, count),
-        sample = sample and (sample:match("|H(.-)|h") or sample) or nil,
-        auctions = auctions,
-    }
-    run.probe.rows[#run.probe.rows + 1] = row
-    local lines = ProbeLines(row)
-    for i = 1, #lines do ns.Print(lines[i]) end
-
-    job.status = "done"
-    S.info.verified = S.info.verified + 1
-    NextJob()
-end
-
 -- Seconds one item search took in the scan before this one, to have an estimate of the time
 -- left before this run has timed any of its own. nil when there is nothing to go by.
 local function LastPace()
@@ -854,7 +643,7 @@ end
 local function StartVerify()
     if IsScanMode(run.mode) then SortCandidates() end
     S.info.verified = 0
-    S.info.toVerify = run.single and 1 or run.queue and #run.queue or 0
+    S.info.toVerify = run.single and 1 or 0
     run.paceStart = GetTime()
     run.pacePrior = LastPace()
     SetState("verify")
@@ -1142,8 +931,7 @@ local function BrowseQuery(variant)
     end
     local filter = Enum.AuctionHouseFilter
     return {
-        -- A probe asks for a name; the scans for everything.
-        searchString = run.search or "",
+        searchString = "",
         sorts = sorts,
         -- Every quality, as the Buy tab has them ticked by default.
         filters = {
@@ -1187,17 +975,6 @@ local function AddRow(result)
     if not key or not key.itemID then return end
     run.rowCount = run.rowCount + 1
 
-    if run.mode == "probe" then
-        -- Every row as it comes, whoever it is for: the probe judges nothing.
-        local ks = ns.KeyString(key)
-        if not run.rows[ks] and #run.queue < PROBE_ROWS then
-            local job = { key = key, ks = ks, probe = true, minPrice = result.minPrice, quantity = result.totalQuantity }
-            run.rows[ks] = job
-            run.queue[#run.queue + 1] = job
-        end
-        return
-    end
-
     local required = AH.GetItemKeyRequiredLevel(key) or 0
     TrackOrder(required)
     if required > run.level then return end
@@ -1234,11 +1011,6 @@ local function FinishBrowse(partial)
     end
     -- Gear of a character that is not being played may have still been on its way from the
     -- server when the scan began (see PawnBridge.Context): by now it has had time to come.
-    if run.mode == "probe" then
-        -- Nothing to score: the rows are read as they are.
-        StartVerify()
-        return
-    end
     if run.mode ~= "supplies" and S.ctx and S.ctx.pending then
         S.ctx = ns.Pawn.Context(S.ctx.scale, S.ctx.who)
         Recheck()
@@ -1262,11 +1034,6 @@ local function ReadBrowse()
     S.info.rows = run.rowCount
     ns.Fire("SCAN_PROGRESS")
 
-    if run.mode == "probe" then
-        -- The first page of names is plenty for a probe.
-        FinishBrowse(false)
-        return
-    end
     if CanStopEarly() or AH.HasFullBrowseResults() then
         run.stats.early = not AH.HasFullBrowseResults()
         FinishBrowse(false)
@@ -1335,9 +1102,8 @@ local function NewRun(mode)
         requested = {},
         -- A lookup around a purchase scores its item afresh; a scan keeps its scores.
         evalCache = scanning and scan.evalCache or {},
-        -- A scan for consumables and a probe count their requests too, but nobody reads
-        -- the numbers.
-        stats = scanning and S.stats or ((mode == "supplies" or mode == "probe") and NewStats() or nil),
+        -- A scan for consumables counts its requests too, but nobody reads the numbers.
+        stats = scanning and S.stats or (mode == "supplies" and NewStats() or nil),
         deadline = 0,
         lastLoad = 0,
         nextRetry = 0,
@@ -1480,7 +1246,7 @@ end
 local function SearchOne(mode, offer, onDone, stopAt)
     NewRun(mode)
     run.onDone = onDone
-    run.single = { key = offer.key, ks = offer.ks, stopAt = stopAt, want = offer.id }
+    run.single = { key = offer.key, ks = offer.ks, stopAt = stopAt }
     StartVerify()
 end
 
@@ -1527,39 +1293,6 @@ function S.CancelPurchase()
     if not confirming then return end
     confirming = false
     ns.Fire("OFFERS_CHANGED")
-end
-
--- Starts a probe (see "The probe") for gear whose name holds `text`. Returns false when it
--- cannot.
-function S.Probe(text)
-    if S.state ~= "idle" then
-        ns.Print(L.ERR_BUSY)
-        return false
-    end
-    if not ahOpen then
-        ns.Print(L.ERR_AH_CLOSED)
-        return false
-    end
-    confirming = false
-    local scale = not ns.Pawn.Problem() and ns.Pawn.CurrentScale(ns.Roster.Target()) or nil
-    local probe = { text = text, at = time(), scale = scale and scale.name or nil, rows = {} }
-    S.info = { rows = 0, scored = 0, toScore = 0, verified = 0, toVerify = 0 }
-    NewRun("probe")
-    run.search = text
-    run.probe = probe
-    run.queue = {}
-    run.variant = 2             -- plain price order: nothing here stops a browse early
-    run.onDone = function()
-        if #probe.rows == 0 then
-            ns.Print(L.PROBE_NONE:format(text))
-            return
-        end
-        ns.account.probe = probe
-        ns.Print(L.PROBE_DONE:format(#probe.rows, text))
-    end
-    SetState("browse")
-    SendBrowse()
-    return true
 end
 
 -- Rebuilds the gear snapshot (after the player changes equipment, or when gear of a
