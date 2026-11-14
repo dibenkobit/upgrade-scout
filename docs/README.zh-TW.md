@@ -4,7 +4,7 @@
 
 **在拍賣場中找出比你身上更好、而且你買得起的裝備。** 一款用於《魔獸世界：永恆》（World of Warcraft Forever）的插件。
 
-**[在 CurseForge 下載](https://www.curseforge.com/wow/addons/upgrade-scout)**
+**在 [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) 或 [Wago](https://addons.wago.io/addons/upgrade-scout) 下載**
 
 [English](../README.md) · [简体中文](README.zh-CN.md) · 繁體中文 · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md)
 
@@ -23,15 +23,15 @@
 
 ## 安裝
 
-**[透過 CurseForge 安裝](https://www.curseforge.com/wow/addons/upgrade-scout)**
+**透過 [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) 或 [Wago](https://addons.wago.io/addons/upgrade-scout) 安裝**
 
-CurseForge 應用程式會幫你裝好一切。
+CurseForge 或 Wago 應用程式會幫你裝好一切。
 
 你需要《魔獸世界：永恆》（World of Warcraft Forever，1.60.1），不需要其他插件。
 
 手動安裝：
 
-1. 從 [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) 或 [GitHub 發布頁](https://github.com/dibenkobit/upgrade-scout/releases)下載 `UpgradeScout-<版本>-forever.zip`。
+1. 從 [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)、[Wago](https://addons.wago.io/addons/upgrade-scout) 或 [GitHub 發布頁](https://github.com/dibenkobit/upgrade-scout/releases)下載 `UpgradeScout-<版本>-forever.zip`。
 2. 解壓縮到 `World of Warcraft\_forever_\Interface\AddOns`。
 3. 重新啟動遊戲。
 

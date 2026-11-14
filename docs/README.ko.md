@@ -4,7 +4,7 @@
 
 **경매장에서 지금 장비보다 좋고 살 수 있는 장비를 찾아줍니다.** 월드 오브 워크래프트: 포에버(World of Warcraft Forever, 와우 포에버)용 애드온입니다.
 
-**[CurseForge에서 내려받기](https://www.curseforge.com/wow/addons/upgrade-scout)**
+**[CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)나 [Wago](https://addons.wago.io/addons/upgrade-scout)에서 내려받기**
 
 [English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · 한국어
 
@@ -23,15 +23,15 @@
 
 ## 설치
 
-**[CurseForge에서 설치](https://www.curseforge.com/wow/addons/upgrade-scout)**
+**[CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)나 [Wago](https://addons.wago.io/addons/upgrade-scout)에서 설치**
 
-CurseForge 앱이 알아서 설치해 줍니다.
+CurseForge 앱이나 Wago 앱이 알아서 설치해 줍니다.
 
 월드 오브 워크래프트: 포에버(World of Warcraft Forever, 1.60.1)만 있으면 됩니다. 다른 애드온은 필요 없습니다.
 
 직접 설치하려면:
 
-1. [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)나 [GitHub 릴리스](https://github.com/dibenkobit/upgrade-scout/releases)에서 `UpgradeScout-<버전>-forever.zip`을 내려받으세요.
+1. [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout), [Wago](https://addons.wago.io/addons/upgrade-scout)나 [GitHub 릴리스](https://github.com/dibenkobit/upgrade-scout/releases)에서 `UpgradeScout-<버전>-forever.zip`을 내려받으세요.
 2. `World of Warcraft\_forever_\Interface\AddOns`에 압축을 푸세요.
 3. 게임을 다시 시작하세요.
 

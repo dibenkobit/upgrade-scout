@@ -4,7 +4,7 @@
 
 **Находит на аукционе вещи, которые лучше ваших и вам по карману.** Аддон для World of Warcraft Forever.
 
-**[Скачать на CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
+**Скачать на [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) или [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
 [English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Deutsch](README.de.md) · Русский · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md)
 
@@ -29,15 +29,15 @@
 
 ## Установка
 
-**[Установить с CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
+**Установить с [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) или [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
-Приложение CurseForge всё сделает само.
+Приложение CurseForge или Wago всё сделает само.
 
 Нужна игра World of Warcraft Forever (1.60.1). Других аддонов не нужно.
 
 Вручную:
 
-1. Скачайте `UpgradeScout-<версия>-forever.zip` с [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)
+1. Скачайте `UpgradeScout-<версия>-forever.zip` с [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout), [Wago](https://addons.wago.io/addons/upgrade-scout)
    или из [релизов на GitHub](https://github.com/dibenkobit/upgrade-scout/releases).
 2. Распакуйте в `World of Warcraft\_forever_\Interface\AddOns`.
 3. Перезапустите игру.

@@ -4,7 +4,7 @@
 
 **Findet im Auktionshaus Ausrüstung, die besser ist als deine und die du dir leisten kannst.** Ein Addon für World of Warcraft Forever.
 
-**[Auf CurseForge herunterladen](https://www.curseforge.com/wow/addons/upgrade-scout)**
+**Auf [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) oder [Wago](https://addons.wago.io/addons/upgrade-scout) herunterladen**
 
 [English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · Deutsch · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md)
 
@@ -30,15 +30,15 @@ Französisch, Spanisch, brasilianisches Portugiesisch und Koreanisch.
 
 ## Installation
 
-**[Über CurseForge installieren](https://www.curseforge.com/wow/addons/upgrade-scout)**
+**Über [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) oder [Wago](https://addons.wago.io/addons/upgrade-scout) installieren**
 
-Die CurseForge-App erledigt alles für dich.
+Die App von CurseForge oder Wago erledigt alles für dich.
 
 Du brauchst World of Warcraft Forever (1.60.1). Ein anderes Addon ist nicht nötig.
 
 Von Hand:
 
-1. Lade `UpgradeScout-<Version>-forever.zip` von [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)
+1. Lade `UpgradeScout-<Version>-forever.zip` von [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout), [Wago](https://addons.wago.io/addons/upgrade-scout)
    oder von den [GitHub-Releases](https://github.com/dibenkobit/upgrade-scout/releases) herunter.
 2. Entpacke die Datei nach `World of Warcraft\_forever_\Interface\AddOns`.
 3. Starte das Spiel neu.
