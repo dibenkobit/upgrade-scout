@@ -95,10 +95,11 @@ local ANY_LEVEL = math.huge
 
 -- The lines for an item link: { { name = profile id, title, gain }, ..., effects = bool },
 -- false for an item that gets none (not gear, not for this class, worth nothing on any of
--- its profiles), nil while the game has not loaded it or the character.
+-- its profiles), nil while the game has not loaded it or the character. The second value is
+-- whether that answer is final: false while the game still loads some of what is worn.
 local function Answer(link)
     local known = answers[link]
-    if known ~= nil then return known end
+    if known ~= nil then return known, true end
     local me = ns.Roster.Me()
     local scored = me and me.class and ns.Score.Item(link)
     if not scored then return nil end
@@ -130,7 +131,26 @@ local function Answer(link)
         end
     end
     if whole then answers[link] = answer end
-    return answer
+    return answer, whole
+end
+
+-- For the arrow on the icon of an item in the bags (Bags.lua): true when the item's line for
+-- the profile in use reads as a gain, in green, false when it does not, nil while the game
+-- has not loaded what it takes to tell.
+function T.Upgrade(link)
+    local _, _, _, invType = C_Item.GetItemInfoInstant(link)
+    if not invType or not ns.Compare.Handles(invType) then return false end
+    local answer, whole = Answer(link)
+    if answer == nil or not whole then return nil end
+    local current = answer and ns.Score.Current()
+    if not current then return false end
+    for _, line in ipairs(answer) do
+        if line.name == current.name then
+            local _, color = GainText(line.gain)
+            return color == GREEN_FONT_COLOR
+        end
+    end
+    return false
 end
 
 local NOTES = { OFFHAND_EMPTY = "TT_OFFHAND_EMPTY", BOTH_HANDS = "TT_BOTH_HANDS" }

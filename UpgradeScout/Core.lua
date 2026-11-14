@@ -187,6 +187,30 @@ function ns.Upper(text)
 end
 
 ---------------------------------------------------------------------------
+-- What the character being played falls short of
+---------------------------------------------------------------------------
+-- The game colours a tooltip line red when the player does not meet it: level, class, armor
+-- or weapon skill not learned, and so on. That is the most direct answer to "can I equip
+-- this right now". The lines are read as data (C_TooltipInfo), the same data the game builds
+-- its tooltips from, so no tooltip frame is involved.
+local function IsRed(text, color)
+    if not text or text == "" or not color then return false end
+    local r, g, b = color:GetRGB()
+    return r > 0.9 and g < 0.2 and b < 0.2
+end
+
+-- Is anything in these lines (after the name) red?
+function ns.AnyRed(lines)
+    for i = 2, #lines do
+        local line = lines[i]
+        if IsRed(line.leftText, line.leftColor) or IsRed(line.rightText, line.rightColor) then
+            return true
+        end
+    end
+    return false
+end
+
+---------------------------------------------------------------------------
 -- Telling items apart
 ---------------------------------------------------------------------------
 -- An item by what the player sees of it: its number and its name, "of the Tiger" and all.

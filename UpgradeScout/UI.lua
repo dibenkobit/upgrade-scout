@@ -1070,6 +1070,7 @@ local function Choose(choice)
     local sameWho = card == ns.Roster.Target()
     -- A character's profile is remembered with the character, whoever chose it.
     owner.profile = choice.profile
+    ns.Fire("PROFILE_CHANGED", owner)
 
     if sameWho then
         -- Scores of gear from another profile mean nothing now, and the Upgrades view scans

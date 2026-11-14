@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.0
+
+- A green arrow on the icon of an item in your bags or bank means it is an
+  upgrade you can put on now: better on your profile, and nothing in its tooltip is red.
+
 ## 2.2.3
 
 - The addon's description in the AddOns list names consumables too.

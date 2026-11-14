@@ -238,28 +238,11 @@ local function EvalLink(link)
     return result
 end
 
--- The game colours a tooltip line red when the player does not meet it: level, class, armor
--- or weapon skill not learned, and so on. That is the most direct answer to "can I equip
--- this right now". The lines are read as data (C_TooltipInfo), the same data the game builds
--- its tooltips from, so no tooltip frame is involved.
--- Red is about the character being played. When the lists are for another one (run.who, a
--- card from Roster), the same lines are judged by what the card knows of that character.
-local function IsRed(text, color)
-    if not text or text == "" or not color then return false end
-    local r, g, b = color:GetRGB()
-    return r > 0.9 and g < 0.2 and b < 0.2
-end
-
--- Is anything in these lines red?
-local function AnyRed(lines)
-    for i = 2, #lines do
-        local line = lines[i]
-        if IsRed(line.leftText, line.leftColor) or IsRed(line.rightText, line.rightColor) then
-            return true
-        end
-    end
-    return false
-end
+-- Whether the player can equip or use an item right now: nothing in its tooltip is red (see
+-- ns.AnyRed). Red is about the character being played. When the lists are for another one
+-- (run.who, a card from Roster), the same lines are judged by what the card knows of that
+-- character.
+local AnyRed = ns.AnyRed
 
 -- Reads the tooltip of a scored item (see EvalLink) for what only the tooltip tells:
 --   eval.usable  true = the character can equip it, false = it cannot. Left nil while the

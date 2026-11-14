@@ -22,9 +22,10 @@ read_globals = {
     -- its tables of functions and of numbers
     "C_AuctionHouse", "C_Container", "C_Item", "C_SpellBook", "C_Timer", "C_TooltipInfo", "ColorManager", "Constants",
     "Enum", "EventUtil", "TooltipDataProcessor", "TooltipUtil", "MoneyStringConstants", "PixelUtil", "SOUNDKIT", "ScrollBoxConstants", "ScrollUtil",
+    "BankPanelItemButtonMixin",
     -- its frames, fonts and colours
     "AuctionHouseFrame", "GameTooltip", "MailFrame", "MailFrameTab2", "SendMailNameEditBox", "SendMailSubjectEditBox",
-    "ItemRefTooltip", "ShoppingTooltip1", "UIParent", "Number13FontWhite", "PriceFontRed", "PriceFontWhite", "STANDARD_TEXT_FONT",
+    "ItemRefTooltip", "ShoppingTooltip1", "UIParent", "BankPanel", "ContainerFrameCombinedBags", "ContainerFrameContainer", "Number13FontWhite", "PriceFontRed", "PriceFontWhite", "STANDARD_TEXT_FONT",
     "GRAY_FONT_COLOR", "GREEN_FONT_COLOR", "HIGHLIGHT_FONT_COLOR", "NORMAL_FONT_COLOR", "RED_FONT_COLOR", "RAID_CLASS_COLORS",
     -- its words
     "ACCEPT", "BUYOUT_AUCTION_CONFIRMATION", "CANCEL", "DAYS_ABBR", "HOURS_ABBR", "MINUTES_ABBR", "SECONDS_ABBR", "NONE",

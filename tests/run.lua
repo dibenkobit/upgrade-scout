@@ -10,7 +10,7 @@ local names = {
     "events", "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
-    "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "tooltips",
+    "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
 }
@@ -3512,6 +3512,84 @@ function scenarios.tooltips()
     eq(Ours(GameTooltip, 200), nil, "the chest now worn has nothing to be compared with")
     eq(Ours(GameTooltip, 100), "Arms -44% | Protection ~ +33%", "the old chest against it: 10 against 18, 12 against 9")
     eq(Ours(GameTooltip, 212), "Arms -4% | Protection ~ +0 pts | Takes both hands.", "the two-hander against sword and shield, 26 against 27")
+end
+
+function scenarios.arrows()
+    StandardWorld()
+    W.AddItem({ id = 220, name = "Oak Wand", equipLoc = "INVTYPE_RANGEDRIGHT", classID = 2, subClassID = 19, value = 9, level = 5 })
+    -- On the second profile the good chest scores 9 against the worn chest's 12.
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    LoadAddon()
+    W.Run(1)
+
+    -- Whether the slot of the bag window, or of the bank, shows the arrow.
+    local function Arrow(button)
+        local arrow = button.UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    local function Bag(slot) return Arrow(ContainerFrameCombinedBags.Items[slot]) end
+
+    local slot = {}
+    for _, id in ipairs({ 200, 211, 202, 203, 204, 220, 214, 208, 201 }) do slot[id] = W.PutInBags(W.Link(id)) end
+    W.OpenBags()
+    eq(Bag(slot[200]), true, "a better chest: 18 against 10 on the profile in use")
+    eq(ContainerFrameCombinedBags.Items[slot[200]].UpgradeScoutArrow._atlas, "bags-greenarrow", "the game's own green arrow")
+    eq(Bag(slot[211]), true, "a helm for the empty head")
+    eq(Bag(slot[201]), true, "the robe, whose effects the score leaves out")
+    eq(Bag(slot[202]), false, "not a weaker chest")
+    eq(Bag(slot[203]), false, "not a chest above the character's level: its tooltip says so in red")
+    eq(Bag(slot[204]), false, "not mail the character has not learned")
+    eq(Bag(slot[220]), false, "not a wand: a warrior never uses one")
+    eq(Bag(slot[214]), false, "not a potion")
+    eq(Bag(slot[208]), false, "not a chest worth nothing")
+    eq(ContainerFrameCombinedBags.Items[slot[214]].UpgradeScoutArrow, nil, "a slot that never had an arrow gets no texture")
+    eq(Bag(16), false, "not an empty slot")
+
+    -- The item moved away: the game draws the bags again.
+    W.bags[0][slot[201]] = nil
+    W.DrawBags()
+    eq(Bag(slot[201]), false, "the slot of the robe, now empty")
+
+    -- An item the game is still loading gets its arrow once it has it.
+    W.items["210:0"].cached = false
+    local ring = W.PutInBags(W.Link(210))
+    W.DrawBags()
+    eq(Bag(ring), false, "nothing while the ring is loading")
+    W.items["210:0"].cached = true
+    W.Run(1.5)
+    eq(Bag(ring), true, "then the ring, for the empty second finger")
+
+    -- The bank's slots are made when it opens.
+    W.bags[6] = { [3] = { link = W.Link(211) }, [4] = { link = W.Link(202) } }
+    W.OpenBank(6)
+    local bank = {}
+    for button in BankPanel:EnumerateValidItems() do bank[button._slot] = button end
+    eq(Arrow(bank[3]), true, "the helm in the bank")
+    eq(Arrow(bank[4]), false, "not the weaker chest in the bank")
+
+    -- Another profile chosen: on it the good chest is worse than the worn one (9 against 12).
+    W.OpenAuctionHouse()
+    UpgradeScoutFrame.ProfileDropdown:Pick(2)
+    W.Run(1)
+    eq(ns.Roster.Me().profile, "S2", "the second profile chosen")
+    eq(Bag(slot[200]), false, "the good chest loses its arrow")
+    UpgradeScoutFrame.ProfileDropdown:Pick(1)
+    W.Run(1)
+    eq(Bag(slot[200]), true, "and has it again on the first")
+
+    -- A level up: the chest that asked for level 14.
+    W.player.level = 14
+    W.Fire("PLAYER_LEVEL_UP", 14)
+    W.Run(2)
+    eq(Bag(slot[203]), true, "the chest of level 14, now that the character has it")
+
+    -- New gear: the future chest goes on, so the good chest is no better than what is worn.
+    W.equipped[5] = W.Link(203)
+    W.bags[0][slot[203]] = nil
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    eq(Bag(slot[200]), false, "the good chest against the chest now worn, 18 against 60")
+    eq(Bag(slot[211]), true, "the helm still")
 end
 
 local function CheckLocale(locale, language, scan)

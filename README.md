@@ -30,6 +30,8 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
   letter to them.
 - Any item's tooltip shows how much better it is than what you wear, for every spec of your class,
   such as Arms, Fury and Protection for a warrior.
+- A green arrow on the icon of an item in your bags or bank means it is an upgrade you can put
+  on now.
 - Works right after you install it. Nothing to set up: the **Profile** dropdown starts on a profile
   that suits your class.
 - Scores gear with its own stat weights for every talent tree, worked out with the

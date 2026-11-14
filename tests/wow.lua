@@ -989,6 +989,7 @@ function W.Logout()
     UpgradeScoutCharDB = nil
     AuctionHouseFrame, LibStub = nil, nil
     W.equipped = {}
+    W.ResetBags()
 end
 
 -- Another character of the account comes into the world: `player` as W.player, `equipped`
@@ -1578,5 +1579,68 @@ end
 function PanelTemplates_TabResize() end
 function PanelTemplates_DeselectTab(tab) tab._selected = false end
 function PanelTemplates_SelectTab(tab) tab._selected = true end
+
+---------------------------------------------------------------------------
+-- The bag window and the bank
+---------------------------------------------------------------------------
+-- The game's bag window, as one window for all the bags (ContainerFrameCombinedBags): a slot
+-- button for each slot of the backpack, and its own copy of the function that draws the items
+-- (UpdateItems). The game calls that function when the window opens and when the bags change
+-- while it is open (W.DrawBags). The stand-in draws nothing itself.
+local function DrawItems() end
+ContainerFrameContainer = { ContainerFrames = {} }
+ContainerFrameCombinedBags = Widget("Frame", "ContainerFrameCombinedBags", UIParent)
+ContainerFrameCombinedBags:Hide()
+ContainerFrameCombinedBags.Items = {}
+for slot = 1, 16 do
+    local button = Widget("ItemButton", nil, ContainerFrameCombinedBags)
+    function button.GetBagID() return 0 end
+    function button.GetID() return slot end
+    ContainerFrameCombinedBags.Items[slot] = button
+end
+ContainerFrameCombinedBags.UpdateItems = DrawItems
+function ContainerFrameCombinedBags:EnumerateValidItems() return ipairs(self.Items) end
+
+function W.OpenBags()
+    ContainerFrameCombinedBags:Show()
+    ContainerFrameCombinedBags:UpdateItems()
+end
+
+function W.DrawBags()
+    if ContainerFrameCombinedBags:IsShown() then ContainerFrameCombinedBags:UpdateItems() end
+end
+
+-- The bank: its slots are made when it opens, from a pool, and each calls the function of
+-- BankPanelItemButtonMixin to read and draw its item, whatever was hooked into it since.
+local function BankRefresh(self)
+    self.itemInfo = C_Container.GetContainerItemInfo(self._bag, self._slot)
+end
+BankPanelItemButtonMixin = { Refresh = BankRefresh }
+BankPanel = Widget("Frame", "BankPanel", UIParent)
+BankPanel:Hide()
+BankPanel._buttons = {}
+-- As a frame pool's EnumerateActive: the slots are the keys.
+function BankPanel:EnumerateValidItems() return pairs(self._buttons) end
+
+-- The bank opens on the tab whose items are W.bags[bag].
+function W.OpenBank(bag)
+    BankPanel:Show()
+    BankPanel._buttons = {}
+    for slot = 1, 16 do
+        local button = Widget("ItemButton", nil, BankPanel)
+        button._bag, button._slot = bag, slot
+        function button.Refresh(self) BankPanelItemButtonMixin.Refresh(self) end
+        BankPanel._buttons[button] = true
+        button:Refresh()
+    end
+end
+
+-- A new session has the game's own functions, with nothing hooked into them (see W.Logout).
+function W.ResetBags()
+    ContainerFrameCombinedBags.UpdateItems = DrawItems
+    ContainerFrameCombinedBags:Hide()
+    BankPanelItemButtonMixin.Refresh = BankRefresh
+    BankPanel:Hide()
+end
 
 return W
