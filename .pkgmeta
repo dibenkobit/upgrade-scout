@@ -12,6 +12,7 @@ ignore:
   - tests
   - scripts
   - docs
+  - .luacheckrc
   - README.md
   - CHANGELOG.md
   - RELEASE_NOTES.md

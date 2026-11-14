@@ -1,6 +1,6 @@
-# Runs the tests on every push to a branch and on every pull request, so that a mistake shows
-# up when it is made and not when a version is tagged. (A tag is tested again by release.yml
-# before anything is packaged.)
+# Runs the tests and luacheck on every push to a branch and on every pull request, so that a
+# mistake shows up when it is made and not when a version is tagged. (A tag is tested again by
+# release.yml before anything is packaged.)
 name: Tests
 
 on:
@@ -24,3 +24,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y lua5.1
           lua5.1 tests/run.lua
+
+  # What the tests do not run into: a name that is not the game's, a variable nobody reads.
+  # The options are in .luacheckrc.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone project
+        uses: actions/checkout@v7
+
+      - name: Check the code with luacheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1 liblua5.1-0-dev luarocks
+          sudo luarocks --lua-version=5.1 install luacheck 1.2.0
+          luacheck UpgradeScout tests

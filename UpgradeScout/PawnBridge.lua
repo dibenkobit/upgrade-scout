@@ -176,6 +176,12 @@ function Pawn.ClassCanUse(item, who)
     return true
 end
 
+-- An item's number and the way it is worn ("INVTYPE_CHEST").
+local function ItemSlot(link)
+    local itemID, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
+    return itemID, equipLoc
+end
+
 local function ShowsWeaponSet(scaleName, set)
     if type(PawnGetShowUpgradesForWeapons) ~= "function" then return true end
     return PawnGetShowUpgradesForWeapons(scaleName, set) ~= false
@@ -195,17 +201,16 @@ function Pawn.Context(scaleName, who)
     if who then
         local pending, unread
         for slot, link in pairs(type(who.gear) == "table" and who.gear or {}) do
-            local itemID, _, _, equipLoc
+            -- (A card comes out of a saved file: what is not a slot and a link is passed over.)
+            local itemID, equipLoc
             if type(slot) == "number" and type(link) == "string" then
-                itemID, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
+                itemID, equipLoc = ItemSlot(link)
             end
             if itemID then
                 local item = PawnGetItemData(link)
-                if item then
-                    -- Pawn has read it.
-                elseif C_Item.IsItemDataCachedByID(itemID) then
+                if not item and C_Item.IsItemDataCachedByID(itemID) then
                     unread = (unread or 0) + 1
-                else
+                elseif not item then
                     pending = pending or {}
                     pending[itemID] = true
                     C_Item.RequestLoadItemDataByID(itemID)
@@ -236,7 +241,7 @@ function Pawn.Context(scaleName, who)
         local link = GetInventoryItemLink("player", slot)
         if link then
             local item = PawnGetItemDataForInventorySlot(slot, true)
-            local itemID, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
+            local itemID, equipLoc = ItemSlot(link)
             equipped[slot] = {
                 link = link,
                 itemID = itemID,

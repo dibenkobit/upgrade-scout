@@ -850,7 +850,7 @@ function scenarios.buy()
     W.OpenAuctionHouse()
     ScanToEnd()
     local good = Offer("Good Chest")
-    local searches = W.AH.calls.search
+    local searches
 
     -- The question is for a player who is looking at the list. If they left the tab while the
     -- item was being looked up, nothing pops up, and the scanner is free again.
@@ -1016,14 +1016,14 @@ function scenarios.ui()
     -- The coins of a price stand close together: each part of it a fixed step to the left of
     -- the part after it, not in the game's slots, which leave a hole before a single digit.
     local function Laid(money)
-        local names = { [money] = "frame", [money.CopperDisplay] = "copper", [money.SilverDisplay] = "silver" }
+        local anchors = { [money] = "frame", [money.CopperDisplay] = "copper", [money.SilverDisplay] = "silver" }
         local out = {}
         for _, key in ipairs({ "GoldDisplay", "SilverDisplay", "CopperDisplay" }) do
             local part = money[key]
             eq(#part._points, 1, "one anchor for each part of a price")
             if part:IsShown() then
                 local at = part._points[1]
-                out[#out + 1] = key:sub(1, 1) .. part._amount .. " " .. at.point .. " to " .. tostring(names[at.to]) .. " " .. at.toPoint .. " " .. at.x
+                out[#out + 1] = key:sub(1, 1) .. part._amount .. " " .. at.point .. " to " .. tostring(anchors[at.to]) .. " " .. at.toPoint .. " " .. at.x
             end
         end
         return table.concat(out, ", ")
@@ -1529,7 +1529,7 @@ function scenarios.plan()
     -- A dual wielder buys two one-handers.
     ctx = { equipped = { [16] = Worn(1, "INVTYPE_WEAPON", 20), [17] = Worn(2, "INVTYPE_WEAPON", 10) }, dualWield = true }
     offers = Offers({ For(41, "INVTYPE_WEAPON", 26, GOLD), For(42, "INVTYPE_WEAPON", 22, GOLD) })
-    set, summary = Best(offers, ctx, 2 * GOLD)
+    _, summary = Best(offers, ctx, 2 * GOLD)
     near(summary.gain, 18, "two swords for a dual wielder: 48 in place of 30"); eq(summary.upgrades, 2, "both bought")
 
     -- A second copy of a unique item is not worn, so not bought.
@@ -1795,7 +1795,7 @@ function scenarios.supplies()
     eq(rows[1].group, "SUB1", "a heading is known by its subcategory")
 
     -- The same for a character with mana: the mana potion is of use, only too dear.
-    rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = true })
+    _, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = true })
     eq(summary.useless, 1, "with mana, only the Intellect elixir is of no use"); eq(summary.hidden, 1, "and the mana potion costs too much")
 
     -- Everything: kinds stay together; what is of no use goes last and is marked.
@@ -2200,9 +2200,9 @@ function scenarios.supplies_ui()
             if said and said:find(words, 1, true) then return said end
         end
     end
-    local function Tick(check, checked)
-        check:SetChecked(checked)
-        check:Click()
+    local function Tick(tickBox, checked)
+        tickBox:SetChecked(checked)
+        tickBox:Click()
         W.Run(0.3)
     end
 
@@ -2294,9 +2294,9 @@ function scenarios.supplies_ui()
     local first = "[POTIONS], Greater Healing Potion, Healing Potion, Minor Healing Potion, "
         .. "[ELIXIRS], Elixir of Agility, Elixir of Lesser Agility, Elixir of Ogre Strength, Elixir of Wisdom, "
         .. "[FOOD & DRINK], Stormwind Brie, Wild Hog Shank, Mutton Chop"
-    local last = "[BANDAGES], Heavy Wool Bandage, Wool Bandage, [OTHER], Rough Dynamite"
+    local ending = "[BANDAGES], Heavy Wool Bandage, Wool Bandage, [OTHER], Rough Dynamite"
     eq(top:sub(1, #first), first, "each kind from its best down; of two equally strong the cheaper first; what is of no use last")
-    eq(bottom:sub(-#last), last, "and so to the end of the list")
+    eq(bottom:sub(-#ending), ending, "and so to the end of the list")
     local wisdom = Row("Elixir of Wisdom")
     eq(wisdom.Icon._grey, true, "what is of no use is grey"); eq(wisdom.Upgrade:IsShown(), false, "and has no score")
     check(Tooltip(wisdom):find("your Pawn scale gives no weight", 1, true) ~= nil, "its tooltip says why: " .. Tooltip(wisdom))
