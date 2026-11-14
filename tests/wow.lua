@@ -801,7 +801,17 @@ end
 function CanDualWield() return W.player.dualWield end
 function GetMoney() return W.player.money end
 -- How much mana the character can hold: none unless a test gives it some (W.player.mana).
-function UnitPowerMax(_, power) return power == 0 and (W.player.mana or 0) or 0 end
+-- W.secrets: the character is in a fight, and the game keeps the number to itself. What it
+-- hands out instead cannot be compared or counted with, only passed on and asked about.
+local SECRET = setmetatable({}, {
+    __lt = function() error("attempt to compare a secret value") end,
+    __le = function() error("attempt to compare a secret value") end,
+})
+function issecretvalue(value) return value == SECRET end
+function UnitPowerMax(_, power)
+    if W.secrets then return SECRET end
+    return power == 0 and (W.player.mana or 0) or 0
+end
 function GetInventoryItemLink(_, slot) return W.equipped[slot] end
 -- W.modified: true for "some modifier is held", or the name of one action ("DRESSUP").
 function IsModifiedClick(action) return W.modified == true or (action ~= nil and W.modified == action) end

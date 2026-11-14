@@ -255,7 +255,10 @@ local function Describe(card)
     local level = UnitLevel("player") or 0
     if levelUp and levelUp > level then level = levelUp end
     if level > 0 then card.level = level end
-    card.mana = (UnitPowerMax("player", MANA) or 0) > 0
+    -- The game may keep this number to itself in a fight (a "secret" value, which cannot even
+    -- be compared): what the card said before then stands.
+    local mana = UnitPowerMax("player", MANA)
+    if not issecretvalue(mana) then card.mana = mana > 0 end
     card.dualWield = CanDualWield() and true or false
 end
 

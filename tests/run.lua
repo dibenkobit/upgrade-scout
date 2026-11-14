@@ -2485,6 +2485,12 @@ function scenarios.roster()
     W.Fire("PLAYER_LEVEL_UP", 11)
     W.Run(1.5)
     eq(me.level, 11, "a level gained")
+    -- In a fight the game keeps how much mana there is to itself: the card stays as it was.
+    W.secrets = true
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1.5)
+    W.secrets = nil
+    eq(me.mana, false, "a number the game keeps secret is not gone by"); eq(me.gear[11], W.Link(101), "and the rest is written down as ever")
     -- A game that does not answer about spells leaves what was known.
     W.player.spells = nil
     W.Fire("SPELLS_CHANGED")

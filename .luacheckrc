@@ -15,7 +15,7 @@ read_globals = {
     "GetProfessionInfo", "GetProfessions", "GetRealmName", "GetSendMailItem", "GetTime", "HandleModifiedItemClick",
     "IsModifiedClick", "MoneyFrame_Update", "PlaySound", "ResetCursor", "ShowInspectCursor", "StaticPopup_Hide",
     "StaticPopup_OnAcceptWithSpinner", "StaticPopup_Show", "UnitClass", "UnitFactionGroup", "UnitLevel", "UnitName",
-    "UnitPowerMax", "UnitRace", "debugprofilestop", "hooksecurefunc", "securecallfunction", "time",
+    "UnitPowerMax", "UnitRace", "debugprofilestop", "hooksecurefunc", "issecretvalue", "securecallfunction", "time",
     "GameTooltip_AddBlankLineToTooltip", "GameTooltip_AddColoredLine", "GameTooltip_AddDisabledLine",
     "GameTooltip_AddErrorLine", "GameTooltip_AddHighlightLine", "GameTooltip_AddNormalLine", "GameTooltip_Hide",
     "GameTooltip_SetTitle", "GameTooltip_ShowCompareItem",
