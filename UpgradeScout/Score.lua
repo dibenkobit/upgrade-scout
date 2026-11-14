@@ -220,38 +220,40 @@ end
 -- What a character wears, scored on the given profile, plus the facts the comparison needs.
 -- This is the "context" that Compare.Place takes. On top of what Compare reads it says whom
 -- it is about: who (see the top of this file), class, level.
--- For a character that is not being played the gear is what its card remembers. The client
--- may not have those items at hand: they are asked for and named in `pending` (item id ->
--- true), and until they come their slots score 0. The scanner makes the context again when
--- they do. `unread` counts the items the client has and still gave no stats for; the scanner
--- asks again a few times for those.
+-- For a character that is not being played the gear is what its card remembers; for the one
+-- being played, what it has on. Either way the client may not have the items at hand yet:
+-- right after login the game knows what is worn but not what it adds (a link to it then has
+-- an empty name). Those items are asked for and named in `pending` (item id -> true), and
+-- until they come their slots score 0. The scanner makes the context again when they do.
+-- `unread` counts the items the client has and still gave no stats for; the scanner asks
+-- again a few times for those.
 function Score.Context(id, who)
-    local equipped = {}
+    local equipped, pending, unread = {}, nil, nil
+    local level = who and (who.level or 1) or UnitLevel("player")
+
+    local function Wear(slot, link)
+        local itemID, equipLoc = ItemSlot(link)
+        if not itemID then return end
+        local item = Score.Item(link)
+        if not item and C_Item.IsItemDataCachedByID(itemID) then
+            unread = (unread or 0) + 1
+        elseif not item then
+            pending = pending or {}
+            pending[itemID] = true
+            C_Item.RequestLoadItemDataByID(itemID)
+        end
+        equipped[slot] = {
+            link = link,
+            itemID = itemID,
+            invType = equipLoc,
+            value = item and Score.Value(item, id, level) or 0,
+        }
+    end
+
     if who then
-        local level = who.level or 1
-        local pending, unread
         for slot, link in pairs(type(who.gear) == "table" and who.gear or {}) do
             -- (A card comes out of a saved file: what is not a slot and a link is passed over.)
-            local itemID, equipLoc
-            if type(slot) == "number" and type(link) == "string" then
-                itemID, equipLoc = ItemSlot(link)
-            end
-            if itemID then
-                local item = Score.Item(link)
-                if not item and C_Item.IsItemDataCachedByID(itemID) then
-                    unread = (unread or 0) + 1
-                elseif not item then
-                    pending = pending or {}
-                    pending[itemID] = true
-                    C_Item.RequestLoadItemDataByID(itemID)
-                end
-                equipped[slot] = {
-                    link = link,
-                    itemID = itemID,
-                    invType = equipLoc,
-                    value = item and Score.Value(item, id, level) or 0,
-                }
-            end
+            if type(slot) == "number" and type(link) == "string" then Wear(slot, link) end
         end
         return {
             profile = id,
@@ -265,19 +267,9 @@ function Score.Context(id, who)
         }
     end
 
-    local level = UnitLevel("player")
     for slot = 1, ns.Roster.LAST_SLOT do
         local link = GetInventoryItemLink("player", slot)
-        if link then
-            local item = Score.Item(link)
-            local itemID, equipLoc = ItemSlot(link)
-            equipped[slot] = {
-                link = link,
-                itemID = itemID,
-                invType = equipLoc,
-                value = item and Score.Value(item, id, level) or 0,
-            }
-        end
+        if link then Wear(slot, link) end
     end
     local _, class = UnitClass("player")
     return {
@@ -285,6 +277,8 @@ function Score.Context(id, who)
         class = class,
         level = level,
         equipped = equipped,
+        pending = pending,
+        unread = unread,
         dualWield = CanDualWield() and true or false,
     }
 end

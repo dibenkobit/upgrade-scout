@@ -11,7 +11,7 @@ local names = {
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
-    "roster", "roster_order", "alt", "mail", "profiles", "weights_data", "item_stats", "check", "locale_ru", "locale_de", "locale_fr", "locale_zh",
+    "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "check", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
 }
 
@@ -3025,6 +3025,24 @@ function scenarios.mail()
     -- A surname, as the characters of this game have: the letter is addressed with it.
     eq(ns.Mail.Address({ name = "Alty", last = "Greenleaf" }), "Alty Greenleaf", "a name and a surname")
     eq(ns.Mail.Address({ name = "Alty" }), "Alty", "a name alone")
+end
+
+-- Right after login the game knows what the character wears but not yet what it adds: the
+-- gear is waited for, not taken for empty slots.
+function scenarios.worn_loading()
+    StandardWorld()
+    W.items["100:0"].cached = false     -- the chest
+    LoadAddon()
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    check(S.Start(), "a scan")
+    eq(S.ctx.pending and S.ctx.pending[100], true, "the chest that has not come yet is asked for")
+    near(S.ctx.equipped[5].value, 0, "until then it scores nothing")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    W.Run(1)
+    eq(S.ctx.pending, nil, "it came")
+    near(S.ctx.equipped[5].value, 10, "and is scored as what is worn")
+    near(ns.Compare.Place(Offer("Good Chest"), S.ctx)[1].delta, 8, "an offer is weighed against it, not against an empty slot")
 end
 
 -- Profiles and the score they give an item.

@@ -87,9 +87,8 @@ local ARMOR_CLASS = Enum.ItemClass.Armor
 local WEAPON_CLASS = Enum.ItemClass.Weapon
 local CONSUMABLE_CLASS = Enum.ItemClass.Consumable
 
--- Gear of a character that is not being played which the client has and still gave no stats
--- for (ctx.unread, see Score.Context): most likely it was asked a moment before the game had
--- the whole item. The gear snapshot is made again a few times, a second apart; an item that
+-- Gear which the client has and still gave no stats for (ctx.unread, see Score.Context):
+-- most likely it was asked a moment before the game had the whole item. The gear snapshot is made again a few times, a second apart; an item that
 -- truly has no stats stays at 0, as it should.
 local CONTEXT_RETRIES = 3
 local contextTries = 0
@@ -1055,8 +1054,8 @@ local function FinishBrowse(partial)
     if partial then
         if run.mode == "supplies" then S.suppliesPartial = true else S.partial = true end
     end
-    -- Gear of a character that is not being played may have still been on its way from the
-    -- server when the scan began (see Score.Context): by now it has had time to come.
+    -- Gear may have still been on its way from the server when the scan began (see
+    -- Score.Context): by now it has had time to come.
     if run.mode ~= "supplies" and S.ctx and S.ctx.pending then
         S.ctx = ns.Score.Context(S.ctx.profile, S.ctx.who)
         Recheck()
@@ -1387,8 +1386,8 @@ function S.CancelPurchase()
     ns.Fire("OFFERS_CHANGED")
 end
 
--- Rebuilds the gear snapshot (after the player changes equipment, or when gear of a
--- character that is not being played has come from the server). The offers keep their
+-- Rebuilds the gear snapshot (after the player changes equipment, or when gear the snapshot
+-- was waiting for has come from the server). The offers keep their
 -- scores, so the list can be re-ranked without another scan.
 function S.RefreshContext()
     if not S.ctx then return end
