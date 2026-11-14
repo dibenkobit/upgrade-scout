@@ -141,15 +141,70 @@ end
 -- Rows
 ---------------------------------------------------------------------------
 -- Our lines under an item's tooltip start with the addon's icon and name, so that they are not
--- taken for the lines another addon puts there (Mastercraft heads its own the same way). On
--- the right, whose profile the scores are on. The blue is the lens of the logo.
+-- taken for the lines another addon puts there. `right`, when given, goes on the right of
+-- that line. The blue is the lens of the logo.
 local BRAND = "|TInterface\\AddOns\\" .. ADDON .. "\\icon.tga:0|t Upgrade Scout"
 local BRAND_R, BRAND_G, BRAND_B = 0.53, 0.78, 0.96
 
-local function AddHeader(who)
+local function AddHeader(right)
     GameTooltip_AddBlankLineToTooltip(GameTooltip)
-    local profile = who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle()
-    GameTooltip:AddDoubleLine(BRAND, profile, BRAND_R, BRAND_G, BRAND_B, NORMAL_FONT_COLOR:GetRGB())
+    if right then
+        GameTooltip:AddDoubleLine(BRAND, right, BRAND_R, BRAND_G, BRAND_B, NORMAL_FONT_COLOR:GetRGB())
+    else
+        GameTooltip:AddLine(BRAND, BRAND_R, BRAND_G, BRAND_B)
+    end
+end
+
+-- A gain as the list writes it (see InitItemRow), and the colour to write it in: green for
+-- better, red for worse, grey for no change. With nothing to take a percent of (an empty slot,
+-- or an item there that scores nothing), in points.
+local function GainText(gain)
+    if gain.percent then
+        local shown = FormatPercentage(math.abs(gain.percent), true)
+        if shown == FormatPercentage(0, true) then return shown, GRAY_FONT_COLOR end
+        if gain.percent > 0 then return "+" .. shown, GREEN_FONT_COLOR end
+        return "-" .. shown, RED_FONT_COLOR
+    end
+    return L.GAIN_POINTS:format(ns.Num(gain.delta)), gain.delta > 0 and GREEN_FONT_COLOR or GRAY_FONT_COLOR
+end
+
+-- What the offer of a row gains on every profile of the class, as Pawn shows its scales:
+-- { { title, text, color, current }, ... } in the order of the profile menu. The profile the
+-- list is made on reads as the row does. Each of the others weighs the item and the gear the
+-- same way on its own weights, and measures it against what it would take off: the weaker
+-- of two rings on that profile, say. The game redraws a tooltip that is up several times a
+-- second; the answer is kept while the row is the same.
+local gainsOf = {}
+
+local function ProfileGains(entry)
+    if gainsOf.entry == entry then return gainsOf.gains end
+    local gains = {}
+    local ctx = S.ctx
+    if ctx then
+        -- The gear the list measured against: with the best set for a budget, the items
+        -- bought for it count as worn (see Plan.Wearing).
+        if view == "gear" and ns.db.plan then ctx = ns.Plan.Wearing(ctx, S.acquired) end
+        local offer = entry.offer
+        local scored = ns.Score.Item(offer.link)
+        for _, profile in ipairs(ns.Score.Profiles(ctx.who)) do
+            local gain
+            if profile.name == ctx.profile then
+                gain = entry
+            elseif scored then
+                local item = {
+                    link = offer.link, itemID = offer.itemID, invType = offer.invType, unique = offer.unique,
+                    value = ns.Score.Value(scored, profile.name, ctx.level),
+                }
+                gain = ns.Compare.Gain(item, ns.Score.Rescore(ctx, profile.name), entry.group)
+            end
+            if gain then
+                local text, color = GainText(gain)
+                gains[#gains + 1] = { title = profile.title, text = text, color = color, current = gain == entry }
+            end
+        end
+    end
+    gainsOf = { entry = entry, gains = gains }
+    return gains
 end
 
 -- A consumable's own tooltip, and under it how much of it is for sale.
@@ -160,7 +215,8 @@ local function ShowSupplyTooltip(row)
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(supply.link, nil, nil, hideVendorPrice)
-    AddHeader(who)
+    -- On the right, whose profile the score is on.
+    AddHeader(who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
     if entry.value then
         GameTooltip_AddNormalLine(GameTooltip, L.TT_SUP_SCORE:format("+" .. ns.Num(entry.value)))
     elseif entry.why == "MANA" then
@@ -188,22 +244,14 @@ local function ShowItemTooltip(row)
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
 
-    AddHeader(who)
-    -- (An item that scores nothing is in the slot all the same: "yours: 0", not "slot is empty".)
-    if entry.base > 0 or entry.replaced then
-        -- All three to the precision of the difference, so that they add up: 1.548, 1.5, +0.048.
-        local digits = ns.Decimals(entry.delta)
-        GameTooltip_AddColoredLine(GameTooltip, (who and L.TT_SCORE_WHO or L.TT_SCORE):format(ns.Num(offer.value, digits),
-            ns.Num(entry.base, digits), ns.Num(entry.delta, digits)), GREEN_FONT_COLOR)
-    else
-        GameTooltip_AddColoredLine(GameTooltip, L.TT_SCORE_EMPTY:format(ns.Num(offer.value)), GREEN_FONT_COLOR)
+    -- On the right, whose list it is when it is not the character's own.
+    AddHeader(who and WhoName(who) or nil)
+    -- How much better the item is on each profile of the class: the one in use in gold.
+    for _, gain in ipairs(ProfileGains(entry)) do
+        local r, g, b = (gain.current and NORMAL_FONT_COLOR or HIGHLIGHT_FONT_COLOR):GetRGB()
+        local rightR, rightG, rightB = gain.color:GetRGB()
+        GameTooltip:AddDoubleLine(gain.title, gain.text, r, g, b, rightR, rightG, rightB)
     end
-    if entry.replaced then
-        for i = 1, #entry.replaced do
-            GameTooltip_AddHighlightLine(GameTooltip, L.TT_REPLACES:format(entry.replaced[i]))
-        end
-    end
-    GameTooltip_AddHighlightLine(GameTooltip, L.TT_COST:format(ns.Money(entry.costPer)))
     if entry.note == "OFFHAND_EMPTY" then
         GameTooltip_AddNormalLine(GameTooltip, who and L.TT_OFFHAND_EMPTY_WHO or L.TT_OFFHAND_EMPTY)
     elseif entry.note == "BOTH_HANDS" then
@@ -211,11 +259,6 @@ local function ShowItemTooltip(row)
     end
     if offer.effects then
         GameTooltip_AddNormalLine(GameTooltip, L.TT_EFFECTS)
-    end
-    if offer.more then
-        GameTooltip_AddDisabledLine(GameTooltip, L.TT_MORE_SOME)
-    elseif offer.count > 1 then
-        GameTooltip_AddDisabledLine(GameTooltip, L.TT_MORE:format(offer.count - 1))
     end
     if not entry.affordable then
         GameTooltip_AddErrorLine(GameTooltip, L.TT_CANT_AFFORD:format(ns.Money(offer.buyout - GetMoney())))

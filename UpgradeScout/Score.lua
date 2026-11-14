@@ -310,3 +310,22 @@ function Score.Context(id, who)
         dualWield = CanDualWield() and true or false,
     }
 end
+
+-- The same gear scored on another profile: a context of its own, `ctx` left as it is. What
+-- is worn is what `ctx` has on, the items bought for a set among it (see Plan.Wearing).
+function Score.Rescore(ctx, id)
+    local out = {}
+    for key, value in pairs(ctx) do out[key] = value end
+    out.profile = id
+    out.equipped = {}
+    for slot, worn in pairs(ctx.equipped) do
+        local item = Score.Item(worn.link)
+        out.equipped[slot] = {
+            link = worn.link,
+            itemID = worn.itemID,
+            invType = worn.invType,
+            value = item and Score.Value(item, id, ctx.level) or 0,
+        }
+    end
+    return out
+end

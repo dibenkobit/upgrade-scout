@@ -139,15 +139,13 @@ local function IsWorn(equipped, itemID)
     return false
 end
 
--- item: { invType, value, itemID, unique }
--- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield }
--- Returns a list of placements; empty when the item is not an upgrade anywhere.
--- A one-hand weapon can appear twice (main hand and off hand) for a dual wielder.
-function C.Place(item, ctx)
+-- Where the item can go and what it gains there. `beats(value, base)` says which of those
+-- places count.
+local function Places(item, ctx, beats)
     local out = {}
     local value = item.value
     local invType = item.invType
-    if not value or value <= 0 or not invType then return out end
+    if not value or not invType then return out end
 
     local equipped = ctx.equipped
     -- A second copy of a unique item cannot be equipped next to the first.
@@ -158,7 +156,7 @@ function C.Place(item, ctx)
         local slot = GROUP_BY_ID[single].slots[1]
         local worn = equipped[slot]
         local base = worn and worn.value or 0
-        if Beats(value, base) then
+        if beats(value, base) then
             out[1] = Placement(single, slot, value, base, worn and { worn.link } or nil)
         end
         return out
@@ -173,7 +171,7 @@ function C.Place(item, ctx)
         local secondValue = second and second.value or 0
         local worn, base, slot = first, firstValue, slots[1]
         if secondValue < firstValue then worn, base, slot = second, secondValue, slots[2] end
-        if Beats(value, base) then
+        if beats(value, base) then
             out[1] = Placement(paired, slot, value, base, worn and { worn.link } or nil)
         end
         return out
@@ -189,7 +187,7 @@ function C.Place(item, ctx)
     if invType == "INVTYPE_2HWEAPON" then
         -- A two-hander replaces both hands, so it has to beat both together.
         local base = mainValue + offValue
-        if Beats(value, base) then
+        if beats(value, base) then
             local replaced = {}
             if main then replaced[#replaced + 1] = main.link end
             if off then replaced[#replaced + 1] = off.link end
@@ -202,7 +200,7 @@ function C.Place(item, ctx)
         -- Against a two-hander the comparison is honest only if the off hand is counted as empty.
         -- The gain is a share of what both hands hold, as a two-hander's is: the main hand
         -- lists the two kinds together, and the bigger gain must read as the bigger percent.
-        if Beats(value, mainValue) then
+        if beats(value, mainValue) then
             out[#out + 1] = Placement("MAINHAND", MAIN_HAND, value, mainValue, main and { main.link } or nil,
                 holdingTwoHander and "OFFHAND_EMPTY" or nil, mainValue + offValue)
         end
@@ -210,10 +208,34 @@ function C.Place(item, ctx)
 
     if invType ~= "INVTYPE_WEAPONMAINHAND" and not holdingTwoHander then
         local isWeapon = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONOFFHAND"
-        if (not isWeapon or ctx.dualWield) and Beats(value, offValue) then
+        if (not isWeapon or ctx.dualWield) and beats(value, offValue) then
             out[#out + 1] = Placement("OFFHAND", OFF_HAND, value, offValue, off and { off.link } or nil)
         end
     end
 
     return out
+end
+
+local function Anywhere()
+    return true
+end
+
+-- item: { invType, value, itemID, unique }
+-- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield }
+-- Returns a list of placements; empty when the item is not an upgrade anywhere.
+-- A one-hand weapon can appear twice (main hand and off hand) for a dual wielder.
+function C.Place(item, ctx)
+    return Places(item, ctx, Beats)
+end
+
+-- What the item gains or loses in the slot group `group`, upgrade or not: a placement as
+-- C.Place makes them, with a delta below zero where it would be worse than what is worn. nil
+-- when it cannot go there at all (an off-hand weapon for one who cannot hold two, a second
+-- copy of a unique item).
+function C.Gain(item, ctx, group)
+    local placements = Places(item, ctx, Anywhere)
+    for i = 1, #placements do
+        if placements[i].group == group then return placements[i] end
+    end
+    return nil
 end

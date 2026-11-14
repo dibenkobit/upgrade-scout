@@ -5,6 +5,8 @@
 - Armor counts on every profile, not only a tank's, and so do shield block, defense, dodge and
   parry. 2.0.0 offered a warrior an off-hand item in place of a shield with 400 armor, and leather
   over better mail.
+- An item's tooltip shows how much better it is on every profile of your class, the one in use in
+  gold. The raw scores, the price per point and the count of dearer auctions are gone from it.
 - How long ago the scan was now stands at the right end of the bottom line, where the progress bar
   runs during a scan.
 

@@ -61,6 +61,7 @@ A mano:
 - **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **Nuevo**
   significa que la ranura está vacía. Los puntos, como `+6 pts`, significan que lo que llevas ahí
   no aporta nada a tu perfil.
+- Pasa el ratón por un objeto para ver la mejora en cada perfil de tu clase. El que usas sale en dorado.
 - Un `*` amarillo tras el nombre: el objeto tiene efectos que la puntuación no cuenta.
 - Las pociones de salud y de maná no tienen puntuación: ningún peso pone número a «restaura
   700 p. de salud».

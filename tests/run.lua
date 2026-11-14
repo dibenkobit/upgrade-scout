@@ -256,6 +256,22 @@ function scenarios.compare()
     eq(#Place({ invType = "INVTYPE_FINGER", value = 50, itemID = 1, unique = true }, ctx(rings)), 0, "second copy of a unique ring")
     eq(#Place({ invType = "INVTYPE_FINGER", value = 50, itemID = 1, unique = false }, ctx(rings)), 1, "second copy of a normal ring")
 
+    -- What an item gains or loses in one slot group, upgrade or not (the tooltip's other profiles).
+    local Gain = ns.Compare.Gain
+    p = Gain({ invType = "INVTYPE_HEAD", value = 8, itemID = 9 }, ctx({ [1] = worn(10, "INVTYPE_HEAD") }), "HEAD")
+    near(p.delta, -2, "a worse helm loses"); near(p.percent, -0.2, "in percent as well")
+    p = Gain({ invType = "INVTYPE_HEAD", value = 10.04, itemID = 9 }, ctx({ [1] = worn(10, "INVTYPE_HEAD") }), "HEAD")
+    near(p.delta, 0.04, "a gain too small for the list is still told")
+    p = Gain({ invType = "INVTYPE_HEAD", value = 0, itemID = 9 }, ctx({}), "HEAD")
+    near(p.delta, 0, "an item that scores nothing gains nothing"); eq(p.percent, nil, "and no percent of an empty slot")
+    p = Gain({ invType = "INVTYPE_FINGER", value = 2, itemID = 9 }, ctx(rings), "FINGER")
+    near(p.delta, -1, "a ring is measured against the weaker one"); eq(p.replaced[1], "L2", "which it would replace")
+    eq(Gain({ invType = "INVTYPE_FINGER", value = 50, itemID = 1, unique = true }, ctx(rings), "FINGER"), nil,
+        "nothing for a second copy of a unique ring")
+    eq(Gain({ invType = "INVTYPE_HEAD", value = 12, itemID = 9 }, ctx({}), "CHEST"), nil, "nothing for a slot it does not go in")
+    eq(Gain({ invType = "INVTYPE_WEAPON", value = 30, itemID = 9 }, ctx({}), "OFFHAND"), nil,
+        "nor for the off hand of one who cannot hold two weapons")
+
     -- weapons
     local oneHand = { [16] = worn(20, "INVTYPE_WEAPON", 1), [17] = worn(7, "INVTYPE_SHIELD", 2) }
     p = Place({ invType = "INVTYPE_2HWEAPON", value = 26, itemID = 9 }, ctx(oneHand))
@@ -1095,21 +1111,25 @@ function scenarios.ui()
     eq(ns.Compare.HandLabel("INVTYPE_CHEST"), nil, "nothing for armor")
     eq(axe.Upgrade:GetText(), "+30%", "the two-hander against the sword: 26 against 20")
 
-    -- A ring in the place of one that scores nothing: no percent of nothing, and the tooltip
-    -- says what is there, not that the slot is empty.
+    -- The lines of a row's tooltip with something on their right, by the words on their left.
+    local function Gains()
+        local out = {}
+        for _, line in ipairs(GameTooltip._lines) do
+            if line.right then out[line.text] = line end
+        end
+        return out
+    end
+    -- A ring in the place of one that scores nothing: no percent of nothing, in the list or in
+    -- the tooltip.
     local ring = RowNamed("New Ring")
     eq(ring.Upgrade:GetText(), "+6 pts", "the worn ring scores nothing: not new, so the gain in points")
     ring:GetScript("OnEnter")(ring)
-    local ringTip = {}
-    for _, line in ipairs(GameTooltip._lines) do ringTip[#ringTip + 1] = line.text end
-    ringTip = table.concat(ringTip, "\n")
-    check(ringTip:find("Score: 6, yours: 0 (+6)", 1, true) ~= nil, "its score against the nothing that is worn: " .. ringTip)
-    check(ringTip:find("Replaces: " .. W.Link(103), 1, true) ~= nil, "and the ring that comes off")
-    check(ringTip:find("slot is empty", 1, true) == nil, "the slot is not called empty")
+    local ringTip = Gains()
+    eq(ringTip.Arms.right, "+6 pts", "the tooltip says the same on the profile in use")
+    eq(ringTip["Protection ~"].right, "+0 pts", "the other profile counts nothing of either ring")
+    eq(ringTip["Protection ~"].rightR, GRAY_FONT_COLOR.r, "and says so in grey")
     rows[2]:GetScript("OnEnter")(rows[2])
-    local helmTip = {}
-    for _, line in ipairs(GameTooltip._lines) do helmTip[#helmTip + 1] = line.text end
-    check(table.concat(helmTip, "\n"):find("Score: 12, slot is empty", 1, true) ~= nil, "an empty slot is")
+    eq(Gains().Arms.right, "+12 pts", "an empty slot: the helm's whole score, in points")
     rows[2]:GetScript("OnLeave")(rows[2])
 
     -- The two filters: tick boxes with their labels beside them.
@@ -1177,18 +1197,17 @@ function scenarios.ui()
     -- The meter under a gain measures it against the best one in the slot: +8 against +20.
     near(rows[5].Meter:GetWidth() / rows[4].Meter:GetWidth(), 8 / 20, "the meter of the smaller gain is shorter by as much")
 
-    -- Tooltip
+    -- Tooltip: the gain on every profile of the class, as Pawn shows its scales. On the other
+    -- profile the two chests score 9 and 12.
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
     rows[5]:GetScript("OnEnter")(rows[5])
     local seen = {}
     for _, line in ipairs(GameTooltip._lines) do seen[#seen + 1] = line.text end
     local tip = table.concat(seen, "\n")
-    check(tip:find("Score: 18, yours: 10 (+8)", 1, true) ~= nil, "tooltip score line")
-    check(tip:find("Replaces: ", 1, true) ~= nil and tip:find("Cost per point: 5s", 1, true) ~= nil, "tooltip replaces and cost")
-    check(tip:find("1 more for sale", 1, true) ~= nil, "tooltip count")
-    -- Our lines are headed by the addon's name, apart from the item's own, with the profile.
+    -- Our lines are headed by the addon's name, apart from the item's own.
     local header
     for i, line in ipairs(GameTooltip._lines) do
-        if line.right then
+        if line.text:find("Upgrade Scout", 1, true) then
             header = i
             break
         end
@@ -1197,10 +1216,20 @@ function scenarios.ui()
     local head = GameTooltip._lines[header]
     eq(head.text, "|TInterface\\AddOns\\UpgradeScout\\icon.tga:0|t Upgrade Scout", "the addon's icon and name")
     near(head.b, 0.96, "in blue")
-    eq(head.right, "Arms", "and on the right the profile the scores are on")
-    eq(head.rightR, NORMAL_FONT_COLOR.r, "in the game's gold")
+    eq(head.right, nil, "with nothing on the right for the character's own list")
     eq(GameTooltip._lines[header - 1].text, " ", "a blank line sets them off from the item's")
-    check(GameTooltip._lines[header + 1].text:find("Score: 18", 1, true) == 1, "and the score comes right after")
+    local arms, prot = GameTooltip._lines[header + 1], GameTooltip._lines[header + 2]
+    eq(arms.text, "Arms", "then the profiles of the class, in the order of the menu")
+    eq(arms.right, "+80%", "each with its gain: on the profile in use, the list's")
+    eq(arms.r, NORMAL_FONT_COLOR.r, "that profile in gold"); eq(arms.rightR, GREEN_FONT_COLOR.r, "a gain in green")
+    eq(prot.text, "Protection ~", "the other one with its mark")
+    eq(prot.right, "-25%", "measured on its own weights: 9 against the 12 of the worn chest")
+    eq(prot.r, HIGHLIGHT_FONT_COLOR.r, "in white"); eq(prot.rightR, RED_FONT_COLOR.r, "a loss in red")
+    eq(GameTooltip._lines[header + 3], nil, "and no more for an item without notes")
+    for _, gone in ipairs({ "Score", "Replaces", "per point", "for sale" }) do
+        check(tip:find(gone, 1, true) == nil, "nothing of '" .. gone .. "' any more: " .. tip)
+    end
+    W.items["200:0"].value2, W.items["100:0"].value2 = nil, nil
     eq(W.compared, GameTooltip, "worn item shown for comparison")
     eq(rows[5].UpdateTooltip ~= nil, true, "the game can redraw the tooltip while it is up")
     -- With the try-on key held the cursor says what a click would do.
@@ -1743,6 +1772,15 @@ function scenarios.plan_ui()
     eq(heading.Toggle:IsShown(), false, "a heading of the set does not fold"); eq(heading.Count:GetText(), "", "and counts nothing")
     eq(Row("Helm").Pick:IsShown(), false, "no picks in a set: all of it is the pick")
     eq(Row("Helm").Buy:IsEnabled(), true, "each item is bought from its row")
+    -- A row of the set has the gains of every profile in its tooltip, as a row of the list.
+    local helm = Row("Helm")
+    helm:GetScript("OnEnter")(helm)
+    local gains = {}
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right then gains[#gains + 1] = line.text .. " " .. line.right end
+    end
+    eq(table.concat(gains, ", "), "Arms +12 pts, Protection ~ +0 pts", "the helm for the empty head, on both profiles")
+    helm:GetScript("OnLeave")(helm)
 
     -- A smaller sum.
     W.Type(bar.Gold, "0")
@@ -2836,12 +2874,15 @@ function scenarios.alt()
     local jerkin = Row("Druid Jerkin")
     check(jerkin ~= nil, "the jerkin is in the list")
     jerkin:GetScript("OnEnter")(jerkin)
-    local tip = Tooltip(GameTooltip)
-    local whose
-    for _, line in ipairs(GameTooltip._lines) do whose = whose or line.right end
-    check(whose and whose:find(ALTY .. ": ", 1, true) == 1, "the header says whose profile it is: " .. tostring(whose))
-    check(tip:find("Score: 20, worn: 12 (+8)", 1, true) ~= nil, "what is worn in the slot, not 'yours'")
-    check(tip:find("Replaces: " .. UpgradeScoutDB.chars["Alty-Testrealm"].gear[5], 1, true) ~= nil, "and which item it replaces")
+    local doubles = {}
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right then doubles[#doubles + 1] = line end
+    end
+    eq(doubles[1].right, ALTY, "the header says whose list it is")
+    eq(doubles[2].text, "Balance", "then the druid's profiles")
+    eq(doubles[2].right, "+67%", "against what the druid wears: 20 against 12 on the profile in use")
+    eq(doubles[3].text, "Feral", "and on the other one")
+    eq(doubles[3].right, "-33%", "on its own weights: 2 against 3")
     eq(W.compared, nil, "the game's own comparison would show the warrior's chest")
     eq(ShoppingTooltip1:IsShown(), true, "the druid's chest is shown beside it instead")
     eq(ShoppingTooltip1._lines[1].text, "Alt's Jerkin", "in the game's second tooltip")

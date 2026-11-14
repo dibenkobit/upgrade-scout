@@ -25,7 +25,7 @@ read_globals = {
     -- its frames, fonts and colours
     "AuctionHouseFrame", "GameTooltip", "MailFrame", "MailFrameTab2", "SendMailNameEditBox", "SendMailSubjectEditBox",
     "ShoppingTooltip1", "UIParent", "Number13FontWhite", "PriceFontRed", "PriceFontWhite", "STANDARD_TEXT_FONT",
-    "GREEN_FONT_COLOR", "NORMAL_FONT_COLOR", "RAID_CLASS_COLORS",
+    "GRAY_FONT_COLOR", "GREEN_FONT_COLOR", "HIGHLIGHT_FONT_COLOR", "NORMAL_FONT_COLOR", "RED_FONT_COLOR", "RAID_CLASS_COLORS",
     -- its words
     "ACCEPT", "BUYOUT_AUCTION_CONFIRMATION", "CANCEL", "DAYS_ABBR", "HOURS_ABBR", "MINUTES_ABBR", "SECONDS_ABBR", "NONE",
     "ITEM_CLASSES_ALLOWED", "ITEM_MIN_SKILL", "ITEM_RACES_ALLOWED", "ITEM_REQ_REPUTATION", "ITEM_SPELL_TRIGGER_ONUSE",

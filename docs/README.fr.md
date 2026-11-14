@@ -61,6 +61,7 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 - **Amélioration** dit de combien l'objet est meilleur que celui qu'il remplace, en pour cent.
   **Nouveau** : l'emplacement est vide. Des points, comme `+6 pts` : ce que vous y portez
   n'apporte rien à votre profil.
+- Survolez un objet pour voir l'amélioration sur chaque profil de votre classe. Celui en cours est en doré.
 - Un `*` jaune après un nom : l'objet a des effets que le score ne compte pas.
 - Les potions de vie et de mana n'ont pas de score : aucun poids ne chiffre « rend 700 points
   de vie ».

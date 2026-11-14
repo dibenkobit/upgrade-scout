@@ -61,6 +61,7 @@ Manualmente:
 - **Melhoria** diz quanto um item é melhor do que o que ele substitui, em porcentagem. **Novo**
   quer dizer que o espaço está vazio. Pontos, como `+6 pts`, querem dizer que o que você usa ali
   não acrescenta nada ao seu perfil.
+- Passe o mouse sobre um item para ver a melhoria em cada perfil da sua classe. O que está em uso aparece em dourado.
 - Um `*` amarelo depois do nome: o item tem efeitos que a pontuação não conta.
 - Poções de vida e de mana não têm pontuação: nenhum peso dá um número para "restaura 700 de vida".
 - Botas "do Tigre" e botas "da Baleia" são itens diferentes, com preços diferentes. A aba "Vender"
