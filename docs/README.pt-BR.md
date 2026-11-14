@@ -2,30 +2,38 @@
 
 <img src="logo/logo.png" alt="Logo do Upgrade Scout" width="128" align="right">
 
-**Encontra na Casa de Leilões equipamentos melhores que os seus e que cabem no seu bolso.** Um addon para World of Warcraft Forever.
+**Mostra melhorias de equipamento na dica de qualquer item e encontra na Casa de Leilões as que cabem no seu bolso.** Um addon para World of Warcraft Forever. Não precisa do Pawn.
 
 **Baixar no [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) ou no [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
 [English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · Português · [한국어](README.ko.md)
 
-Abra a Casa de Leilões, clique na aba **Melhorias** e aperte **Escanear**. Você recebe uma lista de
+**Em qualquer dica.** Passe o mouse sobre um item nas bolsas, no saque, numa recompensa de missão,
+num link do chat ou na Casa de Leilões. A dica mostra, em porcentagem, quanto o item é melhor do
+que o que você usa, para cada árvore de talentos da sua classe, como Armas, Fúria e Proteção para
+um guerreiro. Cada árvore aparece na cor da sua classe.
+
+**Na Casa de Leilões.** Clique na aba **Melhorias** e aperte **Escanear**. Você recebe uma lista de
 equipamentos melhores do que os que está usando, espaço por espaço, com os preços. Aperte
 **Comprar** no item que quiser.
 
 ## O que ele faz
 
-- Avalia os equipamentos com pesos próprios para cada árvore de talentos, calculados com o
-  simulador [wowsims/forever](https://github.com/wowsims/forever). Não precisa do Pawn.
-- A dica de qualquer item mostra quanto ele é melhor do que o que você usa, em cada perfil da sua
-  classe: nas bolsas, no saque, nos links do chat e na Casa de Leilões.
-- Mostra só o que você pode equipar agora e pagar.
+- Funciona logo depois de instalado. Há uma só configuração, a lista **Perfil**, e no começo ela
+  traz um perfil que combina com a sua classe.
+- A dica de qualquer item mostra quanto ele é melhor do que o que você usa, para cada árvore de
+  talentos da sua classe.
+- O escaneamento mostra só o que você pode equipar agora e pagar.
 - Marca dois itens em cada espaço. **Maior melhoria** é o mais forte. **Melhor custo-benefício** é
   o mais barato por ponto de melhoria.
 - **Melhor conjunto por** escolhe as melhorias que, juntas, rendem mais pelo seu ouro ou por um
   valor que você digitar.
 - A aba **Consumíveis** mostra poções, elixires, comida e ataduras que você pode usar. Primeiro, os
   mais úteis para o seu personagem.
-- As duas abas também funcionam para os seus outros personagens.
+- Compra também para os seus outros personagens. Um botão na caixa de correio coloca os
+  equipamentos comprados numa carta para eles.
+- Avalia os equipamentos com pesos próprios para cada árvore de talentos, calculados com o
+  simulador [wowsims/forever](https://github.com/wowsims/forever).
 
 Qualquer classe, qualquer nível. Inglês, chinês (simplificado e tradicional), alemão, russo,
 francês, espanhol, português do Brasil e coreano.

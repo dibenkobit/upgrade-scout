@@ -2,28 +2,35 @@
 
 <img src="docs/logo/logo.png" alt="Upgrade Scout logo" width="128" align="right">
 
-**Finds gear upgrades on the auction house that you can equip and afford.** An addon for World of Warcraft Forever.
+**Shows gear upgrades in every item tooltip and finds the ones you can afford at the auction house.** An addon for World of Warcraft Forever. Pawn is not needed.
 
 **Download on [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) or [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
 English · [简体中文](docs/README.zh-CN.md) · [繁體中文](docs/README.zh-TW.md) · [Deutsch](docs/README.de.md) · [Русский](docs/README.ru.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md) · [Português](docs/README.pt-BR.md) · [한국어](docs/README.ko.md)
 
-Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list of gear that is
-better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
+**In any tooltip.** Point at an item in your bags, in loot, in a quest reward, in a chat link or
+at the auction house. The tooltip shows how much better the item is than what you wear, in percent,
+for every spec of your class, such as Arms, Fury and Protection for a warrior. Each spec is in the
+colour of your class.
+
+**At the auction house.** Click the **Upgrades** tab and press **Scan**. You get a list of gear
+that is better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
 
 ## What it does
 
-- Scores gear with its own stat weights for every talent tree, worked out with the
-  [wowsims/forever](https://github.com/wowsims/forever) simulator. Pawn is not needed.
-- Any item's tooltip shows how much better it is than what you wear, on every profile of your class:
-  in your bags, loot, chat links and at the auction house.
-- Shows only what you can equip right now and can pay for.
+- Works right after you install it. There is one setting, the **Profile** dropdown, and it starts
+  on a profile that suits your class.
+- Any item's tooltip shows how much better it is than what you wear, for every spec of your class.
+- The scan shows only what you can equip right now and can pay for.
 - Marks two items in every slot: the **Best upgrade** is the strongest, the **Best value** is the
   cheapest per point of improvement.
 - **Best set for** picks the upgrades that give the most together for your gold, or for a sum you type.
 - The **Consumables** tab lists potions, elixirs, food and bandages you can use, the most useful for
   your character first.
-- Both tabs work for your other characters too.
+- Shops for your other characters too. A button at the mailbox puts the gear you bought into a
+  letter to them.
+- Scores gear with its own stat weights for every talent tree, worked out with the
+  [wowsims/forever](https://github.com/wowsims/forever) simulator.
 
 Any class, any level. English, Chinese (Simplified and Traditional), German, Russian, French,
 Spanish, Brazilian Portuguese and Korean.

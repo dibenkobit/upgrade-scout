@@ -2,30 +2,39 @@
 
 <img src="logo/logo.png" alt="Logo d'Upgrade Scout" width="128" align="right">
 
-**Trouve à l'hôtel des ventes l'équipement meilleur que le vôtre et dans vos moyens.** Un addon pour World of Warcraft Forever.
+**Affiche les améliorations d'équipement dans l'infobulle de chaque objet et trouve à l'hôtel des ventes celles qui sont dans vos moyens.** Un addon pour World of Warcraft Forever. Pawn n'est pas nécessaire.
 
 **Télécharger sur [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) ou [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
 [English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · Français · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md)
 
-Ouvrez l'hôtel des ventes, cliquez sur l'onglet **Améliorations** et appuyez sur **Scanner**. Vous
+**Dans chaque infobulle.** Survolez un objet dans vos sacs, dans le butin, dans une récompense de
+quête, dans un lien du chat ou à l'hôtel des ventes. L'infobulle montre, en pourcentage, de combien
+l'objet est meilleur que ce que vous portez, pour chaque arbre de talents de votre classe, par
+exemple Armes, Fureur et Protection pour un guerrier. Chaque arbre est écrit dans la couleur de
+votre classe.
+
+**À l'hôtel des ventes.** Cliquez sur l'onglet **Améliorations** et appuyez sur **Scanner**. Vous
 obtenez la liste de l'équipement meilleur que celui que vous portez, emplacement par emplacement,
 avec les prix. Appuyez sur **Acheter** pour l'objet que vous voulez.
 
 ## Ce qu'il fait
 
-- Évalue l'équipement avec ses propres poids pour chaque arbre de talents, calculés avec le
-  simulateur [wowsims/forever](https://github.com/wowsims/forever). Pawn n'est pas nécessaire.
+- Fonctionne dès l'installation. Il n'y a qu'un réglage, la liste **Profil**, et elle commence sur
+  un profil qui convient à votre classe.
 - L'infobulle de chaque objet montre de combien il est meilleur que ce que vous portez, pour chaque
-  profil de votre classe : dans les sacs, le butin, les liens du chat et à l'hôtel des ventes.
-- Montre seulement ce que vous pouvez équiper tout de suite et payer.
+  arbre de talents de votre classe.
+- Le scan montre seulement ce que vous pouvez équiper tout de suite et payer.
 - Marque deux objets par emplacement. **Meilleure amélioration** est le plus fort.
   **Meilleure affaire** est le moins cher par point d'amélioration.
 - **Meilleur ensemble pour** choisit les améliorations qui, ensemble, apportent le plus pour votre
   or, ou pour une somme que vous saisissez.
 - L'onglet **Consommables** liste les potions, élixirs, nourritures et bandages que vous pouvez
   utiliser. Les plus utiles pour votre personnage viennent en premier.
-- Les deux onglets fonctionnent aussi pour vos autres personnages.
+- Sert aussi à acheter pour vos autres personnages. Un bouton à la boîte aux lettres met
+  l'équipement acheté dans une lettre pour eux.
+- Évalue l'équipement avec ses propres poids pour chaque arbre de talents, calculés avec le
+  simulateur [wowsims/forever](https://github.com/wowsims/forever).
 
 Toutes les classes, tous les niveaux. Anglais, chinois (simplifié et traditionnel), allemand,
 russe, français, espagnol, portugais du Brésil et coréen.
