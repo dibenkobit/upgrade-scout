@@ -1526,6 +1526,35 @@ function scenarios.plan()
 
     -- Nothing for sale, nothing worn.
     eq(Best({}, { equipped = {}, dualWield = false }, GOLD), "", "no offers, no set")
+
+    -- A ladder with more rungs than are kept is thinned. Four kinds of six offers each, priced
+    -- so that every choice among them is a rung of its own: 2401 rungs. Then a belt, which is
+    -- joined to the thinned ladder.
+    ctx = { equipped = {}, dualWield = false }
+    local many, id = {}, 100
+    for kind, invType in ipairs({ "INVTYPE_CLOAK", "INVTYPE_HEAD", "INVTYPE_NECK", "INVTYPE_SHOULDER" }) do
+        for digit = 1, 6 do
+            id = id + 1
+            local worth = digit * 7 ^ (kind - 1)
+            many[#many + 1] = For(id, invType, worth, worth)
+        end
+    end
+    many[#many + 1] = For(200, "INVTYPE_WAIST", 10000, 5000)
+    ladder = Plan.Ladder(Offers(many), ctx, 10000)
+    check(#ladder <= 1002, "the ladder is thinned: " .. #ladder .. " rungs")
+    eq(ladder[1].cost, 0, "its first rung is still to buy nothing")
+    near(ladder[#ladder].gain, 10000 + 2400, "and its last the best set for all the money")
+    eq(Read(Plan.Choose(ladder, 5000)), "200:+10000", "the belt alone is a set: it does not need the kinds joined before it")
+    eq(Plan.Choose(ladder, 0), nil, "and no money is still no set")
+    -- Whatever the budget, the set is close to the best there is: here the best for a sum is
+    -- worth that sum (below the belt's price), and one part in a thousand of 12400 may be
+    -- lost at each of the two joins that thinned.
+    for _, budget in ipairs({ 1, 13, 500, 1234, 2400, 4999, 6000, 7399 }) do
+        local best = budget < 5000 and math.min(budget, 2400) or 10000 + math.min(budget - 5000, 2400)
+        local got = Plan.Choose(ladder, budget)
+        check(got ~= nil and got.cost <= budget and got.gain > best - 2 * 12.4 - 1e-6,
+            "a budget of " .. budget .. " gets " .. tostring(got and got.gain) .. " of " .. best)
+    end
 end
 
 -- The strip under the list, and the list showing the set.

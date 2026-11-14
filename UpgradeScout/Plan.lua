@@ -21,7 +21,9 @@ local P = {}
 ns.Plan = P
 
 -- More rungs than this are thinned out, so that a huge auction house cannot stall the game.
--- (The best set for all the money is always kept.)
+-- The set for a budget may then be short of the best there is, by less than one part in
+-- MAX_RUNGS of the top rung's gain for every kind joined (see Join). The best set for all the
+-- money is always kept.
 local MAX_RUNGS = 1000
 
 local function CopyGear(equipped)
@@ -158,8 +160,20 @@ local function Join(a, b, cap)
     end
     out = Ladder(out)
     if #out > MAX_RUNGS then
-        local thin, step = {}, #out / MAX_RUNGS
-        for k = 1, MAX_RUNGS do thin[k] = out[math.floor(k * step + 0.5)] end
+        -- The gain of the top rung is cut into MAX_RUNGS steps, and of the rungs within one
+        -- step the cheapest stays. The rung dropped for it cost more and gave less than a step
+        -- more, so whatever the budget, the set that is left for it is less than a step short
+        -- of the best one. The first rung, to buy nothing, is the cheapest of its step and
+        -- always stays: the kinds joined later stand on it. So do the second, the cheapest
+        -- set there is (a small budget is not to be told that nothing can be had), and the last.
+        local thin, step, level = {}, out[#out].gain / MAX_RUNGS, -1
+        for i = 1, #out do
+            local at = math.floor(out[i].gain / step)
+            if at > level or i == 2 or i == #out then
+                level = at
+                thin[#thin + 1] = out[i]
+            end
+        end
         out = thin
     end
     return out
