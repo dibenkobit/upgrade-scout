@@ -1,7 +1,10 @@
 """Builds UpgradeScout/Weights.lua: the profiles gear is scored on, from the weights a simulator found.
 
-    python scripts/make-weights.py --weights weights-60.json --build 1.60.1.70938
-    python scripts/make-weights.py --weights weights-60.json --build 1.60.1.70938 --report
+    python scripts/make-weights.py --build 1.60.1.70938
+    python scripts/make-weights.py --build 1.60.1.70938 --report     (also says what it left out)
+
+--weights is what the weights run wrote (scripts/weights/run.sh); by default the run kept beside
+it, scripts/weights/weights-60b.json.
 
 A profile is what each stat is worth for one way of playing a class. The worth comes from the
 wowsims/forever simulator (https://github.com/wowsims/forever, MIT): for every talent tree it
@@ -316,7 +319,8 @@ def number(value):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--weights", required=True, help="what the weights run wrote (weights-60.json)")
+    parser.add_argument("--weights", default=os.path.join(here, "weights", "weights-60b.json"),
+                        help="what the weights run wrote (default: scripts/weights/weights-60b.json)")
     parser.add_argument("--approx", help="weights for trees the simulator does not cover, in the same form; "
                                          "their profiles are marked as approximations")
     parser.add_argument("--build", required=True, help="the client build, as wago.tools names it: 1.60.1.70938")

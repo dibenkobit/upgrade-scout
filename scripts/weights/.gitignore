@@ -1,0 +1,3 @@
+# What run.sh writes while it works: the parts of every tree and the logs. The result that
+# make-weights.py reads is kept beside this file as weights-60b.json.
+out/
