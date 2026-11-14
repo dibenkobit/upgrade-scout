@@ -52,6 +52,10 @@ local L = {
 
     STATS = "Last scan: %d s. Auction list %d s (%d requests, %d rows). Scoring %d s (%d upgrades by score). Prices %d s (%d item searches, %d extra pages, %d unanswered; %d not needed for the list).",
     STATS_NONE = "No scan yet.",
+    ITEM_STATS = "%s, as the game counts it:",
+    ITEM_STATS_NONE = "The game lists no stats for %s.",
+    ITEM_STATS_WAIT = "The game has not loaded that item yet. Try again in a moment.",
+    ITEM_STATS_HELP = "Type /upscout stats and shift-click an item into the chat line.",
 
     TT_SCORE = "Pawn score: %s, yours: %s (+%s)",
     TT_SCORE_EMPTY = "Pawn score: %s, slot is empty",
@@ -189,6 +193,10 @@ if GetLocale() == "ruRU" then
 
         STATS = "Последний скан: %d с. Список лотов %d с (запросов: %d, строк: %d). Оценка %d с (улучшений по оценке: %d). Цены %d с (поисков: %d, доп. страниц: %d, без ответа: %d; не понадобилось для списка: %d).",
         STATS_NONE = "Скана ещё не было.",
+        ITEM_STATS = "%s, как это считает игра:",
+        ITEM_STATS_NONE = "У %s игра не находит характеристик.",
+        ITEM_STATS_WAIT = "Игра ещё не загрузила этот предмет. Попробуй ещё раз через пару секунд.",
+        ITEM_STATS_HELP = "Набери /upscout stats и вставь предмет в строку чата (Shift+щелчок по нему).",
 
         TT_SCORE = "Оценка Pawn: %s, у тебя: %s (+%s)",
         TT_SCORE_EMPTY = "Оценка Pawn: %s, слот пуст",
@@ -327,6 +335,10 @@ if GetLocale() == "deDE" then
 
         STATS = "Letzter Scan: %d s. Auktionsliste %d s (Anfragen: %d, Zeilen: %d). Bewertung %d s (Verbesserungen nach Wertung: %d). Preise %d s (Gegenstandssuchen: %d, zusätzliche Seiten: %d, unbeantwortet: %d; für die Liste nicht benötigt: %d).",
         STATS_NONE = "Noch kein Scan.",
+        ITEM_STATS = "%s, wie das Spiel es zählt:",
+        ITEM_STATS_NONE = "Das Spiel führt für %s keine Werte.",
+        ITEM_STATS_WAIT = "Das Spiel hat diesen Gegenstand noch nicht geladen. Versuch es gleich noch einmal.",
+        ITEM_STATS_HELP = "Gib /upscout stats ein und füge einen Gegenstand per Umschalt-Klick in die Chatzeile ein.",
 
         TT_SCORE = "Pawn-Wertung: %s, deine: %s (+%s)",
         TT_SCORE_EMPTY = "Pawn-Wertung: %s, Slot ist leer",
@@ -466,6 +478,10 @@ if GetLocale() == "frFR" then
 
         STATS = "Dernier scan : %d s. Liste des enchères %d s (requêtes : %d, lignes : %d). Évaluation %d s (améliorations d'après le score : %d). Prix %d s (recherches d'objets : %d, pages supplémentaires : %d, sans réponse : %d ; inutiles pour la liste : %d).",
         STATS_NONE = "Aucun scan pour l'instant.",
+        ITEM_STATS = "%s, tel que le jeu le compte :",
+        ITEM_STATS_NONE = "Le jeu ne donne aucune caractéristique pour %s.",
+        ITEM_STATS_WAIT = "Le jeu n'a pas encore chargé cet objet. Réessayez dans un instant.",
+        ITEM_STATS_HELP = "Tapez /upscout stats puis insérez un objet dans la ligne de discussion (Maj-clic).",
 
         TT_SCORE = "Score Pawn : %s, le vôtre : %s (+%s)",
         TT_SCORE_EMPTY = "Score Pawn : %s, l'emplacement est vide",
@@ -605,6 +621,10 @@ if GetLocale() == "zhCN" then
 
         STATS = "上次扫描：%d秒。拍卖列表%d秒（%d次请求，%d行）。评分%d秒（按评分有%d件提升装备）。价格%d秒（%d次物品搜索，%d个额外页面，%d次无响应；%d件无需查价）。",
         STATS_NONE = "还没有扫描过。",
+        ITEM_STATS = "%s，按游戏自己的数值：",
+        ITEM_STATS_NONE = "游戏没有给出%s的属性。",
+        ITEM_STATS_WAIT = "游戏还没有载入这件物品，请稍后再试。",
+        ITEM_STATS_HELP = "输入 /upscout stats，再按住Shift点击物品，把它放进聊天输入框。",
 
         TT_SCORE = "Pawn 评分：%s，当前装备：%s（+%s）",
         TT_SCORE_EMPTY = "Pawn 评分：%s，该部位为空",
@@ -745,6 +765,10 @@ if GetLocale() == "ptBR" then
 
         STATS = "Último escaneamento: %d s. Lista de leilões %d s (consultas: %d, linhas: %d). Avaliação %d s (melhorias pela pontuação: %d). Preços %d s (buscas de itens: %d, páginas extras: %d, sem resposta: %d; desnecessárias para a lista: %d).",
         STATS_NONE = "Nenhum escaneamento ainda.",
+        ITEM_STATS = "%s, como o jogo conta:",
+        ITEM_STATS_NONE = "O jogo não lista atributos para %s.",
+        ITEM_STATS_WAIT = "O jogo ainda não carregou esse item. Tente de novo em instantes.",
+        ITEM_STATS_HELP = "Digite /upscout stats e Shift-clique em um item para colocá-lo na linha do chat.",
 
         TT_SCORE = "Pontuação do Pawn: %s, a sua: %s (+%s)",
         TT_SCORE_EMPTY = "Pontuação do Pawn: %s, o espaço está vazio",
@@ -885,6 +909,10 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
 
         STATS = "Último escaneo: %d s. Lista de subastas %d s (peticiones: %d, filas: %d). Puntuación %d s (mejoras por puntuación: %d). Precios %d s (búsquedas de objetos: %d, páginas extra: %d, sin respuesta: %d; no necesarias para la lista: %d).",
         STATS_NONE = "Aún no se ha hecho ningún escaneo.",
+        ITEM_STATS = "%s, tal como lo cuenta el juego:",
+        ITEM_STATS_NONE = "El juego no indica estadísticas para %s.",
+        ITEM_STATS_WAIT = "El juego aún no ha cargado ese objeto. Inténtalo de nuevo en un momento.",
+        ITEM_STATS_HELP = "Escribe /upscout stats y haz Mayús-clic en un objeto para ponerlo en la línea de chat.",
 
         TT_SCORE = "Puntuación de Pawn: %s, la tuya: %s (+%s)",
         TT_SCORE_EMPTY = "Puntuación de Pawn: %s, la ranura está vacía",
@@ -1026,6 +1054,10 @@ if GetLocale() == "koKR" then
 
         STATS = "마지막 스캔: %d초. 경매 목록 %d초(요청 %d회, %d줄). 점수 계산 %d초(점수상 향상 %d개). 가격 %d초(아이템 검색 %d회, 추가 페이지 %d개, 무응답 %d회; 목록에 필요 없던 것 %d개).",
         STATS_NONE = "아직 스캔한 적이 없습니다.",
+        ITEM_STATS = "%s, 게임이 계산한 능력치:",
+        ITEM_STATS_NONE = "게임에 %s의 능력치가 없습니다.",
+        ITEM_STATS_WAIT = "게임이 아직 이 아이템을 불러오지 못했습니다. 잠시 후 다시 시도하세요.",
+        ITEM_STATS_HELP = "/upscout stats 를 입력한 뒤 아이템을 Shift+클릭해 대화 입력줄에 넣으세요.",
 
         TT_SCORE = "Pawn 점수: %s, 내 장비: %s (+%s)",
         TT_SCORE_EMPTY = "Pawn 점수: %s, 빈 부위",
@@ -1166,6 +1198,10 @@ if GetLocale() == "zhTW" then
 
         STATS = "上次掃描：%d秒。拍賣列表%d秒（%d次請求，%d筆）。評分%d秒（按評分有%d件提升裝備）。價格%d秒（%d次物品搜尋，%d個額外頁面，%d次無回應；%d件無需查價）。",
         STATS_NONE = "還沒有掃描過。",
+        ITEM_STATS = "%s，按遊戲自己的數值：",
+        ITEM_STATS_NONE = "遊戲沒有給出%s的屬性。",
+        ITEM_STATS_WAIT = "遊戲還沒有載入這件物品，請稍後再試。",
+        ITEM_STATS_HELP = "輸入 /upscout stats，再按住Shift點擊物品，把它放進聊天輸入框。",
 
         TT_SCORE = "Pawn 評分：%s，目前裝備：%s（+%s）",
         TT_SCORE_EMPTY = "Pawn 評分：%s，該部位為空",

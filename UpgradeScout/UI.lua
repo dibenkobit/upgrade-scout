@@ -1730,7 +1730,13 @@ SLASH_UPGRADESCOUT1 = "/upscout"
 SLASH_UPGRADESCOUT2 = "/upgradescout"
 SlashCmdList["UPGRADESCOUT"] = function(message)
     if message:lower():match("^%s*stats") then
-        ns.Print(S.StatsText())
+        -- With an item after it, what the game counts for the item; alone, the last scan.
+        local item = message:match("^%s*%a+%s+(.-)%s*$")
+        if item and item ~= "" then ns.Stats.Report(item) else ns.Print(S.StatsText()) end
+        return
+    end
+    if message:lower():match("^%s*check") then
+        if message:lower():match("^%s*%a+%s+off") then ns.Check.Stop() else ns.Check.Start() end
         return
     end
     if message:lower():match("^%s*forget") then

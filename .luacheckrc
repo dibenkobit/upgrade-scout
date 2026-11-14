@@ -11,7 +11,7 @@ exclude_files = { "UpgradeScout/Libs" }     -- other people's libraries
 read_globals = {
     -- functions of the game
     "CanDualWield", "Clamp", "CreateDataProvider", "CreateFrame", "CreateScrollBoxListLinearView", "CursorHasItem",
-    "FormatPercentage", "GenerateClosure", "GetInventoryItemLink", "GetLocale", "GetMoney", "GetMoneyString",
+    "FormatPercentage", "GenerateClosure", "GetBuildInfo", "GetInventoryItemLink", "GetLocale", "GetMoney", "GetMoneyString",
     "GetProfessionInfo", "GetProfessions", "GetRealmName", "GetSendMailItem", "GetTime", "HandleModifiedItemClick",
     "IsModifiedClick", "MoneyFrame_Update", "PlaySound", "ResetCursor", "ShowInspectCursor", "StaticPopup_Hide",
     "StaticPopup_OnAcceptWithSpinner", "StaticPopup_Show", "UnitClass", "UnitFactionGroup", "UnitLevel", "UnitName",

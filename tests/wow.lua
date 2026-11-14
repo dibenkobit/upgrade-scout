@@ -24,6 +24,7 @@ W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dua
 --        red, unique, uniqueEquipped, effects, noStats, uncached, classCant,
 --        values = { [scale] = score } for scales other than the two the tests began with,
 --        stats = { IsMail = 1, ... } as Pawn reads them off the tooltip,
+--        game = { ITEM_MOD_STRENGTH_SHORT = 5, ... } as the game itself counts them,
 --        classes = "Druid, Shaman" (the classes it is for), races = "Orc, Troll",
 --        skill = { "Engineering", 150 } (the profession it asks for), reputation = true }
 function W.AddItem(def)
@@ -749,6 +750,11 @@ end
 -- Globals the addon reads
 ---------------------------------------------------------------------------
 function GetLocale() return W.locale or "enUS" end
+function GetBuildInfo() return "1.60.1", "70938", "Nov 12 2026", 16001 end
+-- The game's words for a few of the stats an item can have, each under the name
+-- C_Item.GetItemStats lists the stat by.
+ITEM_MOD_STRENGTH_SHORT, ITEM_MOD_STAMINA_SHORT, RESISTANCE0_NAME = "Strength", "Stamina", "Armor"
+ITEM_MOD_CRIT_RATING_SHORT, ITEM_MOD_SPELL_HEALING_DONE_SHORT = "Critical Strike", "Bonus Healing"
 -- Lua functions the game also offers under short global names (LibStub uses them).
 strmatch, strfind, strsub, format, tinsert, tremove = string.match, string.find, string.sub, string.format, table.insert, table.remove
 WOW_PROJECT_MAINLINE, WOW_PROJECT_CAMELOT = 1, 99
@@ -1058,6 +1064,15 @@ end
 function C_Item.GetItemUniquenessByID(id)
     local item = W.items[id .. ":0"]
     return item and item.unique or false
+end
+-- The stats the game keeps for an item, under its own names for them: `game` of an item.
+-- Nothing for an item the client has not loaded.
+function C_Item.GetItemStats(info)
+    local item = ParseItem(info)
+    if not item or not item.cached then return nil end
+    local out = {}
+    for name, amount in pairs(item.game or {}) do out[name] = amount end
+    return out
 end
 
 ---------------------------------------------------------------------------

@@ -41,6 +41,8 @@ Core.lua
 Roster.lua
 PawnBridge.lua
 Compare.lua
+Stats.lua
+Check.lua
 Results.lua
 Plan.lua
 SupplyData.lua
