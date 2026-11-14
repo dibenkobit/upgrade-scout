@@ -2,24 +2,20 @@
 
 <img src="docs/logo/logo.png" alt="Upgrade Scout logo" width="128" align="right">
 
-**Shows gear upgrades in every item tooltip and finds the ones you can afford at the auction house.** An addon for World of Warcraft Forever. Pawn is not needed.
+**Finds gear upgrades on the auction house that you can equip and afford.** An addon for World of Warcraft Forever.
 
 **Download on [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) or [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
 English · [简体中文](docs/README.zh-CN.md) · [繁體中文](docs/README.zh-TW.md) · [Deutsch](docs/README.de.md) · [Русский](docs/README.ru.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md) · [Português](docs/README.pt-BR.md) · [한국어](docs/README.ko.md)
 
-**In any tooltip.** Point at an item in your bags, in loot, in a quest reward, in a chat link or
-at the auction house. The tooltip shows how much better the item is than what you wear, in percent,
-for every spec of your class, such as Arms, Fury and Protection for a warrior.
+Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list of gear that is
+better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
 
-**At the auction house.** Click the **Upgrades** tab and press **Scan**. You get a list of gear
-that is better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
+Away from the auction house, the tooltip of any item shows how much better it is than what you
+wear: in your bags, in loot, in a quest reward and in a chat link.
 
 ## What it does
 
-- Works right after you install it. Nothing to set up: the **Profile** dropdown starts on a profile
-  that suits your class.
-- Any item's tooltip shows how much better it is than what you wear, for every spec of your class.
 - The scan shows only what you can equip right now and can pay for.
 - Marks two items in every slot: the **Best upgrade** is the strongest, the **Best value** is the
   cheapest per point of improvement.
@@ -28,8 +24,12 @@ that is better than what you wear, slot by slot, with prices. Press **Buy** on t
   your character first.
 - Shops for your other characters too. A button at the mailbox puts the gear you bought into a
   letter to them.
+- Any item's tooltip shows how much better it is than what you wear, for every spec of your class,
+  such as Arms, Fury and Protection for a warrior.
+- Works right after you install it. Nothing to set up: the **Profile** dropdown starts on a profile
+  that suits your class.
 - Scores gear with its own stat weights for every talent tree, worked out with the
-  [wowsims/forever](https://github.com/wowsims/forever) simulator.
+  [wowsims/forever](https://github.com/wowsims/forever) simulator. No other addon is needed.
 
 Any class, any level. English, Chinese (Simplified and Traditional), German, Russian, French,
 Spanish, Brazilian Portuguese and Korean.

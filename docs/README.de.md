@@ -2,27 +2,21 @@
 
 <img src="logo/logo.png" alt="Upgrade Scout Logo" width="128" align="right">
 
-**Zeigt Ausrüstungsverbesserungen im Tooltip jedes Gegenstands und findet im Auktionshaus die, die du dir leisten kannst.** Ein Addon für World of Warcraft Forever. Pawn wird nicht gebraucht.
+**Findet im Auktionshaus Ausrüstung, die besser ist als deine und die du dir leisten kannst.** Ein Addon für World of Warcraft Forever.
 
 **Auf [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) oder [Wago](https://addons.wago.io/addons/upgrade-scout) herunterladen**
 
 [English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · Deutsch · [Русский](README.ru.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [한국어](README.ko.md)
 
-**In jedem Tooltip.** Fahre mit der Maus über einen Gegenstand in deinen Taschen, in der Beute, in
-einer Questbelohnung, in einem Chat-Link oder im Auktionshaus. Der Tooltip zeigt in Prozent, wie
-viel besser der Gegenstand ist als das, was du trägst, für jeden Talentbaum deiner Klasse, etwa
-Waffen, Furor und Schutz beim Krieger.
-
-**Im Auktionshaus.** Klicke auf den Tab **Verbesserungen** und drücke **Scannen**. Du bekommst
+Öffne das Auktionshaus, klicke auf den Tab **Verbesserungen** und drücke **Scannen**. Du bekommst
 eine Liste mit Ausrüstung, die besser ist als das, was du trägst, Slot für Slot und mit Preisen.
 Drücke **Kaufen** bei dem Gegenstand, den du willst.
 
+Außerhalb des Auktionshauses zeigt der Tooltip jedes Gegenstands, wie viel besser er ist als das,
+was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in einem Chat-Link.
+
 ## Was es kann
 
-- Funktioniert gleich nach der Installation. Einzurichten gibt es nichts: In der Liste **Profil**
-  steht anfangs ein Profil, das zu deiner Klasse passt.
-- Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden
-  Talentbaum deiner Klasse.
 - Der Scan zeigt nur, was du jetzt anlegen und bezahlen kannst.
 - Markiert in jedem Slot zwei Gegenstände. **Beste Verbesserung** ist der stärkste.
   **Beste Preis-Leistung** ist der günstigste pro Punkt Verbesserung.
@@ -32,8 +26,12 @@ Drücke **Kaufen** bei dem Gegenstand, den du willst.
   Das Nützlichste für deinen Charakter steht oben.
 - Kauft auch für deine anderen Charaktere ein. Ein Button am Briefkasten legt die gekaufte
   Ausrüstung in einen Brief an sie.
+- Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden
+  Talentbaum deiner Klasse, etwa Waffen, Furor und Schutz beim Krieger.
+- Funktioniert gleich nach der Installation. Einzurichten gibt es nichts: In der Liste **Profil**
+  steht anfangs ein Profil, das zu deiner Klasse passt.
 - Bewertet Ausrüstung mit eigenen Gewichten für jeden Talentbaum, berechnet mit dem Simulator
-  [wowsims/forever](https://github.com/wowsims/forever).
+  [wowsims/forever](https://github.com/wowsims/forever). Ein anderes Addon ist nicht nötig.
 
 Jede Klasse, jede Stufe. Englisch, Chinesisch (vereinfacht und traditionell), Deutsch, Russisch,
 Französisch, Spanisch, brasilianisches Portugiesisch und Koreanisch.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.2
+
+- The addon's description in the AddOns list is the one from 2.2.0 again.
+
 ## 2.2.1
 
 - The names of all profiles in the tooltip are in the colour of your class.
@@ -8,8 +12,8 @@
 ## 2.2.0
 
 - The tooltip of any item shows how much better it is than what you wear, on every profile of
-  your class, as Pawn does: in your bags, loot, quest rewards, chat links and the auction house.
-- In those lines the profile in use is in the colour of your class, as in Pawn, no longer in gold.
+  your class: in your bags, loot, quest rewards, chat links and the auction house.
+- In those lines the profile in use is in the colour of your class, no longer in gold.
 
 ## 2.1.0
 

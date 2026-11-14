@@ -2,27 +2,21 @@
 
 <img src="logo/logo.png" alt="Logotipo de Upgrade Scout" width="128" align="right">
 
-**Muestra mejoras de equipo en la descripción emergente de cualquier objeto y encuentra en la casa de subastas las que puedes pagar.** Un addon para World of Warcraft Forever. No hace falta Pawn.
+**Encuentra en la casa de subastas equipo mejor que el tuyo y que puedes pagar.** Un addon para World of Warcraft Forever.
 
 **Descargar en [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) o [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
 [English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Français](README.fr.md) · Español · [Português](README.pt-BR.md) · [한국어](README.ko.md)
 
-**En cualquier descripción emergente.** Pon el cursor sobre un objeto en tus bolsas, en el botín,
-en una recompensa de misión, en un enlace del chat o en la casa de subastas. La descripción
-emergente muestra, en porcentaje, cuánto mejor es el objeto que lo que llevas, para cada rama de
-talentos de tu clase, como Armas, Furia y Protección para un guerrero.
+Abre la casa de subastas, haz clic en la pestaña **Mejoras** y pulsa **Escanear**. Verás una lista
+de equipo mejor que el que llevas, ranura por ranura, con sus precios. Pulsa **Comprar** en el
+objeto que quieras.
 
-**En la casa de subastas.** Haz clic en la pestaña **Mejoras** y pulsa **Escanear**. Verás una
-lista de equipo mejor que el que llevas, ranura por ranura, con sus precios. Pulsa **Comprar** en
-el objeto que quieras.
+Fuera de la casa de subastas, la descripción emergente de cualquier objeto muestra cuánto mejor es
+que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y en un enlace del chat.
 
 ## Qué hace
 
-- Funciona en cuanto lo instalas. No hay nada que configurar: la lista **Perfil** empieza en un
-  perfil que va con tu clase.
-- La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, para
-  cada rama de talentos de tu clase.
 - El escaneo muestra solo lo que puedes equipar ahora mismo y pagar.
 - Marca dos objetos en cada ranura. **Mayor mejora** es el más fuerte. **Más rentable** es el más
   barato por punto de mejora.
@@ -32,8 +26,12 @@ el objeto que quieras.
   lo más útil para tu personaje.
 - Compra también para tus otros personajes. Un botón en el buzón mete el equipo que compraste en
   una carta para ellos.
+- La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, para
+  cada rama de talentos de tu clase, como Armas, Furia y Protección para un guerrero.
+- Funciona en cuanto lo instalas. No hay nada que configurar: la lista **Perfil** empieza en un
+  perfil que va con tu clase.
 - Puntúa el equipo con pesos propios para cada rama de talentos, calculados con el simulador
-  [wowsims/forever](https://github.com/wowsims/forever).
+  [wowsims/forever](https://github.com/wowsims/forever). No hace falta ningún otro addon.
 
 Cualquier clase, cualquier nivel. Inglés, chino (simplificado y tradicional), alemán, ruso,
 francés, español, portugués de Brasil y coreano.
