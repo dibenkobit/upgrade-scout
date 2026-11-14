@@ -115,13 +115,18 @@ local function Beats(value, base)
     return value > base * MIN_GAIN
 end
 
-local function Placement(group, slot, value, base, replaced, note)
+-- `whole` is what the gain is a share of, where that is more than what comes off (a weapon
+-- for the main hand: see C.Place).
+local function Placement(group, slot, value, base, replaced, note, whole)
+    whole = whole or base
     return {
         group = group,
         slot = slot,           -- the inventory slot the item goes into
         delta = value - base,
         base = base,
-        percent = base > 0 and (value - base) / base or nil,
+        -- The gain as a share of what is there now: the number the list shows. nil when
+        -- nothing is there, or what is there scores nothing.
+        percent = whole > 0 and (value - base) / whole or nil,
         replaced = replaced,   -- links of the items that come off, nil for an empty slot
         note = note,           -- "BOTH_HANDS" | "OFFHAND_EMPTY" | nil
     }
@@ -195,9 +200,11 @@ function C.Place(item, ctx)
 
     if invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND" then
         -- Against a two-hander the comparison is honest only if the off hand is counted as empty.
+        -- The gain is a share of what both hands hold, as a two-hander's is: the main hand
+        -- lists the two kinds together, and the bigger gain must read as the bigger percent.
         if Beats(value, mainValue) then
             out[#out + 1] = Placement("MAINHAND", MAIN_HAND, value, mainValue, main and { main.link } or nil,
-                holdingTwoHander and "OFFHAND_EMPTY" or nil)
+                holdingTwoHander and "OFFHAND_EMPTY" or nil, mainValue + offValue)
         end
     end
 

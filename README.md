@@ -54,6 +54,8 @@ To install by hand:
 - Prices are buyouts. Auctions that only take bids are skipped.
 - **Top 5 per slot** keeps the list short. Turn it off to see every upgrade. The scan then takes
   longer, up to a few minutes on a busy auction house.
+- **Upgrade** is how much better an item is than the one it replaces, in percent. **from zero**
+  means the slot is empty, or what you wear there adds nothing on your profile.
 - A yellow `*` after a name means the item has effects the score does not count, such as procs.
 - Health and mana potions have no score: no weight puts a number on "restores 700 health".
 - Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The

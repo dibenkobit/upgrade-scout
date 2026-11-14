@@ -174,7 +174,8 @@ local function ShowItemTooltip(row)
 
     GameTooltip_AddBlankLineToTooltip(GameTooltip)
     if who then GameTooltip_AddHighlightLine(GameTooltip, L.TT_WHO:format(WhoName(who))) end
-    if entry.base > 0 then
+    -- (An item that scores nothing is in the slot all the same: "yours: 0", not "slot is empty".)
+    if entry.base > 0 or entry.replaced then
         -- All three to the precision of the difference, so that they add up: 1.548, 1.5, +0.048.
         local digits = ns.Decimals(entry.delta)
         GameTooltip_AddColoredLine(GameTooltip, (who and L.TT_SCORE_WHO or L.TT_SCORE):format(ns.Num(offer.value, digits),
@@ -368,11 +369,10 @@ local function BuildItemRow(row)
 
     row.Pick = NewPick(row)
 
-    -- "+4.7 +80%" over a meter: how the gain compares with the best one in the slot.
-    row.Share = NewText(row, 11, MUTED, "RIGHT", true)
-    row.Share:SetPoint("RIGHT", row, "LEFT", UPGRADE_RIGHT, 3)
+    -- "+80%" over a meter: how much better the item is than what it takes the place of, and
+    -- how its gain compares with the best one in the slot.
     row.Upgrade = NewText(row, 14, GREEN, "RIGHT", true)
-    row.Upgrade:SetPoint("RIGHT", row.Share, "LEFT", -5, 0)
+    row.Upgrade:SetPoint("RIGHT", row, "LEFT", UPGRADE_RIGHT, 3)
     row.Trough = row:CreateTexture(nil, "BACKGROUND", nil, 1)
     row.Trough:SetColorTexture(0, 0, 0, 0.6)
     row.Trough:SetSize(METER_WIDTH, 4)
@@ -478,9 +478,8 @@ local function InitSupplyRow(row, entry, share)
     row.Meter:SetShown(scored)
     row.Effect:SetWidth(scored and SCORE_LEFT - PAD - PICK_LEFT or UPGRADE_RIGHT - PICK_LEFT)
     if scored then
-        -- The number alone, where a gear row has "+4.7 +80%".
-        row.Upgrade:ClearAllPoints()
-        row.Upgrade:SetPoint("RIGHT", row, "LEFT", UPGRADE_RIGHT, 3)
+        -- Its score in points, where a gear row has its gain in percent: a consumable takes
+        -- the place of nothing.
         row.Upgrade:SetText("+" .. ns.Num(entry.value))
         row.Meter:SetWidth(math.max((METER_WIDTH - 1) * share, 2))
         row.Meter:SetTexCoord(0, math.max(share, 0.03), 0, 1)
@@ -501,7 +500,6 @@ local function InitItemRow(row, element)
 
     -- The frame may have been a row of the other view a moment ago.
     local gear = entry.supply == nil
-    row.Share:SetShown(gear)
     row.PerPoint:SetShown(gear)
     row.Effect:SetShown(not gear)
     row.Stock:SetShown(not gear)
@@ -512,8 +510,6 @@ local function InitItemRow(row, element)
     row.Upgrade:Show()
     row.Trough:Show()
     row.Meter:Show()
-    row.Upgrade:ClearAllPoints()
-    row.Upgrade:SetPoint("RIGHT", row.Share, "LEFT", -5, 0)
 
     row.Icon:SetTexture(offer.icon)
     row.Icon:SetDesaturated(false)
@@ -536,8 +532,9 @@ local function InitItemRow(row, element)
 
     SetPick(row.Pick, entry.pick)
 
-    row.Upgrade:SetText("+" .. ns.Num(entry.delta))
-    row.Share:SetText(entry.percent and ("+" .. FormatPercentage(entry.percent, true)) or L.NEW)
+    -- There is no percent of nothing: an empty slot, or one whose item scores nothing on the
+    -- profile (armor without a stat, say), gets a word. The points are in the tooltip.
+    row.Upgrade:SetText(entry.percent and ("+" .. FormatPercentage(entry.percent, true)) or L.FROM_ZERO)
     row.Meter:SetWidth(math.max((METER_WIDTH - 1) * data.share, 2))
     row.Meter:SetTexCoord(0, math.max(data.share, 0.03), 0, 1)
 

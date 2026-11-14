@@ -11,6 +11,8 @@
 - Stamina (except for tanks), and a healer's Intellect, Spirit and mana regeneration, are set by hand: a simulation
   of damage cannot tell what they are worth.
 - `/upscout stats` and an item shows how the item gets its score, stat by stat.
+- The **Upgrade** column shows one number: how much better the item is, in percent. **from zero**
+  stands where there is nothing to compare with. The points are in the tooltip.
 - Gear with a weapon skill or a bonus against one kind of creature gets the yellow `*`: the score
   does not count those.
 
