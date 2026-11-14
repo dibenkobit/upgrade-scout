@@ -1046,7 +1046,7 @@ function scenarios.ui()
     eq(Art(rows[1].Arrow), "Chevron", "its arrow points down: the slot is open")
     eq(rows[2]._kind, "Button", "an offer is a button")
     eq(rows[2].Name:GetText(), "|cff1eff00Helm|r", "item name in quality colour")
-    eq(rows[2].Upgrade:GetText(), "from zero", "an empty slot: no percent to give, so a word")
+    eq(rows[2].Upgrade:GetText(), "New", "an empty slot: no percent to give, so a word")
     eq(rows[2].Share, nil, "one value in the column, not two")
     eq(rows[2].Pick:IsShown(), true, "a plate for the pick"); eq(rows[2].Pick.Text:GetText(), "Best of both", "single offer is both picks")
     eq(rows[2].Buy.Label:GetText(), "BUY", "the buy button")
@@ -1098,7 +1098,7 @@ function scenarios.ui()
     -- A ring in the place of one that scores nothing: no percent of nothing, and the tooltip
     -- says what is there, not that the slot is empty.
     local ring = RowNamed("New Ring")
-    eq(ring.Upgrade:GetText(), "from zero", "the worn ring scores nothing")
+    eq(ring.Upgrade:GetText(), "New", "the worn ring scores nothing: the same word as for an empty slot")
     ring:GetScript("OnEnter")(ring)
     local ringTip = {}
     for _, line in ipairs(GameTooltip._lines) do ringTip[#ringTip + 1] = line.text end

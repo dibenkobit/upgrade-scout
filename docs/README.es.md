@@ -57,7 +57,7 @@ A mano:
 - Los precios son de compra inmediata. Las subastas que solo admiten pujas se omiten.
 - **Top 5 por ranura** mantiene la lista corta. Desactívalo para ver todas las mejoras. El escaneo
   tarda entonces más, hasta unos minutos en una casa de subastas con mucho movimiento.
-- **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **desde cero**
+- **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **Nuevo**
   significa que la ranura está vacía o que lo que llevas ahí no aporta nada a tu perfil.
 - Un `*` amarillo tras el nombre: el objeto tiene efectos que la puntuación no cuenta.
 - Las pociones de salud y de maná no tienen puntuación: ningún peso pone número a «restaura
