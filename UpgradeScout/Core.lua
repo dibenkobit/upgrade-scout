@@ -16,11 +16,12 @@ function ns.On(event, fn)
     list[#list + 1] = fn
 end
 
+-- Each handler is called on its own (securecallfunction): an error in one is reported the
+-- usual way, and the handlers after it still hear the event.
 eventFrame:SetScript("OnEvent", function(_, event, ...)
     local list = eventHandlers[event]
-    if not list then return end
     for i = 1, #list do
-        list[i](...)
+        securecallfunction(list[i], ...)
     end
 end)
 
@@ -42,7 +43,7 @@ function ns.Fire(message, ...)
     local list = listeners[message]
     if not list then return end
     for i = 1, #list do
-        list[i](...)
+        securecallfunction(list[i], ...)
     end
 end
 

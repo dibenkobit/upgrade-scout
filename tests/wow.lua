@@ -758,6 +758,18 @@ function print(...)
     for i = 1, select("#", ...) do parts[#parts + 1] = tostring((select(i, ...))) end
     W.printed[#W.printed + 1] = table.concat(parts, " ")
 end
+-- Calls a function on its own: an error in it is reported and does not stop the caller. Here
+-- "reported" is kept in W.errors, and a scenario that ends with any of them has failed.
+W.errors = {}
+function securecallfunction(fn, ...)
+    local args, count = { ... }, select("#", ...)
+    local results = { xpcall(function() return fn(unpack(args, 1, count)) end, debug.traceback) }
+    if not results[1] then
+        W.errors[#W.errors + 1] = results[2]
+        return
+    end
+    return unpack(results, 2, table.maxn(results))
+end
 function hooksecurefunc(tbl, name, hook)
     local original = tbl[name]
     tbl[name] = function(...)

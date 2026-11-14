@@ -7,7 +7,7 @@ local scenario = arg[1]
 local ADDON_DIR = "UpgradeScout/"
 
 local names = {
-    "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
+    "events", "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
@@ -177,6 +177,24 @@ end
 local scenarios = {}
 
 ---------------------------------------------------------------------------
+-- A handler that fails is reported, and the handlers after it still hear what was said.
+function scenarios.events()
+    LoadAddon()
+    local heard = {}
+    ns.On("PLAYER_MONEY", function() error("a handler of a game event that fails") end)
+    ns.On("PLAYER_MONEY", function() heard[#heard + 1] = "money" end)
+    W.Fire("PLAYER_MONEY")
+    eq(heard[1], "money", "the next handler of the game's event still runs")
+    eq(#W.errors, 1, "and the error is reported")
+    check(W.errors[1]:find("a handler of a game event that fails", 1, true) ~= nil, "in its own words")
+    ns.Listen("WORD", function() error("a listener that fails") end)
+    ns.Listen("WORD", function(first, second) heard[#heard + 1] = first .. second end)
+    ns.Fire("WORD", "a", "b")
+    eq(heard[2], "ab", "the same for the addon's own messages, with what was said passed on")
+    eq(#W.errors, 2, "and reported as well")
+    W.errors = {}
+end
+
 function scenarios.compare()
     LoadAddon()
     local Place = ns.Compare.Place
@@ -3093,6 +3111,8 @@ if not fn then
     os.exit(2)
 end
 local ok, err = xpcall(fn, debug.traceback)
+-- An error in a handler of the addon does not stop the game, or a scenario: it is looked for here.
+if ok and W.errors[1] then ok, err = false, "an error in a handler:\n" .. W.errors[1] end
 if ok then
     realPrint(string.format("ok    %-20s %d checks", scenario, checks))
     os.exit(0)
