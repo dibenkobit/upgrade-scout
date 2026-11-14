@@ -44,8 +44,7 @@ To install by hand:
 ## Good to know
 
 - An item's score is the sum of its stats, each times its weight in your **Profile**. The profile
-  starts on one that suits your class. Pick the one for your talent tree in the dropdown. Its
-  tooltip says where the weights come from.
+  starts on one that suits your class. Pick the one for your talent tree in the dropdown.
 - The weights are worked out for a level 60 character, so they are an approximation. Below 60,
   hit, crit, haste and expertise count for less, as simulations of leveling characters show.
 - Stamina (except for tanks), and a healer's Intellect, Spirit and mana regeneration, are set by hand: a simulation of damage cannot tell what staying alive or running out of mana costs.

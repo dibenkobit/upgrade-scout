@@ -47,8 +47,7 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 
 - Le score d'un objet est la somme de ses caractéristiques, chacune multipliée par son poids dans le
   profil. Le profil se choisit dans la liste **Profil** ; au départ, elle indique celui qui convient
-  à votre classe. Choisissez celui de votre arbre de talents. L'infobulle de la liste dit d'où
-  viennent les poids.
+  à votre classe. Choisissez celui de votre arbre de talents.
 - Les poids sont calculés pour un personnage de niveau 60 : c'est une approximation. Sous le
   niveau 60, le toucher, le critique, la hâte et l'expertise comptent moins, d'après des simulations
   de personnages qui montent de niveau.

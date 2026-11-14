@@ -1497,22 +1497,14 @@ local function Build()
     profileDropdown:SetTooltip(function(tooltip)
         local who = ns.Roster.Target()
         GameTooltip_SetTitle(tooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
+        -- Only what helps to choose. Where the weights come from is in the README.
         GameTooltip_AddNormalLine(tooltip, L.PROFILE_TIP)
-        -- Where the weights come from, and that they are an approximation.
-        GameTooltip_AddNormalLine(tooltip, L.PROFILE_SOURCE:format(ns.Weights.source))
-        GameTooltip_AddNormalLine(tooltip, L.PROFILE_HAND)
         local _, profiles = ns.Score.Current(who)
         for i = 1, #profiles do
             if ns.Score.IsApprox(profiles[i].name) then
                 GameTooltip_AddNormalLine(tooltip, L.PROFILE_APPROX:format(ns.Weights.APPROX_MARK))
                 break
             end
-        end
-        -- Below level 60 the ratings count for less (see Score.LevelFactor).
-        local level = who and who.level or UnitLevel("player")
-        local factor = ns.Score.LevelFactor(level)
-        if factor < 1 then
-            GameTooltip_AddNormalLine(tooltip, L.PROFILE_LEVEL:format(level, math.floor(factor * 100 + 0.5) .. "%"))
         end
         GameTooltip_AddBlankLineToTooltip(tooltip)
         if who then

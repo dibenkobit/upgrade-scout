@@ -47,7 +47,7 @@ Von Hand:
 
 - Die Wertung eines Gegenstands ist die Summe seiner Werte, jeder mal sein Gewicht im Profil. Das
   Profil wählst du in der Liste **Profil**; anfangs steht dort eines, das zu deiner Klasse passt.
-  Wähle das für deinen Talentbaum. Der Tooltip der Liste sagt, woher die Gewichte stammen.
+  Wähle das für deinen Talentbaum.
 - Die Gewichte sind für einen Charakter der Stufe 60 berechnet, also eine Näherung. Unter Stufe 60
   zählen Treffer, kritische Treffer, Tempo und Waffenkunde weniger, wie Simulationen von Charakteren
   beim Leveln zeigen.

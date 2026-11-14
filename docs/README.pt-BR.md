@@ -47,7 +47,7 @@ Manualmente:
 
 - A pontuação de um item é a soma dos seus atributos, cada um vezes o seu peso no perfil. O perfil
   se escolhe na lista **Perfil**; no começo ela traz um que combina com a sua classe. Escolha o da
-  sua árvore de talentos. A dica da lista diz de onde vêm os pesos.
+  sua árvore de talentos.
 - Os pesos são calculados para um personagem de nível 60, então são uma aproximação. Abaixo do
   nível 60, acerto, crítico, aceleração e especialização valem menos, segundo simulações de
   personagens subindo de nível.

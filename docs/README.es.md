@@ -47,7 +47,7 @@ A mano:
 
 - La puntuación de un objeto es la suma de sus estadísticas, cada una por su peso en el perfil. El
   perfil se elige en la lista **Perfil**; al principio tiene uno que va con tu clase. Elige el de tu
-  rama de talentos. La descripción emergente de la lista dice de dónde salen los pesos.
+  rama de talentos.
 - Los pesos están calculados para un personaje de nivel 60, así que son una aproximación. Por
   debajo del nivel 60, el golpe, el crítico, la celeridad y la pericia valen menos, según
   simulaciones de personajes subiendo de nivel.

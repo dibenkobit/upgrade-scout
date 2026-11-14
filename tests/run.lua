@@ -1217,24 +1217,20 @@ function scenarios.ui()
     eq(dropdown:GetText(), "Arms", "which shows the profile in use")
     eq(#dropdown.radios, 2, "and offers the profiles of the character's class")
     eq(dropdown.radios[2].text, "Protection ~", "an estimated one with its mark")
-    -- Its tooltip says where the weights come from, and that they are an approximation.
+    -- Its tooltip helps to choose, and no more: how the weights were made is in the README.
+    -- (A level below 60 with the leveling data is where it once said how much less the ratings count.)
+    ns.Weights.leveling = { stats = {}, points = { { 20, 0.2 }, { 60, 1 } } }
     dropdown._tooltip(GameTooltip)
     local about = {}
     for _, line in ipairs(GameTooltip._lines) do about[#about + 1] = line.text end
     about = table.concat(about, "\n")
-    check(about:find("computed with the a simulator (a day) simulator", 1, true) ~= nil, "the tooltip names the source of the weights: " .. about)
-    check(about:find("They are an approximation.", 1, true) ~= nil, "says they are an approximation")
-    check(about:find("are set by hand", 1, true) ~= nil, "and which weights are set by hand")
-    check(about:find("~ marks a profile estimated by role", 1, true) ~= nil, "and what the mark by a profile means")
-    check(about:find("Pawn", 1, true) == nil, "with no word of another addon")
-    check(about:find("At level", 1, true) == nil, "nothing of levels without the simulations of leveling")
-    ns.Weights.leveling = { stats = {}, points = { { 20, 0.2 }, { 60, 1 } } }
-    dropdown._tooltip(GameTooltip)
-    about = {}
-    for _, line in ipairs(GameTooltip._lines) do about[#about + 1] = line.text end
-    about = table.concat(about, "\n")
-    check(about:find("At level 10, hit, crit, haste and expertise count for 20% of their worth at level 60", 1, true) ~= nil,
-        "below 60 it says how much less the ratings count: " .. about)
+    check(about:find("Choose the profile for your talent tree.", 1, true) ~= nil, "the tooltip says which profile to take: " .. about)
+    check(about:find("~ means the weights are estimated.", 1, true) ~= nil, "and what the mark by a profile means")
+    check(about:find("Your other characters are here too", 1, true) ~= nil, "and that the list has the other characters")
+    for _, word in ipairs({ "simulat", "approximation", "by hand", "At level", "Pawn" }) do
+        check(about:find(word, 1, true) == nil, "nothing of how the weights were made: " .. word)
+    end
+    check(#GameTooltip._lines <= 5, "a few lines: " .. #GameTooltip._lines)
     ns.Weights.leveling = nil
     W.RunUntil(function() return W.AH.ready end, 5)
     dropdown:Pick(2)
