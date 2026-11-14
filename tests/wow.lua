@@ -201,10 +201,11 @@ function M:Click()
 end
 
 -- Tooltips
-function M:ClearLines() self._lines = {} end
+function M:ClearLines() self._lines = {} self._link = nil end
 -- As in the game, giving a tooltip an owner empties it.
 function M:SetOwner(owner) self._owner = owner self:ClearLines() end
 function M:IsOwned(frame) return self._owner == frame end
+function M:GetOwner() return self._owner end
 function M:NumLines() return self._lines and #self._lines or 0 end
 function M:AddLine(text, r, g, b)
     self._lines = self._lines or {}
@@ -337,12 +338,35 @@ function C_TooltipInfo.GetHyperlink(link)
     return { lines = TooltipLines(link) }
 end
 
+-- The game fills the tooltip with the item's lines, then calls what addons asked it to call
+-- after an item (TooltipDataProcessor), then shows it.
 function M:SetHyperlink(link)
     self:ClearLines()
     for _, line in ipairs(TooltipLines(link)) do
         self:AddLine(line.leftText, line.leftColor:GetRGB())
     end
+    self._link = link
+    for _, call in ipairs(W.tooltipPostCalls[Enum.TooltipDataType.Item] or {}) do
+        call(self, { type = Enum.TooltipDataType.Item, hyperlink = link })
+    end
     self._shown = true
+end
+
+-- What addons ask the game to call once it has filled a tooltip from its data.
+W.tooltipPostCalls = {}
+TooltipDataProcessor = { AllTypes = "ALL" }
+function TooltipDataProcessor.AddTooltipPostCall(kind, call)
+    assert(kind ~= nil and type(call) == "function", "a kind of tooltip and a function")
+    W.tooltipPostCalls[kind] = W.tooltipPostCalls[kind] or {}
+    table.insert(W.tooltipPostCalls[kind], call)
+end
+
+-- The item a tooltip shows: its name (nil while the client has not loaded it), link and number.
+TooltipUtil = {}
+function TooltipUtil.GetDisplayedItem(tooltip)
+    local link = tooltip._link
+    if not link then return nil end
+    return (C_Item.GetItemInfo(link)), link, tonumber(link:match("item:(%d+)"))
 end
 
 ---------------------------------------------------------------------------
@@ -712,6 +736,8 @@ GameTooltip = Widget("GameTooltip", "GameTooltip")
 -- The tooltip the game puts beside the main one, for the item that is worn.
 ShoppingTooltip1 = Widget("GameTooltip", "ShoppingTooltip1")
 ShoppingTooltip1._shown = false
+-- The one for an item link clicked in the chat.
+ItemRefTooltip = Widget("GameTooltip", "ItemRefTooltip")
 -- Where a frame's right edge is on the screen: unknown unless a test says (frame._right).
 function M:GetRight() return self._right end
 
@@ -1026,6 +1052,7 @@ end
 
 Enum = {
     ItemClass = { Consumable = 0, Weapon = 2, Armor = 4 },
+    TooltipDataType = { Item = 0 },
     PowerType = { Mana = 0, Rage = 1, Energy = 3 },
     -- Tooltip lines, as the Forever client's documentation numbers them.
     TooltipDataLineType = { UsageRequirement = 43, ItemSpellTriggerOnUse = 44, ItemSpellTriggerOnEquip = 45,

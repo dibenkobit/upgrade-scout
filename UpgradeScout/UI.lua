@@ -140,36 +140,11 @@ end
 ---------------------------------------------------------------------------
 -- Rows
 ---------------------------------------------------------------------------
--- Our lines under an item's tooltip start with the addon's icon and name, so that they are not
--- taken for the lines another addon puts there. `right`, when given, goes on the right of
--- that line. The blue is the lens of the logo.
-local BRAND = "|TInterface\\AddOns\\" .. ADDON .. "\\icon.tga:0|t Upgrade Scout"
-local BRAND_R, BRAND_G, BRAND_B = 0.53, 0.78, 0.96
-
-local function AddHeader(right)
-    GameTooltip_AddBlankLineToTooltip(GameTooltip)
-    if right then
-        GameTooltip:AddDoubleLine(BRAND, right, BRAND_R, BRAND_G, BRAND_B, NORMAL_FONT_COLOR:GetRGB())
-    else
-        GameTooltip:AddLine(BRAND, BRAND_R, BRAND_G, BRAND_B)
-    end
-end
-
--- A gain as the list writes it (see InitItemRow), and the colour to write it in: green for
--- better, red for worse, grey for no change. With nothing to take a percent of (an empty slot,
--- or an item there that scores nothing), in points.
-local function GainText(gain)
-    if gain.percent then
-        local shown = FormatPercentage(math.abs(gain.percent), true)
-        if shown == FormatPercentage(0, true) then return shown, GRAY_FONT_COLOR end
-        if gain.percent > 0 then return "+" .. shown, GREEN_FONT_COLOR end
-        return "-" .. shown, RED_FONT_COLOR
-    end
-    return L.GAIN_POINTS:format(ns.Num(gain.delta)), gain.delta > 0 and GREEN_FONT_COLOR or GRAY_FONT_COLOR
-end
+-- Our lines under a row's tooltip (see Tooltip.lua for how they look).
+local AddHeader, AddGain = ns.Tooltip.AddHeader, ns.Tooltip.AddGain
 
 -- What the offer of a row gains on every profile of the class, as Pawn shows its scales:
--- { { title, text, color, current }, ... } in the order of the profile menu. The profile the
+-- { { title, gain, current }, ... } in the order of the profile menu. The profile the
 -- list is made on reads as the row does. Each of the others weighs the item and the gear the
 -- same way on its own weights, and measures it against what it would take off: the weaker
 -- of two rings on that profile, say. The game redraws a tooltip that is up several times a
@@ -197,10 +172,7 @@ local function ProfileGains(entry)
                 }
                 gain = ns.Compare.Gain(item, ns.Score.Rescore(ctx, profile.name), entry.group)
             end
-            if gain then
-                local text, color = GainText(gain)
-                gains[#gains + 1] = { title = profile.title, text = text, color = color, current = gain == entry }
-            end
+            if gain then gains[#gains + 1] = { title = profile.title, gain = gain, current = gain == entry } end
         end
     end
     gainsOf = { entry = entry, gains = gains }
@@ -216,7 +188,7 @@ local function ShowSupplyTooltip(row)
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(supply.link, nil, nil, hideVendorPrice)
     -- On the right, whose profile the score is on.
-    AddHeader(who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
+    AddHeader(GameTooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
     if entry.value then
         GameTooltip_AddNormalLine(GameTooltip, L.TT_SUP_SCORE:format("+" .. ns.Num(entry.value)))
     elseif entry.why == "MANA" then
@@ -245,12 +217,10 @@ local function ShowItemTooltip(row)
     GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
 
     -- On the right, whose list it is when it is not the character's own.
-    AddHeader(who and WhoName(who) or nil)
+    AddHeader(GameTooltip, who and WhoName(who) or nil)
     -- How much better the item is on each profile of the class: the one in use in gold.
-    for _, gain in ipairs(ProfileGains(entry)) do
-        local r, g, b = (gain.current and NORMAL_FONT_COLOR or HIGHLIGHT_FONT_COLOR):GetRGB()
-        local rightR, rightG, rightB = gain.color:GetRGB()
-        GameTooltip:AddDoubleLine(gain.title, gain.text, r, g, b, rightR, rightG, rightB)
+    for _, line in ipairs(ProfileGains(entry)) do
+        AddGain(GameTooltip, line.title, line.gain, line.current)
     end
     if entry.note == "OFFHAND_EMPTY" then
         GameTooltip_AddNormalLine(GameTooltip, who and L.TT_OFFHAND_EMPTY_WHO or L.TT_OFFHAND_EMPTY)
@@ -398,6 +368,8 @@ end
 -- The scroll box hands out bare frames; each gets its parts here the first time it is used.
 local function BuildItemRow(row)
     row.built = true
+    -- Its tooltip has our lines from ShowItemTooltip, not from Tooltip.lua.
+    row.upgradeScoutRow = true
 
     local glow = NewTexture(row, "RowGlow", "HIGHLIGHT")
     glow:SetBlendMode("ADD")

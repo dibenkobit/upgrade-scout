@@ -15,6 +15,8 @@ better than what you wear, slot by slot, with prices. Press **Buy** on the one y
 
 - Scores gear with its own stat weights for every talent tree, worked out with the
   [wowsims/forever](https://github.com/wowsims/forever) simulator. Pawn is not needed.
+- Any item's tooltip shows how much better it is than what you wear, on every profile of your class:
+  in your bags, loot, chat links and at the auction house.
 - Shows only what you can equip right now and can pay for.
 - Marks two items in every slot: the **Best upgrade** is the strongest, the **Best value** is the
   cheapest per point of improvement.
@@ -56,7 +58,6 @@ To install by hand:
   longer, up to a few minutes on a busy auction house.
 - **Upgrade** is how much better an item is than the one it replaces, in percent. **New** means
   the slot is empty. Points, such as `+6 pts`, mean what you wear there adds nothing on your profile.
-- Hover over an item to see its upgrade on every profile of your class, the one in use in gold.
 - A yellow `*` after a name means the item has effects the score does not count, such as procs.
 - Health and mana potions have no score: no weight puts a number on "restores 700 health".
 - Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The

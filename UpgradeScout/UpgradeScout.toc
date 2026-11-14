@@ -10,7 +10,7 @@
 ## Notes-esMX: Encuentra en la casa de subastas equipo mejor que el tuyo y que puedes pagar.
 ## Notes-ptBR: Encontra na Casa de Leilões equipamentos melhores que os seus e que cabem no seu bolso.
 ## Notes-koKR: 경매장에서 지금 장비보다 좋고 살 수 있는 장비를 찾아줍니다.
-## Version: 2.1.0
+## Version: 2.2.0
 ## Author: Nikita Snetkov
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323
@@ -42,6 +42,7 @@ Score.lua
 Compare.lua
 Results.lua
 Plan.lua
+Tooltip.lua
 SupplyData.lua
 Supplies.lua
 Scanner.lua

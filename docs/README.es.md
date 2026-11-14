@@ -16,6 +16,8 @@ objeto que quieras.
 
 - Puntúa el equipo con pesos propios para cada rama de talentos, calculados con el simulador
   [wowsims/forever](https://github.com/wowsims/forever). No hace falta Pawn.
+- La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, en cada
+  perfil de tu clase: en las bolsas, el botín, los enlaces del chat y la casa de subastas.
 - Muestra solo lo que puedes equipar ahora mismo y pagar.
 - Marca dos objetos en cada ranura. **Mayor mejora** es el más fuerte. **Más rentable** es el más
   barato por punto de mejora.
@@ -61,7 +63,6 @@ A mano:
 - **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **Nuevo**
   significa que la ranura está vacía. Los puntos, como `+6 pts`, significan que lo que llevas ahí
   no aporta nada a tu perfil.
-- Pasa el ratón por un objeto para ver la mejora en cada perfil de tu clase. El que usas sale en dorado.
 - Un `*` amarillo tras el nombre: el objeto tiene efectos que la puntuación no cuenta.
 - Las pociones de salud y de maná no tienen puntuación: ningún peso pone número a «restaura
   700 p. de salud».

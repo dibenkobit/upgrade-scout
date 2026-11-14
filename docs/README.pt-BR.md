@@ -16,6 +16,8 @@ equipamentos melhores do que os que está usando, espaço por espaço, com os pr
 
 - Avalia os equipamentos com pesos próprios para cada árvore de talentos, calculados com o
   simulador [wowsims/forever](https://github.com/wowsims/forever). Não precisa do Pawn.
+- A dica de qualquer item mostra quanto ele é melhor do que o que você usa, em cada perfil da sua
+  classe: nas bolsas, no saque, nos links do chat e na Casa de Leilões.
 - Mostra só o que você pode equipar agora e pagar.
 - Marca dois itens em cada espaço. **Maior melhoria** é o mais forte. **Melhor custo-benefício** é
   o mais barato por ponto de melhoria.
@@ -61,7 +63,6 @@ Manualmente:
 - **Melhoria** diz quanto um item é melhor do que o que ele substitui, em porcentagem. **Novo**
   quer dizer que o espaço está vazio. Pontos, como `+6 pts`, querem dizer que o que você usa ali
   não acrescenta nada ao seu perfil.
-- Passe o mouse sobre um item para ver a melhoria em cada perfil da sua classe. O que está em uso aparece em dourado.
 - Um `*` amarelo depois do nome: o item tem efeitos que a pontuação não conta.
 - Poções de vida e de mana não têm pontuação: nenhum peso dá um número para "restaura 700 de vida".
 - Botas "do Tigre" e botas "da Baleia" são itens diferentes, com preços diferentes. A aba "Vender"

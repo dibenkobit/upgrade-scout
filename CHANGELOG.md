@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.0
+
+- The tooltip of any item shows how much better it is than what you wear, on every profile of
+  your class, as Pawn does: in your bags, loot, quest rewards, chat links and the auction house.
+
 ## 2.1.0
 
 - An item's tooltip shows how much better it is on every profile of your class, the one in use in

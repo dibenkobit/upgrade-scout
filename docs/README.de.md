@@ -16,6 +16,8 @@ Drücke **Kaufen** bei dem Gegenstand, den du willst.
 
 - Bewertet Ausrüstung mit eigenen Gewichten für jeden Talentbaum, berechnet mit dem Simulator
   [wowsims/forever](https://github.com/wowsims/forever). Pawn wird nicht gebraucht.
+- Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jedes
+  Profil deiner Klasse: in den Taschen, in der Beute, in Chat-Links und im Auktionshaus.
 - Zeigt nur, was du jetzt anlegen und bezahlen kannst.
 - Markiert in jedem Slot zwei Gegenstände. **Beste Verbesserung** ist der stärkste.
   **Beste Preis-Leistung** ist der günstigste pro Punkt Verbesserung.
@@ -61,7 +63,6 @@ Von Hand:
 - **Verbesserung** zeigt in Prozent, wie viel besser ein Gegenstand ist als der, den er ersetzt.
   **Neu** heißt: Der Slot ist leer. Punkte wie `+6 Pkt.` heißen: Was du dort trägst, bringt
   deinem Profil nichts.
-- Fahre mit der Maus über einen Gegenstand, um die Verbesserung für jedes Profil deiner Klasse zu sehen. Das gewählte steht in Gold.
 - Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die die Wertung nicht mitzählt.
 - Heil- und Manatränke haben keine Wertung: Kein Gewicht macht aus „stellt 700 Gesundheit wieder her“
   eine Zahl.

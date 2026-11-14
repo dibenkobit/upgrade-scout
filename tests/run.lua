@@ -10,7 +10,7 @@ local names = {
     "events", "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
-    "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
+    "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "tooltips",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
 }
@@ -1205,14 +1205,15 @@ function scenarios.ui()
     for _, line in ipairs(GameTooltip._lines) do seen[#seen + 1] = line.text end
     local tip = table.concat(seen, "\n")
     -- Our lines are headed by the addon's name, apart from the item's own.
-    local header
+    local header, headers = nil, 0
     for i, line in ipairs(GameTooltip._lines) do
         if line.text:find("Upgrade Scout", 1, true) then
-            header = i
-            break
+            header = header or i
+            headers = headers + 1
         end
     end
     check(header ~= nil, "our lines have a header")
+    eq(headers, 1, "once: the lines every item tooltip gets (Tooltip.lua) are not added under a row")
     local head = GameTooltip._lines[header]
     eq(head.text, "|TInterface\\AddOns\\UpgradeScout\\icon.tga:0|t Upgrade Scout", "the addon's icon and name")
     near(head.b, 0.96, "in blue")
@@ -3428,6 +3429,91 @@ function scenarios.weights_data()
 end
 
 -- A translation loads, and a scan works with it. `scan` is its text for the Scan button.
+-- Our lines in the tooltip of any item, wherever the game shows one (the bags, loot, a link in
+-- the chat): for the character being played, the gain on every profile of its class.
+function scenarios.tooltips()
+    StandardWorld()
+    -- A wand, which a warrior never uses.
+    W.AddItem({ id = 220, name = "Oak Wand", equipLoc = "INVTYPE_RANGEDRIGHT", classID = 2, subClassID = 19, value = 9, level = 5 })
+    -- On the second profile the two chests score 9 (for sale) and 12 (worn).
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    LoadAddon()
+    W.Run(1)
+
+    -- Our lines in a tooltip that shows the item: from the line after our header, each as
+    -- "left right", joined by " | "; nil when there is no header.
+    local function Ours(tooltip, id)
+        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:SetHyperlink(W.Link(id))
+        local header
+        for i, line in ipairs(tooltip._lines) do
+            if line.text:find("Upgrade Scout", 1, true) then
+                eq(header, nil, "one header only")
+                header = i
+            end
+        end
+        if not header then return nil end
+        eq(tooltip._lines[header].right, nil, "nothing on the right of the header: the lines are the player's own")
+        eq(tooltip._lines[header - 1].text, " ", "a blank line before it")
+        local out = {}
+        for i = header + 1, #tooltip._lines do
+            local line = tooltip._lines[i]
+            out[#out + 1] = line.text .. (line.right and " " .. line.right or "")
+        end
+        return table.concat(out, " | ")
+    end
+    local function Line(tooltip, text)
+        for _, line in ipairs(tooltip._lines) do
+            if line.text == text then return line end
+        end
+    end
+
+    eq(Ours(GameTooltip, 200), "Arms +80% | Protection ~ -25%", "a chest in the bags: 18 against 10, and 9 against 12")
+    eq(Line(GameTooltip, "Arms").r, NORMAL_FONT_COLOR.r, "the profile in use in gold")
+    eq(Line(GameTooltip, "Protection ~").r, HIGHLIGHT_FONT_COLOR.r, "the other in white")
+    eq(Line(GameTooltip, "Arms").rightR, GREEN_FONT_COLOR.r, "a gain in green")
+    eq(Line(GameTooltip, "Protection ~").rightR, RED_FONT_COLOR.r, "a loss in red")
+    eq(Ours(ItemRefTooltip, 200), "Arms +80% | Protection ~ -25%", "the same for a link clicked in the chat")
+    eq(Ours(ShoppingTooltip1, 200), nil, "not in the tooltip beside, which shows what is worn")
+
+    eq(Ours(GameTooltip, 211), "Arms +12 pts | Protection ~ +0 pts", "a helm for the empty head: in points")
+    eq(Ours(GameTooltip, 201), "Arms +200% | Protection ~ -100% | Has effects the score does not count.",
+        "the robe, with what its score leaves out")
+    eq(Ours(GameTooltip, 212), "Arms +30% | Protection ~ +0 pts", "a two-hander against the sword")
+
+    eq(Ours(GameTooltip, 100), nil, "nothing for the chest the character has on")
+    eq(Ours(GameTooltip, 220), nil, "nothing for a wand: a warrior never uses one")
+    eq(Ours(GameTooltip, 214), nil, "nothing for a potion")
+    eq(Ours(GameTooltip, 207), nil, "nothing for a shirt")
+    eq(Ours(GameTooltip, 208), nil, "nothing for a chest that is worth nothing on any profile")
+
+    -- An item the client has not loaded gets its lines when the game draws the tooltip again.
+    W.items["210:0"].cached = false
+    eq(Ours(GameTooltip, 210), nil, "nothing while the ring is loading")
+    W.items["210:0"].cached = true
+    eq(Ours(GameTooltip, 210), "Arms +6 pts | Protection ~ +0 pts", "and then the ring, for the empty second finger")
+
+    -- The game draws a tooltip that is up again and again: what was worked out is kept.
+    local reads = W.tooltipReads
+    Ours(GameTooltip, 201)
+    eq(W.tooltipReads, reads, "the robe's tooltip is not read again")
+
+    -- Another profile chosen: it is in gold now, and the numbers stay.
+    ns.Roster.Me().profile = "S2"
+    Ours(GameTooltip, 200)
+    eq(Line(GameTooltip, "Protection ~").r, NORMAL_FONT_COLOR.r, "the profile in use in gold")
+    eq(Line(GameTooltip, "Arms").r, HIGHLIGHT_FONT_COLOR.r, "the other one in white")
+    ns.Roster.Me().profile = "S1"
+
+    -- New gear: a shield in the off hand, and the good chest on.
+    W.equipped[17] = W.Link(213)
+    W.equipped[5] = W.Link(200)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    eq(Ours(GameTooltip, 200), nil, "the chest now worn has nothing to be compared with")
+    eq(Ours(GameTooltip, 100), "Arms -44% | Protection ~ +33%", "the old chest against it: 10 against 18, 12 against 9")
+    eq(Ours(GameTooltip, 212), "Arms -4% | Protection ~ +0 pts | Takes both hands.", "the two-hander against sword and shield, 26 against 27")
+end
+
 local function CheckLocale(locale, language, scan)
     W.locale = locale
     StandardWorld()

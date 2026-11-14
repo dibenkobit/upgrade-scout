@@ -228,10 +228,15 @@ function C.Place(item, ctx)
     return Places(item, ctx, Beats)
 end
 
--- What the item gains or loses in the slot group `group`, upgrade or not: a placement as
--- C.Place makes them, with a delta below zero where it would be worse than what is worn. nil
--- when it cannot go there at all (an off-hand weapon for one who cannot hold two, a second
--- copy of a unique item).
+-- Every place the item can go, upgrade or not: placements as C.Place makes them, with a delta
+-- below zero where it would be worse than what is worn. Empty when it cannot be worn at all
+-- (a second copy of a unique item, a tabard).
+function C.Gains(item, ctx)
+    return Places(item, ctx, Anywhere)
+end
+
+-- The same in one slot group only; nil when the item cannot go there (an off-hand weapon for
+-- one who cannot hold two).
 function C.Gain(item, ctx, group)
     local placements = Places(item, ctx, Anywhere)
     for i = 1, #placements do
