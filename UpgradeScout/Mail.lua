@@ -13,15 +13,23 @@ local L = ns.L
 -- way a right-click attaches them while the Send Mail page is open (the same way the one
 -- addon made for this client, Mastercraft, does it).
 --
+-- A parcel is struck off when its item leaves in a letter, whoever put it in: the button or
+-- the player by hand (see "Letters going out"). One that went some other way (sold, put on,
+-- sent before the addon could see it) is struck off at a mailbox, once the game has listed the
+-- mail and the item is nowhere to be sent from (see Settle).
+--
 -- Only gear is followed. Consumables stack with what the player already has, and a stack
 -- cannot be told apart into "bought for the other one" and "mine".
 local M = {}
 ns.Mail = M
 
 local MAX_ATTACH = ATTACHMENTS_MAX_SEND or 12
+local MAX_RECEIVE = ATTACHMENTS_MAX_RECEIVE or 16
 local KEEP_DAYS = 30            -- a parcel nobody sent is forgotten after this long
+local SETTLE = 600              -- seconds before a parcel missing from the mail is taken as gone
 local MAX_BUTTONS = 6           -- characters with parcels the mailbox lists at once
 local STEP = 0.1                -- seconds between two attachments
+local WATCH = 0.2               -- seconds between two looks at the game's mail window
 
 -- The strip under the mail window: its width, its margin, how far down its buttons begin, and
 -- the height of a button and the room between two.
@@ -32,7 +40,8 @@ local BUTTON_HEIGHT, BUTTON_GAP = 22, 4
 local SEPARATOR = Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_SEPARATOR
 
 local panel
-local attached          -- the parcels put into the letter that is being written: { to = key, parcels = {...} }
+local sending           -- the letter that went out and has not been answered yet (see SendMail below)
+local inboxRead         -- the game has listed the mail since the mailbox was opened
 
 -- A parcel and the item in the bags are the same thing when the player would say so.
 local ItemKey = ns.ItemKey
@@ -60,31 +69,60 @@ function M.Bought(offer, who)
     }
 end
 
--- The unbound items in the bags, by item key: { { bag, slot }, ... } for each.
+-- The unbound items in the bags, by item key: { { bag, slot, locked }, ... } for each. A
+-- locked item is one the player put into the letter being written: it stays in its place in
+-- the bags until the letter goes.
 local function Bags()
     local out = {}
     local container = C_Container
     for bag = 0, NUM_TOTAL_EQUIPPED_BAG_SLOTS do
         for slot = 1, container.GetContainerNumSlots(bag) or 0 do
             local info = container.GetContainerItemInfo(bag, slot)
-            local key = info and not info.isBound and not info.isLocked and ItemKey(info.hyperlink) or nil
+            local key = info and not info.isBound and ItemKey(info.hyperlink) or nil
             if key then
                 local list = out[key]
                 if not list then
                     list = {}
                     out[key] = list
                 end
-                list[#list + 1] = { bag = bag, slot = slot }
+                list[#list + 1] = { bag = bag, slot = slot, locked = info.isLocked and true or false }
             end
         end
     end
     return out
 end
 
+-- Takes a place of the item out of `places`: one that is not locked, or (locked = true) one
+-- that is. nil when there is none.
+local function TakePlace(places, locked)
+    for i = #(places or {}), 1, -1 do
+        if places[i].locked == locked then return table.remove(places, i) end
+    end
+end
+
+-- The items in the mail the game has listed, by item key: how many of each. nil while the
+-- game has not listed it, or lists only a part of it (a mailbox holds more letters than the
+-- game shows at once).
+local function Inbox()
+    if not inboxRead or not (GetInboxNumItems and GetInboxItemLink) then return nil end
+    local shown, total = GetInboxNumItems()
+    if not shown or (total or shown) > shown then return nil end
+    local out = {}
+    for i = 1, shown do
+        for j = 1, MAX_RECEIVE do
+            local key = ItemKey(GetInboxItemLink(i, j))
+            if key then out[key] = (out[key] or 0) + 1 end
+        end
+    end
+    return out
+end
+
 -- The parcels the character being played holds, by the character they are for:
---   { { card = the one they are for, parcels = {...}, ready = { [parcel] = { bag, slot } } }, ... }
--- `ready` has the parcels that are in the bags, each with a place of its own. Parcels that
--- are too old, or for a character that is no longer remembered, are dropped on the way.
+--   { { card = the one they are for, parcels = {...}, count = n,
+--       ready = { [parcel] = { bag, slot } }, letter = { [parcel] = true } }, ... }
+-- `ready` has the parcels that are in the bags, each with a place of its own; `letter` those
+-- already in the letter being written. `count` is the two together. Parcels that are too old,
+-- or for a character that is no longer remembered, are dropped on the way.
 function M.Pending()
     local me = ns.Roster.Me()
     local out, byKey = {}, {}
@@ -101,21 +139,26 @@ function M.Pending()
             -- (A letter does not go to another realm; such a parcel waits for nothing here.)
             local group = byKey[card.key]
             if not group then
-                group = { card = card, parcels = {}, ready = {}, count = 0 }
+                group = { card = card, parcels = {}, ready = {}, letter = {}, count = 0 }
                 byKey[card.key] = group
                 out[#out + 1] = group
             end
             table.insert(group.parcels, 1, parcel)
         end
     end
-    for g = 1, #out do
-        local group = out[g]
-        for i = 1, #group.parcels do
-            local parcel = group.parcels[i]
-            local places = bags[ItemKey(parcel.link) or ""]
-            if places and #places > 0 then
-                group.ready[parcel] = table.remove(places)
-                group.count = group.count + 1
+    -- First the copies that can still be put into a letter, then those already in it.
+    for _, locked in ipairs({ false, true }) do
+        for g = 1, #out do
+            local group = out[g]
+            for i = 1, #group.parcels do
+                local parcel = group.parcels[i]
+                if not group.ready[parcel] and not group.letter[parcel] then
+                    local place = TakePlace(bags[ItemKey(parcel.link) or ""], locked)
+                    if place then
+                        if locked then group.letter[parcel] = true else group.ready[parcel] = place end
+                        group.count = group.count + 1
+                    end
+                end
             end
         end
     end
@@ -164,21 +207,21 @@ local function Attach(group)
         for _, now in ipairs(M.Pending()) do
             if now.card == card then fresh = now end
         end
-        if not fresh or fresh.count == 0 then
-            ns.Print(L.MAIL_NONE:format(name))
-            return
-        end
         local queue = {}
-        for i = 1, #fresh.parcels do
+        for i = 1, fresh and #fresh.parcels or 0 do
             local parcel = fresh.parcels[i]
             if fresh.ready[parcel] then queue[#queue + 1] = { parcel = parcel, place = fresh.ready[parcel] } end
+        end
+        if #queue == 0 then
+            -- (Everything at hand may be in the letter already: then there is nothing to say.)
+            if not (fresh and next(fresh.letter)) then ns.Print(L.MAIL_NONE:format(name)) end
+            return
         end
         if SendMailNameEditBox then SendMailNameEditBox:SetText(to) end
         if SendMailSubjectEditBox and (SendMailSubjectEditBox:GetText() or "") == "" then
             SendMailSubjectEditBox:SetText("Upgrade Scout")
         end
 
-        attached = { to = card.key, parcels = {} }
         local done, waits, used = 0, 0, {}
         local function Next()
             if not MailOpen() then return end
@@ -204,7 +247,6 @@ local function Attach(group)
                 C_Container.UseContainerItem(item.place.bag, item.place.slot)
                 used[free] = true
                 done = done + 1
-                attached.parcels[#attached.parcels + 1] = item.parcel
             end
             C_Timer.After(STEP, Next)
         end
@@ -238,6 +280,8 @@ local function ButtonOnEnter(button)
         local parcel = group.parcels[i]
         if group.ready[parcel] then
             GameTooltip_AddHighlightLine(GameTooltip, parcel.link)
+        elseif group.letter[parcel] then
+            GameTooltip_AddHighlightLine(GameTooltip, parcel.link .. " " .. L.MAIL_IN_LETTER)
         else
             GameTooltip_AddDisabledLine(GameTooltip, parcel.link .. " " .. L.MAIL_NOT_IN_BAGS)
         end
@@ -268,6 +312,9 @@ local function Build()
     local W = ns.Widgets
     panel = CreateFrame("Frame", "UpgradeScoutMailFrame", UIParent)
     panel:SetSize(WIDTH, TOP)
+    -- Above what other addons keep at that spot of the screen (a guide, the bags), and on it.
+    panel:SetFrameStrata("HIGH")
+    panel:SetClampedToScreen(true)
     panel:Hide()
     W.NewSlices(panel, "Panel", 0.375, 12, "BACKGROUND", 0, 1.5)
     local emblem = panel:CreateTexture(nil, "ARTWORK")
@@ -325,51 +372,192 @@ end
 local RefreshSoon = ns.Soon(0.3, function() M.Refresh() end)
 
 ---------------------------------------------------------------------------
+-- Letters going out
+---------------------------------------------------------------------------
+-- Whatever sends a letter calls the game's SendMail, the game's own Send button as well. What
+-- the letter holds is read right then, while its items are still in it; the game says a
+-- moment later whether it went (MAIL_SEND_SUCCESS). Each item that went strikes off a parcel
+-- of the same item, the one for the character the letter went to if there is one. A parcel
+-- is struck off only where more parcels of the item are left than copies at hand: an item the
+-- player had twice and sent the other copy of (their own, say) leaves its parcel standing.
+local function Squash(text)
+    return (tostring(text or ""):gsub("%s+", ""):lower())
+end
+
+-- Whether a letter to `recipient` (as the player wrote it: with or without the surname, with
+-- a realm after a "-" or without) is a letter to the character the parcel is for.
+local function IsFor(parcel, recipient)
+    local card = ns.Roster.Get(parcel.to)
+    if not card then return false end
+    local to = Squash(recipient):gsub("%-.*$", "")
+    return to == Squash(card.name) or to == Squash(M.Address(card))
+end
+
+local function ReadLetter(recipient)
+    sending = nil
+    if issecretvalue and issecretvalue(recipient) then return end
+    local bags = Bags()
+    local items = {}
+    for i = 1, GetSendMailItemLink and MAX_ATTACH or 0 do
+        local key = ItemKey(GetSendMailItemLink(i))
+        if key then items[#items + 1] = key end
+    end
+    -- (Should the game have emptied the letter before this runs, its items are still the
+    -- locked ones in the bags.)
+    if #items == 0 then
+        for key, places in pairs(bags) do
+            for _, place in ipairs(places) do
+                if place.locked then items[#items + 1] = key end
+            end
+        end
+    end
+    if #items == 0 then return end
+    -- What is left at hand of each once the letter has gone: the copies in the bags that are
+    -- not in it, and those in the mail.
+    local inbox = Inbox() or {}
+    local left = {}
+    for _, key in ipairs(items) do
+        local free = 0
+        for _, place in ipairs(bags[key] or {}) do
+            if not place.locked then free = free + 1 end
+        end
+        left[key] = free + (inbox[key] or 0)
+    end
+    sending = { to = recipient, items = items, left = left }
+end
+if SendMail then hooksecurefunc("SendMail", ReadLetter) end
+
+local function LetterSent()
+    local letter = sending
+    sending = nil
+    local me = ns.Roster.Me()
+    if not letter or not me then return end
+    local parcels = Parcels()
+    for _, key in ipairs(letter.items) do
+        local mine = {}
+        for i = 1, #parcels do
+            local parcel = parcels[i]
+            if type(parcel) == "table" and parcel.from == me.key and ItemKey(parcel.link) == key then
+                mine[#mine + 1] = i
+            end
+        end
+        if #mine > letter.left[key] then
+            local index = mine[1]           -- the oldest, unless one is for the addressee
+            for _, i in ipairs(mine) do
+                if IsFor(parcels[i], letter.to) then
+                    index = i
+                    break
+                end
+            end
+            table.remove(parcels, index)
+        end
+    end
+    -- (The bags tell of the letter a moment later.)
+    RefreshSoon()
+end
+
+-- A parcel whose item is nowhere this character could send it from went some other way:
+-- sold, put on, given away, or sent before the addon could see the letter. Once the game has
+-- listed all the mail after the mailbox was opened, such parcels are struck off: where more
+-- parcels of an item are left than copies in the bags (in the letter being written too), the
+-- mail and the bank, the oldest go. Only once a visit, before the player has taken anything
+-- out (an item on its way from the mail to the bags is in neither for a moment), and never a
+-- parcel bought within the last minutes, whose letter may still be on its way.
+local function Banked(itemID)
+    if not (itemID and C_Item.GetItemCount) then return 0 end
+    return math.max(0, C_Item.GetItemCount(itemID, true) - C_Item.GetItemCount(itemID))
+end
+
+local function Settle()
+    local inbox, me = Inbox(), ns.Roster.Me()
+    if not inbox or not me then return end
+    local bags = Bags()
+    local byKey = {}
+    local parcels = Parcels()
+    for i = 1, #parcels do
+        local parcel = parcels[i]
+        local key = type(parcel) == "table" and parcel.from == me.key and ItemKey(parcel.link) or nil
+        if key then
+            byKey[key] = byKey[key] or {}
+            table.insert(byKey[key], parcel)
+        end
+    end
+    local oldest = time() - SETTLE
+    local gone = {}
+    for key, list in pairs(byKey) do
+        -- The newest are taken to be the copies at hand; the oldest are the ones missing.
+        table.sort(list, function(a, b) return (a.at or 0) > (b.at or 0) end)
+        local have = #(bags[key] or {}) + (inbox[key] or 0) + Banked(list[1].itemID)
+        for i = have + 1, #list do
+            if (list[i].at or 0) < oldest then gone[list[i]] = true end
+        end
+    end
+    for i = #parcels, 1, -1 do
+        if gone[parcels[i]] then table.remove(parcels, i) end
+    end
+end
+
+---------------------------------------------------------------------------
+-- The strip and the mail window
+---------------------------------------------------------------------------
+-- The strip follows the game's mail window while a mailbox is open. The window may come up a
+-- moment after the game says a mailbox is open, or later still, and the game hides it while
+-- another window takes its place. A frame of the addon's own looks at it a few times a
+-- second: nothing of the addon's runs inside the game's mail code.
+local watcher = CreateFrame("Frame")
+watcher:Hide()
+local seen, since = false, 0
+watcher:SetScript("OnUpdate", function(_, elapsed)
+    since = since + elapsed
+    if since < WATCH then return end
+    since = 0
+    local open = MailOpen()
+    if open ~= seen then
+        seen = open
+        M.Refresh()
+    end
+end)
+
+local settled               -- Settle has had its turn on this visit
+local SettleSoon = ns.Soon(0.5, function()
+    if settled or not watcher:IsShown() then return end
+    settled = true
+    Settle()
+    M.Refresh()
+end)
+
+---------------------------------------------------------------------------
 -- Events
 ---------------------------------------------------------------------------
 ns.Listen("GEAR_BOUGHT", M.Bought)
 
--- The game brings its mail window up on another event than this one, which may be the later
--- of the two: the strip is seen to now, and once more when the window has had its moment.
 ns.On("MAIL_SHOW", function()
+    inboxRead, settled = false, false
+    seen, since = MailOpen(), 0
+    watcher:Show()
     M.Refresh()
+end)
+
+-- The game has listed the mail (on opening, and whenever something is taken out of it).
+ns.On("MAIL_INBOX_UPDATE", function()
+    if not watcher:IsShown() then return end
+    inboxRead = true
+    SettleSoon()
     RefreshSoon()
 end)
+
 -- The bags change all day long; the strip follows them at a mailbox.
 ns.On("BAG_UPDATE", function()
     if MailOpen() then RefreshSoon() end
 end)
 
 ns.On("MAIL_CLOSED", function()
-    attached = nil
+    watcher:Hide()
+    inboxRead = false
     if panel then panel:Hide() end
 end)
 
--- A letter went out. The parcels that were put into it and are in the bags no more have gone
--- with it; one the player took out again is still a parcel.
-ns.On("MAIL_SEND_SUCCESS", function()
-    local sent = attached
-    attached = nil
-    if not sent then return end
-    C_Timer.After(0.5, function()
-        local bags = Bags()
-        local parcels = Parcels()
-        for i = #parcels, 1, -1 do
-            for j = 1, #sent.parcels do
-                if parcels[i] == sent.parcels[j] then
-                    local places = bags[ItemKey(parcels[i].link) or ""]
-                    if places and #places > 0 then
-                        table.remove(places)        -- still here: it was taken out of the letter
-                    else
-                        table.remove(parcels, i)
-                    end
-                    break
-                end
-            end
-        end
-        M.Refresh()
-    end)
-end)
+ns.On("MAIL_SEND_SUCCESS", LetterSent)
 -- (MAIL_FAILED is not listened for: it is said of any mail matter that goes wrong, not only
--- of this letter. A letter that did not go leaves its parcels in the bags, where the next
--- letter that does go finds them.)
+-- of a letter. A letter that did not go leaves its items in the bags, and the next letter
+-- sent is read anew.)

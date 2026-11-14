@@ -12,8 +12,9 @@ read_globals = {
     -- functions of the game
     "CanDualWield", "Clamp", "CreateDataProvider", "CreateFrame", "CreateScrollBoxListLinearView", "CursorHasItem",
     "FormatPercentage", "GetInventoryItemLink", "GetLocale", "GetMoney", "GetMoneyString",
-    "GetProfessionInfo", "GetProfessions", "GetRealmName", "GetSendMailItem", "GetTime", "HandleModifiedItemClick",
-    "IsModifiedClick", "PlaySound", "ResetCursor", "ShowInspectCursor", "UnitClass", "UnitFactionGroup", "UnitLevel", "UnitName",
+    "GetInboxItemLink", "GetInboxNumItems", "GetProfessionInfo", "GetProfessions", "GetRealmName", "GetSendMailItem",
+    "GetSendMailItemLink", "GetTime", "HandleModifiedItemClick",
+    "IsModifiedClick", "PlaySound", "ResetCursor", "SendMail", "ShowInspectCursor", "UnitClass", "UnitFactionGroup", "UnitLevel", "UnitName",
     "UnitPowerMax", "UnitRace", "debugprofilestop", "hooksecurefunc", "issecretvalue", "securecallfunction", "time",
     "GameTooltip_AddBlankLineToTooltip", "GameTooltip_AddColoredLine", "GameTooltip_AddDisabledLine",
     "GameTooltip_AddErrorLine", "GameTooltip_AddHighlightLine", "GameTooltip_AddNormalLine", "GameTooltip_Hide",
@@ -32,7 +33,7 @@ read_globals = {
     "ITEM_UNIQUE_EQUIPPABLE", "LARGE_NUMBER_SEPERATOR", "LOCALIZED_CLASS_NAMES_FEMALE", "LOCALIZED_CLASS_NAMES_MALE",
     "RETRIEVING_ITEM_INFO", "SHIELD_BLOCK_TEMPLATE",
     -- its numbers
-    "ATTACHMENTS_MAX_SEND", "NUM_TOTAL_EQUIPPED_BAG_SLOTS",
+    "ATTACHMENTS_MAX_RECEIVE", "ATTACHMENTS_MAX_SEND", "NUM_TOTAL_EQUIPPED_BAG_SLOTS",
     -- the libraries that come with the addon
     "LibStub",
 }

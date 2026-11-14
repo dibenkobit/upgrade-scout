@@ -6,6 +6,9 @@
   green when you can put it on now, grey when it asks for a higher level than yours.
 - Buying gear asks in the same box as buying consumables, with the item's gain and buyout. The
   strip at the mailbox, the profile menu and the list's scroll bar have the addon's own look too.
+- The strip at the mailbox comes up with the mail window every time. It lets go of what you send,
+  with its button or by hand, and of what left your bags some other way. An item already in the
+  letter no longer reads as still in the mail.
 
 ## 2.2.3
 

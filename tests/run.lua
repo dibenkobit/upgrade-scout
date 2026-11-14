@@ -3128,7 +3128,7 @@ function scenarios.mail()
     -- The jerkin is taken out of the mail; the ring is still there. A jerkin the warrior
     -- wears is not for sending either.
     W.PutInBags(W.Link(200), { bound = true })
-    W.PutInBags(W.Link(310))
+    W.TakeFromMail(W.Link(310))
     W.Run(0.5)
     eq(button.Label:GetText(), "For " .. ALTY .. ": 1 of 2 in your bags", "the button follows the bags")
     button:GetScript("OnEnter")(button)
@@ -3158,7 +3158,7 @@ function scenarios.mail()
 
     -- The ring comes out of the mail, is put into a letter and taken out of it again by hand:
     -- a letter sent without it leaves it a parcel.
-    W.PutInBags(W.Link(315))
+    W.TakeFromMail(W.Link(315))
     local oldRing = W.PutInBags(W.Link(101))
     W.Run(0.5)
     button:Click()
@@ -3207,6 +3207,88 @@ function scenarios.mail()
     -- A surname, as the characters of this game have: the letter is addressed with it.
     eq(ns.Mail.Address({ name = "Alty", last = "Greenleaf" }), "Alty Greenleaf", "a name and a surname")
     eq(ns.Mail.Address({ name = "Alty" }), "Alty", "a name alone")
+
+    -- Sent by hand: the ring goes into a letter without the button, the name written in small
+    -- letters. While it is in the letter it is still at hand, and the strip says where it is.
+    ns.Mail.Refresh()
+    eq(panel:IsShown(), true, "the ring's parcel is on the strip")
+    local ringSlot
+    for slot, held in pairs(W.bags[0]) do
+        if held.link == W.Link(315) then ringSlot = slot end
+    end
+    MailFrameTab2:Click()
+    C_Container.UseContainerItem(0, ringSlot)
+    W.Fire("BAG_UPDATE", 0)
+    W.Run(0.5)
+    eq(button.Label:GetText(), "For " .. ALTY .. ": 1 of 1 in your bags", "the ring in the letter is still at hand")
+    button:GetScript("OnEnter")(button)
+    local inLetter = {}
+    for _, line in ipairs(GameTooltip._lines) do inLetter[#inLetter + 1] = line.text end
+    inLetter = table.concat(inLetter, " | ")
+    check(inLetter:find("Grove Ring]|h|r (in the letter)", 1, true) ~= nil, "its tooltip says the ring is in the letter: " .. inLetter)
+    check(inLetter:find("take it out of the mail", 1, true) == nil, "and not that it is in the mail")
+    local said = #W.printed
+    button:Click()
+    W.Run(1)
+    eq(#W.printed, said, "a click with everything in the letter already says nothing")
+    eq(W.mail.attached[2], nil, "and puts nothing more in")
+    SendMailNameEditBox:SetText("alty")
+    W.mail.failSend = true
+    W.SendLetter()
+    W.Run(1)
+    eq(#UpgradeScoutDB.parcels, 1, "a letter that did not go takes no parcel with it")
+    W.SendLetter()
+    W.Run(1)
+    eq(W.mail.sent[#W.mail.sent].items[1], W.Link(315), "the letter went with the ring")
+    eq(#UpgradeScoutDB.parcels, 0, "and the parcel with it, though the button had no part in it")
+    eq(panel:IsShown(), false, "nothing left to send: the strip goes")
+
+    -- Parcels from before: a jerkin that went in a letter the addon did not see, an hour ago; a
+    -- ring still in the mail; a jerkin bought a moment ago, its letter maybe still on the way.
+    -- At the next visit, once the game has listed all the mail, the first is struck off.
+    W.CloseMailbox()
+    W.mail.inbox = { { items = { W.Link(315) } } }
+    local hourAgo = time() - 3600
+    local function Parcel(id, name, at)
+        return { to = "Alty-Testrealm", from = "Tester-Testrealm", link = W.Link(id), itemID = id, name = name, at = at }
+    end
+    UpgradeScoutDB.parcels = { Parcel(310, "Druid Jerkin", hourAgo), Parcel(315, "Grove Ring", hourAgo), Parcel(310, "Druid Jerkin", time()) }
+    W.mail.inboxTotal = 60
+    W.OpenMailbox()
+    W.Run(1)
+    eq(#UpgradeScoutDB.parcels, 3, "with more mail than the game lists, nothing is struck off")
+    W.CloseMailbox()
+    W.mail.inboxTotal = nil
+    W.OpenMailbox()
+    W.Run(1)
+    eq(#UpgradeScoutDB.parcels, 2, "the old jerkin, which is nowhere, is struck off")
+    eq(UpgradeScoutDB.parcels[1].link, W.Link(315), "the ring in the mail stays")
+    eq(UpgradeScoutDB.parcels[2].link, W.Link(310), "and so does the jerkin just bought")
+    check(UpgradeScoutDB.parcels[2].at > hourAgo, "(the new one)")
+    eq(button.Label:GetText(), "For " .. ALTY .. ": 0 of 2 in your bags", "the strip shows what is left")
+    -- One in the bank is still the character's to send.
+    W.CloseMailbox()
+    W.bank = { [310] = 1 }
+    UpgradeScoutDB.parcels = { Parcel(310, "Druid Jerkin", hourAgo) }
+    W.OpenMailbox()
+    W.Run(1)
+    eq(#UpgradeScoutDB.parcels, 1, "a jerkin in the bank keeps its parcel")
+
+    -- The game's window comes up long after its word of a mailbox, and hides for a moment
+    -- when another window takes its place: the strip follows it all the same.
+    W.CloseMailbox()
+    W.OpenMailbox(3)
+    W.Run(1)
+    eq(panel:IsShown(), false, "no strip before the window")
+    W.Run(3)
+    eq(panel:IsShown(), true, "the strip comes up with the window, however late")
+    MailFrame:Hide()
+    W.Run(0.5)
+    eq(panel:IsShown(), false, "it goes when the window goes")
+    MailFrame:Show()
+    W.Run(0.5)
+    eq(panel:IsShown(), true, "and comes back with it")
+    W.bank = nil
 end
 
 -- Right after login the game knows what the character wears but not yet what it adds: the

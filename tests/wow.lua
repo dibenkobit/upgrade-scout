@@ -85,7 +85,7 @@ for _, name in ipairs({
     "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetDrawLayer",
     "SetFontObject", "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks",
-    "SetFrameStrata", "EnableMouse", "SetSnapToPixelGrid", "SetTexelSnappingBias",
+    "SetFrameStrata", "EnableMouse", "SetSnapToPixelGrid", "SetTexelSnappingBias", "SetClampedToScreen",
     -- edit boxes
     "SetAutoFocus", "SetNumeric", "SetMaxLetters", "SetFocus", "ClearFocus", "HighlightText",
 }) do
@@ -860,6 +860,7 @@ function securecallfunction(fn, ...)
     return unpack(results, 2, table.maxn(results))
 end
 function hooksecurefunc(tbl, name, hook)
+    if type(tbl) == "string" then tbl, name, hook = _G, tbl, name end
     local original = tbl[name]
     tbl[name] = function(...)
         local a, b, c, d = original(...)
@@ -1426,6 +1427,8 @@ function C_AuctionHouse.PlaceBid(auctionID, amount)
     for i = #A.auctions, 1, -1 do
         local auction = A.auctions[i]
         if auction.auctionID == auctionID then
+            -- What is bought comes by mail, a letter of its own.
+            W.mail.inbox[#W.mail.inbox + 1] = { items = { W.Link(auction.id, auction.suffix) } }
             auction.quantity = auction.quantity - 1
             if auction.quantity <= 0 then table.remove(A.auctions, i) end
         end
@@ -1447,9 +1450,11 @@ function C_AuctionHouse.SupportsCopperValues() return W.AH.copper ~= false end
 -- W.bags[bag][slot] = { link = item link, bound = soulbound, locked = attached to a letter }
 W.bags = { [0] = {} }
 NUM_TOTAL_EQUIPPED_BAG_SLOTS = 5
-ATTACHMENTS_MAX_SEND = 12
--- The letter being written and the letters sent: { to, subject, items = { link, ... } }.
-W.mail = { sendPage = false, attached = {}, sent = {} }
+ATTACHMENTS_MAX_SEND, ATTACHMENTS_MAX_RECEIVE = 12, 16
+-- The letter being written, the letters sent ({ to, subject, items = { link, ... } }) and the
+-- mail in the mailbox ({ items = { link, ... } }). inboxTotal: how many letters there are when
+-- the game lists fewer than all; failSend: the next letter does not go.
+W.mail = { sendPage = false, attached = {}, sent = {}, inbox = {} }
 
 -- Into the first empty slot of the backpack; returns that slot.
 function W.PutInBags(link, opts)
@@ -1494,6 +1499,46 @@ function GetSendMailItem(index)
     if not attached then return nil end
     return attached.link:match("%[(.-)%]"), tonumber(attached.link:match("item:(%d+)")), 134400, 1
 end
+function GetSendMailItemLink(index)
+    local attached = W.mail.attached[index]
+    return attached and attached.link
+end
+
+-- The mailbox as the game lists it: how many letters it shows, and how many there are.
+function GetInboxNumItems()
+    return #W.mail.inbox, W.mail.inboxTotal or #W.mail.inbox
+end
+function GetInboxItemLink(index, attachment)
+    local letter = W.mail.inbox[index]
+    return letter and letter.items[attachment]
+end
+-- The player takes an item out of the mail: it goes into the bags.
+function W.TakeFromMail(link, opts)
+    for i, letter in ipairs(W.mail.inbox) do
+        for j, item in ipairs(letter.items) do
+            if item == link then
+                table.remove(letter.items, j)
+                if #letter.items == 0 then table.remove(W.mail.inbox, i) end
+                W.Fire("MAIL_INBOX_UPDATE")
+                return W.PutInBags(link, opts)
+            end
+        end
+    end
+    error("no such item in the mail: " .. link)
+end
+
+-- How many of an item the character has: in the bags, and with includeBank in the bank too
+-- (W.bank: { [item ID] = count }).
+function C_Item.GetItemCount(item, includeBank)
+    local id, count = tonumber(item), 0
+    for _, bag in pairs(W.bags) do
+        for _, held in pairs(bag) do
+            if tonumber(held.link:match("item:(%d+)")) == id then count = count + 1 end
+        end
+    end
+    if includeBank then count = count + ((W.bank or {})[id] or 0) end
+    return count
+end
 
 MailFrame = Widget("Frame", "MailFrame")
 MailFrame:Hide()
@@ -1505,17 +1550,19 @@ SendMailSubjectEditBox = Widget("EditBox", "SendMailSubjectEditBox", MailFrame)
 SendMailNameEditBox:SetText("")
 SendMailSubjectEditBox:SetText("")
 
--- late: the game's mail window comes up a moment after the game says a mailbox is open. (It is
--- brought up by another event than MAIL_SHOW, and which of the two comes first is not written
--- down.)
+-- late: the game's mail window comes up a moment after the game says a mailbox is open (true:
+-- a tenth of a second; a number: that many seconds). (It is brought up by another event than
+-- MAIL_SHOW, and which of the two comes first is not written down.) The game then lists the
+-- mail.
 function W.OpenMailbox(late)
     W.mail.sendPage = false
     if late then
-        C_Timer.After(0.1, function() MailFrame:Show() end)
+        C_Timer.After(type(late) == "number" and late or 0.1, function() MailFrame:Show() end)
     else
         MailFrame:Show()
     end
     W.Fire("MAIL_SHOW")
+    C_Timer.After(0.2, function() W.Fire("MAIL_INBOX_UPDATE") end)
 end
 -- The player takes an item out of the letter again.
 function W.Detach(index)
@@ -1530,23 +1577,36 @@ function W.CloseMailbox()
     MailFrame:Hide()
     W.Fire("MAIL_CLOSED")
 end
+-- The game's send. The items stay in the letter (and locked in the bags) until the mail
+-- system answers a moment later: then the letter is gone and so are they, or it failed.
+function SendMail(to, subject)
+    assert(to ~= "", "a letter with a name on it")
+    local fail = W.mail.failSend
+    W.mail.failSend = nil
+    C_Timer.After(0.2, function()
+        if fail then
+            W.Fire("MAIL_FAILED")
+            return
+        end
+        local letter = { to = to, subject = subject, items = {} }
+        for i = 1, ATTACHMENTS_MAX_SEND do
+            local attached = W.mail.attached[i]
+            if attached then
+                letter.items[#letter.items + 1] = attached.link
+                W.bags[attached.bag][attached.slot] = nil
+                W.mail.attached[i] = nil
+            end
+        end
+        W.mail.sent[#W.mail.sent + 1] = letter
+        SendMailNameEditBox:SetText("")
+        SendMailSubjectEditBox:SetText("")
+        W.Fire("MAIL_SEND_SUCCESS")
+        W.Fire("BAG_UPDATE", 0)
+    end)
+end
 -- The player presses the game's own Send.
 function W.SendLetter()
-    local letter = { to = SendMailNameEditBox:GetText(), subject = SendMailSubjectEditBox:GetText(), items = {} }
-    for i = 1, ATTACHMENTS_MAX_SEND do
-        local attached = W.mail.attached[i]
-        if attached then
-            letter.items[#letter.items + 1] = attached.link
-            W.bags[attached.bag][attached.slot] = nil
-            W.mail.attached[i] = nil
-        end
-    end
-    assert(letter.to ~= "" and #letter.items > 0, "a letter with a name on it and something in it")
-    W.mail.sent[#W.mail.sent + 1] = letter
-    SendMailNameEditBox:SetText("")
-    SendMailSubjectEditBox:SetText("")
-    W.Fire("MAIL_SEND_SUCCESS")
-    W.Fire("BAG_UPDATE", 0)
+    SendMail(SendMailNameEditBox:GetText(), SendMailSubjectEditBox:GetText(), "")
 end
 
 -- The auction window, as far as LibAHTab and the addon touch it.
