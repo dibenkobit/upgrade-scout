@@ -105,6 +105,11 @@ local function WhoName(who)
     return ns.Roster.Colored(who, who.name)
 end
 
+local function ProfileTitle()
+    local profile = ns.Score.Current(ns.Roster.Target())
+    return profile and profile.title or NONE
+end
+
 -- The game puts the tooltip of the worn item beside an item's by itself, but it knows only
 -- what the character being played wears. For another character the item its card remembers
 -- in the slot is put there, in the game's own second tooltip.
@@ -135,6 +140,18 @@ end
 ---------------------------------------------------------------------------
 -- Rows
 ---------------------------------------------------------------------------
+-- Our lines under an item's tooltip start with the addon's icon and name, so that they are not
+-- taken for the lines another addon puts there (Mastercraft heads its own the same way). On
+-- the right, whose profile the scores are on. The blue is the lens of the logo.
+local BRAND = "|TInterface\\AddOns\\" .. ADDON .. "\\icon.tga:0|t Upgrade Scout"
+local BRAND_R, BRAND_G, BRAND_B = 0.53, 0.78, 0.96
+
+local function AddHeader(who)
+    GameTooltip_AddBlankLineToTooltip(GameTooltip)
+    local profile = who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle()
+    GameTooltip:AddDoubleLine(BRAND, profile, BRAND_R, BRAND_G, BRAND_B, NORMAL_FONT_COLOR:GetRGB())
+end
+
 -- A consumable's own tooltip, and under it how much of it is for sale.
 local function ShowSupplyTooltip(row)
     local entry = row.entry
@@ -143,8 +160,7 @@ local function ShowSupplyTooltip(row)
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(supply.link, nil, nil, hideVendorPrice)
-    GameTooltip_AddBlankLineToTooltip(GameTooltip)
-    if who then GameTooltip_AddHighlightLine(GameTooltip, L.TT_WHO:format(WhoName(who))) end
+    AddHeader(who)
     if entry.value then
         GameTooltip_AddNormalLine(GameTooltip, L.TT_SUP_SCORE:format("+" .. ns.Num(entry.value)))
     elseif entry.why == "MANA" then
@@ -172,8 +188,7 @@ local function ShowItemTooltip(row)
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
 
-    GameTooltip_AddBlankLineToTooltip(GameTooltip)
-    if who then GameTooltip_AddHighlightLine(GameTooltip, L.TT_WHO:format(WhoName(who))) end
+    AddHeader(who)
     -- (An item that scores nothing is in the slot all the same: "yours: 0", not "slot is empty".)
     if entry.base > 0 or entry.replaced then
         -- All three to the precision of the difference, so that they add up: 1.548, 1.5, +0.048.
@@ -782,11 +797,6 @@ local function ProfileKey()
     for i = 1, #profiles do names[i] = profiles[i].name end
     return (who and who.key or "") .. "\n" .. #ns.Roster.List() .. "\n"
         .. (current and current.name or "") .. "=" .. table.concat(names, "\n")
-end
-
-local function ProfileTitle()
-    local profile = ns.Score.Current(ns.Roster.Target())
-    return profile and profile.title or NONE
 end
 
 -- What an empty list says before its first scan: what the scan will find, and for whom.

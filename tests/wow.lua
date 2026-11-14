@@ -210,6 +210,12 @@ function M:AddLine(text, r, g, b)
     self._lines = self._lines or {}
     self._lines[#self._lines + 1] = { text = text, r = r, g = g, b = b }
 end
+-- A line with text on the left and on the right; `text` is the left one.
+function M:AddDoubleLine(left, right, r, g, b, rightR, rightG, rightB)
+    self._lines = self._lines or {}
+    self._lines[#self._lines + 1] = { text = left, r = r, g = g, b = b,
+        right = right, rightR = rightR, rightG = rightG, rightB = rightB }
+end
 
 -- Colours, as the game's ColorMixin objects.
 local function Color(r, g, b)

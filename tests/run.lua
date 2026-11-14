@@ -1183,6 +1183,22 @@ function scenarios.ui()
     check(tip:find("Score: 18, yours: 10 (+8)", 1, true) ~= nil, "tooltip score line")
     check(tip:find("Replaces: ", 1, true) ~= nil and tip:find("Cost per point: 5s", 1, true) ~= nil, "tooltip replaces and cost")
     check(tip:find("1 more for sale", 1, true) ~= nil, "tooltip count")
+    -- Our lines are headed by the addon's name, apart from the item's own, with the profile.
+    local header
+    for i, line in ipairs(GameTooltip._lines) do
+        if line.right then
+            header = i
+            break
+        end
+    end
+    check(header ~= nil, "our lines have a header")
+    local head = GameTooltip._lines[header]
+    eq(head.text, "|TInterface\\AddOns\\UpgradeScout\\icon.tga:0|t Upgrade Scout", "the addon's icon and name")
+    near(head.b, 0.96, "in blue")
+    eq(head.right, "Arms", "and on the right the profile the scores are on")
+    eq(head.rightR, NORMAL_FONT_COLOR.r, "in the game's gold")
+    eq(GameTooltip._lines[header - 1].text, " ", "a blank line sets them off from the item's")
+    check(GameTooltip._lines[header + 1].text:find("Score: 18", 1, true) == 1, "and the score comes right after")
     eq(W.compared, GameTooltip, "worn item shown for comparison")
     eq(rows[5].UpdateTooltip ~= nil, true, "the game can redraw the tooltip while it is up")
     -- With the try-on key held the cursor says what a click would do.
@@ -2817,7 +2833,9 @@ function scenarios.alt()
     check(jerkin ~= nil, "the jerkin is in the list")
     jerkin:GetScript("OnEnter")(jerkin)
     local tip = Tooltip(GameTooltip)
-    check(tip:find("For " .. ALTY, 1, true) ~= nil, "the tooltip says whom the item is for: " .. tip)
+    local whose
+    for _, line in ipairs(GameTooltip._lines) do whose = whose or line.right end
+    check(whose and whose:find(ALTY .. ": ", 1, true) == 1, "the header says whose profile it is: " .. tostring(whose))
     check(tip:find("Score: 20, worn: 12 (+8)", 1, true) ~= nil, "what is worn in the slot, not 'yours'")
     check(tip:find("Replaces: " .. UpgradeScoutDB.chars["Alty-Testrealm"].gear[5], 1, true) ~= nil, "and which item it replaces")
     eq(W.compared, nil, "the game's own comparison would show the warrior's chest")
