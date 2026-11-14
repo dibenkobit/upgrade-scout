@@ -2943,7 +2943,9 @@ function scenarios.mail()
     eq(#W.mail.sent, 0, "sending is left to the player")
     eq(#UpgradeScoutDB.parcels, 2, "nothing is struck off before the letter has gone")
 
-    -- The player sends it.
+    -- Something else about the mail goes wrong meanwhile (the game says so of any mail
+    -- matter): the letter is still the letter. Then the player sends it.
+    W.Fire("MAIL_FAILED")
     W.SendLetter()
     W.Run(1)
     eq(#W.mail.sent, 1, "one letter"); eq(W.mail.sent[1].to, "Alty", "to the druid"); eq(W.mail.sent[1].items[1], W.Link(310), "with the jerkin")
@@ -2981,9 +2983,9 @@ function scenarios.mail()
     -- The mailbox closed and opened again: the parcel is remembered. A right-click forgets it.
     W.CloseMailbox()
     eq(panel:IsShown(), false, "the strip goes with the mail window")
-    W.OpenMailbox()
+    W.OpenMailbox(true)
     W.Run(0.5)
-    eq(panel:IsShown(), true, "and comes back with it")
+    eq(panel:IsShown(), true, "and comes back with it, even when the window comes up after the game's word of a mailbox")
     button:GetScript("OnClick")(button, "RightButton")
     W.Run(0.5)
     eq(#UpgradeScoutDB.parcels, 0, "forgotten at a right-click")

@@ -1417,9 +1417,16 @@ SendMailSubjectEditBox = Widget("EditBox", "SendMailSubjectEditBox", MailFrame)
 SendMailNameEditBox:SetText("")
 SendMailSubjectEditBox:SetText("")
 
-function W.OpenMailbox()
+-- late: the game's mail window comes up a moment after the game says a mailbox is open. (It is
+-- brought up by another event than MAIL_SHOW, and which of the two comes first is not written
+-- down.)
+function W.OpenMailbox(late)
     W.mail.sendPage = false
-    MailFrame:Show()
+    if late then
+        C_Timer.After(0.1, function() MailFrame:Show() end)
+    else
+        MailFrame:Show()
+    end
     W.Fire("MAIL_SHOW")
 end
 -- The player takes an item out of the letter again.

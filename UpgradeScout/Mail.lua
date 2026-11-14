@@ -315,7 +315,12 @@ end
 ---------------------------------------------------------------------------
 ns.Listen("GEAR_BOUGHT", M.Bought)
 
-ns.On("MAIL_SHOW", M.Refresh)
+-- The game brings its mail window up on another event than this one, which may be the later
+-- of the two: the strip is seen to now, and once more when the window has had its moment.
+ns.On("MAIL_SHOW", function()
+    M.Refresh()
+    C_Timer.After(0.3, M.Refresh)
+end)
 ns.On("BAG_UPDATE", RefreshSoon)
 
 ns.On("MAIL_CLOSED", function()
@@ -348,7 +353,6 @@ ns.On("MAIL_SEND_SUCCESS", function()
         M.Refresh()
     end)
 end)
-
-ns.On("MAIL_FAILED", function()
-    attached = nil
-end)
+-- (MAIL_FAILED is not listened for: it is said of any mail matter that goes wrong, not only
+-- of this letter. A letter that did not go leaves its parcels in the bags, where the next
+-- letter that does go finds them.)
