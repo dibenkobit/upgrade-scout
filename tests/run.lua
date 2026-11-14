@@ -1838,6 +1838,18 @@ function scenarios.supplies()
     eq(ns.Pawn.StatsValue({ Health = 400 }, "S1"), 20, "health by the scale's own weight where it has one")
     eq(ns.Pawn.StatsValue({ Health = 400 }, "S2"), 16, "and as the Stamina that gives it where it has none")
     eq(ns.Pawn.StatsValue({ Mana = 150 }, "S2"), 10, "mana as Intellect in the same way")
+    -- Forever has one rating for weapons and for spells, and a scale one weight for it. What
+    -- a wizard oil adds to spells alone counts at that weight for one who casts.
+    W.pawnWeights.Caster = { SpellDamage = 1, CritRating = 5 }
+    eq(ns.Pawn.StatsValue({ SpellDamage = 36, SpellCritRating = 1 }, "Caster"), 41, "a chance to crit with spells counts on a scale that values spells")
+    eq(ns.Pawn.StatsValue({ SpellDamage = 36, SpellCritRating = 1 }, "S1"), 0, "and for nothing on a warrior's, whose crit is with a sword")
+    eq(ns.Pawn.StatsValue({ CritRating = 5, SpellCritRating = 10 }, "Caster"), 50, "of a bonus to both, a caster has the one to spells")
+    eq(ns.Pawn.StatsValue({ CritRating = 5, SpellCritRating = 10 }, "S1"), 40, "and a warrior the one to weapons")
+    W.pawnWeights.Apart = { SpellDamage = 1, CritRating = 5, SpellCritRating = 3 }
+    eq(ns.Pawn.StatsValue({ CritRating = 2, SpellCritRating = 2 }, "Apart"), 16, "a scale that weighs the two apart is left to Pawn")
+    local wizardOil = { Healing = 36, SpellCritRating = 1, SpellDamage = 36 }
+    ns.Pawn.StatsValue(wizardOil, "Caster")
+    eq(wizardOil.SpellCritRating, 1, "the stats that were passed in are left as they are")
     local saved = PawnGetItemValue
     PawnGetItemValue = nil
     eq(ns.Pawn.StatsValue({ Strength = 8 }, "S1"), nil, "a Pawn that cannot be asked gives no score")

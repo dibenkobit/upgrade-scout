@@ -84,7 +84,9 @@ def aura_stats(aura, misc):
         35: ["Mana"] if misc == 0 else None, 418: ["Mana"] if misc == 0 else None,
         161: ["Hp5"],
         # Chances and speeds are percentages, and so are Pawn's weights for them in this game.
-        # Pawn weighs them apart for weapons and for spells; an aura for both counts as both.
+        # Pawn has a name for each of them for weapons and another for spells; an aura for both
+        # is written down as both. What a Forever scale makes of the two names, which has one
+        # weight for a rating, is settled when a consumable is scored (PawnBridge.StatsValue).
         290: ["CritRating", "SpellCritRating"], 52: ["CritRating"], 57: ["SpellCritRating"],
         54: ["HitRating"], 55: ["SpellHitRating"],
         193: ["HasteRating", "SpellHasteRating"], 65: ["SpellHasteRating"], 342: ["HasteRating"],

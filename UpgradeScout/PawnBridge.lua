@@ -98,11 +98,18 @@ function P.Value(item, scaleName)
     return baseValue or value or 0
 end
 
--- Pawn has no word for these two on every scale: the scales it ships with weigh them, a scale
--- made by hand cannot. Where the scale has no weight, health counts as the Stamina that
--- gives it (at the rate Pawn itself uses for "+100 health" on gear) and mana as Intellect.
+-- What a consumable adds is not always in the words of the scale it is scored on. Where the
+-- scale has no weight of its own for one of these, what stands in for it is counted.
+--
+-- Health and mana: Pawn takes both out of every scale it loads. Health counts as the Stamina
+-- that gives it, at the rate Pawn itself uses for "+100 health" on gear, and mana as Intellect.
 local HEALTH_PER_STAMINA = 12.5
 local MANA_PER_INTELLECT = 15
+-- What is added to spells alone, a wizard oil's chance to crit: on Forever a rating is one for
+-- weapons and for spells, and Pawn leaves a scale one weight for it, the bigger of the two its
+-- class was given. A bonus to spells counts at that weight on a scale that values spell
+-- damage or healing, and for nothing on any other: a warrior's weight is for a crit with a sword.
+local SPELL_RATINGS = { SpellCritRating = "CritRating", SpellHitRating = "HitRating", SpellHasteRating = "HasteRating" }
 
 -- Pawn's score for a set of stats that is not an item: what an elixir adds, say.
 --   stats  { Strength = 25, CritRating = 2, ... } under Pawn's names (see SupplyData.lua)
@@ -113,17 +120,22 @@ function P.StatsValue(stats, scaleName)
     local weights = PawnGetAllStatValues(scaleName)
     if type(weights) ~= "table" then return nil end
 
-    local set = stats
-    if (stats.Health and not weights.Health) or (stats.Mana and not weights.Mana) then
-        set = {}
-        for name, amount in pairs(stats) do set[name] = amount end
-        if set.Health and not weights.Health then
-            set.Stamina = (set.Stamina or 0) + set.Health / HEALTH_PER_STAMINA
-            set.Health = nil
-        end
-        if set.Mana and not weights.Mana then
-            set.Intellect = (set.Intellect or 0) + set.Mana / MANA_PER_INTELLECT
-            set.Mana = nil
+    local set = {}
+    for name, amount in pairs(stats) do set[name] = amount end
+    if set.Health and not weights.Health then
+        set.Stamina = (set.Stamina or 0) + set.Health / HEALTH_PER_STAMINA
+        set.Health = nil
+    end
+    if set.Mana and not weights.Mana then
+        set.Intellect = (set.Intellect or 0) + set.Mana / MANA_PER_INTELLECT
+        set.Mana = nil
+    end
+    local casts = (weights.SpellDamage or 0) > 0 or (weights.Healing or 0) > 0
+    for spells, both in pairs(SPELL_RATINGS) do
+        if set[spells] and not weights[spells] then
+            -- Of a bonus to weapons and a bigger one to spells, the one that is of use.
+            if casts then set[both] = math.max(set[both] or 0, set[spells]) end
+            set[spells] = nil
         end
     end
     -- The arguments Pawn itself passes for an item of a scale it does not show.
