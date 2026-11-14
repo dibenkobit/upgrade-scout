@@ -240,25 +240,32 @@ end
 
 -- The lines every kind of item can have about what it asks of its owner; each is red when
 -- the character being played falls short of it.
+-- Such a line is marked as a requirement, and says of what kind it is.
 local function AddRequirements(lines, item)
-    local function Line(text, met)
-        lines[#lines + 1] = { leftText = text, leftColor = met and HIGHLIGHT_FONT_COLOR or RED_FONT_COLOR }
+    local kinds = Enum.TooltipDataUsageRequirementType
+    local function Line(kind, text, met)
+        lines[#lines + 1] = { leftText = text, leftColor = met and HIGHLIGHT_FONT_COLOR or RED_FONT_COLOR,
+            type = Enum.TooltipDataLineType.UsageRequirement, requirementType = kind }
     end
     if item.level > 1 then
-        Line("Requires Level " .. item.level, item.level <= W.player.level)
+        Line(kinds.Level, "Requires Level " .. item.level, item.level <= W.player.level)
     end
     if item.classes then
-        Line(ITEM_CLASSES_ALLOWED:format(item.classes),
+        Line(kinds.RaceClass, ITEM_CLASSES_ALLOWED:format(item.classes),
             item.classes:find(LOCALIZED_CLASS_NAMES_MALE[W.player.class] or "?", 1, true) ~= nil)
     end
     if item.races then
-        Line(ITEM_RACES_ALLOWED:format(item.races), item.races:find(W.player.race or "Human", 1, true) ~= nil)
+        Line(kinds.RaceClass, ITEM_RACES_ALLOWED:format(item.races), item.races:find(W.player.race or "Human", 1, true) ~= nil)
     end
     if item.skill then
-        Line(ITEM_MIN_SKILL:format(item.skill[1], item.skill[2]), (PlayerSkill(item.skill[1]) or 0) >= item.skill[2])
+        Line(kinds.Skill, ITEM_MIN_SKILL:format(item.skill[1], item.skill[2]), (PlayerSkill(item.skill[1]) or 0) >= item.skill[2])
     end
     if item.reputation then
-        Line(ITEM_REQ_REPUTATION:format("Argent Dawn", "Revered"), false)
+        Line(kinds.Reputation, ITEM_REQ_REPUTATION:format("Argent Dawn", "Revered"), false)
+    end
+    -- rank: a rank among one's own side's fighters, in words no pattern of the addon knows.
+    if item.rank then
+        Line(kinds.PvPRank, "Requires " .. item.rank, false)
     end
 end
 
@@ -948,6 +955,13 @@ end
 Enum = {
     ItemClass = { Consumable = 0, Weapon = 2, Armor = 4 },
     PowerType = { Mana = 0, Rage = 1, Energy = 3 },
+    -- Tooltip lines, as the Forever client's documentation numbers them.
+    TooltipDataLineType = { UsageRequirement = 43 },
+    TooltipDataUsageRequirementType = {
+        RaceClass = 0, Faction = 1, Skill = 2, PvPMedal = 3, Reputation = 4, Level = 5, Guild = 6, Achievement = 7,
+        PvPRank = 8, EquippedItem = 9, ShapeshiftForm = 10, ArenaRating = 11, EarnCurrency = 12, Specialization = 13,
+        NotAlreadyKnown = 14, NotInArena = 15, NotInRatedBg = 16,
+    },
     AuctionHouseSortOrder = { Price = 0, Name = 1, Level = 2, Bid = 3, Buyout = 4, TimeRemaining = 5 },
     AuctionHouseFilter = {
         PoorQuality = 6, CommonQuality = 7, UncommonQuality = 8, RareQuality = 9,

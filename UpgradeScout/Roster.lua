@@ -169,18 +169,15 @@ local RACES = Pattern(ITEM_RACES_ALLOWED)           -- "Races: %s"
 local SKILL = Pattern(ITEM_MIN_SKILL)               -- "Requires %s (%d)"
 local REPUTATION = Pattern(ITEM_REQ_REPUTATION)     -- "Requires %s - %s"
 
--- Kinds of tooltip line that ask for something a card says nothing about: standing with a
--- faction, a rank, a spell.
-local UNKNOWABLE
-do
-    local kinds = Enum.TooltipDataLineType
-    if type(kinds) == "table" then
-        UNKNOWABLE = {}
-        for _, name in ipairs({ "RestrictedReputation", "RestrictedPvPMedal", "RestrictedSpellKnown",
-            "RestrictedArena", "RestrictedBg" }) do
-            if kinds[name] ~= nil then UNKNOWABLE[kinds[name]] = true end
-        end
-    end
+-- The game marks a tooltip line that asks something of the item's owner (line.type), and
+-- says what kind of thing it asks for (line.requirementType), whatever the language of its
+-- words. These are the kinds a card says nothing about: which side the character is on in a
+-- form a line could be held against, its standing with a faction, a rank, a rating.
+local REQUIREMENT = Enum.TooltipDataLineType.UsageRequirement
+local UNKNOWABLE = {}
+for _, name in ipairs({ "Faction", "PvPMedal", "Reputation", "Guild", "Achievement", "PvPRank", "ArenaRating",
+    "EarnCurrency", "Specialization" }) do
+    UNKNOWABLE[Enum.TooltipDataUsageRequirementType[name]] = true
 end
 
 -- Is the character's class in a list like "Warrior, Paladin"? The list has the class as the
@@ -202,12 +199,13 @@ end
 -- (C_TooltipInfo's)? For the character being played the game answers itself, by writing in
 -- red what the character falls short of; for another one the lines are read here: the
 -- classes and races an item is for, and the profession it asks for. An item that asks for
--- what a card cannot tell (standing with a faction) is taken to be out of reach.
+-- what a card cannot tell (standing with a faction, a rank) is taken to be out of reach: by
+-- the kind of its line, and for standing with a faction by the line's words as well.
 -- The item's level and its kind of weapon or armor are not judged here: see R.Wields.
 function R.Allows(card, lines)
     for i = 2, #lines do
         local line = lines[i]
-        if UNKNOWABLE and line.type ~= nil and UNKNOWABLE[line.type] then return false end
+        if line.type == REQUIREMENT and UNKNOWABLE[line.requirementType] then return false end
         local text = line.leftText
         if type(text) == "string" and text ~= "" then
             text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):match("^%s*(.-)%s*$")

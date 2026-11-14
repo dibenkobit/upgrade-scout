@@ -2508,6 +2508,17 @@ function scenarios.roster()
     eq(R.Allows(druid, Lines("Requires Engineering (151)")), false, "not far enough")
     eq(R.Allows(druid, Lines("Requires Alchemy (1)")), false, "a profession it has not got")
     eq(R.Allows(druid, Lines("Requires Argent Dawn - Revered")), false, "standing with a faction is not on a card")
+    -- The game says what kind of thing a line asks for, whatever its words.
+    local function Asks(kind, text)
+        local lines = Lines(text)
+        lines[2].type, lines[2].requirementType = Enum.TooltipDataLineType.UsageRequirement, Enum.TooltipDataUsageRequirementType[kind]
+        return lines
+    end
+    eq(R.Allows(druid, Asks("PvPRank", "Requires Sergeant")), false, "nor is a rank, told by the kind of its line")
+    eq(R.Allows(druid, Asks("Reputation", "Honored with the Wardens")), false, "nor standing, in words no pattern knows")
+    eq(R.Allows(druid, Asks("Level", "Requires Level 60")), true, "a line of a kind that is judged elsewhere bars nothing")
+    eq(R.Allows(druid, Asks("Skill", "Requires Engineering (150)")), true, "and one a card can answer is read as before")
+    eq(R.Allows(druid, Asks("Skill", "Requires Engineering (151)")), false, "to the same end")
     druid.skills = nil
     eq(R.Allows(druid, Lines("Requires Engineering (1)")), false, "professions unknown: not taken on trust")
     druid.className = "Druidess"
@@ -2607,6 +2618,7 @@ function scenarios.alt()
     Sell({ id = 318, name = "Hide Belt", equipLoc = "INVTYPE_WAIST", subClassID = 2, values = { D1 = 7 }, level = 10, skill = { "Leatherworking", 100 } }, 400)
     Sell({ id = 319, name = "Dawn Cloak", equipLoc = "INVTYPE_CLOAK", subClassID = 1, values = { D1 = 8 }, level = 10, reputation = true }, 100)
     Sell({ id = 320, name = "Plain Buckler", equipLoc = "INVTYPE_SHIELD", subClassID = 6, values = { D1 = 45 }, level = 10 }, 100)
+    Sell({ id = 321, name = "Sergeant's Cape", equipLoc = "INVTYPE_CLOAK", subClassID = 1, values = { D1 = 9 }, level = 10, rank = "Sergeant" }, 100)
     -- Consumables.
     local function Stock(def, price)
         def.classID, def.quality, def.value = 0, 1, 0
@@ -2732,6 +2744,7 @@ function scenarios.alt()
     eq(Offer("Totem Ring"), nil, "a ring for another class")
     eq(Offer("Tinker Goggles"), nil, "a profession the druid has not got")
     eq(Offer("Dawn Cloak"), nil, "standing with a faction is not known")
+    eq(Offer("Sergeant's Cape"), nil, "nor is a rank")
     eq(Offer("Good Chest"), nil, "the warrior's upgrades are not the druid's")
     eq(OfferCount(), 4, "four upgrades for the druid")
     near(ns.Compare.Place(Offer("Druid Jerkin"), S.ctx)[1].delta, 8, "against the druid's chest")
