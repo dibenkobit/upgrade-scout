@@ -2,7 +2,7 @@
 
 <img src="logo/logo.png" alt="Logo do Upgrade Scout" width="128" align="right">
 
-**Encontra na Casa de Leilões equipamentos melhores que os seus e que cabem no seu bolso.** Um addon para World of Warcraft Forever.
+**Encontra na Casa de Leilões as melhorias de equipamento e os consumíveis que você pode usar e que cabem no seu bolso.** Um addon para World of Warcraft Forever.
 
 **Baixar no [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) ou no [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
@@ -12,18 +12,22 @@ Abra a Casa de Leilões, clique na aba **Melhorias** e aperte **Escanear**. Voc�
 equipamentos melhores do que os que está usando, espaço por espaço, com os preços. Aperte
 **Comprar** no item que quiser.
 
+A aba **Consumíveis** faz o mesmo com poções, elixires, frascos, comida, bandagens e óleos. Ela
+mostra os que o seu personagem pode usar e avalia o que cada um acrescenta. **O melhor para mim**
+deixa um de cada tipo: o que mais acrescenta a você, pelo menor preço.
+
 Fora da Casa de Leilões, a dica de qualquer item mostra quanto ele é melhor do que o que você usa:
 nas bolsas, no saque, numa recompensa de missão e num link do chat.
 
 ## O que ele faz
 
 - O escaneamento mostra só o que você pode equipar agora e pagar.
+- A aba **Consumíveis** mostra poções, elixires, frascos, comida, bandagens e óleos que você pode
+  usar. Primeiro, os mais úteis para o seu personagem. O que não serve para você fica de fora.
 - Marca dois itens em cada espaço. **Maior melhoria** é o mais forte. **Melhor custo-benefício** é
   o mais barato por ponto de melhoria.
 - **Melhor conjunto por** escolhe as melhorias que, juntas, rendem mais pelo seu ouro ou por um
   valor que você digitar.
-- A aba **Consumíveis** mostra poções, elixires, comida e ataduras que você pode usar. Primeiro, os
-  mais úteis para o seu personagem.
 - Compra também para os seus outros personagens. Um botão na caixa de correio coloca os
   equipamentos comprados numa carta para eles.
 - A dica de qualquer item mostra quanto ele é melhor do que o que você usa, para cada árvore de

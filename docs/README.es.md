@@ -2,7 +2,7 @@
 
 <img src="logo/logo.png" alt="Logotipo de Upgrade Scout" width="128" align="right">
 
-**Encuentra en la casa de subastas equipo mejor que el tuyo y que puedes pagar.** Un addon para World of Warcraft Forever.
+**Encuentra en la casa de subastas las mejoras de equipo y los consumibles que puedes usar y pagar.** Un addon para World of Warcraft Forever.
 
 **Descargar en [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) o [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
@@ -12,18 +12,22 @@ Abre la casa de subastas, haz clic en la pestaña **Mejoras** y pulsa **Escanear
 de equipo mejor que el que llevas, ranura por ranura, con sus precios. Pulsa **Comprar** en el
 objeto que quieras.
 
+La pestaña **Consumibles** hace lo mismo con pociones, elixires, frascos, comida, vendas y aceites.
+Muestra los que tu personaje puede usar y puntúa lo que aporta cada uno. **Lo mejor para mí** deja
+uno de cada tipo: el que más te aporta, a su precio más bajo.
+
 Fuera de la casa de subastas, la descripción emergente de cualquier objeto muestra cuánto mejor es
 que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y en un enlace del chat.
 
 ## Qué hace
 
 - El escaneo muestra solo lo que puedes equipar ahora mismo y pagar.
+- La pestaña **Consumibles** muestra pociones, elixires, frascos, comida, vendas y aceites que
+  puedes usar. Primero, lo más útil para tu personaje. Lo que no te sirve se omite.
 - Marca dos objetos en cada ranura. **Mayor mejora** es el más fuerte. **Más rentable** es el más
   barato por punto de mejora.
 - **Mejor conjunto por** elige las mejoras que, juntas, dan más por tu oro o por una suma que
   escribas.
-- La pestaña **Consumibles** muestra pociones, elixires, comida y vendas que puedes usar. Primero,
-  lo más útil para tu personaje.
 - Compra también para tus otros personajes. Un botón en el buzón mete el equipo que compraste en
   una carta para ellos.
 - La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, para

@@ -2,7 +2,7 @@
 
 <img src="logo/logo.png" alt="Upgrade Scout Logo" width="128" align="right">
 
-**Findet im Auktionshaus Ausrüstung, die besser ist als deine und die du dir leisten kannst.** Ein Addon für World of Warcraft Forever.
+**Findet im Auktionshaus Ausrüstungsverbesserungen und Verbrauchsgüter, die du benutzen und dir leisten kannst.** Ein Addon für World of Warcraft Forever.
 
 **Auf [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) oder [Wago](https://addons.wago.io/addons/upgrade-scout) herunterladen**
 
@@ -12,18 +12,24 @@
 eine Liste mit Ausrüstung, die besser ist als das, was du trägst, Slot für Slot und mit Preisen.
 Drücke **Kaufen** bei dem Gegenstand, den du willst.
 
+Der Tab **Verbrauchbares** macht dasselbe für Tränke, Elixiere, Fläschchen, Essen, Verbände und
+Öle. Er zeigt, was dein Charakter benutzen kann, und bewertet, was jedes davon bringt.
+**Das Beste für mich** behält eins von jeder Art: das, was dir am meisten bringt, zum niedrigsten
+Preis.
+
 Außerhalb des Auktionshauses zeigt der Tooltip jedes Gegenstands, wie viel besser er ist als das,
 was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in einem Chat-Link.
 
 ## Was es kann
 
 - Der Scan zeigt nur, was du jetzt anlegen und bezahlen kannst.
+- Der Tab **Verbrauchbares** zeigt Tränke, Elixiere, Fläschchen, Essen, Verbände und Öle, die du
+  benutzen kannst. Das Nützlichste für deinen Charakter steht oben. Was dir nichts nützt, wird
+  ausgelassen.
 - Markiert in jedem Slot zwei Gegenstände. **Beste Verbesserung** ist der stärkste.
   **Beste Preis-Leistung** ist der günstigste pro Punkt Verbesserung.
 - **Bestes Set für** wählt die Verbesserungen, die zusammen am meisten für dein Gold bringen, oder
   für einen Betrag, den du eintippst.
-- Der Tab **Verbrauchbares** zeigt Tränke, Elixiere, Essen und Verbände, die du benutzen kannst.
-  Das Nützlichste für deinen Charakter steht oben.
 - Kauft auch für deine anderen Charaktere ein. Ein Button am Briefkasten legt die gekaufte
   Ausrüstung in einen Brief an sie.
 - Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden

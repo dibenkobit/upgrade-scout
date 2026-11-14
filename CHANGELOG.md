@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.3
+
+- The addon's description in the AddOns list names consumables too.
+
 ## 2.2.2
 
 - The addon's description in the AddOns list is the one from 2.2.0 again.

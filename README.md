@@ -2,7 +2,7 @@
 
 <img src="docs/logo/logo.png" alt="Upgrade Scout logo" width="128" align="right">
 
-**Finds gear upgrades on the auction house that you can equip and afford.** An addon for World of Warcraft Forever.
+**Finds the gear upgrades and consumables on the auction house that you can use and afford.** An addon for World of Warcraft Forever.
 
 **Download on [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) or [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
@@ -11,17 +11,21 @@ English · [简体中文](docs/README.zh-CN.md) · [繁體中文](docs/README.zh
 Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list of gear that is
 better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
 
+The **Consumables** tab does the same for potions, elixirs, flasks, food, bandages and oils. It
+lists the ones your character can use and scores what each one adds. **Best for me** keeps one of
+each kind: the one that gives you the most, at its lowest price.
+
 Away from the auction house, the tooltip of any item shows how much better it is than what you
 wear: in your bags, in loot, in a quest reward and in a chat link.
 
 ## What it does
 
 - The scan shows only what you can equip right now and can pay for.
+- The **Consumables** tab lists potions, elixirs, flasks, food, bandages and oils you can use, the
+  most useful for your character first. What is of no use to you is left out.
 - Marks two items in every slot: the **Best upgrade** is the strongest, the **Best value** is the
   cheapest per point of improvement.
 - **Best set for** picks the upgrades that give the most together for your gold, or for a sum you type.
-- The **Consumables** tab lists potions, elixirs, food and bandages you can use, the most useful for
-  your character first.
 - Shops for your other characters too. A button at the mailbox puts the gear you bought into a
   letter to them.
 - Any item's tooltip shows how much better it is than what you wear, for every spec of your class,

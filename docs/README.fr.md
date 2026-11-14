@@ -2,7 +2,7 @@
 
 <img src="logo/logo.png" alt="Logo d'Upgrade Scout" width="128" align="right">
 
-**Trouve à l'hôtel des ventes l'équipement meilleur que le vôtre et dans vos moyens.** Un addon pour World of Warcraft Forever.
+**Trouve à l'hôtel des ventes les améliorations d'équipement et les consommables que vous pouvez utiliser et qui sont dans vos moyens.** Un addon pour World of Warcraft Forever.
 
 **Télécharger sur [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) ou [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
@@ -12,6 +12,11 @@ Ouvrez l'hôtel des ventes, cliquez sur l'onglet **Améliorations** et appuyez s
 obtenez la liste de l'équipement meilleur que celui que vous portez, emplacement par emplacement,
 avec les prix. Appuyez sur **Acheter** pour l'objet que vous voulez.
 
+L'onglet **Consommables** fait de même pour les potions, élixirs, flacons, nourritures, bandages et
+huiles. Il liste ceux que votre personnage peut utiliser et évalue ce que chacun apporte.
+**Le meilleur pour moi** n'en garde qu'un de chaque type : celui qui vous apporte le plus, à son
+prix le plus bas.
+
 En dehors de l'hôtel des ventes, l'infobulle de chaque objet montre de combien il est meilleur que
 ce que vous portez : dans vos sacs, dans le butin, dans une récompense de quête et dans un lien du
 chat.
@@ -19,12 +24,13 @@ chat.
 ## Ce qu'il fait
 
 - Le scan montre seulement ce que vous pouvez équiper tout de suite et payer.
+- L'onglet **Consommables** liste les potions, élixirs, flacons, nourritures, bandages et huiles
+  que vous pouvez utiliser. Les plus utiles pour votre personnage viennent en premier. Ce qui ne
+  vous sert à rien est écarté.
 - Marque deux objets par emplacement. **Meilleure amélioration** est le plus fort.
   **Meilleure affaire** est le moins cher par point d'amélioration.
 - **Meilleur ensemble pour** choisit les améliorations qui, ensemble, apportent le plus pour votre
   or, ou pour une somme que vous saisissez.
-- L'onglet **Consommables** liste les potions, élixirs, nourritures et bandages que vous pouvez
-  utiliser. Les plus utiles pour votre personnage viennent en premier.
 - Sert aussi à acheter pour vos autres personnages. Un bouton à la boîte aux lettres met
   l'équipement acheté dans une lettre pour eux.
 - L'infobulle de chaque objet montre de combien il est meilleur que ce que vous portez, pour chaque
