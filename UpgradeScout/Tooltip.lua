@@ -89,8 +89,8 @@ local function Wears(link)
     return false
 end
 
--- Wears and wields what the class can, at any level: a mail shirt for a warrior of 20 is
--- something to save up for. The game's tooltip says in red what is not yet allowed.
+-- Wears and wields what the class can, at any level: plate for a warrior of 20, who wears it
+-- from 40, is something to save up for. The game's tooltip says in red what is not yet allowed.
 local ANY_LEVEL = math.huge
 
 -- The lines for an item link: { { name = profile id, title, gain }, ..., effects = bool },
