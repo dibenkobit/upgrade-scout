@@ -2,7 +2,7 @@
 
 <img src="logo/logo.png" alt="Upgrade Scout 로고" width="128" align="right">
 
-**경매장에서 지금 장비보다 좋고 살 수 있는 장비를 찾아줍니다.** World of Warcraft Forever용 애드온입니다.
+**경매장에서 지금 장비보다 좋고 살 수 있는 장비를 찾아줍니다.** 월드 오브 워크래프트: 포에버(World of Warcraft Forever, 와우 포에버)용 애드온입니다.
 
 **[CurseForge에서 내려받기](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
@@ -27,7 +27,7 @@
 
 CurseForge 앱이 알아서 설치해 줍니다.
 
-World of Warcraft Forever (1.60.1)만 있으면 됩니다. 다른 애드온은 필요 없습니다.
+월드 오브 워크래프트: 포에버(World of Warcraft Forever, 1.60.1)만 있으면 됩니다. 다른 애드온은 필요 없습니다.
 
 직접 설치하려면:
 

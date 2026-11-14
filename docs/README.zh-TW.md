@@ -2,7 +2,7 @@
 
 <img src="logo/logo.png" alt="Upgrade Scout 圖示" width="128" align="right">
 
-**在拍賣場中找出比你身上更好、而且你買得起的裝備。** 一款用於 World of Warcraft Forever 的插件。
+**在拍賣場中找出比你身上更好、而且你買得起的裝備。** 一款用於《魔獸世界：永恆》（World of Warcraft Forever）的插件。
 
 **[在 CurseForge 下載](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
@@ -27,7 +27,7 @@
 
 CurseForge 應用程式會幫你裝好一切。
 
-你需要 World of Warcraft Forever (1.60.1)，不需要其他插件。
+你需要《魔獸世界：永恆》（World of Warcraft Forever，1.60.1），不需要其他插件。
 
 手動安裝：
 
