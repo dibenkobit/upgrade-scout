@@ -853,7 +853,6 @@ end
 -- Which of them do the same thing, what each is worth to this character and which is the
 -- best is Supplies.lua's business: it is settled when the list is drawn, so another Pawn
 -- scale needs no new scan.
-local ItemSpell = C_Item.GetItemSpell or GetItemSpell
 
 -- What the game says about a consumable:
 --   usable  true = the character can use it (nothing red; for a character that is not being
@@ -869,7 +868,7 @@ local function ReadSupply(link)
     local prefix = ITEM_SPELL_TRIGGER_ONUSE
     for i = 2, #lines do
         local text = lines[i].leftText
-        if not effect and text and type(prefix) == "string" and text:sub(1, #prefix) == prefix then
+        if not effect and text and text:sub(1, #prefix) == prefix then
             effect = text:sub(#prefix + 1):match("^%s*(.-)%s*$")
         end
     end
@@ -899,7 +898,7 @@ local function ScoreSupply(row, final)
     if not effect or effect == "" then
         -- Nothing to use: a reagent or a leftover filed under Consumables. If the item does
         -- cast something, the line about it is still on its way.
-        if not (ItemSpell and ItemSpell(itemID)) then return true end
+        if not C_Item.GetItemSpell(itemID) then return true end
         if not final then return false end
         effect = nil
     end

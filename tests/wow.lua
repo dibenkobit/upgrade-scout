@@ -86,7 +86,7 @@ for _, name in ipairs({
     "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetAlpha",
     "SetFontObject", "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks",
-    "SetFrameStrata", "EnableMouse",
+    "SetFrameStrata", "EnableMouse", "SetSnapToPixelGrid", "SetTexelSnappingBias",
     -- edit boxes
     "SetAutoFocus", "SetNumeric", "SetMaxLetters", "SetFocus", "ClearFocus", "HighlightText",
 }) do
@@ -134,6 +134,8 @@ function M:GetStringWidth()
     local text = (self._text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
     return #text * 6
 end
+-- How wide the text would be if nothing cut it short.
+M.GetUnboundedStringWidth = M.GetStringWidth
 function M:SetHeight(h) self._height = h end
 function M:GetHeight() return self._height or 0 end
 function M:GetWidth() return self._width or 0 end
@@ -614,6 +616,8 @@ end
 -- is described by a generator function, which runs again every time the menu opens.
 local function DropdownModel(dropdown)
     dropdown.radios = {}
+    -- The template's own plate and arrow.
+    dropdown.Background, dropdown.Arrow = dropdown:CreateTexture(), dropdown:CreateTexture()
     local function ShowSelection(self)
         local text
         for _, radio in ipairs(self.radios) do
@@ -837,6 +841,12 @@ ColorManager = {}
 function ColorManager.GetColorDataForItemQuality(quality) return ITEM_QUALITY_COLORS[quality] end
 
 function Clamp(value, low, high) return math.max(low, math.min(high, value)) end
+-- Sizes in whole screen pixels. (A test has no screen: the size is taken as it is.)
+PixelUtil = {}
+function PixelUtil.SetHeight(region, height) region:SetHeight(height) end
+-- What the game puts between thousands in this language, and between a name and a surname.
+LARGE_NUMBER_SEPERATOR = ","
+Constants = { CharacterNameSeparatorConsts = { CHARACTERNAME_SURNAME_SEPARATOR = " " } }
 function FormatPercentage(share, round)
     assert(round, "rounded to a whole percent")
     return string.format("%d%%", math.floor(share * 100 + 0.5))
@@ -1348,7 +1358,7 @@ function C_AuctionHouse.SupportsCopperValues() return W.AH.copper ~= false end
 ---------------------------------------------------------------------------
 -- W.bags[bag][slot] = { link = item link, bound = soulbound, locked = attached to a letter }
 W.bags = { [0] = {} }
-NUM_BAG_SLOTS = 4
+NUM_TOTAL_EQUIPPED_BAG_SLOTS = 5
 ATTACHMENTS_MAX_SEND = 12
 -- The letter being written and the letters sent: { to, subject, items = { link, ... } }.
 W.mail = { sendPage = false, attached = {}, sent = {} }

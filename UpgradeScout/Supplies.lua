@@ -29,7 +29,6 @@ local P = {}
 ns.Supplies = P
 
 local CONSUMABLE = Enum.ItemClass.Consumable
-local SubClassInfo = C_Item.GetItemSubClassInfo or GetItemSubClassInfo
 
 -- The subcategories of Consumables in the order the tab lists them (potions, elixirs,
 -- flasks, food and drink, bandages, scrolls, then what goes on gear and what engineers
@@ -44,14 +43,14 @@ end
 
 -- The game's own name of a subcategory ("Potions", "Food & Drink").
 function P.SubLabel(sub)
-    local text = SubClassInfo and SubClassInfo(CONSUMABLE, sub)
-    if type(text) == "string" and text ~= "" then return text end
+    local text = C_Item.GetItemSubClassInfo(CONSUMABLE, sub)
+    if text and text ~= "" then return text end
     return L.SUP_OTHER
 end
 
 -- What the game's language puts between thousands, if anything: "1,050", "1.050", "1 050".
 local SEPARATORS = { ",", "." }
-if type(LARGE_NUMBER_SEPERATOR) == "string" and LARGE_NUMBER_SEPERATOR ~= "" then
+if LARGE_NUMBER_SEPERATOR ~= "" then        -- (some languages have none)
     table.insert(SEPARATORS, 1, LARGE_NUMBER_SEPERATOR)
 end
 

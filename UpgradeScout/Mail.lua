@@ -24,8 +24,7 @@ local MAX_BUTTONS = 6           -- characters with parcels the mailbox lists at 
 local STEP = 0.1                -- seconds between two attachments
 
 -- The game writes a full name with this between the name and the surname.
-local SEPARATOR = Constants and Constants.CharacterNameSeparatorConsts
-    and Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_SEPARATOR or " "
+local SEPARATOR = Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_SEPARATOR
 
 local panel
 local attached          -- the parcels put into the letter that is being written: { to = key, parcels = {...} }
@@ -61,7 +60,7 @@ end
 local function Bags()
     local out = {}
     local container = C_Container
-    for bag = 0, NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4 do
+    for bag = 0, NUM_TOTAL_EQUIPPED_BAG_SLOTS do
         for slot = 1, container.GetContainerNumSlots(bag) or 0 do
             local info = container.GetContainerItemInfo(bag, slot)
             local key = info and not info.isBound and not info.isLocked and ItemKey(info.hyperlink) or nil
@@ -186,7 +185,7 @@ local function Attach(group)
                 return
             end
             -- Something is still on the cursor (the player's own doing): a moment later.
-            if CursorHasItem and CursorHasItem() then
+            if CursorHasItem() then
                 waits = waits + 1
                 if waits <= 10 then
                     C_Timer.After(STEP, Next)

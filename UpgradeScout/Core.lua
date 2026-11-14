@@ -116,9 +116,7 @@ function ns.Ago(seconds)
     if seconds < 90 then return SECONDS_ABBR:format(math.max(1, math.floor(seconds))) end
     if seconds < 5400 then return MINUTES_ABBR:format(math.floor(seconds / 60 + 0.5)) end
     -- Days only for what was a day and a half ago or more: a character last played.
-    if seconds < 129600 or type(DAYS_ABBR) ~= "string" then
-        return HOURS_ABBR:format(math.floor(seconds / 3600 + 0.5))
-    end
+    if seconds < 129600 then return HOURS_ABBR:format(math.floor(seconds / 3600 + 0.5)) end
     return DAYS_ABBR:format(math.floor(seconds / 86400 + 0.5))
 end
 

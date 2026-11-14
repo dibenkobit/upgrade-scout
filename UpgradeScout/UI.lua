@@ -95,24 +95,17 @@ local function NewTexture(parent, name, layer, sublevel)
     local texture = parent:CreateTexture(nil, layer or "ARTWORK", nil, sublevel or 0)
     -- The game moves textures onto whole screen pixels. Pieces of one picture must meet edge
     -- to edge at any interface scale instead.
-    if texture.SetSnapToPixelGrid then
-        texture:SetSnapToPixelGrid(false)
-        texture:SetTexelSnappingBias(0)
-    end
+    texture:SetSnapToPixelGrid(false)
+    texture:SetTexelSnappingBias(0)
     if name then texture:SetTexture(File(name)) end
     return texture
 end
 
--- A fine line that fades out at both ends, one screen pixel thick where the game can say how
--- much that is.
+-- A fine line that fades out at both ends, one screen pixel thick at any interface scale.
 local function NewLine(parent, layer)
     local line = parent:CreateTexture(nil, layer or "ARTWORK")
     line:SetTexture(File("Line"))
-    if PixelUtil and PixelUtil.SetHeight then
-        PixelUtil.SetHeight(line, 1, 1)
-    else
-        line:SetHeight(1)
-    end
+    PixelUtil.SetHeight(line, 1, 1)
     return line
 end
 
@@ -196,12 +189,6 @@ local function NewText(parent, size, color, justify, narrow)
     text:SetJustifyH(justify or "LEFT")
     text:SetWordWrap(false)
     return text
-end
-
--- How wide a text is when nothing cuts it short.
-local function TextWidth(text)
-    if text.GetUnboundedStringWidth then return text:GetUnboundedStringWidth() end
-    return text:GetStringWidth()
 end
 
 ---------------------------------------------------------------------------
@@ -317,13 +304,13 @@ end
 local wornShown = false
 
 local function HideWorn()
-    if wornShown and ShoppingTooltip1 then ShoppingTooltip1:Hide() end
+    if wornShown then ShoppingTooltip1:Hide() end
     wornShown = false
 end
 
 local function ShowWorn(links)
     local tip = ShoppingTooltip1
-    if not tip or not links or not links[1] then return end
+    if not links or not links[1] then return end
     tip:SetOwner(GameTooltip, "ANCHOR_NONE")
     tip:ClearAllPoints()
     tip:SetPoint("TOPLEFT", GameTooltip, "TOPRIGHT", 0, -10)
@@ -535,7 +522,7 @@ local function SetPick(pick, kind)
     text:SetTextColor(look.ink[1], look.ink[2], look.ink[3])
     text:SetShadowColor(0, 0, 0, look.solid and 0 or 0.9)
     -- A long translation is cut short before it reaches the next column.
-    local width = math.min(TextWidth(text), PICK_WIDTH - 14)
+    local width = math.min(text:GetUnboundedStringWidth(), PICK_WIDTH - 14)
     text:SetWidth(width)
     pick:SetWidth(width + 14)
     pick.Fill:SetVertexColor(look.fill[1], look.fill[2], look.fill[3], look.fill[4])
@@ -1060,7 +1047,7 @@ end
 
 -- How the list of consumables is to score what one of them adds: with Pawn, on the scale in
 -- use. Nothing when Pawn cannot be asked; the list then has no scores and leaves nothing out.
-local MANA = Enum.PowerType and Enum.PowerType.Mana or 0
+local MANA = Enum.PowerType.Mana
 local function SupplyValue(who)
     if ns.Pawn.Problem() then return nil end
     local scale = ns.Pawn.CurrentScale(who)
@@ -1285,7 +1272,7 @@ local function ScaleMenu(_, root)
         local card = cards[c]
         local _, theirs = ns.Pawn.CurrentScale(card)
         if card ~= me and #theirs > 0 then
-            if lines > 0 and root.CreateDivider then root:CreateDivider() end
+            if lines > 0 then root:CreateDivider() end
             -- The name in the colour of the class, then the scale without the class it is
             -- named after: "Diluna: Balance". The field shows the line that is chosen, so
             -- it says whose list this is as long as it is not one's own.
@@ -1302,17 +1289,15 @@ local function ScaleMenu(_, root)
             end
         end
     end
-    if lines > MENU_ROWS and root.SetScrollMode then root:SetScrollMode(MENU_ROWS * 20) end
+    if lines > MENU_ROWS then root:SetScrollMode(MENU_ROWS * 20) end
 end
 
 -- The game's dropdown under a face of ours: a recess with a gold arrow. Its own plate and
 -- arrow are made see-through, not removed, because the dropdown goes on setting them as its
 -- state changes; its text and its menu are left as they are.
 local function SkinDropdown(dropdown)
-    for _, key in ipairs({ "Background", "Arrow" }) do
-        local art = dropdown[key]
-        if type(art) == "table" and art.SetAlpha then art:SetAlpha(0) end
-    end
+    dropdown.Background:SetAlpha(0)
+    dropdown.Arrow:SetAlpha(0)
     NewSlices(dropdown, "Inset", 0.25, 8, "BACKGROUND", -1)
     NewSlices(dropdown, "ButtonGlow", 0.25, 8, "HIGHLIGHT"):SetBlendMode("ADD")
     local arrow = NewTexture(dropdown, "Chevron", "OVERLAY")
@@ -1682,7 +1667,7 @@ local function Build()
     -- By now the game has settled on its fonts for the player's language, and so has any
     -- addon that replaces them.
     textFont = STANDARD_TEXT_FONT
-    numberFont = Number13FontWhite and Number13FontWhite:GetFont() or textFont
+    numberFont = Number13FontWhite:GetFont()
 
     frame = CreateFrame("Frame", "UpgradeScoutFrame", auction)
     frame:SetAllPoints()

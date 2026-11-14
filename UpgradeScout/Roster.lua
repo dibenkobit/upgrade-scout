@@ -26,7 +26,7 @@ ns.Roster = R
 
 local WEAPON_CLASS = Enum.ItemClass.Weapon
 local ARMOR_CLASS = Enum.ItemClass.Armor
-local MANA = Enum.PowerType and Enum.PowerType.Mana or 0
+local MANA = Enum.PowerType.Mana
 local LAST_SLOT = 18            -- the ranged slot; the shirt and the tabard are not gear
 
 ---------------------------------------------------------------------------
@@ -166,14 +166,15 @@ for _, name in ipairs({ "Faction", "PvPMedal", "Reputation", "Guild", "Achieveme
     UNKNOWABLE[Enum.TooltipDataUsageRequirementType[name]] = true
 end
 
--- Is the character's class in a list like "Warrior, Paladin"? The list has the class as the
--- game names it, and some languages name a class one way for men and another for women.
+-- The names the game may write the character's class by: some languages name a class one way
+-- for men and another for women. (Three places, any of which may be empty.)
+local function ClassNames(card)
+    return { LOCALIZED_CLASS_NAMES_MALE[card.class], LOCALIZED_CLASS_NAMES_FEMALE[card.class], card.className }
+end
+
+-- Is the character's class in a list like "Warrior, Paladin"?
 local function ClassListed(card, list)
-    local names = {
-        card.className,
-        type(LOCALIZED_CLASS_NAMES_MALE) == "table" and LOCALIZED_CLASS_NAMES_MALE[card.class] or nil,
-        type(LOCALIZED_CLASS_NAMES_FEMALE) == "table" and LOCALIZED_CLASS_NAMES_FEMALE[card.class] or nil,
-    }
+    local names = ClassNames(card)
     for i = 1, 3 do
         local name = names[i]
         if type(name) == "string" and name ~= "" and list:find(name, 1, true) then return true end
@@ -400,22 +401,14 @@ end
 ---------------------------------------------------------------------------
 -- A text in the colour of the card's class.
 function R.Colored(card, text)
-    local color = type(RAID_CLASS_COLORS) == "table" and RAID_CLASS_COLORS[card.class] or nil
-    if type(color) == "table" then
-        if color.WrapTextInColorCode then return color:WrapTextInColorCode(text) end
-        if type(color.colorStr) == "string" then return "|c" .. color.colorStr .. text .. "|r" end
-    end
-    return text
+    local color = RAID_CLASS_COLORS[card.class]
+    return color and color:WrapTextInColorCode(text) or text
 end
 
 -- A scale's title without the class it begins with ("Druid: Balance"): beside the
 -- character's name, written in the colour of its class, the class is said twice.
 function R.Short(card, title)
-    local names = {
-        type(LOCALIZED_CLASS_NAMES_MALE) == "table" and LOCALIZED_CLASS_NAMES_MALE[card.class] or nil,
-        type(LOCALIZED_CLASS_NAMES_FEMALE) == "table" and LOCALIZED_CLASS_NAMES_FEMALE[card.class] or nil,
-        card.className,
-    }
+    local names = ClassNames(card)
     for i = 1, 3 do
         local name = names[i]
         if type(name) == "string" and name ~= "" then
