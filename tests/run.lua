@@ -3111,15 +3111,36 @@ function scenarios.profiles()
     near(Score.Value(Score.Item(W.Link(900)), "S1"), 26 + 10 * 0.4, "stats from the tables are added to the item's own")
     ns.GearData.extra[900] = nil
 
-    -- Effects a score does not count: by the tables for the items they have, by the tooltip for newer ones.
+    -- Effects a score does not count: the tooltip's marked lines say so, in whatever language.
     local great = Score.Item(W.Link(201))
-    eq(Score.HasUnscoredEffects(great), true, "an item newer than the tables: the tooltip's marked line says so")
-    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), false, "and its absence that there is none")
-    ns.GearData.newest = 1000
-    eq(Score.HasUnscoredEffects(great), false, "an item the tables have and do not list has none, whatever its tooltip")
-    ns.GearData.effects[200] = true
-    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), true, "one they list has")
+    local good = W.items["200:0"]
+    eq(Score.HasUnscoredEffects(great), true, "a marked line: what the item does when used")
+    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), false, "no marked line: nothing")
+    ns.GearData.newest, ns.GearData.effects[200] = 1000, true
+    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), false, "the tooltip has the last word over the tables, which can be out of date")
+    good.equipLine = true
+    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), true, "a line of what it does while worn")
+    ns.GearData.extra[200] = { ITEM_MOD_ATTACK_POWER_SHORT = 10 }
+    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), false, "unless the score counts what that line adds")
+    good.procLine = true
+    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), true, "and a chance on hit it never counts")
+    good.equipLine, good.procLine, ns.GearData.extra[200] = nil, nil, nil
+    -- Without a tooltip to read, the tables.
+    local tooltip = C_TooltipInfo.GetHyperlink
+    C_TooltipInfo.GetHyperlink = function() return nil end
+    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), true, "without a tooltip, the tables' list")
+    eq(Score.HasUnscoredEffects(great), false, "where the item is not on it, nothing")
+    C_TooltipInfo.GetHyperlink = tooltip
     ns.GearData.newest, ns.GearData.effects[200] = 0, nil
+
+    -- A shield's block is not among the stats the game gives: its tooltip has it, in a line
+    -- written from the game's own text.
+    W.AddItem({ id = 902, name = "Block Shield", equipLoc = "INVTYPE_SHIELD", subClassID = 6, level = 5, block = 14,
+        game = { ITEM_MOD_STAMINA_SHORT = 2 } })
+    eq(Score.Item(W.Link(902)).stats.ITEM_MOD_BLOCK_VALUE_SHORT, 14, "a shield's block, off its tooltip")
+    W.AddItem({ id = 903, name = "Blocky Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, level = 5, block = 14,
+        game = { ITEM_MOD_STAMINA_SHORT = 2 } })
+    eq(Score.Item(W.Link(903)).stats.ITEM_MOD_BLOCK_VALUE_SHORT, nil, "a shield's only")
 
     -- What a class can ever wear.
     local function Can(classID, subClassID, who)

@@ -20,6 +20,34 @@ local WEAPON_CLASS = Enum.ItemClass.Weapon
 local DPS = "ITEM_MOD_DAMAGE_PER_SECOND_SHORT"
 local RANGED = { INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_THROWN = true }
 
+-- The lines of an item's tooltip as the game gives them, or nil while it has none to give.
+local function TooltipLines(link)
+    local tip = C_TooltipInfo.GetHyperlink(link)
+    local lines = tip and tip.lines
+    if type(lines) ~= "table" or #lines < 2 then return nil end
+    return lines
+end
+
+-- A shield's block is a property of the shield, like its armor, and the game does not count
+-- it among the stats GetItemStats gives. Its tooltip has a line for it written from the
+-- game's own text (SHIELD_BLOCK_TEMPLATE, "%s Block"), which is found the same way in every
+-- language.
+local ARMOR_CLASS, SHIELD = Enum.ItemClass.Armor, 6
+local BLOCK = "ITEM_MOD_BLOCK_VALUE_SHORT"
+local blockPattern
+local function ShieldBlock(link)
+    if blockPattern == nil then
+        local before, after = tostring(SHIELD_BLOCK_TEMPLATE or ""):match("^(.-)%%[sd](.*)$")
+        blockPattern = before and ("^" .. before:gsub("%p", "%%%0") .. "(%d+)" .. after:gsub("%p", "%%%0") .. "$") or false
+    end
+    if not blockPattern then return nil end
+    for _, line in ipairs(TooltipLines(link) or {}) do
+        local amount = type(line.leftText) == "string" and line.leftText:match(blockPattern)
+        if amount then return tonumber(amount) end
+    end
+    return nil
+end
+
 ---------------------------------------------------------------------------
 -- Profiles
 ---------------------------------------------------------------------------
@@ -92,6 +120,7 @@ function Score.Item(link)
     if extra then
         for name, amount in pairs(extra) do stats[name] = (stats[name] or 0) + amount end
     end
+    if classID == ARMOR_CLASS and subClassID == SHIELD and not stats[BLOCK] then stats[BLOCK] = ShieldBlock(link) end
     return { link = link, itemID = itemID, invType = invType, classID = classID, subClassID = subClassID, stats = stats }
 end
 
@@ -177,23 +206,22 @@ function Score.StatsValue(stats, id, level)
 end
 
 -- True when the item does something a sum of stats does not count: a use, a chance on hit,
--- an aura that is not a plain stat. The game's tables say so for the items they have
--- (GearData.lua). An item newer than the tables is asked of its tooltip, where the game
--- marks the lines that come from a spell of the item, in whatever language.
+-- an aura that is not a plain stat. The item's tooltip says so: the game marks the lines that
+-- come from a spell of the item, in whatever language, and writes its stats in lines of
+-- their own. A line of what the item does while worn is left out when the score counts
+-- what it adds (GearData.extra). Only without a tooltip to read are the game's tables asked
+-- (GearData.effects): checked against a whole auction house, they were out of date for some
+-- items, which the game no longer shows an effect for, or which they did not have at all.
 local LINE = Enum.TooltipDataLineType
-local SPELL_LINES = {
-    [LINE.ItemSpellTriggerOnUse or -1] = true,
-    [LINE.ItemSpellTriggerOnEquip or -2] = true,
-    [LINE.ItemSpellTriggerOnProc or -3] = true,
-}
+local USE, EQUIP, PROC = LINE.ItemSpellTriggerOnUse or -1, LINE.ItemSpellTriggerOnEquip or -2, LINE.ItemSpellTriggerOnProc or -3
 function Score.HasUnscoredEffects(item)
     local data = ns.GearData
-    if item.itemID <= data.newest then return data.effects[item.itemID] == true end
-    local tip = C_TooltipInfo.GetHyperlink(item.link)
-    local lines = tip and tip.lines
-    if type(lines) ~= "table" then return false end
+    local lines = TooltipLines(item.link)
+    if not lines then return item.itemID <= data.newest and data.effects[item.itemID] == true end
+    local counted = data.extra[item.itemID] ~= nil
     for i = 2, #lines do
-        if SPELL_LINES[lines[i].type] then return true end
+        local kind = lines[i].type
+        if kind == USE or kind == PROC or (kind == EQUIP and not counted) then return true end
     end
     return false
 end

@@ -148,7 +148,9 @@ def main():
 
     extra, effects = {}, set()
     for i, row in sorted(item.items()):
-        if int(row["ClassID"]) not in GEAR or int(row["InventoryType"]) == 0 or i not in sparse:
+        # (Not every item has a row of its own in ItemSparse as wago.tools gives it: those are
+        # still read for their effects.)
+        if int(row["ClassID"]) not in GEAR or int(row["InventoryType"]) == 0:
             continue
         found, other = {}, []
         for e in effects_of.get(i, []):
@@ -176,15 +178,23 @@ def main():
                 else:
                     other.append(f"aura {aura}" if int(s["Effect"]) == APPLY_AURA else f"effect {s['Effect']}")
         for n in range(10):
+            if i not in sparse:
+                break
             stat = int(sparse[i][f"StatModifier_bonusStat_{n}"])
             if stat in UNWEIGHED and int(sparse[i][f"StatPercentEditor_{n}"] or 0) != 0:
                 other.append(f"stat {stat}")
-        if found:
+        # The stats of an equip spell are added only for an item with a row of its own. For the
+        # others the game counts its stats from data these tables do not show, and an auction
+        # house full of them (an in-game check, 2026-11-14) had no equip spell for a stat left:
+        # their stats had all gone into that data. Such a spell here is counted as an effect.
+        if found and i in sparse:
             extra[i] = together(found)
+        elif found:
+            other.append("stats from a spell, for an item without a row")
         if other:
             effects.add(i)
         if args.report and (found or other):
-            print(f"{i:7d} {sparse[i]['Display_lang'][:40]:40} "
+            print(f"{i:7d} {sparse.get(i, {}).get('Display_lang', '?')[:40]:40} "
                   f"{', '.join(f'{k} {number(v)}' for k, v in sorted(found.items()))}"
                   f"{'  | not counted: ' + ', '.join(sorted(set(other))) if other else ''}")
 

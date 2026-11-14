@@ -304,10 +304,23 @@ local function TooltipLines(link)
     lines[#lines + 1] = { leftText = "Chest", leftColor = HIGHLIGHT_FONT_COLOR, rightText = "Mail",
         rightColor = item.red and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR }
     AddRequirements(lines, item)
-    -- effects: something the item does that is not a stat. The game marks such a line.
+    -- block: a shield's, in a line of its own written from the game's text.
+    if item.block then
+        lines[#lines + 1] = { leftText = SHIELD_BLOCK_TEMPLATE:format(item.block), leftColor = HIGHLIGHT_FONT_COLOR, type = 0 }
+    end
+    -- effects: something the item does that is not a stat. The game marks such a line: when
+    -- used (effects), while worn (equipLine), on a hit (procLine).
     if item.effects then
         lines[#lines + 1] = { leftText = ITEM_SPELL_TRIGGER_ONUSE .. " Does something.", leftColor = GREEN_FONT_COLOR,
             type = Enum.TooltipDataLineType.ItemSpellTriggerOnUse }
+    end
+    if item.equipLine then
+        lines[#lines + 1] = { leftText = "Equip: Does something else.", leftColor = GREEN_FONT_COLOR,
+            type = Enum.TooltipDataLineType.ItemSpellTriggerOnEquip }
+    end
+    if item.procLine then
+        lines[#lines + 1] = { leftText = "Chance on hit: Does something rare.", leftColor = GREEN_FONT_COLOR,
+            type = Enum.TooltipDataLineType.ItemSpellTriggerOnProc }
     end
     return lines
 end
@@ -858,6 +871,7 @@ function GameTooltip_AddErrorLine(tooltip, text) GameTooltip_AddColoredLine(tool
 
 RETRIEVING_ITEM_INFO = "Retrieving item information"
 ITEM_SPELL_TRIGGER_ONUSE = "Use:"
+SHIELD_BLOCK_TEMPLATE = "%s Block"
 ITEM_UNIQUE_EQUIPPABLE = "Unique-Equipped"
 ACCEPT, CANCEL, NONE = "Accept", "Cancel", "None"
 BUYOUT_AUCTION_CONFIRMATION = "Buyout auction for:"
