@@ -17,8 +17,8 @@ local _, ns = ...
 -- What is left is a ladder of sets, each rung dearer and stronger than the one below it. The
 -- set for a budget is the highest rung that costs no more. The ladder is made once for all
 -- the money the buyer has, so another budget needs no new sum.
-local P = {}
-ns.Plan = P
+local Plan = {}
+ns.Plan = Plan
 
 -- More rungs than this are thinned out, so that a huge auction house cannot stall the game.
 -- The set for a budget may then be short of the best there is, by less than one part in
@@ -192,7 +192,7 @@ end
 -- on. An upgrade is then measured against those, and no second chest is bought to replace the
 -- one that is still in the mail. Returns a context of its own; `ctx` is left as it is.
 --   items   { { link, itemID, invType, value, unique }, ... }
-function P.Wearing(ctx, items)
+function Plan.Wearing(ctx, items)
     if not items or #items == 0 then return ctx end
     local view = On(ctx, CopyGear(ctx.equipped))
     for i = 1, #items do
@@ -210,7 +210,7 @@ end
 -- The ladder of sets that can be bought from `offers` for no more than `cap` copper.
 --   offers   offer id -> offer (see Scanner)
 --   ctx      comparison context (see PawnBridge.Context)
-function P.Ladder(offers, ctx, cap)
+function Plan.Ladder(offers, ctx, cap)
     local kinds, names = {}, {}
     for _, offer in pairs(offers) do
         if offer.buyout <= cap then
@@ -240,7 +240,7 @@ end
 
 -- The strongest set on the ladder that costs no more than `budget`; nil when not one upgrade
 -- can be had for it.
-function P.Choose(ladder, budget)
+function Plan.Choose(ladder, budget)
     local best
     for i = 1, #ladder do
         if ladder[i].cost > budget then break end
@@ -262,7 +262,7 @@ end
 --             it and it counts nothing. An item's `share` is its gain next to the biggest gain
 --             of the set, for its meter.
 --   summary   { upgrades, slots, hidden = 0, cost = copper for the set, gain = points it adds }
-function P.Rows(set)
+function Plan.Rows(set)
     local rows = {}
     local summary = { upgrades = 0, slots = 0, hidden = 0, cost = 0, gain = 0 }
     if not set then return rows, summary end

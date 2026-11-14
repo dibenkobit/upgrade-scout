@@ -25,8 +25,8 @@ local L = ns.L
 -- Within a kind the best is the one with the highest score. Where there is no score, it is
 -- the one that asks for the higher level; equal levels are settled by the bigger number in the
 -- text (that is how bandages differ, which ask for a skill and not a level).
-local P = {}
-ns.Supplies = P
+local Supplies = {}
+ns.Supplies = Supplies
 
 local CONSUMABLE = Enum.ItemClass.Consumable
 
@@ -42,7 +42,7 @@ local function Rank(sub)
 end
 
 -- The game's own name of a subcategory ("Potions", "Food & Drink").
-function P.SubLabel(sub)
+function Supplies.SubLabel(sub)
     local text = C_Item.GetItemSubClassInfo(CONSUMABLE, sub)
     if text and text ~= "" then return text end
     return L.SUP_OTHER
@@ -75,7 +75,7 @@ end
 
 -- "Restores 700 to 900 health." -> "Restores # to # health.", 900
 -- The first is the same for every consumable of a kind; the second tells two of them apart.
-function P.Describe(text)
+function Supplies.Describe(text)
     local parts, biggest, at = {}, 0, 1
     while true do
         local first, last = text:find("%d+", at)
@@ -174,7 +174,7 @@ end
 --            best: the first of its kind among what the list may show.
 --   summary: { items = rows listed, groups = subcategories listed,
 --              hidden = left out for their price, useless = left out as of no use }
-function P.Build(supplies, opts)
+function Supplies.Build(supplies, opts)
     local rows = {}
     local summary = { items = 0, groups = 0, hidden = 0, useless = 0 }
     local money = opts.money or 0
@@ -226,7 +226,7 @@ function P.Build(supplies, opts)
         end
         table.sort(kinds, ByPlace)
 
-        local header = { kind = "header", group = "SUB" .. sub, title = P.SubLabel(sub), shown = 0, total = total }
+        local header = { kind = "header", group = "SUB" .. sub, title = Supplies.SubLabel(sub), shown = 0, total = total }
         rows[#rows + 1] = header
         for k = 1, #kinds do
             local entries = kinds[k].entries

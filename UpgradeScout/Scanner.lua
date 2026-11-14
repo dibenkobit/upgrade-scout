@@ -485,8 +485,6 @@ end
 ---------------------------------------------------------------------------
 -- Step 3: item searches ("jobs")
 ---------------------------------------------------------------------------
-local NextJob
-
 local function FinishRun(ok)
     local done = run.onDone
     local mode = run.mode
@@ -511,7 +509,7 @@ local function SendJob(job)
     end)
 end
 
-function NextJob()
+local function NextJob()
     run.job = nil
     local job
     if run.single then
@@ -766,20 +764,6 @@ local function StepJobs(now)
             end
             NextJob()
         end
-    end
-end
-
-local ReadLookupAuctions
-
-local function OnItemResults(itemKey)
-    if S.state ~= "verify" or not run then return end
-    if run.lookup then
-        ReadLookupAuctions(itemKey)
-        return
-    end
-    local job = run.job
-    if job and (job.state == "query" or job.state == "more") and ns.SameKey(itemKey, job.key) then
-        ContinueJob(job)
     end
 end
 
@@ -1142,14 +1126,23 @@ local function NewRun(mode)
     lastRequest = nil
     local scanning = IsScanMode(mode)
     local supplies = mode == "supplies" or mode == "supply"
-    -- The character the work is for, when it is not the one being played (a card from Roster).
-    local who
-    if supplies then who = S.suppliesWho else who = S.ctx and S.ctx.who end
+    -- The character the work is for, when it is not the one being played (a card from
+    -- Roster), and its level: rows that ask for a higher one are of no use to it. For gear both
+    -- are in the gear snapshot.
+    local who, level = nil, UnitLevel("player")
+    if supplies then
+        who = S.suppliesWho
+        if who then level = who.level or level end
+    elseif S.ctx then
+        who, level = S.ctx.who, S.ctx.level
+    end
+    -- A scan for consumables counts its requests too, but nobody reads the numbers.
+    local stats
+    if scanning then stats = S.stats elseif mode == "supplies" then stats = NewStats() end
     run = {
         mode = mode,
         who = who,
-        -- Rows that ask for a higher level are of no use to the character.
-        level = not supplies and S.ctx and S.ctx.level or who and who.level or UnitLevel("player"),
+        level = level,
         variant = 1,
         rows = {},          -- key string -> row
         rowCount = 0,
@@ -1160,8 +1153,7 @@ local function NewRun(mode)
         requested = {},
         -- A lookup around a purchase scores its item afresh; a scan keeps its scores.
         evalCache = scanning and scan.evalCache or {},
-        -- A scan for consumables counts its requests too, but nobody reads the numbers.
-        stats = scanning and S.stats or (mode == "supplies" and NewStats() or nil),
+        stats = stats,
         deadline = 0,
         lastLoad = 0,
         nextRetry = 0,
@@ -1434,7 +1426,8 @@ end
 --   choose   the player says how many                                   CONFIRM_SUPPLY
 --   quote    the server names the price of exactly that many            S.QuoteSupply
 --   confirm  the player agrees to that price                            S.ConfirmSupply
--- The game takes the last two only from a click, so each is called straight from one.
+-- The game takes a request for a price, like a bid, only from a click or a key press (its
+-- documentation marks both as restricted), so each step is called straight from one.
 -- A "price list" is { { price = of one piece, quantity = pieces at that price }, ... },
 -- cheapest first.
 
@@ -1523,7 +1516,7 @@ end
 -- at one price come as one line, whose `quantity` says how many they are (the game shows
 -- that number beside the price). So a line is an entry of the price list like any other, with
 -- the auction to bid on.
-function ReadLookupAuctions(itemKey)
+local function ReadLookupAuctions(itemKey)
     if not ns.SameKey(itemKey, run.lookup.supply.key) then return end
     local tiers = {}
     for i = 1, AH.GetNumItemSearchResults(itemKey) or 0 do
@@ -1657,6 +1650,19 @@ ns.On("AUCTION_HOUSE_BROWSE_FAILURE", function()
     if S.state == "browse" and run.sent then run.deadline = 0 end
 end)
 
+-- The answer to an item search: for the job of a scan, or for the lookup before a consumable
+-- is bought.
+local function OnItemResults(itemKey)
+    if S.state ~= "verify" or not run then return end
+    if run.lookup then
+        ReadLookupAuctions(itemKey)
+        return
+    end
+    local job = run.job
+    if job and (job.state == "query" or job.state == "more") and ns.SameKey(itemKey, job.key) then
+        ContinueJob(job)
+    end
+end
 ns.On("ITEM_SEARCH_RESULTS_UPDATED", OnItemResults)
 ns.On("ITEM_SEARCH_RESULTS_ADDED", OnItemResults)
 

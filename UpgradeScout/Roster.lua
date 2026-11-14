@@ -6,7 +6,7 @@ local _, ns = ...
 -- another character of the account wears, its level, the weapons it has learned are out of
 -- reach while it is not the one logged in. So every character is written down while it is
 -- played (a "card", kept for the whole account in UpgradeScoutDB), and the lists can then be
--- made for any of them: see R.Target.
+-- made for any of them: see Roster.Target.
 --
 -- A card:
 --   key         the name Pawn files the character under ("Name Surname" in Forever)
@@ -17,18 +17,18 @@ local _, ns = ...
 --   gear        { [inventory slot] = item link } for slots 1 to 18
 --   weapons     { [weapon subclass] = true } for the kinds it has learned; nil when the game
 --   armor       { [armor subclass] = true }   would not say (or said too little to be
---               believed: see R.Update), and then its class decides
+--               believed: see Roster.Update), and then its class decides
 --   skills      { [profession, as the game names it] = rank }
 --   scale       the Pawn scale chosen for it
 --   seen        when it was last written down (time())
-local R = {}
-ns.Roster = R
+local Roster = {}
+ns.Roster = Roster
 
 local WEAPON_CLASS = Enum.ItemClass.Weapon
 local ARMOR_CLASS = Enum.ItemClass.Armor
 local MANA = Enum.PowerType.Mana
 local LAST_SLOT = 18            -- the ranged slot; the shirt and the tabard are not gear
-R.LAST_SLOT = LAST_SLOT
+Roster.LAST_SLOT = LAST_SLOT
 
 ---------------------------------------------------------------------------
 -- Weapon and armor skills
@@ -79,12 +79,12 @@ local CLASS_ID = {
     WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11,
 }
 
-function R.ClassID(card)
+function Roster.ClassID(card)
     return CLASS_ID[card.class]
 end
 
 -- The heaviest armor a class can ever wear: 1 cloth, 2 leather, 3 mail, 4 plate.
-function R.HeaviestArmor(class)
+function Roster.HeaviestArmor(class)
     local heaviest
     for sub = 1, 4 do
         if ARMOR[sub].classes[class] then heaviest = sub end
@@ -109,7 +109,7 @@ end
 -- What the character had learned when it was last played decides. A card without that
 -- (the client would not say) goes by what its class can ever learn, which is a little too
 -- generous: it takes a mage who never went for swords to have them.
-function R.Wields(card, classID, subClassID)
+function Roster.Wields(card, classID, subClassID)
     local kind, learned
     if classID == WEAPON_CLASS then
         kind, learned = WEAPONS[subClassID], card.weapons
@@ -197,8 +197,8 @@ end
 -- classes and races an item is for, and the profession it asks for. An item that asks for
 -- what a card cannot tell (standing with a faction, a rank) is taken to be out of reach: by
 -- the kind of its line, and for standing with a faction by the line's words as well.
--- The item's level and its kind of weapon or armor are not judged here: see R.Wields.
-function R.Allows(card, lines)
+-- The item's level and its kind of weapon or armor are not judged here: see Roster.Wields.
+function Roster.Allows(card, lines)
     for i = 2, #lines do
         local line = lines[i]
         if line.type == REQUIREMENT and UNKNOWABLE[line.requirementType] then return false end
@@ -261,7 +261,7 @@ end
 
 -- The card of the character being played, made on the first call. nil only if the game does
 -- not know the character's name yet.
-function R.Me()
+function Roster.Me()
     if not myKey then
         myKey, myName, myLast = Identity()
         if not myKey then return nil end
@@ -301,8 +301,8 @@ end
 
 -- Writes the character being played down as it is now.
 --   gearChanged  the game has just said that the gear changed
-function R.Update(gearChanged)
-    local card = R.Me()
+function Roster.Update(gearChanged)
+    local card = Roster.Me()
     if not card then return end
     Describe(card)
 
@@ -348,8 +348,8 @@ end
 
 -- Every character there is a card for: the one being played first, then the others, those
 -- of this realm before the rest, by name.
-function R.List()
-    local me = R.Me()
+function Roster.List()
+    local me = Roster.Me()
     local out, others = {}, {}
     if me then out[1] = me end
     for key, card in pairs(ns.account.chars) do
@@ -366,7 +366,7 @@ function R.List()
     return out
 end
 
-function R.Get(key)
+function Roster.Get(key)
     local card = key ~= nil and ns.account.chars[key] or nil
     if card and (key == myKey or Sound(key, card)) then return card end
     return nil
@@ -377,24 +377,24 @@ end
 -- The choice lasts until the interface is loaded again: a list for someone else must be asked
 -- for, not come up by itself a week later.
 local target
-function R.Target()
+function Roster.Target()
     if not target then return nil end
-    local card = target ~= myKey and R.Get(target) or nil
+    local card = target ~= myKey and Roster.Get(target) or nil
     if not card then target = nil end
     return card
 end
 
--- card: one of R.List(); nil or the card of the character being played for that character.
-function R.SetTarget(card)
-    target = card and card ~= R.Me() and card.key or nil
+-- card: one of Roster.List(); nil or the card of the character being played for that character.
+function Roster.SetTarget(card)
+    target = card and card ~= Roster.Me() and card.key or nil
 end
 
 -- Takes a character other than the one being played out of the account's cards, by its
 -- name as the tab shows it or in full. Returns the card, or nil if there is none.
-function R.Forget(name)
+function Roster.Forget(name)
     name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
     if name == "" then return nil end
-    local me = R.Me()
+    local me = Roster.Me()
     for key, card in pairs(ns.account.chars) do
         if card ~= me and type(card) == "table" and (key == name or card.name == name) then
             ns.account.chars[key] = nil
@@ -409,14 +409,14 @@ end
 -- How a card is shown
 ---------------------------------------------------------------------------
 -- A text in the colour of the card's class.
-function R.Colored(card, text)
+function Roster.Colored(card, text)
     local color = RAID_CLASS_COLORS[card.class]
     return color and color:WrapTextInColorCode(text) or text
 end
 
 -- A scale's title without the class it begins with ("Druid: Balance"): beside the
 -- character's name, written in the colour of its class, the class is said twice.
-function R.Short(card, title)
+function Roster.Short(card, title)
     local names = ClassNames(card)
     for i = 1, 3 do
         local name = names[i]
@@ -437,7 +437,7 @@ local gearNews = false      -- one of the reasons to write it was that the gear 
 local WriteSoon = ns.Soon(1, function()
     local news = gearNews
     gearNews = false
-    R.Update(news)
+    Roster.Update(news)
 end)
 
 local function Queue(gearChanged)
@@ -455,4 +455,4 @@ ns.On("SPELLS_CHANGED", function() Queue(false) end)
 ns.On("SKILL_LINES_CHANGED", function() Queue(false) end)
 ns.On("AUCTION_HOUSE_SHOW", function() Queue(false) end)
 -- The last word on the character before another one is played. No timer outlives a logout.
-ns.On("PLAYER_LOGOUT", function() R.Update(gearNews) end)
+ns.On("PLAYER_LOGOUT", function() Roster.Update(gearNews) end)

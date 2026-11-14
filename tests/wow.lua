@@ -1260,7 +1260,7 @@ local function PiecesCost(itemID, quantity)
     end
     return nil
 end
--- The game takes both of these only from a click; the tests call them from one.
+-- The game takes the first of these only from a click or a key press; the tests call it as one.
 function C_AuctionHouse.StartCommoditiesPurchase(itemID, quantity)
     Busy()
     assert(W.IsCommodity(itemID) and type(quantity) == "number" and quantity >= 1 and quantity == math.floor(quantity),

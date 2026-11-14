@@ -2,16 +2,16 @@ local _, ns = ...
 
 -- Turns the offers found by the scanner into the rows the tab shows: one block per slot,
 -- best upgrade first, with the two picks marked.
-local R = {}
-ns.Results = R
+local Results = {}
+ns.Results = Results
 
 -- "Best value" is the cheapest gold per point among upgrades that are worth having: an item
 -- must give at least this share of the biggest improvement available for the slot, so that a
 -- +0.1 upgrade for two copper never wins.
-R.VALUE_MIN_SHARE = 0.25
+Results.VALUE_MIN_SHARE = 0.25
 
 -- How many rows a slot keeps at most when "Top N per slot" is ticked.
-R.TOP_COUNT = 5
+Results.TOP_COUNT = 5
 
 local function ByDelta(a, b)
     if a.delta ~= b.delta then return a.delta > b.delta end
@@ -41,7 +41,7 @@ end
 -- whatever its real price turns out to be? True when an entry that sorts before it already
 -- costs no more per point than the item's best case. The scanner uses this to skip item
 -- searches whose result "Top N per slot" would hide; it must stay in step with Sensible().
-function R.Dominated(entries, delta, minPrice)
+function Results.Dominated(entries, delta, minPrice)
     local bestCase = minPrice / delta
     for i = 1, #entries do
         local entry = entries[i]
@@ -88,7 +88,7 @@ end
 -- entries must already be sorted by ByDelta.
 local function MarkPicks(entries)
     local bestUpgrade = entries[1]
-    local floor = bestUpgrade.delta * R.VALUE_MIN_SHARE
+    local floor = bestUpgrade.delta * Results.VALUE_MIN_SHARE
     local bestValue
     for i = 1, #entries do
         local entry = entries[i]
@@ -108,7 +108,7 @@ local function MarkPicks(entries)
 end
 
 -- What the list shows of an offer in one of the slots it would go into (see Compare.Place).
-function R.Entry(offer, placement, affordable)
+function Results.Entry(offer, placement, affordable)
     return {
         offer = offer,
         group = placement.group,
@@ -126,7 +126,7 @@ end
 -- slot an offer is an upgrade in, unless the price filter leaves the offer out.
 -- opts: { money = copper the player has, affordableOnly = bool }
 -- Returns byGroup, hidden (upgrades left out for their price)
-function R.Collect(offers, ctx, opts)
+function Results.Collect(offers, ctx, opts)
     local byGroup, hidden = {}, 0
     local money = opts.money or 0
     for _, offer in pairs(offers) do
@@ -143,7 +143,7 @@ function R.Collect(offers, ctx, opts)
                         list = {}
                         byGroup[p.group] = list
                     end
-                    list[#list + 1] = R.Entry(offer, p, affordable)
+                    list[#list + 1] = Results.Entry(offer, p, affordable)
                 end
             end
         end
@@ -163,12 +163,12 @@ end
 --            turn out to have no buyout price.
 --   summary: { upgrades = offers listed, slots = blocks listed, hidden = upgrades left out for price }
 -- The picks are chosen among everything found for the slot, so `limit` never changes them.
-function R.Build(offers, ctx, opts)
+function Results.Build(offers, ctx, opts)
     local rows = {}
     local summary = { upgrades = 0, slots = 0, hidden = 0 }
     if not ctx then return rows, summary end
 
-    local byGroup, hidden = R.Collect(offers, ctx, opts)
+    local byGroup, hidden = Results.Collect(offers, ctx, opts)
     local unchecked = opts.unchecked
     summary.hidden = hidden + (unchecked and unchecked.tooDear or 0)
 

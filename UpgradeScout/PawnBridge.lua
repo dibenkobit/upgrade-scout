@@ -2,11 +2,16 @@ local _, ns = ...
 local L = ns.L
 
 -- Everything this addon asks of Pawn goes through this file. Pawn is a hard dependency
--- (see the .toc), so its globals exist by the time this file runs; Problem() still checks
--- them by name so that a future Pawn that renames something fails with a clear message
--- instead of a Lua error.
-local P = {}
-ns.Pawn = P
+-- (see the .toc), so its globals exist by the time this file runs. A future Pawn may still
+-- rename something, and then:
+--   * what a scan for gear cannot do without (REQUIRED) is checked by name in Problem(),
+--     which says in plain words what is missing instead of a Lua error;
+--   * what only refines an answer (the score of a consumable, Pawn's word on the armor of a
+--     class and on which weapon sets to show) is checked where it is used, and done without.
+-- Two things read here are Pawn's own notes and not functions it offers: PawnCommon.Scales
+-- (which scales a character has switched on) and PawnNeverUsableStats.
+local Pawn = {}
+ns.Pawn = Pawn
 
 local REQUIRED = {
     "PawnIsReady",
@@ -17,7 +22,7 @@ local REQUIRED = {
 }
 
 -- Returns nil when Pawn can be used, otherwise a message for the player.
-function P.Problem()
+function Pawn.Problem()
     for i = 1, #REQUIRED do
         if type(_G[REQUIRED[i]]) ~= "function" then
             return L.ERR_PAWN_API:format(REQUIRED[i])
@@ -38,7 +43,7 @@ end
 -- read: it keeps, for the whole account, which scales each character has switched on, and it
 -- carries the scales of every class. A character Pawn has no notes about gets the scales of
 -- its class, and failing that every scale there is.
-function P.Scales(who)
+function Pawn.Scales(who)
     local out = {}
     local all = PawnGetAllScalesEx()
     if type(all) ~= "table" then return out end
@@ -75,8 +80,8 @@ end
 
 -- The scale to score with for a character: the one chosen for it if it is still among its
 -- scales, otherwise the first of them.
-function P.CurrentScale(who)
-    local scales = P.Scales(who)
+function Pawn.CurrentScale(who)
+    local scales = Pawn.Scales(who)
     local owner = who or ns.Roster.Me()
     local saved = owner and owner.scale
     for i = 1, #scales do
@@ -87,13 +92,13 @@ end
 
 -- Pawn's record for an item link, or nil when the item has no stats Pawn can read
 -- (or the client has not loaded the item yet).
-function P.Item(link)
+function Pawn.Item(link)
     return PawnGetItemData(link)
 end
 
 -- Pawn's score for an item on one scale. Like Pawn's own upgrade arrows, this uses the base
 -- item without enchantments, so an enchanted item you wear is not unfairly hard to beat.
-function P.Value(item, scaleName)
+function Pawn.Value(item, scaleName)
     local value, baseValue = PawnGetSingleValueFromItem(item, scaleName)
     return baseValue or value or 0
 end
@@ -115,7 +120,7 @@ local SPELL_RATINGS = { SpellCritRating = "CritRating", SpellHitRating = "HitRat
 --   stats  { Strength = 25, CritRating = 2, ... } under Pawn's names (see SupplyData.lua)
 -- The same sum Pawn makes for an item, so the number is in the points gear is scored in.
 -- nil when this Pawn cannot be asked.
-function P.StatsValue(stats, scaleName)
+function Pawn.StatsValue(stats, scaleName)
     if type(PawnGetItemValue) ~= "function" or type(PawnGetAllStatValues) ~= "function" then return nil end
     local weights = PawnGetAllStatValues(scaleName)
     if type(weights) ~= "table" then return nil end
@@ -145,12 +150,12 @@ end
 
 -- True when Pawn found lines in the tooltip that it cannot turn into a number
 -- (procs, on-use effects and the like).
-function P.HasUnscoredEffects(item)
+function Pawn.HasUnscoredEffects(item)
     return type(item.UnknownLines) == "table" and next(item.UnknownLines) ~= nil
 end
 
 -- False only when Pawn knows the character's class can never use the item.
-function P.ClassCanUse(item, who)
+function Pawn.ClassCanUse(item, who)
     if who then
         -- Pawn's list of the kinds of item a class never wears, which is what it sets
         -- CanEquip from for the character being played. Whether this character has learned
@@ -185,7 +190,7 @@ end
 -- they do. `unread` counts the items the client has and Pawn still gave nothing for: an item
 -- without stats, or one whose tooltip Pawn read a moment too early (the scanner asks again
 -- a few times for that).
-function P.Context(scaleName, who)
+function Pawn.Context(scaleName, who)
     local equipped = {}
     if who then
         local pending, unread
@@ -209,7 +214,7 @@ function P.Context(scaleName, who)
                     link = link,
                     itemID = itemID,
                     invType = equipLoc,
-                    value = item and P.Value(item, scaleName) or 0,
+                    value = item and Pawn.Value(item, scaleName) or 0,
                 }
             end
         end
@@ -236,7 +241,7 @@ function P.Context(scaleName, who)
                 link = link,
                 itemID = itemID,
                 invType = equipLoc,
-                value = item and P.Value(item, scaleName) or 0,
+                value = item and Pawn.Value(item, scaleName) or 0,
             }
         end
     end
