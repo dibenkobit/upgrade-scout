@@ -48,6 +48,7 @@ To install by hand:
 - The weights are worked out for a level 60 character, so they are an approximation. Below 60,
   hit, crit, haste and expertise count for less, as simulations of leveling characters show.
 - Stamina (except for tanks), and a healer's Intellect, Spirit and mana regeneration, are set by hand: a simulation of damage cannot tell what staying alive or running out of mana costs.
+- Armor, shield block, defense, dodge and parry count on every profile: against Stamina, as much as they help the simulator's tank.
 - A `~` after a profile's name means no simulation covers that tree yet and its weights are
   estimated.
 - Prices are buyouts. Auctions that only take bids are skipped.

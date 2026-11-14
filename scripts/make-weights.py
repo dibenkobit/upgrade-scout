@@ -50,6 +50,12 @@ APPROX_MARK = "~"
 DIGITS = 2
 
 
+def rounded(value):
+    """A weight to two decimals, or below 0.1 to two digits: a point of armor is worth a hundredth
+    of a point of Strength, and two decimals would make it nothing, or double it."""
+    return round(value, DIGITS) if abs(value) >= 0.1 else float(f"{value:.2g}")
+
+
 def mod(name):
     return "ITEM_MOD_" + name + "_SHORT"
 
@@ -116,8 +122,15 @@ DPS = {"mh": "PseudoStatMainHandDps", "oh": "PseudoStatOffHandDps", "ranged": "P
 #   staying alive is worth while leveling, the more to one who fights in melee.
 #   A healer's Intellect, Spirit and mana regeneration, relative to healing: a healer runs out of
 #   mana, and the casters the healer's estimate comes from, simmed in a raid with every buff, do not.
+#   Armor and the other stats that only keep a character alive, for a profile that is not a tank's:
+#   relative to the profile's Stamina, as the simulator's plate tank (SURVIVAL_FROM, by its TMI)
+#   finds them worth against Stamina. Without them a shield of 400 armor is worth no more than its
+#   Strength, and mail no more than leather.
 STAMINA_SHARE = {"melee": 0.3, "ranged": 0.2, "spell": 0.1}
 HEALER_MANA = {"StatIntellect": 0.6, "StatSpirit": 0.5, "StatMP5": 1.5}
+SURVIVAL_FROM = ("Warrior", "Protection")
+SURVIVAL_STATS = ["StatArmor", "StatBonusArmor", "StatBlockValue", "StatDefenseRating", "StatDodgeRating",
+                  "StatParryRating", "StatBlockRating", "StatHealth"]
 
 
 def main_stat(worth, kind):
@@ -127,12 +140,31 @@ def main_stat(worth, kind):
     return max(worth.get("StatStrength", 0), worth.get("StatAgility", 0)) or 1.0
 
 
-def by_hand(worth, kind):
-    """The worth with Stamina set where the simulation gave it none."""
+def by_hand(worth, kind, survival=None):
+    """The worth with Stamina, and with `survival` (stat -> worth relative to Stamina) the stats
+    that keep a character alive, set where the simulation gave them none."""
     worth = dict(worth)
     if worth.get("StatStamina", 0) <= 0:
         worth["StatStamina"] = STAMINA_SHARE[kind] * main_stat(worth, kind)
+    for stat in SURVIVAL_STATS:
+        if survival and survival.get(stat, 0) > 0 and worth.get(stat, 0) <= 0:
+            worth[stat] = worth["StatStamina"] * survival[stat]
     return worth
+
+
+def survival_worth(trees, report):
+    """What the stats that keep a character alive are worth relative to Stamina, by the TMI of the
+    tank in SURVIVAL_FROM; None when the run has no such tank."""
+    found = trees.get(SURVIVAL_FROM)
+    if not found or not found[0].get("tankMetrics"):
+        return None
+    survival = eps(found[0], False, "tmi")
+    stamina = survival.get("StatStamina", 0)
+    if stamina <= 0:
+        return None
+    if report:
+        print(f"survival, from {SURVIVAL_FROM[0]} {SURVIVAL_FROM[1]} (TMI, relative to Stamina)", file=sys.stderr)
+    return {stat: survival[stat] / stamina for stat in SURVIVAL_STATS if survival.get(stat, 0) > 0}
 
 
 # A tank's profile: what a point is worth for staying alive, by the simulator's TMI (with the
@@ -301,10 +333,10 @@ def profile(spec, worth):
                     continue
                 source = stat
             total += worth.get(source, 0.0)
-        total = round(total, DIGITS)
+        total = rounded(total)
         if total > 0:
             weights[name] = total
-    dps = {hand: round(worth.get(stat, 0.0), DIGITS) for hand, stat in DPS.items()}
+    dps = {hand: rounded(worth.get(stat, 0.0)) for hand, stat in DPS.items()}
     return weights, {hand: value for hand, value in dps.items() if value > 0}
 
 
@@ -340,6 +372,7 @@ def main():
             trees.setdefault((t["class"], t["tree"]), (t, True))
 
     healing = healer(trees, args.report)
+    survival = survival_worth(trees, args.report)
     classes, start, titles, profiles, missing = {}, {}, {locale: {} for locale in LOCALES}, {}, []
     for cls, specs in CLASSES.items():
         for spec in specs:
@@ -355,7 +388,7 @@ def main():
             else:
                 missing.append(spec["id"])
                 continue
-            weights, dps = profile(spec, by_hand(worth, spec["kind"]))
+            weights, dps = profile(spec, by_hand(worth, spec["kind"], None if spec.get("tank") else survival))
             entry = {"class": cls, "weights": weights, **dps}
             if approx:
                 entry["approx"] = True

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1
+
+- Armor counts on every profile, not only a tank's, and so do shield block, defense, dodge and
+  parry. 2.0.0 offered a warrior an off-hand item in place of a shield with 400 armor, and leather
+  over better mail.
+
 ## 2.0.0
 
 - Pawn is no longer needed. The addon scores gear with its own stat weights for every talent tree,

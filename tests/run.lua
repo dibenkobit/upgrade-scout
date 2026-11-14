@@ -3354,6 +3354,21 @@ function scenarios.weights_data()
     local listed = 0
     for _ in pairs(data.profiles) do listed = listed + 1 end
     eq(listed, count, "every profile is in its class's list")
+    -- Staying alive counts on every profile, a tank's or not: Stamina, and armor.
+    for id, profile in pairs(data.profiles) do
+        check((profile.weights.ITEM_MOD_STAMINA_SHORT or 0) > 0, id .. " has a weight for Stamina")
+        check((profile.weights.RESISTANCE0_NAME or 0) > 0, id .. " and for armor")
+    end
+    -- As 2.0.0 had it, an Arms warrior was told to give up a shield of 411 armor for an item held
+    -- in the off hand with no armor, because its Agility was worth more than the shield's Strength.
+    local function Worth(id, stats)
+        local sum, weights = 0, data.profiles[id].weights
+        for name, amount in pairs(stats) do sum = sum + (weights[name] or 0) * amount end
+        return sum
+    end
+    local shield = { ITEM_MOD_STRENGTH_SHORT = 3, RESISTANCE0_NAME = 411, ITEM_MOD_BLOCK_VALUE_SHORT = 7 }
+    local held = { ITEM_MOD_STRENGTH_SHORT = 2, ITEM_MOD_AGILITY_SHORT = 2 }
+    check(Worth("WARRIOR_ARMS", shield) > Worth("WARRIOR_ARMS", held), "a shield's armor counts for a warrior who does damage")
     -- The share of a rating's worth below level 60: rising with the level, all of it at 60.
     local points = data.leveling and data.leveling.points or {}
     check(#points >= 2, "the share of a rating's worth is known at more than one level")

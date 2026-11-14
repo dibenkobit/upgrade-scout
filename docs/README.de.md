@@ -52,6 +52,7 @@ Von Hand:
   zählen Treffer, kritische Treffer, Tempo und Waffenkunde weniger, wie Simulationen von Charakteren
   beim Leveln zeigen.
 - Ausdauer (außer bei Tanks) und bei Heilern Intelligenz, Willenskraft und Manaregeneration sind von Hand festgelegt: Eine Schadenssimulation kann nicht zeigen, was Überleben oder ein leerer Manavorrat kostet.
+- Rüstung, Blockwert, Verteidigung, Ausweichen und Parieren zählen in jedem Profil: im Verhältnis zur Ausdauer so viel, wie sie dem Tank im Simulator nützen.
 - Ein `~` hinter dem Namen eines Profils heißt: Für diesen Baum gibt es noch
   keine Simulation, seine Gewichte sind geschätzt.
 - Die Preise sind Sofortkaufpreise. Auktionen, auf die man nur bieten kann, werden übersprungen.

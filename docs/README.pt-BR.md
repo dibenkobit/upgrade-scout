@@ -52,6 +52,7 @@ Manualmente:
   nível 60, acerto, crítico, aceleração e especialização valem menos, segundo simulações de
   personagens subindo de nível.
 - Vigor (exceto para tanques) e, para curadores, intelecto, espírito e regeneração de mana são definidos à mão: uma simulação de dano não mostra quanto custa sobreviver ou ficar sem mana.
+- Armadura, valor de bloqueio, defesa, esquiva e aparo contam em todo perfil: em relação ao vigor, tanto quanto ajudam o tanque do simulador.
 - Um `~` depois do nome de um perfil quer dizer que essa árvore ainda não tem
   simulação e os pesos dela são estimados.
 - Os preços são de arremate. Leilões que só aceitam lances são ignorados.
