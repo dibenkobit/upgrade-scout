@@ -764,7 +764,10 @@ function UnitRace() return W.player.race or "Human", "Human" end
 function UnitFactionGroup() return "Alliance", "Alliance" end
 function GetRealmName() return W.realm or "Testrealm" end
 -- What the character knows: weapon and armor skills are spells to the client.
-function IsPlayerSpell(spell) return W.player.spells ~= nil and W.player.spells[spell] == true end
+C_SpellBook = {}
+function C_SpellBook.IsSpellKnown(spell) return W.player.spells ~= nil and W.player.spells[spell] == true end
+-- A place for each kind of profession, as Forever has them: the two main ones, first aid,
+-- fishing, cooking. A test's third profession is the character's cooking.
 function GetProfessions()
     local professions = W.player.professions or {}
     return professions[1] and 1 or nil, professions[2] and 2 or nil, nil, nil, professions[3] and 3 or nil

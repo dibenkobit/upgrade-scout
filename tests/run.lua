@@ -2417,7 +2417,7 @@ function scenarios.roster()
     W.player.last = "Mainsson"              -- Forever gives a character a surname
     -- Learned: cloth, leather, mail, shields; one-handed swords and axes.
     W.player.spells = { [9078] = true, [9077] = true, [8737] = true, [9116] = true, [201] = true, [196] = true }
-    W.player.professions = { { "Mining", 75 }, { "Engineering", 150 } }
+    W.player.professions = { { "Mining", 75 }, { "Engineering", 150 }, { "Cooking", 40 } }
     UpgradeScoutCharDB = { scale = "S2" }   -- the scale as earlier versions saved it
     LoadAddon()
     local R = ns.Roster
@@ -2437,6 +2437,7 @@ function scenarios.roster()
     eq(me.weapons[7], true, "one-handed swords are learned"); eq(me.weapons[10], nil, "staves are not")
     eq(me.armor[3], true, "mail is learned"); eq(me.armor[4], nil, "plate is not")
     eq(me.skills.Engineering, 150, "how far a profession has got"); eq(me.skills.Mining, 75, "each of them")
+    eq(me.skills.Cooking, 40, "cooking too, which the game lists after places this character has nothing in")
     eq(me.mana, false, "a warrior has no mana"); eq(me.dualWield, false, "and this one holds one weapon")
     eq(me.race, "Human", "its race, as the game names it"); eq(me.realm, "Testrealm", "its realm")
     check(type(me.seen) == "number", "and when it was written down")

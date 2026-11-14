@@ -18,7 +18,7 @@ local _, ns = ...
 --   weapons     { [weapon subclass] = true } for the kinds it has learned; nil when the game
 --   armor       { [armor subclass] = true }   would not say (or said too little to be
 --               believed: see R.Update), and then its class decides
---   skills      { [profession, as the game names it] = rank }; nil when the game would not say
+--   skills      { [profession, as the game names it] = rank }
 --   scale       the Pawn scale chosen for it
 --   seen        when it was last written down (time())
 local R = {}
@@ -83,26 +83,12 @@ function R.ClassID(card)
     return CLASS_ID[card.class]
 end
 
--- Does the character being played know this spell? The client has had more than one
--- function for the question; a yes from any of them is a yes.
-local function Knows(spell)
-    local ask = { IsPlayerSpell, IsSpellKnown, C_SpellBook and C_SpellBook.IsSpellKnown }
-    for i = 1, 3 do
-        if type(ask[i]) == "function" then
-            local ok, known = pcall(ask[i], spell)
-            -- In a fight the game may keep an answer to itself ("secret"); that is no answer.
-            if ok and not (issecretvalue and issecretvalue(known)) and known == true then return true end
-        end
-    end
-    return false
-end
-
 -- The kinds of `kinds` the character being played has learned; nil when it seems to have
 -- learned none, which is the game not answering rather than the truth.
 local function Learned(kinds)
     local out, any = {}, false
     for sub, kind in pairs(kinds) do
-        if Knows(kind.spell) then
+        if C_SpellBook.IsSpellKnown(kind.spell) then
             out[sub] = true
             any = true
         end
@@ -288,36 +274,19 @@ function R.Me()
 end
 
 -- The character's professions and how far each has got, by the names the game shows: an
--- item that asks for one ("Requires First Aid (225)") names it the same way. nil when this
--- client has neither of the two ways of asking.
+-- item that asks for one ("Requires First Aid (225)") names it the same way.
+-- GetProfessions gives a place for each kind of profession (the two main ones, first aid,
+-- fishing, cooking), empty for one the character has not got.
 local function Skills()
-    local out, asked = {}, false
-    if type(GetProfessions) == "function" and type(GetProfessionInfo) == "function" then
-        local found = { pcall(GetProfessions) }
-        if found[1] then
-            asked = true
-            for i = 2, 7 do
-                local index = found[i]
-                if index then
-                    local ok, name, _, rank = pcall(GetProfessionInfo, index)
-                    if ok and type(name) == "string" and type(rank) == "number" then out[name] = rank end
-                end
-            end
+    local out = {}
+    local found = { GetProfessions() }
+    for i = 1, table.maxn(found) do
+        if found[i] then
+            local name, _, rank = GetProfessionInfo(found[i])
+            if name and rank then out[name] = rank end
         end
     end
-    if type(GetNumSkillLines) == "function" and type(GetSkillLineInfo) == "function" then
-        local ok, count = pcall(GetNumSkillLines)
-        if ok and type(count) == "number" then
-            asked = true
-            for i = 1, count do
-                local got, name, header, _, rank = pcall(GetSkillLineInfo, i)
-                if got and not header and type(name) == "string" and type(rank) == "number" then
-                    out[name] = math.max(out[name] or 0, rank)
-                end
-            end
-        end
-    end
-    return asked and out or nil
+    return out
 end
 
 -- Writes the character being played down as it is now.
@@ -353,8 +322,7 @@ function R.Update(gearChanged)
         if whole and fromStart and not armor[sub] then whole = false end
     end
     if whole then card.armor = armor end
-    local skills = Skills()
-    if skills then card.skills = skills end
+    card.skills = Skills()
 
     card.seen = time()
 end
@@ -475,19 +443,14 @@ local function Queue(gearChanged)
     end)
 end
 
--- A client that does not have an event refuses to listen for it; the others still come.
-local function On(event, fn)
-    pcall(ns.On, event, fn)
-end
-
-On("PLAYER_ENTERING_WORLD", function() Queue(false) end)
-On("PLAYER_EQUIPMENT_CHANGED", function() Queue(true) end)
-On("PLAYER_LEVEL_UP", function(level)
-    if type(level) == "number" then levelUp = level end
+ns.On("PLAYER_ENTERING_WORLD", function() Queue(false) end)
+ns.On("PLAYER_EQUIPMENT_CHANGED", function() Queue(true) end)
+ns.On("PLAYER_LEVEL_UP", function(level)
+    levelUp = level
     Queue(false)
 end)
-On("SPELLS_CHANGED", function() Queue(false) end)
-On("SKILL_LINES_CHANGED", function() Queue(false) end)
-On("AUCTION_HOUSE_SHOW", function() Queue(false) end)
+ns.On("SPELLS_CHANGED", function() Queue(false) end)
+ns.On("SKILL_LINES_CHANGED", function() Queue(false) end)
+ns.On("AUCTION_HOUSE_SHOW", function() Queue(false) end)
 -- The last word on the character before another one is played. No timer outlives a logout.
-On("PLAYER_LOGOUT", function() R.Update(gearNews) end)
+ns.On("PLAYER_LOGOUT", function() R.Update(gearNews) end)
