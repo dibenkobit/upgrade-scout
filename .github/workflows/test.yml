@@ -1,0 +1,26 @@
+# Runs the tests on every push to a branch and on every pull request, so that a mistake shows
+# up when it is made and not when a version is tagged. (A tag is tested again by release.yml
+# before anything is packaged.)
+name: Tests
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone project
+        uses: actions/checkout@v7
+
+      - name: Run the tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1
+          lua5.1 tests/run.lua
