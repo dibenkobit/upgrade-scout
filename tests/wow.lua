@@ -1226,7 +1226,8 @@ function C_AuctionHouse.StartCommoditiesPurchase(itemID, quantity)
         if total then
             W.Fire("COMMODITY_PRICE_UPDATED", total / quantity, total)
         else
-            W.Fire("COMMODITY_PURCHASE_FAILED")
+            -- Not that many for sale: there is no price to name.
+            W.Fire("COMMODITY_PRICE_UNAVAILABLE")
         end
     end)
 end
@@ -1295,6 +1296,11 @@ end
 -- is one shorter for it.
 function C_AuctionHouse.PlaceBid(auctionID, amount)
     A.calls.bids[#A.calls.bids + 1] = { auctionID = auctionID, amount = amount }
+    -- failBid: someone else was faster. The auction house says so with an error and nothing else.
+    if A.failBid then
+        C_Timer.After(0.2, function() W.Fire("AUCTION_HOUSE_SHOW_ERROR", 4) end)
+        return
+    end
     for i = #A.auctions, 1, -1 do
         local auction = A.auctions[i]
         if auction.auctionID == auctionID then

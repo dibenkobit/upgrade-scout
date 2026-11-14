@@ -2048,14 +2048,44 @@ function scenarios.supplies_buy()
     check(W.printed[#W.printed]:find("Bought 1 x", 1, true) ~= nil, "the chat says one piece was bought: " .. W.printed[#W.printed])
     eq(flask.price, 5000, "the next one costs the same"); eq(flask.quantity, 3, "three left")
 
+    -- In the box such a consumable is one piece for one press. A bid the auction house turns
+    -- down (someone else was faster) closes the box and costs nothing.
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScoutSupplies")
+    W.player.money = 20000
+    W.Run(0.3)
+    local box = UpgradeScoutFrame.BuyBox
+    W.RunUntil(function() return S.Ready() end, 5)
+    S.BuySupply(flask)
+    W.RunUntil(function() return box:IsShown() end, 30)
+    eq(box.Count:GetNumber(), 1, "one piece"); eq(box.Count:IsEnabled(), false, "and nothing to choose")
+    eq(box.Total:GetAmount(), 5000, "for the price of one"); eq(box.Stock:GetText(), "of 3 for sale", "out of what is for sale")
+    W.RunUntil(function() return box.Buy:IsEnabled() end, 5)
+    W.AH.failBid = true
+    money = W.player.money
+    box.Buy:Click()
+    eq(box.step, "wait", "the bid is out")
+    W.RunUntil(function() return not box:IsShown() end, 10)
+    W.AH.failBid = nil
+    check(W.printed[#W.printed]:find("did not go through", 1, true) ~= nil, "the chat says the bid failed: " .. W.printed[#W.printed])
+    eq(W.player.money, money, "nothing was paid"); eq(flask.quantity, 3, "and nothing left the list")
+    W.RunUntil(function() return S.Ready() end, 5)
+    S.BuySupply(flask)
+    W.RunUntil(function() return box:IsShown() end, 30)
+    W.RunUntil(function() return box.Buy:IsEnabled() end, 5)
+    box.Buy:Click()
+    W.RunUntil(function() return not box:IsShown() end, 10)
+    eq(W.player.money, money - 5000, "the next press buys one"); eq(flask.quantity, 2, "two left")
+    W.Run(0.3)
+
     -- The auction house closes in the middle of a lookup.
     local food = Supply("Wild Hog Shank")
+    local questions = #asked
     W.RunUntil(function() return S.Ready() end, 5)
     S.BuySupply(food)
     W.CloseAuctionHouse()
     eq(S.state, "idle", "the lookup is dropped")
     W.Run(1)
-    eq(#asked, 6, "and no question follows")
+    eq(#asked, questions, "and no question follows")
 end
 
 -- The Consumables tab: the frame of the Upgrades tab in its other view.

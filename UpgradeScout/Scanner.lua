@@ -1622,6 +1622,7 @@ ns.On("AUCTION_HOUSE_CLOSED", function()
     ahOpen = false
     confirming = false
     quote = nil         -- the server drops a purchase that was not confirmed
+    supplyBids = {}
     S.Stop()
 end)
 
@@ -1691,12 +1692,32 @@ ns.On("COMMODITY_PURCHASE_SUCCEEDED", function()
     SupplyBought(done.supply, done.tiers, done.count, done.total)
 end)
 
-ns.On("COMMODITY_PURCHASE_FAILED", function()
+-- A purchase of pieces fell through: the server would not name a price for them (they are
+-- gone, or cost far more than the price list said), or it named one and someone was faster.
+local function SupplyFailed()
     if not quote then return end
     local supply = quote.supply
     quote = nil
     confirming = false
+    -- The game's own box calls the purchase off whenever it closes, whatever came of it.
+    AH.CancelCommoditiesPurchase()
     ns.Print(L.MSG_BUY_FAILED:format(supply.link))
+    ns.Fire("SUPPLY_DONE")
+    ns.Fire("OFFERS_CHANGED")
+end
+ns.On("COMMODITY_PRICE_UNAVAILABLE", SupplyFailed)
+ns.On("COMMODITY_PURCHASE_FAILED", SupplyFailed)
+
+-- The auction house turned something down, and says no more than that. With a bid on a
+-- consumable's auction out, the bid is what it turned down: the auction is gone, most likely.
+-- (A bid on gear waits in the game's own kind of box, which closes itself on this.)
+ns.On("AUCTION_HOUSE_SHOW_ERROR", function()
+    if not next(supplyBids) then return end
+    for _, bid in pairs(supplyBids) do
+        ns.Print(L.MSG_BUY_FAILED:format(bid.supply.link))
+    end
+    supplyBids = {}
+    confirming = false
     ns.Fire("SUPPLY_DONE")
     ns.Fire("OFFERS_CHANGED")
 end)
