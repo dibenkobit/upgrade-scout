@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.1
+
+- Fixed: two variants of one item with the same score, such as "of the Tiger" and "of the Whale",
+  showed as one offer, and the second took the place of the first.
+- Fixed: gear you bought counted as already worn when you wore another variant of the same item.
+- Fixed: a consumable sold as separate auctions showed a part of its price, and the chat named the
+  wrong number bought.
+- Fixed: the box for buying a consumable stayed open with a grey button when the auction house
+  turned the purchase down.
+- Fixed: on a big auction house, **Best set for** could find nothing for a small sum.
+- Fixed: the spell crit of oils and flasks was left out of their score.
+- A second copy of a Unique-Equipped item you wear is no longer offered.
+- For another character: gear that asks for a rank or a reputation is left out, in every language.
+- Fixed: gear sent to another character could stay on the mailbox button after the letter went.
+
 ## 1.3.0
 
 - The addon now speaks Korean and Traditional Chinese.
