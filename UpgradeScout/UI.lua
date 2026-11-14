@@ -1493,6 +1493,7 @@ local function Build()
         GameTooltip_AddNormalLine(tooltip, L.PROFILE_TIP)
         -- Where the weights come from, and that they are an approximation.
         GameTooltip_AddNormalLine(tooltip, L.PROFILE_SOURCE:format(ns.Weights.source))
+        GameTooltip_AddNormalLine(tooltip, L.PROFILE_HAND)
         local _, profiles = ns.Score.Current(who)
         for i = 1, #profiles do
             if ns.Score.IsApprox(profiles[i].name) then

@@ -8,6 +8,8 @@
   scale chosen in 1.x is replaced by it.
 - Below level 60, hit, crit, haste and expertise count for less, as simulations of leveling
   characters show.
+- Stamina (except for tanks), and a healer's Intellect, Spirit and mana regeneration, are set by hand: a simulation
+  of damage cannot tell what they are worth.
 - `/upscout stats` and an item shows how the item gets its score, stat by stat.
 - Gear with a weapon skill or a bonus against one kind of creature gets the yellow `*`: the score
   does not count those.

@@ -7,9 +7,10 @@ A profile is what each stat is worth for one way of playing a class. The worth c
 wowsims/forever simulator (https://github.com/wowsims/forever, MIT): for every talent tree it
 has a rotation for, the weights run (scripts/weights/) sims a level 60 character in its preset
 gear and measures how much more damage one more point of each stat brings. --weights is what
-that run wrote. Nothing in a profile is set by hand. A tree the simulator does not cover gets a
-profile estimated by role from the trees it does (see HEALER), or from --approx, and the addon
-marks it as an approximation.
+that run wrote. A tree the simulator does not cover gets a profile estimated by role from the
+trees it does (see HEALER), or from --approx, and the addon marks it as an approximation. Two
+things are set by hand, because a simulation of damage cannot measure them (see BY_HAND); the
+addon says so in the profile's tooltip.
 
 The simulator knows stats by its own names (StatStrength) and the addon by the game's
 (ITEM_MOD_STRENGTH_SHORT, as C_Item.GetItemStats has them). GAME below says which of the
@@ -21,6 +22,10 @@ The names of the talent trees are the game's own, in every language, from its Ta
 (downloaded from wago.tools for the build into --tables, once).
 
 Below level 60 a rating is worth less than these weights say: see LEVELING.
+
+Hit and expertise are measured below the cap (a step down from it where the preset gear reaches it),
+since the players the addon is for are far from it. A tank's profile adds what a point is worth for
+staying alive and what it is worth for threat: see TANK.
 """
 import argparse
 import csv
@@ -102,6 +107,47 @@ LEVELING_STATS = [mod(f"{what}{kind}_RATING") for what in ("HIT", "CRIT", "HASTE
 # The weapon a profile's damage per second is worth this much for, by the simulator's pseudo-stats.
 DPS = {"mh": "PseudoStatMainHandDps", "oh": "PseudoStatOffHandDps", "ranged": "PseudoStatRangedDps"}
 
+# Set by hand (the profile's tooltip says so), because a simulation of damage cannot tell what
+# they are worth:
+#   Stamina, as a share of the profile's main stat, where the simulation gave it no worth: what
+#   staying alive is worth while leveling, the more to one who fights in melee.
+#   A healer's Intellect, Spirit and mana regeneration, relative to healing: a healer runs out of
+#   mana, and the casters the healer's estimate comes from, simmed in a raid with every buff, do not.
+STAMINA_SHARE = {"melee": 0.3, "ranged": 0.2, "spell": 0.1}
+HEALER_MANA = {"StatIntellect": 0.6, "StatSpirit": 0.5, "StatMP5": 1.5}
+
+
+def main_stat(worth, kind):
+    """The worth of the profile's main stat: Strength or Agility, or spell damage or healing."""
+    if kind == "spell":
+        return max(worth.get("StatSpellDamage", 0), worth.get("StatHealingPower", 0)) or 1.0
+    return max(worth.get("StatStrength", 0), worth.get("StatAgility", 0)) or 1.0
+
+
+def by_hand(worth, kind):
+    """The worth with Stamina set where the simulation gave it none."""
+    worth = dict(worth)
+    if worth.get("StatStamina", 0) <= 0:
+        worth["StatStamina"] = STAMINA_SHARE[kind] * main_stat(worth, kind)
+    return worth
+
+
+# A tank's profile: what a point is worth for staying alive, by the simulator's TMI (with the
+# tank tanking a level 63 target, relative to Stamina = 1), plus what it is worth for threat (TPS,
+# relative to the tree's main stat = 1). A point of Stamina for staying alive counts as much as a
+# point of Strength (Agility for a bear) for threat. Threat a stat costs (a tank who is hit less
+# gets less rage) is not counted against it.
+def tank(tree, report):
+    """The tank's worth (simulator stat -> worth), or None when the tree has no tank metrics."""
+    if not tree.get("tankMetrics"):
+        return None
+    survival, threat = eps(tree, report, "tmi"), eps(tree, report, "tps")
+    stamina = survival.get("StatStamina", 0)
+    if stamina <= 0:
+        return None
+    return {stat: survival.get(stat, 0) / stamina + threat.get(stat, 0) for stat in set(survival) | set(threat)}
+
+
 # No simulator covers healing yet. A healer's profile is an estimate by role: what a point of a
 # stat is worth to a caster who runs on mana, as the mean of the caster trees of the classes that
 # heal, with the worth of spell damage given to healing instead (the reference, 1), and nothing for
@@ -122,6 +168,7 @@ def healer(trees, report):
         mean = sum(values) / len(values)
         if mean > 0:
             worth[stat] = mean
+    worth.update(HEALER_MANA)
     if report:
         print("healer, from " + ", ".join(f"{t['class']} {t['tree']} (relative to {t['reference']})" for t in found),
               file=sys.stderr)
@@ -135,16 +182,17 @@ def healer(trees, report):
 #   form   a druid's shape, for a tree with two ways of playing it
 #   sim    the class and tree in --weights
 #   heals  no simulation of its own: the healer's estimate (HEALER_FROM), unless --weights has one
+#   tank   scored as a tank (see TANK), from the run's tank metrics
 #   kind   the damage it does, for the chances a consumable adds (KINDS)
 CLASSES = {
     "WARRIOR": [
         dict(id="WARRIOR_ARMS", tab=161, sim=("Warrior", "Arms"), kind="melee"),
         dict(id="WARRIOR_FURY", tab=164, sim=("Warrior", "Fury"), kind="melee"),
-        dict(id="WARRIOR_PROTECTION", tab=163, sim=("Warrior", "Protection"), kind="melee"),
+        dict(id="WARRIOR_PROTECTION", tab=163, sim=("Warrior", "Protection"), tank=True, kind="melee"),
     ],
     "PALADIN": [
         dict(id="PALADIN_HOLY", tab=382, sim=("Paladin", "Holy"), heals=True, kind="spell"),
-        dict(id="PALADIN_PROTECTION", tab=383, sim=("Paladin", "Protection"), kind="melee"),
+        dict(id="PALADIN_PROTECTION", tab=383, sim=("Paladin", "Protection"), tank=True, kind="melee"),
         dict(id="PALADIN_RETRIBUTION", tab=381, sim=("Paladin", "Retribution"), kind="melee"),
     ],
     "HUNTER": [
@@ -179,7 +227,7 @@ CLASSES = {
     "DRUID": [
         dict(id="DRUID_BALANCE", tab=283, sim=("Druid", "Balance"), kind="spell"),
         dict(id="DRUID_FERAL_CAT", tab=281, form="CAT", sim=("Druid", "Feral Cat"), kind="melee"),
-        dict(id="DRUID_FERAL_BEAR", tab=281, form="BEAR", sim=("Druid", "Feral Bear"), kind="melee"),
+        dict(id="DRUID_FERAL_BEAR", tab=281, form="BEAR", sim=("Druid", "Feral Bear"), tank=True, kind="melee"),
         dict(id="DRUID_RESTORATION", tab=282, sim=("Druid", "Restoration"), heals=True, kind="spell"),
     ],
 }
@@ -214,12 +262,21 @@ def tree_names(folder):
     return out
 
 
-def eps(tree, report):
-    """The simulator's stat -> its worth relative to the tree's reference stat. A worth the run could
-    not tell apart from nothing (its 90% interval reaches zero) is nothing, and so is one below
-    zero: no stat makes a character worse."""
+# Measured below the cap (see the top of this file).
+BELOW_CAP = {"StatHitRating", "StatExpertiseRating"}
+
+
+def eps(tree, report, metric="dps"):
+    """The simulator's stat -> its worth relative to the tree's reference stat, on a metric: dps
+    (damage, the default), tps (threat), tmi (a tank's risk of dying). A worth the run could not
+    tell apart from nothing (its 90% interval reaches zero) is nothing, and so is one below zero:
+    no stat makes a character worse."""
     out = {}
     for stat, w in tree["weights"].items():
+        if stat in BELOW_CAP and isinstance(w.get("below"), dict):
+            w = w["below"]
+        if metric != "dps":
+            w = w.get(metric) or {}
         ep, margin = w.get("ep", 0) or 0, w.get("epCi90", 0) or 0
         if w.get("identicalToBaseline") or ep <= margin:
             if ep > 0 and report:
@@ -288,13 +345,13 @@ def main():
                 if args.report:
                     print(f"{spec['id']}: {tree['class']} {tree['tree']}, relative to {tree['reference']}"
                           f"{' (an approximation)' if approx else ''}", file=sys.stderr)
-                worth = eps(tree, args.report)
+                worth = (spec.get("tank") and tank(tree, args.report)) or eps(tree, args.report)
             elif spec.get("heals") and healing:
                 worth, approx = healing, True
             else:
                 missing.append(spec["id"])
                 continue
-            weights, dps = profile(spec, worth)
+            weights, dps = profile(spec, by_hand(worth, spec["kind"]))
             entry = {"class": cls, "weights": weights, **dps}
             if approx:
                 entry["approx"] = True

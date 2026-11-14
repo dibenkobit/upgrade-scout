@@ -51,6 +51,7 @@ A mano:
 - Los pesos están calculados para un personaje de nivel 60, así que son una aproximación. Por
   debajo del nivel 60, el golpe, el crítico, la celeridad y la pericia valen menos, según
   simulaciones de personajes subiendo de nivel.
+- El aguante (salvo en los tanques) y, en los sanadores, el intelecto, el espíritu y la regeneración de maná se fijan a mano: una simulación de daño no muestra cuánto cuesta seguir con vida o quedarse sin maná.
 - Un `~` tras el nombre de un perfil significa que esa rama aún no tiene
   simulación y sus pesos son estimados.
 - Los precios son de compra inmediata. Las subastas que solo admiten pujas se omiten.

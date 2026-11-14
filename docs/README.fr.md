@@ -52,6 +52,7 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 - Les poids sont calculés pour un personnage de niveau 60 : c'est une approximation. Sous le
   niveau 60, le toucher, le critique, la hâte et l'expertise comptent moins, d'après des simulations
   de personnages qui montent de niveau.
+- L'endurance (sauf pour les tanks), et pour un soigneur l'intelligence, l'esprit et la régénération de mana, sont fixés à la main : une simulation de dégâts ne dit pas ce que coûte de rester en vie ou de manquer de mana.
 - Un `~` après le nom d'un profil signifie qu'aucune simulation ne couvre encore cet
   arbre et que ses poids sont estimés.
 - Les prix sont des prix d'achat immédiat. Les enchères sans achat immédiat sont ignorées.
