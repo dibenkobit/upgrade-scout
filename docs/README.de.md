@@ -11,7 +11,7 @@
 **In jedem Tooltip.** Fahre mit der Maus über einen Gegenstand in deinen Taschen, in der Beute, in
 einer Questbelohnung, in einem Chat-Link oder im Auktionshaus. Der Tooltip zeigt in Prozent, wie
 viel besser der Gegenstand ist als das, was du trägst, für jeden Talentbaum deiner Klasse, etwa
-Waffen, Furor und Schutz beim Krieger. Jeder Talentbaum steht in der Farbe deiner Klasse.
+Waffen, Furor und Schutz beim Krieger.
 
 **Im Auktionshaus.** Klicke auf den Tab **Verbesserungen** und drücke **Scannen**. Du bekommst
 eine Liste mit Ausrüstung, die besser ist als das, was du trägst, Slot für Slot und mit Preisen.
@@ -19,8 +19,8 @@ Drücke **Kaufen** bei dem Gegenstand, den du willst.
 
 ## Was es kann
 
-- Funktioniert gleich nach der Installation. Es gibt eine Einstellung, die Liste **Profil**, und
-  anfangs steht dort ein Profil, das zu deiner Klasse passt.
+- Funktioniert gleich nach der Installation. Einzurichten gibt es nichts: In der Liste **Profil**
+  steht anfangs ein Profil, das zu deiner Klasse passt.
 - Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden
   Talentbaum deiner Klasse.
 - Der Scan zeigt nur, was du jetzt anlegen und bezahlen kannst.

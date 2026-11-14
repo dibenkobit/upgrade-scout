@@ -2,7 +2,8 @@
 
 ## 2.2.1
 
-- Every profile in our tooltip lines is in the colour of your class, as in Pawn.
+- The names of all profiles in the tooltip are in the colour of your class.
+- The addon's description in the AddOns list is updated.
 
 ## 2.2.0
 

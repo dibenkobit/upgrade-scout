@@ -11,7 +11,7 @@
 **Em qualquer dica.** Passe o mouse sobre um item nas bolsas, no saque, numa recompensa de missão,
 num link do chat ou na Casa de Leilões. A dica mostra, em porcentagem, quanto o item é melhor do
 que o que você usa, para cada árvore de talentos da sua classe, como Armas, Fúria e Proteção para
-um guerreiro. Cada árvore aparece na cor da sua classe.
+um guerreiro.
 
 **Na Casa de Leilões.** Clique na aba **Melhorias** e aperte **Escanear**. Você recebe uma lista de
 equipamentos melhores do que os que está usando, espaço por espaço, com os preços. Aperte
@@ -19,8 +19,8 @@ equipamentos melhores do que os que está usando, espaço por espaço, com os pr
 
 ## O que ele faz
 
-- Funciona logo depois de instalado. Há uma só configuração, a lista **Perfil**, e no começo ela
-  traz um perfil que combina com a sua classe.
+- Funciona logo depois de instalado. Não há nada para configurar: a lista **Perfil** já começa num
+  perfil que combina com a sua classe.
 - A dica de qualquer item mostra quanto ele é melhor do que o que você usa, para cada árvore de
   talentos da sua classe.
 - O escaneamento mostra só o que você pode equipar agora e pagar.

@@ -11,8 +11,7 @@
 **Dans chaque infobulle.** Survolez un objet dans vos sacs, dans le butin, dans une récompense de
 quête, dans un lien du chat ou à l'hôtel des ventes. L'infobulle montre, en pourcentage, de combien
 l'objet est meilleur que ce que vous portez, pour chaque arbre de talents de votre classe, par
-exemple Armes, Fureur et Protection pour un guerrier. Chaque arbre est écrit dans la couleur de
-votre classe.
+exemple Armes, Fureur et Protection pour un guerrier.
 
 **À l'hôtel des ventes.** Cliquez sur l'onglet **Améliorations** et appuyez sur **Scanner**. Vous
 obtenez la liste de l'équipement meilleur que celui que vous portez, emplacement par emplacement,
@@ -20,8 +19,8 @@ avec les prix. Appuyez sur **Acheter** pour l'objet que vous voulez.
 
 ## Ce qu'il fait
 
-- Fonctionne dès l'installation. Il n'y a qu'un réglage, la liste **Profil**, et elle commence sur
-  un profil qui convient à votre classe.
+- Fonctionne dès l'installation. Rien à régler : la liste **Profil** commence sur un profil qui
+  convient à votre classe.
 - L'infobulle de chaque objet montre de combien il est meilleur que ce que vous portez, pour chaque
   arbre de talents de votre classe.
 - Le scan montre seulement ce que vous pouvez équiper tout de suite et payer.

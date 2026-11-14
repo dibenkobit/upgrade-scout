@@ -11,8 +11,7 @@
 **En cualquier descripción emergente.** Pon el cursor sobre un objeto en tus bolsas, en el botín,
 en una recompensa de misión, en un enlace del chat o en la casa de subastas. La descripción
 emergente muestra, en porcentaje, cuánto mejor es el objeto que lo que llevas, para cada rama de
-talentos de tu clase, como Armas, Furia y Protección para un guerrero. Cada rama aparece en el
-color de tu clase.
+talentos de tu clase, como Armas, Furia y Protección para un guerrero.
 
 **En la casa de subastas.** Haz clic en la pestaña **Mejoras** y pulsa **Escanear**. Verás una
 lista de equipo mejor que el que llevas, ranura por ranura, con sus precios. Pulsa **Comprar** en
@@ -20,7 +19,7 @@ el objeto que quieras.
 
 ## Qué hace
 
-- Funciona en cuanto lo instalas. Hay un solo ajuste, la lista **Perfil**, y al principio tiene un
+- Funciona en cuanto lo instalas. No hay nada que configurar: la lista **Perfil** empieza en un
   perfil que va con tu clase.
 - La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, para
   cada rama de talentos de tu clase.

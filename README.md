@@ -10,16 +10,15 @@ English · [简体中文](docs/README.zh-CN.md) · [繁體中文](docs/README.zh
 
 **In any tooltip.** Point at an item in your bags, in loot, in a quest reward, in a chat link or
 at the auction house. The tooltip shows how much better the item is than what you wear, in percent,
-for every spec of your class, such as Arms, Fury and Protection for a warrior. Each spec is in the
-colour of your class.
+for every spec of your class, such as Arms, Fury and Protection for a warrior.
 
 **At the auction house.** Click the **Upgrades** tab and press **Scan**. You get a list of gear
 that is better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
 
 ## What it does
 
-- Works right after you install it. There is one setting, the **Profile** dropdown, and it starts
-  on a profile that suits your class.
+- Works right after you install it. Nothing to set up: the **Profile** dropdown starts on a profile
+  that suits your class.
 - Any item's tooltip shows how much better it is than what you wear, for every spec of your class.
 - The scan shows only what you can equip right now and can pay for.
 - Marks two items in every slot: the **Best upgrade** is the strongest, the **Best value** is the
