@@ -14,9 +14,6 @@ if (-not (Test-Path $addons)) {
     Write-Error "AddOns folder not found: $addons"
     exit 1
 }
-if (-not (Test-Path (Join-Path $addons "Pawn"))) {
-    Write-Warning "Pawn is not installed in $addons. Upgrade Scout will not load without it."
-}
 
 if (Test-Path $target) {
     Remove-Item -Recurse -Force $target

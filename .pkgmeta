@@ -24,7 +24,3 @@ ignore:
 manual-changelog:
   filename: RELEASE_NOTES.md
   markup-type: markdown
-
-# Shown on CurseForge; its app installs Pawn together with this addon.
-required-dependencies:
-  - pawn

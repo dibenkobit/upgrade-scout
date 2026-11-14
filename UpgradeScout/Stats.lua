@@ -38,19 +38,11 @@ function Stats.Label(name)
     return name
 end
 
--- "Armor: 120", "Strength: 5", by the alphabet of their words.
-function Stats.Lines(stats)
-    local lines = {}
-    for name, amount in pairs(stats) do
-        lines[#lines + 1] = Stats.Label(name) .. ": " .. ns.Num(amount)
-    end
-    table.sort(lines)
-    return lines
-end
-
--- /upscout stats <item>: says in the chat what the game counts for an item. `text` is what
--- the player put after the command: a link (an item shift-clicked into the chat line) or the
--- item's number.
+-- /upscout stats <item>: says in the chat how an item comes by its score: each stat the
+-- game counts for it, the weight the profile in use gives that stat, and what the two come
+-- to. `text` is what the player put after the command: a link (an item shift-clicked into
+-- the chat line) or the item's number. The profile and the level are those of the character
+-- the lists are for.
 function Stats.Report(text)
     local item = text:match("item:[%-%d:]+")
     local id = tonumber(item and item:match("^item:(%d+)") or text:match("^(%d+)$"))
@@ -61,22 +53,29 @@ function Stats.Report(text)
     item = item or ("item:" .. id)
 
     local name, link = C_Item.GetItemInfo(item)
-    local stats = name and Stats.Read(link or item) or nil
-    if not stats then
+    local scored = name and ns.Score.Item(link or item) or nil
+    if not scored then
         -- The game answers for an item only once it has loaded it; asking makes it load.
         C_Item.RequestLoadItemDataByID(id)
         ns.Print(L.ITEM_STATS_WAIT)
         return
     end
 
-    local lines = Stats.Lines(stats)
-    if #lines == 0 then
+    local who = ns.Roster.Target()
+    local profile = ns.Score.Current(who)
+    local parts, total = ns.Score.Parts(scored, profile and profile.name, who and who.level or UnitLevel("player"))
+    if #parts == 0 then
         ns.Print(L.ITEM_STATS_NONE:format(link or name))
     else
-        ns.Print(L.ITEM_STATS:format(link or name))
-        for i = 1, #lines do print("   " .. lines[i]) end
+        ns.Print(L.ITEM_STATS:format(link or name, profile and profile.title or NONE, ns.Num(total)))
+        for i = 1, #parts do
+            local part = parts[i]
+            local line = Stats.Label(part.name) .. ": " .. ns.Num(part.amount) .. " × " .. ns.Num(part.weight)
+            if part.weight ~= 0 then line = line .. " = " .. ns.Num(part.points) end
+            print("   " .. line)
+        end
     end
-    -- While Pawn still scores the gear: what Pawn read for the same item (see Check.lua).
-    local pawn = ns.Check.PawnLine(link or item)
+    -- While the check against Pawn is here: what Pawn read for the same item (see Check.lua).
+    local pawn = ns.Check and ns.Check.PawnLine(link or item)
     if pawn then print("   " .. pawn) end
 end

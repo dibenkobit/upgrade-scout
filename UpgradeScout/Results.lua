@@ -152,7 +152,7 @@ function Results.Collect(offers, ctx, opts)
 end
 
 -- offers: offer id -> offer (see Scanner)
--- ctx:    comparison context (see PawnBridge.Context)
+-- ctx:    comparison context (see Score.Context)
 -- opts:   { money = copper the player has, affordableOnly = bool,
 --             limit = nil for everything, or the most rows a slot may take (see Shortlist),
 --             unchecked = upgrades whose price the scanner has not looked up (Scanner.Unchecked) }

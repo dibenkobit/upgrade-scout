@@ -209,7 +209,7 @@ end
 
 -- The ladder of sets that can be bought from `offers` for no more than `cap` copper.
 --   offers   offer id -> offer (see Scanner)
---   ctx      comparison context (see PawnBridge.Context)
+--   ctx      comparison context (see Score.Context)
 function Plan.Ladder(offers, ctx, cap)
     local kinds, names = {}, {}
     for _, offer in pairs(offers) do

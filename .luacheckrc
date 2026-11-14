@@ -5,7 +5,7 @@ std = "lua51"
 max_line_length = false
 exclude_files = { "UpgradeScout/Libs" }     -- other people's libraries
 
--- What the addon reads of the game and of Pawn. A name luacheck does not find here is a slip of
+-- What the addon reads of the game. A name luacheck does not find here is a slip of
 -- the pen, or something new: to be looked up in the client's own interface source (the branch
 -- `forever` of Gethe/wow-ui-source on GitHub) and added.
 read_globals = {
@@ -33,10 +33,8 @@ read_globals = {
     "RETRIEVING_ITEM_INFO",
     -- its numbers
     "ATTACHMENTS_MAX_SEND", "NUM_TOTAL_EQUIPPED_BAG_SLOTS",
-    -- Pawn (see PawnBridge.lua)
-    "PawnCommon", "PawnGetAllScalesEx", "PawnGetAllStatValues", "PawnGetItemData", "PawnGetItemDataForInventorySlot",
-    "PawnGetItemValue", "PawnGetShowUpgradesForWeapons", "PawnGetSingleValueFromItem", "PawnIsArmorBestTypeForPlayer",
-    "PawnIsReady", "PawnNeverUsableStats", "PawnPlayerFullName",
+    -- Pawn, for as long as the stats are checked against its reading (Check.lua)
+    "PawnGetItemData",
     -- the libraries that come with the addon
     "LibStub",
 }

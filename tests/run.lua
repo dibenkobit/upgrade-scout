@@ -11,7 +11,7 @@ local names = {
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
-    "roster", "roster_order", "alt", "mail", "pawn_missing", "item_stats", "check", "locale_ru", "locale_de", "locale_fr", "locale_zh",
+    "roster", "roster_order", "alt", "mail", "profiles", "weights_data", "item_stats", "check", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
 }
 
@@ -49,6 +49,29 @@ local function near(actual, expected, label)
     end
 end
 
+-- The profiles the tests score on, in place of the addon's own (Weights.lua). An item of the
+-- stand-in client has a stat named after each profile it was given a score on (see
+-- C_Item.GetItemStats in wow.lua), and a profile weighs its own at 1. The other weights are
+-- for what a consumable adds.
+local function TestWeights()
+    return {
+        source = "a simulator (a day)", APPROX_MARK = "~",
+        classes = { WARRIOR = { "S1", "S2" }, DRUID = { "D1", "D2" }, MAGE = { "M1" } },
+        start = { WARRIOR = "S1", DRUID = "D1", MAGE = "M1" },
+        titles = { enUS = { S1 = "Arms", S2 = "Protection", D1 = "Balance", D2 = "Feral", M1 = "Frost" } },
+        profiles = {
+            S1 = { class = "WARRIOR", mh = 2, oh = 1, ranged = 0, weights = { TEST_S1 = 1, ITEM_MOD_STRENGTH_SHORT = 1.5,
+                ITEM_MOD_AGILITY_SHORT = 1, ITEM_MOD_STAMINA_SHORT = 0.5, ITEM_MOD_ATTACK_POWER_SHORT = 0.4,
+                ITEM_MOD_CRIT_RATING_SHORT = 8, ITEM_MOD_HEALTH_SHORT = 0.05 } },
+            S2 = { class = "WARRIOR", approx = true, weights = { TEST_S2 = 1, ITEM_MOD_INTELLECT_SHORT = 1,
+                ITEM_MOD_STAMINA_SHORT = 0.5, ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 0.8 } },
+            D1 = { class = "DRUID", weights = { TEST_D1 = 1, ITEM_MOD_INTELLECT_SHORT = 1 } },
+            D2 = { class = "DRUID", weights = { TEST_D2 = 1, ITEM_MOD_AGILITY_SHORT = 1 } },
+            M1 = { class = "MAGE", weights = { TEST_M1 = 1, ITEM_MOD_INTELLECT_SHORT = 1 } },
+        },
+    }
+end
+
 -- Loads the addon's files in .toc order, the way the game does.
 local function LoadAddon()
     for line in io.lines(ADDON_DIR .. "UpgradeScout.toc") do
@@ -58,6 +81,9 @@ local function LoadAddon()
             chunk("UpgradeScout", ns)
         end
     end
+    ns.Weights = TestWeights()
+    -- No item of the stand-in client is in the game's tables: each is "newer" than them.
+    ns.GearData = { newest = 0, extra = {}, effects = {} }
     W.AddOnLoaded("UpgradeScout")
 end
 
@@ -157,7 +183,7 @@ local function CheckStandardOffers(label)
     check(good ~= nil, label .. ": Good Chest found")
     eq(good.buyout, 4000, label .. ": cheapest buyout kept")
     eq(good.count, 2, label .. ": bid-only auction not counted")
-    near(good.value, 18, label .. ": base (unenchanted) Pawn value used")
+    near(good.value, 18, label .. ": scored by its own stats")
     check(Offer("Great Chest") ~= nil, label .. ": robe counts as chest")
     eq(Offer("Great Chest").effects, true, label .. ": unscored effects flagged")
     check(Offer("New Ring") ~= nil, label .. ": ring found")
@@ -170,7 +196,7 @@ local function CheckStandardOffers(label)
     eq(Offer("Bid Only Chest"), nil, label .. ": no buyout")
     eq(Offer("My Own Chest"), nil, label .. ": own auction")
     eq(Offer("Plain Shirt"), nil, label .. ": shirts ignored")
-    eq(Offer("Statless Chest"), nil, label .. ": nothing for Pawn to score")
+    eq(Offer("Statless Chest"), nil, label .. ": no stats, nothing to score")
     eq(OfferCount(), 6, label .. ": offer count")
 end
 
@@ -199,7 +225,7 @@ function scenarios.compare()
     LoadAddon()
     local Place = ns.Compare.Place
     local function ctx(equipped, extra)
-        local c = { equipped = equipped, dualWield = false, show1H = true, show2H = true }
+        local c = { equipped = equipped, dualWield = false }
         for k, v in pairs(extra or {}) do c[k] = v end
         return c
     end
@@ -233,13 +259,11 @@ function scenarios.compare()
     eq(#p, 0, "two-hander must beat both hands together")
     p = Place({ invType = "INVTYPE_2HWEAPON", value = 30, itemID = 9 }, ctx(oneHand))
     near(p[1].delta, 3, "two-hander delta"); eq(#p[1].replaced, 2, "both replaced"); eq(p[1].note, "BOTH_HANDS", "note")
-    eq(#Place({ invType = "INVTYPE_2HWEAPON", value = 30, itemID = 9 }, ctx(oneHand, { show2H = false })), 0, "scale hides two-handers")
 
     p = Place({ invType = "INVTYPE_WEAPON", value = 24, itemID = 9 }, ctx(oneHand))
     eq(#p, 1, "one-hander without dual wield: main hand only"); eq(p[1].group, "MAINHAND", "main hand")
     p = Place({ invType = "INVTYPE_WEAPON", value = 24, itemID = 9 }, ctx(oneHand, { dualWield = true }))
     eq(#p, 2, "dual wielder: both hands"); near(p[2].delta, 17, "off hand delta")
-    eq(#Place({ invType = "INVTYPE_WEAPON", value = 24, itemID = 9 }, ctx(oneHand, { show1H = false })), 0, "scale hides one-handers")
     p = Place({ invType = "INVTYPE_SHIELD", value = 9, itemID = 9 }, ctx(oneHand))
     eq(p[1].group, "OFFHAND", "shield"); near(p[1].delta, 2, "shield delta")
     eq(#Place({ invType = "INVTYPE_WEAPONOFFHAND", value = 9, itemID = 9 }, ctx(oneHand)), 0, "off-hand weapon needs dual wield")
@@ -259,7 +283,7 @@ end
 ---------------------------------------------------------------------------
 function scenarios.picks()
     LoadAddon()
-    local ctx = { equipped = { [5] = { link = "WORN", value = 10, invType = "INVTYPE_CHEST", itemID = 1 } }, show1H = true, show2H = true }
+    local ctx = { equipped = { [5] = { link = "WORN", value = 10, invType = "INVTYPE_CHEST", itemID = 1 } } }
     local function offer(id, value, buyout, invType)
         return { id = id, name = id, value = value, buyout = buyout, invType = invType or "INVTYPE_CHEST", itemID = 100, count = 1 }
     end
@@ -1121,7 +1145,7 @@ function scenarios.ui()
     local seen = {}
     for _, line in ipairs(GameTooltip._lines) do seen[#seen + 1] = line.text end
     local tip = table.concat(seen, "\n")
-    check(tip:find("Pawn score: 18, yours: 10 (+8)", 1, true) ~= nil, "tooltip score line")
+    check(tip:find("Score: 18, yours: 10 (+8)", 1, true) ~= nil, "tooltip score line")
     check(tip:find("Replaces: ", 1, true) ~= nil and tip:find("Cost per point: 5s", 1, true) ~= nil, "tooltip replaces and cost")
     check(tip:find("1 more for sale", 1, true) ~= nil, "tooltip count")
     eq(W.compared, GameTooltip, "worn item shown for comparison")
@@ -1152,22 +1176,41 @@ function scenarios.ui()
     check(W.linked and W.linked:find("Good Chest", 1, true), "a modified click hands the link to the game")
     W.modified = false
 
-    -- The scale: one of the game's dropdowns. Choosing another scale rescans with it.
+    -- The profile: one of the game's dropdowns. Choosing another profile rescans with it.
     local dropdown = Made("WowStyle1DropdownTemplate")[1]
-    check(dropdown ~= nil, "the scale is chosen in a dropdown")
-    eq(dropdown:GetText(), "Arms", "which shows the scale in use")
-    eq(#dropdown.radios, 2, "and offers only the scales Pawn shows for this character")
+    check(dropdown ~= nil, "the profile is chosen in a dropdown")
+    eq(dropdown:GetText(), "Arms", "which shows the profile in use")
+    eq(#dropdown.radios, 2, "and offers the profiles of the character's class")
+    eq(dropdown.radios[2].text, "Protection ~", "an estimated one with its mark")
+    -- Its tooltip says where the weights come from, and that they are an approximation.
+    dropdown._tooltip(GameTooltip)
+    local about = {}
+    for _, line in ipairs(GameTooltip._lines) do about[#about + 1] = line.text end
+    about = table.concat(about, "\n")
+    check(about:find("computed with the a simulator (a day) simulator", 1, true) ~= nil, "the tooltip names the source of the weights: " .. about)
+    check(about:find("They are an approximation.", 1, true) ~= nil, "says they are an approximation")
+    check(about:find("~ marks a profile estimated by role", 1, true) ~= nil, "and what the mark by a profile means")
+    check(about:find("Pawn", 1, true) == nil, "with no word of another addon")
+    check(about:find("At level", 1, true) == nil, "nothing of levels without the simulations of leveling")
+    ns.Weights.leveling = { stats = {}, points = { { 20, 0.2 }, { 60, 1 } } }
+    dropdown._tooltip(GameTooltip)
+    about = {}
+    for _, line in ipairs(GameTooltip._lines) do about[#about + 1] = line.text end
+    about = table.concat(about, "\n")
+    check(about:find("At level 10, hit, crit, haste and expertise count for 20% of their worth at level 60", 1, true) ~= nil,
+        "below 60 it says how much less the ratings count: " .. about)
+    ns.Weights.leveling = nil
     W.RunUntil(function() return W.AH.ready end, 5)
     dropdown:Pick(2)
-    eq(ns.Roster.Me().scale, "S2", "choice saved")
+    eq(ns.Roster.Me().profile, "S2", "choice saved")
     eq(ns.Scanner.state, "browse", "rescans")
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 120)
     W.Run(0.3)
-    eq(dropdown:GetText(), "Protection", "the dropdown shows the new scale")
-    eq(OfferCount(), 0, "nothing scores on a scale that values none of it")
+    eq(dropdown:GetText(), "Protection ~", "the dropdown shows the new profile")
+    eq(OfferCount(), 0, "nothing scores on a profile that values none of it")
 
     -- Scrolling a long list
-    ns.Roster.Me().scale = "S1"
+    ns.Roster.Me().profile = "S1"
     for i = 1, 40 do
         W.AddItem({ id = 900 + i, name = "Legs " .. i, equipLoc = "INVTYPE_LEGS", subClassID = 3, value = i, level = 5 })
         W.AddAuction(900 + i, i * i)     -- i copper per point: weaker legs are cheaper per point
@@ -1386,7 +1429,7 @@ local function SuppliesWorld()
     -- Filed under Consumables with nothing to use, and a subcategory the game has no name for.
     Add({ id = 530, name = "Strange Dust", subClassID = 8, level = 1, stack = 20 })
     Add({ id = 531, name = "Rough Dynamite", subClassID = 0, level = 1, stack = 20, use = "Inflicts 26 to 34 Fire damage in a 5 yard radius." })
-    -- Elixirs: what they add is worth something on a Pawn scale, or nothing (see SupplyFacts).
+    -- Elixirs: what they add is worth something on a profile, or nothing (see SupplyFacts).
     Add({ id = 560, name = "Elixir of Ogre Strength", subClassID = 2, level = 20, stack = 5, use = "Increases Strength by 8 for 1 hr." })
     Add({ id = 561, name = "Elixir of Lesser Agility", subClassID = 2, level = 18, stack = 5, use = "Increases Agility by 8 for 1 hr." })
     Add({ id = 562, name = "Elixir of Agility", subClassID = 2, level = 27, stack = 5, use = "Increases Agility by 15 for 1 hr." })
@@ -1419,9 +1462,9 @@ end
 -- items have numbers of their own. Call it after LoadAddon. (Nothing is said of the dynamite.)
 local function SupplyFacts()
     ns.SupplyData.stats = {
-        [560] = { Strength = 8 }, [561] = { Agility = 8 }, [562] = { Agility = 15 },
-        [563] = { Intellect = 6 }, [564] = { Strength = 25 },
-        [540] = { Agility = 8 }, [541] = { Strength = 8 },
+        [560] = { ITEM_MOD_STRENGTH_SHORT = 8 }, [561] = { ITEM_MOD_AGILITY_SHORT = 8 }, [562] = { ITEM_MOD_AGILITY_SHORT = 15 },
+        [563] = { ITEM_MOD_INTELLECT_SHORT = 6 }, [564] = { ITEM_MOD_STRENGTH_SHORT = 25 },
+        [540] = { ITEM_MOD_AGILITY_SHORT = 8 }, [541] = { ITEM_MOD_STRENGTH_SHORT = 8 },
     }
     ns.SupplyData.restores = {
         [500] = "H", [501] = "H", [502] = "H", [503] = "H", [504] = "M",
@@ -1429,10 +1472,10 @@ local function SupplyFacts()
     }
 end
 
--- How the tab asks for the list: scores from Pawn's scale, and whether the character has mana.
-local function SupplyOpts(scale, opts)
+-- How the tab asks for the list: scores on a profile, and whether the character has mana.
+local function SupplyOpts(profile, opts)
     opts.money = opts.money or GetMoney()
-    opts.value = function(stats) return ns.Pawn.StatsValue(stats, scale) end
+    opts.value = function(stats) return ns.Score.StatsValue(stats, profile) end
     return opts
 end
 
@@ -1763,7 +1806,7 @@ function scenarios.supplies()
         m = Make("m", 2, "Allows breathing under water for 30 min.", 8, 50, 3),
         n = Make("n", 1, "Restores 300 mana and 300 health.", 15, 200, 4, "HM"),
     }
-    -- A scale for someone who hits things: nothing for Intellect.
+    -- Weights for someone who hits things: nothing for Intellect.
     local weights = { Agility = 1, Strength = 1.5 }
     local function Value(stats)
         local total = 0
@@ -1809,18 +1852,18 @@ function scenarios.supplies()
     end
     eq(why.c, "MANA", "the mana potion says why it is of no use"); eq(why.k, "WEIGHT", "and so does the elixir")
 
-    -- Another scale turns the elixirs around without another scan.
+    -- Other weights turn the elixirs around without another scan.
     weights = { Intellect = 1 }
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = true })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 2/2] k*=25 m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
-        "on a scale for Intellect its elixir is the one worth having")
+        "on weights for Intellect its elixir is the one worth having")
     weights = { Agility = 1, Strength = 1.5 }
 
-    -- Without Pawn nothing has a score and nothing is left out; kinds keep an order all the
-    -- same: what restores, then the rest from the highest level down.
+    -- Without a way to score, nothing has a score and nothing is left out; kinds keep an
+    -- order all the same: what restores, then the rest from the highest level down.
     rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, mana = true })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 4/5] k* j* l* m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
-        "no scores without Pawn, and no meter to order by: the level decides")
+        "no scores without a way to score, and no meter to order by: the level decides")
     eq(summary.useless, 0, "what cannot be scored is not called useless")
 
     -- A new rank the tables do not know yet: the kind goes by level, as before there were scores.
@@ -1830,7 +1873,7 @@ function scenarios.supplies()
         "the unknown stronger elixir stands for its kind, without a score")
     list.o = nil
 
-    -- Food that restores health and adds a stat the scale has no weight for is still food.
+    -- Food that restores health and adds a stat without a weight is still food.
     list.p = Make("p", 5, "Restores 874 health over 27 sec. Also increases your Intellect by 5.", 25, 100, 5)
     list.p.stats, list.p.restores = { Intellect = 5 }, "H"
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
@@ -1842,7 +1885,7 @@ function scenarios.supplies()
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 2/4] q* e* [Bandages 1/2] g* [Other 1/1] h*",
         "one row for food with a bonus of no use, not one for every bonus")
-    -- On a scale that has a weight for one of the bonuses, that food is scored and stands apart.
+    -- With a weight for one of the bonuses, that food is scored and stands apart.
     weights = { Agility = 1, Strength = 1.5, Spirit = 0.5 }
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 3/4] e* p* q*=4 [Bandages 1/2] g* [Other 1/1] h*",
@@ -1853,61 +1896,49 @@ function scenarios.supplies()
     rows, summary = P.Build({}, { money = 0, affordableOnly = true, bestOnly = true })
     eq(#rows, 0, "an empty list from nothing"); eq(summary.items, 0, "and nothing counted")
 
-    -- The score itself is Pawn's: the sum it makes for an item, asked the way Pawn asks itself.
-    eq(ns.Pawn.StatsValue({ Strength = 8, Agility = 4 }, "S1"), 16, "Pawn's sum for a set of stats")
-    local call = W.pawnCalls[#W.pawnCalls]
-    eq(call.scale, "S1", "on the scale asked for"); eq(call.level, nil, "no item level"); eq(call.socketBonus, nil, "no sockets")
-    eq(call.noNormalization, false, "normalized like the scores of gear"); eq(call.noReforging, true, "nothing to reforge")
-    eq(ns.Pawn.StatsValue({ Intellect = 6 }, "S1"), 0, "nothing for a stat the scale has no weight for")
-    eq(ns.Pawn.StatsValue({ Health = 400 }, "S1"), 20, "health by the scale's own weight where it has one")
-    eq(ns.Pawn.StatsValue({ Health = 400 }, "S2"), 16, "and as the Stamina that gives it where it has none")
-    eq(ns.Pawn.StatsValue({ Mana = 150 }, "S2"), 10, "mana as Intellect in the same way")
-    -- Forever has one rating for weapons and for spells, and a scale one weight for it. What
-    -- a wizard oil adds to spells alone counts at that weight for one who casts.
-    W.pawnWeights.Caster = { SpellDamage = 1, CritRating = 5 }
-    eq(ns.Pawn.StatsValue({ SpellDamage = 36, SpellCritRating = 1 }, "Caster"), 41, "a chance to crit with spells counts on a scale that values spells")
-    eq(ns.Pawn.StatsValue({ SpellDamage = 36, SpellCritRating = 1 }, "S1"), 0, "and for nothing on a warrior's, whose crit is with a sword")
-    eq(ns.Pawn.StatsValue({ CritRating = 5, SpellCritRating = 10 }, "Caster"), 50, "of a bonus to both, a caster has the one to spells")
-    eq(ns.Pawn.StatsValue({ CritRating = 5, SpellCritRating = 10 }, "S1"), 40, "and a warrior the one to weapons")
-    W.pawnWeights.Apart = { SpellDamage = 1, CritRating = 5, SpellCritRating = 3 }
-    eq(ns.Pawn.StatsValue({ CritRating = 2, SpellCritRating = 2 }, "Apart"), 16, "a scale that weighs the two apart is left to Pawn")
-    local wizardOil = { Healing = 36, SpellCritRating = 1, SpellDamage = 36 }
-    ns.Pawn.StatsValue(wizardOil, "Caster")
-    eq(wizardOil.SpellCritRating, 1, "the stats that were passed in are left as they are")
-    local saved = PawnGetItemValue
-    PawnGetItemValue = nil
-    eq(ns.Pawn.StatsValue({ Strength = 8 }, "S1"), nil, "a Pawn that cannot be asked gives no score")
-    eq(ns.Pawn.Problem(), nil, "and that is no reason to refuse to scan for gear")
-    PawnGetItemValue = saved
+    -- The score itself is the sum gear is scored by (see the scenario "profiles").
+    eq(ns.Score.StatsValue({ ITEM_MOD_STRENGTH_SHORT = 8, ITEM_MOD_AGILITY_SHORT = 4 }, "S1"), 16, "the sum for a set of stats")
+    eq(ns.Score.StatsValue({ ITEM_MOD_INTELLECT_SHORT = 6 }, "S1"), 0, "nothing for a stat the profile has no weight for")
+    eq(ns.Score.StatsValue({ ITEM_MOD_HEALTH_SHORT = 400 }, "S1"), 20, "health by the profile's weight for it")
+    -- A chance with spells alone goes under a name of its own, which a profile for one who
+    -- casts weighs and a warrior's does not.
+    ns.Weights.profiles.Caster = { class = "MAGE", weights = { ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 1,
+        ITEM_MOD_CRIT_RATING_SHORT = 0.5, ITEM_MOD_CRIT_SPELL_RATING_SHORT = 0.5 } }
+    local wizardOil = { ITEM_MOD_SPELL_HEALING_DONE_SHORT = 36, ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14, ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 36 }
+    eq(ns.Score.StatsValue(wizardOil, "Caster"), 43, "a chance to crit with spells counts for one who casts")
+    eq(ns.Score.StatsValue(wizardOil, "S1"), 0, "and for nothing for a warrior, whose crit is with a sword")
+    eq(wizardOil.ITEM_MOD_CRIT_SPELL_RATING_SHORT, 14, "the stats that were passed in are left as they are")
+    ns.Weights.profiles.Caster = nil
 
     -- The table that comes with the addon, made from the game's own: a few items everyone knows.
     local data = ns.SupplyData
     check(type(data.build) == "string" and data.build ~= "", "the table says which build of the game it was made from")
     local mongoose = data.stats[13452] or {}
-    eq(mongoose.Agility, 25, "Elixir of the Mongoose: Agility"); eq(mongoose.CritRating, 2, "and a chance to crit, in percent")
-    eq(mongoose.SpellCritRating, 2, "with spells as with weapons: Pawn weighs the two apart")
-    eq(data.stats[13512] and data.stats[13512].SpellDamage, 150, "Flask of Supreme Power")
-    eq(data.stats[20007] and data.stats[20007].Mp5, 12, "Mageblood Elixir: mana every five seconds, not a drink")
+    eq(mongoose.ITEM_MOD_AGILITY_SHORT, 25, "Elixir of the Mongoose: Agility")
+    eq(mongoose.ITEM_MOD_CRIT_RATING_SHORT, 28, "and a chance to crit of 2%, as the rating that gives it")
+    eq(mongoose.ITEM_MOD_CRIT_SPELL_RATING_SHORT, nil, "with spells as with weapons: under the one name gear has for it")
+    local oil = data.stats[20749] or {}
+    eq(oil.ITEM_MOD_CRIT_SPELL_RATING_SHORT, 14, "Brilliant Wizard Oil: a chance to crit with spells alone, under its own name")
+    eq(oil.ITEM_MOD_CRIT_RATING_SHORT, nil, "and not under the one for both")
+    eq(data.stats[18262] and data.stats[18262].ITEM_MOD_CRIT_MELEE_RATING_SHORT, 28, "Elemental Sharpening Stone: with weapons alone")
+    eq(data.stats[13512] and data.stats[13512].ITEM_MOD_SPELL_DAMAGE_DONE_SHORT, 150, "Flask of Supreme Power")
+    eq(data.stats[20007] and data.stats[20007].ITEM_MOD_MANA_REGENERATION_SHORT, 12, "Mageblood Elixir: mana every five seconds, not a drink")
+    eq(data.stats[4592] and data.stats[4592].ITEM_MOD_ATTACK_POWER_SHORT, 10, "attack power with melee and ranged weapons: one number, as on gear")
+    eq(data.stats[12820] and data.stats[12820].ITEM_MOD_MELEE_ATTACK_POWER_SHORT, 35, "Winterfall Firewater: with melee weapons alone")
     eq(data.restores[118], "H", "Minor Healing Potion restores health"); eq(data.restores[2455], "M", "Minor Mana Potion restores mana")
     eq(data.restores[159], "M", "water is a drink"); eq(data.stats[159], nil, "and adds nothing")
-    eq(data.stats[724] and data.stats[724].Strength, 3, "Goretusk Liver Pie: what being well fed adds"); eq(data.restores[724], "H", "and it is food")
-    -- Every name in it must be one Pawn has a weight for, or the score silently leaves it out.
-    local known = {}
-    for name in ("Strength Agility Stamina Intellect Spirit Armor Health Mana Ap Rap SpellDamage Healing Mp5 Hp5 "
-        .. "CritRating HitRating HasteRating SpellCritRating SpellHitRating SpellHasteRating ExpertiseRating DodgeRating ParryRating BlockRating "
-        .. "FireResist FrostResist NatureResist ShadowResist ArcaneResist "
-        .. "FireSpellDamage FrostSpellDamage NatureSpellDamage ShadowSpellDamage ArcaneSpellDamage HolySpellDamage"):gmatch("%S+") do
-        known[name] = true
-    end
+    eq(data.stats[724] and data.stats[724].ITEM_MOD_STRENGTH_SHORT, 3, "Goretusk Liver Pie: what being well fed adds"); eq(data.restores[724], "H", "and it is food")
+    -- Every name in it is one the game has for a stat of gear, which is what a profile's weights go by.
     local count, strange = 0, nil
     for _, stats in pairs(data.stats) do
         count = count + 1
         for name, amount in pairs(stats) do
-            if not known[name] or type(amount) ~= "number" or amount <= 0 then strange = name end
+            local known = type(name) == "string" and (name:find("^ITEM_MOD_[%u_]+_SHORT$") or name:find("^RESISTANCE%d_NAME$"))
+            if not known or type(amount) ~= "number" or amount <= 0 then strange = name end
         end
     end
     check(count > 100, "the table knows its elixirs, scrolls and food: " .. count)
-    eq(strange, nil, "under names Pawn knows, with amounts above zero")
+    eq(strange, nil, "under the game's names for stats, with amounts above zero")
 end
 
 function scenarios.supplies_scan()
@@ -1964,17 +1995,17 @@ function scenarios.supplies_scan()
 
     -- What the game's tables say of an item goes with it.
     eq(potion.restores, "H", "what the potion restores"); eq(potion.stats, nil, "it adds no stats")
-    eq(Supply("Elixir of Agility").stats.Agility, 15, "what an elixir adds")
+    eq(Supply("Elixir of Agility").stats.ITEM_MOD_AGILITY_SHORT, 15, "what an elixir adds")
     eq(Supply("Rough Dynamite").stats, nil, "nothing where the tables say nothing"); eq(Supply("Rough Dynamite").restores, nil, "of either kind")
 
-    -- The rows the tab would show a character without mana, on the scale "S1".
+    -- The rows the tab would show a character without mana, on the profile "S1".
     local rows, summary = ns.Supplies.Build(S.supplies, SupplyOpts("S1", { affordableOnly = true, bestOnly = true, mana = false }))
     eq(rows[1].title, "Potions", "potions first"); eq(rows[2].entry.supply.name, "Greater Healing Potion", "the best healing potion")
     eq(rows[3].title, "Elixirs", "the mana potion is of no use, so elixirs come next")
-    eq(rows[4].entry.supply.name, "Elixir of Agility", "the elixir Pawn scores highest"); eq(rows[4].entry.value, 15, "with its score")
+    eq(rows[4].entry.supply.name, "Elixir of Agility", "the elixir that scores highest"); eq(rows[4].entry.value, 15, "with its score")
     eq(rows[5].entry.supply.name, "Elixir of Ogre Strength", "then the next kind"); eq(rows[5].entry.value, 12, "by its score")
     eq(rows[6].entry.supply.name, "Silent Elixir", "an item without its effect line is scored all the same")
-    eq(rows[7].title, "Food & Drink", "nothing for the Intellect elixir on this scale")
+    eq(rows[7].title, "Food & Drink", "nothing for the Intellect elixir on this profile")
     eq(summary.useless, 2, "it and the mana potion are of no use"); eq(summary.hidden, 1, "and the best Strength elixir costs too much")
 
     -- A scan that is stopped keeps what it read, and the note is the consumables list's own.
@@ -2211,7 +2242,7 @@ function scenarios.supplies_ui()
     eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab names its second column")
     eq(list.Titles[3]:IsShown(), true, "and has a column for the gain")
     eq(frame.TopCheck:IsShown(), true, "its own second filter"); eq(frame.BestCheck:IsShown(), false, "not the other view's")
-    eq(frame.ScaleDropdown:IsShown(), true, "and the Pawn scale")
+    eq(frame.ProfileDropdown:IsShown(), true, "and the profile")
 
     -- The Consumables tab shows the same frame, made over.
     lib:SetSelected("UpgradeScoutSupplies")
@@ -2219,7 +2250,7 @@ function scenarios.supplies_ui()
     eq(list.Titles[2]:GetText(), "EFFECT", "the second column is what the item does")
     eq(list.Titles[3]:IsShown(), true, "the third column stays"); eq(list.Titles[3]:GetText(), "SCORE", "for what the item is worth")
     eq(list.Titles[4]:GetText(), "EACH", "the price is that of one piece"); eq(list.Titles[5]:GetText(), "FOR SALE", "then how many there are")
-    eq(frame.ScaleDropdown:IsShown(), true, "the Pawn scale stays: consumables are scored on it")
+    eq(frame.ProfileDropdown:IsShown(), true, "the profile stays: consumables are scored on it")
     eq(frame.TopCheck:IsShown(), false, "the top-N filter is gone"); eq(frame.BestCheck:IsShown(), true, "another one is in its place")
     eq(frame.BestCheck.Text:GetText(), "Best for me", "with its label"); eq(frame.BestCheck:GetChecked(), true, "ticked by default")
     eq(frame.AffordCheck:IsShown(), true, "the price filter is shared")
@@ -2251,16 +2282,14 @@ function scenarios.supplies_ui()
     eq(potion.Buy:IsEnabled(), true, "it can be bought")
     eq(potion.Effect:GetWidth(), 216, "the words have the room of the score it does not have")
 
-    -- An elixir is scored on the Pawn scale, in the points of gear, with a meter like a gain's.
+    -- An elixir is scored on the profile, in the points of gear, with a meter like a gain's.
     local agility, strength = Row("Elixir of Agility"), Row("Elixir of Ogre Strength")
-    eq(agility.Upgrade:IsShown(), true, "a scored row shows its score"); eq(agility.Upgrade:GetText(), "+15", "Pawn's number for +15 Agility")
+    eq(agility.Upgrade:IsShown(), true, "a scored row shows its score"); eq(agility.Upgrade:GetText(), "+15", "the score of +15 Agility")
     eq(agility.Meter:IsShown(), true, "over a meter"); eq(agility.Meter:GetWidth(), 71, "full for the best under the heading")
     eq(agility.Share:IsShown(), false, "no percentage: nothing is replaced")
     eq(agility.Effect:GetWidth(), 136, "the words make room for it")
     eq(strength.Upgrade:GetText(), "+12", "the next kind by its score"); check(math.abs(strength.Meter:GetWidth() - 71 * 12 / 15) < 0.01, "its meter to scale: " .. strength.Meter:GetWidth())
     eq(agility.Icon._grey, false, "in colour")
-    local last = W.pawnCalls[#W.pawnCalls]
-    eq(last.scale, "S1", "scored on the scale in use")
 
     -- The age of this view's scan goes on counting.
     W.Run(6)
@@ -2272,7 +2301,7 @@ function scenarios.supplies_ui()
     local seen = {}
     for _, line in ipairs(GameTooltip._lines) do seen[#seen + 1] = line.text end
     check(table.concat(seen, "\n"):find("18 for sale, from 8s each.", 1, true) ~= nil, "the tooltip says how much there is: " .. table.concat(seen, " | "))
-    check(table.concat(seen, "\n"):find("Pawn score", 1, true) == nil, "and nothing of a score it does not have")
+    check(table.concat(seen, "\n"):find("Score of what it adds", 1, true) == nil, "and nothing of a score it does not have")
     potion:GetScript("OnLeave")(potion)
     local function Tooltip(row)
         row:GetScript("OnEnter")(row)
@@ -2281,7 +2310,7 @@ function scenarios.supplies_ui()
         row:GetScript("OnLeave")(row)
         return table.concat(lines, " | ")
     end
-    check(Tooltip(agility):find("Pawn score of what it adds: +15", 1, true) ~= nil, "an elixir's tooltip has its score: " .. Tooltip(agility))
+    check(Tooltip(agility):find("Score of what it adds: +15", 1, true) ~= nil, "an elixir's tooltip has its score: " .. Tooltip(agility))
 
     -- Every consumable instead of the best of each kind.
     Tick(frame.BestCheck, false)
@@ -2299,7 +2328,7 @@ function scenarios.supplies_ui()
     eq(bottom:sub(-#ending), ending, "and so to the end of the list")
     local wisdom = Row("Elixir of Wisdom")
     eq(wisdom.Icon._grey, true, "what is of no use is grey"); eq(wisdom.Upgrade:IsShown(), false, "and has no score")
-    check(Tooltip(wisdom):find("your Pawn scale gives no weight", 1, true) ~= nil, "its tooltip says why: " .. Tooltip(wisdom))
+    check(Tooltip(wisdom):find("your profile gives no weight", 1, true) ~= nil, "its tooltip says why: " .. Tooltip(wisdom))
     eq(Row("Elixir of Lesser Agility").Upgrade:GetText(), "+8", "a weaker one of a kind has its own score")
 
     -- What costs too much comes back in red when the price filter is off.
@@ -2322,24 +2351,24 @@ function scenarios.supplies_ui()
     Rows()[1].Toggle:Click()
     eq(ns.db.collapsed.SUB1, nil, "and unfolded again")
 
-    -- Another Pawn scale: the list is scored again as it stands. No scan, of either kind.
+    -- Another profile: the list is scored again as it stands. No scan, of either kind.
     local scannedAt = S.suppliesAt
-    frame.ScaleDropdown:Pick(2)
+    frame.ProfileDropdown:Pick(2)
     W.Run(0.3)
-    eq(ns.Roster.Me().scale, "S2", "the choice is saved"); eq(S.state, "idle", "nothing is scanned"); eq(S.suppliesAt, scannedAt, "the list is the same scan's")
+    eq(ns.Roster.Me().profile, "S2", "the choice is saved"); eq(S.state, "idle", "nothing is scanned"); eq(S.suppliesAt, scannedAt, "the list is the same scan's")
     eq(Listed(), "[POTIONS 1 of 3], Greater Healing Potion, [ELIXIRS], Elixir of Wisdom, "
         .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite",
-        "on a scale for Intellect its elixir is the one of use")
-    eq(Row("Elixir of Wisdom").Upgrade:GetText(), "+6", "with its score on that scale")
+        "on a profile for Intellect its elixir is the one of use")
+    eq(Row("Elixir of Wisdom").Upgrade:GetText(), "+6", "with its score on that profile")
     check(Said("5 consumables in 5 categories.") ~= nil, "nothing of use costs too much now: " .. tostring(Said("consumables in")))
     -- A character with mana has a use for the mana potion, which costs too much.
     W.player.mana = 400
     Tick(frame.BestCheck, true)
     check(Said("5 consumables in 5 categories. 1 more cost more than you have.") ~= nil, "the mana potion is counted: " .. tostring(Said("consumables in")))
     W.player.mana = nil
-    frame.ScaleDropdown:Pick(1)
+    frame.ProfileDropdown:Pick(1)
     W.Run(0.3)
-    eq(ns.Roster.Me().scale, "S1", "back on the first scale"); check(Row("Elixir of Agility") ~= nil, "and to its elixirs")
+    eq(ns.Roster.Me().profile, "S1", "back on the first profile"); check(Row("Elixir of Agility") ~= nil, "and to its elixirs")
 
     -- Buy: first the price list is read, then the box asks how many.
     eq(box:IsShown(), false, "no box before a purchase")
@@ -2414,7 +2443,7 @@ function scenarios.supplies_ui()
     lib:SetSelected("UpgradeScout")
     eq(box:IsShown(), false, "the box does not follow to the other tab")
     eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab has its titles back"); eq(list.Titles[3]:IsShown(), true, "all five of them")
-    eq(frame.ScaleDropdown:IsShown(), true, "its Pawn scale"); eq(frame.TopCheck:IsShown(), true, "and its filter")
+    eq(frame.ProfileDropdown:IsShown(), true, "its profile"); eq(frame.TopCheck:IsShown(), true, "and its filter")
     eq(Listed(), "", "and its own, empty list")
     eq(list.Intro:IsShown(), true, "with the emblem: gear was never scanned"); eq(list.Intro.Heading:GetText(), "GEAR UPGRADES FOR SALE", "under its own title")
     eq(ns.Scanner.state, "idle", "nothing was started behind the view")
@@ -2442,17 +2471,18 @@ function scenarios.roster()
     -- Learned: cloth, leather, mail, shields; one-handed swords and axes.
     W.player.spells = { [9078] = true, [9077] = true, [8737] = true, [9116] = true, [201] = true, [196] = true }
     W.player.professions = { { "Mining", 75 }, { "Engineering", 150 }, { "Cooking", 40 } }
-    UpgradeScoutCharDB = { scale = "S2" }   -- the scale as earlier versions saved it
+    UpgradeScoutCharDB = { scale = "S2" }   -- a scale of another addon, as version 1 kept it
     LoadAddon()
     local R = ns.Roster
 
     local me = R.Me()
-    eq(me.key, "Tester Mainsson", "the card is filed under the name Pawn uses: name and surname")
+    eq(me.key, "Tester Mainsson", "the card is filed under the character's name and surname")
     eq(me.name, "Tester", "shown by the first name"); eq(me.class, "WARRIOR", "its class"); eq(me.level, 10, "its level")
     eq(UpgradeScoutDB.chars["Tester Mainsson"], me, "kept for the whole account")
-    eq(me.scale, "S2", "the scale chosen in an earlier version moves to the card")
-    eq(ns.db.scale, nil, "and out of the character's own settings")
-    eq(ns.Pawn.CurrentScale().name, "S2", "it is still the scale in use")
+    eq(ns.db.scale, nil, "what version 1 kept as the character's scale is dropped from its settings")
+    me.scale = "S2"
+    eq(R.Me().scale, nil, "and from its card")
+    eq(ns.Score.Current().name, "S1", "the character is scored on the profile its class starts with")
     eq(me.gear, nil, "nothing is written down before the character is in the world")
 
     W.Fire("PLAYER_ENTERING_WORLD")
@@ -2555,34 +2585,26 @@ function scenarios.roster()
     druid.className = "Druidess"
     eq(R.Allows(druid, Lines("Classes: Druidess")), true, "the class by the name the game gave the character")
 
-    -- The scales of a character that is not being played: those Pawn has switched on for
-    -- it, else those of its class, else all of them.
-    W.pawnScales[#W.pawnScales + 1] = { Name = "D1", LocalizedName = "Druid: Balance", IsVisible = false }
-    W.pawnScales[#W.pawnScales + 1] = { Name = "D2", LocalizedName = "Druid: Feral", IsVisible = false }
-    PawnCommon.Scales.D1 = { ClassID = 11, PerCharacterOptions = {} }
-    PawnCommon.Scales.D2 = { ClassID = 11, PerCharacterOptions = {} }
+    -- The profiles of a character that is not being played: those of its class.
     local alt = { key = "Alty-Testrealm", name = "Alty", class = "DRUID", level = 20 }
-    local function Names(scales)
+    local function Names(profiles)
         local out = {}
-        for i = 1, #scales do out[i] = scales[i].name end
+        for i = 1, #profiles do out[i] = profiles[i].name end
         return table.concat(out, " ")
     end
-    eq(Names(ns.Pawn.Scales(alt)), "D1 D2", "without Pawn's notes about the character: the scales of its class")
-    PawnCommon.Scales.D2.PerCharacterOptions["Alty-Testrealm"] = { Visible = true }
-    PawnCommon.Scales.S1.PerCharacterOptions["Alty-Testrealm"] = { Visible = false }
-    eq(Names(ns.Pawn.Scales(alt)), "D2", "with them: the scales it has switched on")
-    eq(ns.Pawn.CurrentScale(alt).name, "D2", "the first of them until one is chosen")
-    alt.scale = "D1"
-    eq(ns.Pawn.CurrentScale(alt).name, "D2", "a choice that is not among them does not count")
-    eq(Names(ns.Pawn.Scales({ key = "Nobody", class = "SHAMAN", level = 5 })), "S1 S2 S3 D1 D2", "a class without scales of its own: every scale")
-    eq(Names(ns.Pawn.Scales()), "S1 S2", "and for the character being played, as before, what Pawn shows")
-    eq(R.Short(alt, "Druid: Balance"), "Balance", "a scale's title without the class it is named after")
-    eq(R.Short(alt, "My own scale"), "My own scale", "any other title as it is")
+    eq(Names(ns.Score.Profiles(alt)), "D1 D2", "a card has the profiles of its class")
+    eq(ns.Score.Current(alt).name, "D1", "the class's own until one is chosen")
+    alt.profile = "D2"
+    eq(ns.Score.Current(alt).name, "D2", "then the one chosen for it")
+    alt.profile = "S1"
+    eq(ns.Score.Current(alt).name, "D1", "a choice that is not among them does not count")
+    eq(Names(ns.Score.Profiles({ key = "Nobody", class = "SHAMAN", level = 5 })), "", "a class without profiles has none")
+    eq(Names(ns.Score.Profiles()), "S1 S2", "and for the character being played, those of its own class")
     eq(R.Colored(alt, "Alty"), "|cffff7c0aAlty|r", "a name in the colour of the class")
 
-    -- Pawn's list of what a class never wears.
-    eq(ns.Pawn.ClassCanUse({ Stats = { IsShield = 1 } }, alt), false, "a druid never carries a shield")
-    eq(ns.Pawn.ClassCanUse({ Stats = { IsLeather = 1 } }, alt), true, "leather is fine")
+    -- What a class never wears.
+    eq(ns.Score.ClassCanUse({ classID = 4, subClassID = 6 }, alt), false, "a druid never carries a shield")
+    eq(ns.Score.ClassCanUse({ classID = 4, subClassID = 2 }, alt), true, "leather is fine")
 
     -- Time gone by: days for what was long ago.
     eq(ns.Ago(7200), "2 Hr", "hours"); eq(ns.Ago(3 * 86400), "3 Days", "and days")
@@ -2607,18 +2629,6 @@ local function Druid()
     }
 end
 
--- Pawn's scales as the character of this class sees them: its own are the ones shown.
-local function ScalesFor(class)
-    local druid = class == "DRUID"
-    W.pawnScales = {
-        { Name = "S1", LocalizedName = "Arms", IsVisible = not druid },
-        { Name = "S2", LocalizedName = "Protection", IsVisible = not druid },
-        { Name = "D1", LocalizedName = "Druid: Balance", IsVisible = druid },
-        { Name = "D2", LocalizedName = "Druid: Feral", IsVisible = druid },
-        { Name = "S3", LocalizedName = "Hidden", IsVisible = false },
-    }
-end
-
 -- The whole road: the druid is played once, then the warrior stands at the auction house and
 -- asks for the druid's lists.
 function scenarios.alt()
@@ -2626,11 +2636,11 @@ function scenarios.alt()
     local warriorGear = W.equipped
     local warrior = W.player
 
-    -- What the druid wears. `values`: the score on the druid's two scales.
+    -- What the druid wears. `values`: the score on the druid's two profiles.
     W.AddItem({ id = 300, name = "Alt's Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, values = { D1 = 12, D2 = 3 }, level = 15 })
     W.AddItem({ id = 301, name = "Alt's Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10, value = 0, values = { D1 = 15, D2 = 2 }, level = 15 })
     W.AddItem({ id = 302, name = "Alt's Charm", equipLoc = "INVTYPE_NECK", value = 0, values = { D1 = 1, D2 = 1 }, level = 5 })
-    -- A trinket with nothing on it for Pawn to read.
+    -- A trinket the game gives no stats for.
     W.AddItem({ id = 303, name = "Alt's Pebble", equipLoc = "INVTYPE_TRINKET", value = 0, level = 1, noStats = true })
     -- For sale, of no worth to a warrior.
     local function Sell(def, price)
@@ -2639,7 +2649,7 @@ function scenarios.alt()
         W.AddAuction(def.id, price)
     end
     Sell({ id = 310, name = "Druid Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, values = { D1 = 20, D2 = 2 }, level = 18 }, 2000)
-    Sell({ id = 311, name = "Bark Shield", equipLoc = "INVTYPE_SHIELD", subClassID = 6, values = { D1 = 50 }, level = 10, stats = { IsShield = 1 } }, 100)
+    Sell({ id = 311, name = "Bark Shield", equipLoc = "INVTYPE_SHIELD", subClassID = 6, values = { D1 = 50 }, level = 10 }, 100)
     Sell({ id = 312, name = "Elder Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10, values = { D1 = 40 }, level = 25 }, 100)
     Sell({ id = 313, name = "Carved Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10, values = { D1 = 22, D2 = 10 }, level = 19 }, 3000)
     Sell({ id = 314, name = "Stone Mace", equipLoc = "INVTYPE_WEAPONMAINHAND", classID = 2, subClassID = 4, values = { D1 = 30 }, level = 10 }, 100)
@@ -2665,21 +2675,16 @@ function scenarios.alt()
         ns.SupplyData.stats = {}
         ns.SupplyData.restores = { [400] = "M", [403] = "H", [404] = "H" }
     end
-    W.pawnWeights.D1 = { Intellect = 1 }
-    W.pawnWeights.D2 = { Agility = 1 }
-    PawnCommon.Scales.D1 = { ClassID = 11, PerCharacterOptions = { ["Alty-Testrealm"] = { Visible = true } } }
-    PawnCommon.Scales.D2 = { ClassID = 11, PerCharacterOptions = { ["Alty-Testrealm"] = { Visible = true } } }
 
     -- The druid is played.
     -- (Its gear after it has logged in: a link is written for the one who looks at the item.)
     W.Login(Druid())
     W.equipped = { [5] = W.Link(300), [13] = W.Link(303), [16] = W.Link(301) }
-    ScalesFor("DRUID")
     LoadAddon()
     W.Fire("PLAYER_ENTERING_WORLD")
     W.Run(1.5)
     local card = UpgradeScoutDB.chars["Alty-Testrealm"]
-    check(card ~= nil, "the druid is written down, under the name Pawn files it by")
+    check(card ~= nil, "the druid is written down, under its name and realm")
     eq(card.class, "DRUID", "its class"); eq(card.level, 20, "its level"); eq(card.mana, true, "that it has mana")
     eq(card.gear[5], W.Link(300), "its chest"); eq(card.gear[16], W.Link(301), "its staff")
     eq(card.weapons[10], true, "staves learned"); eq(card.weapons[4], nil, "maces not")
@@ -2688,7 +2693,6 @@ function scenarios.alt()
     -- It puts on a necklace and logs out at once: the logout is the last word.
     local charm = W.Link(302)
     W.equipped[2] = charm
-    ScalesFor("WARRIOR")
     Relog(warrior, warriorGear)
     Facts()
     card = UpgradeScoutDB.chars["Alty-Testrealm"]
@@ -2702,7 +2706,7 @@ function scenarios.alt()
     local S = ns.Scanner
     local lib = LibStub("LibAHTab-1-0")
     lib:SetSelected("UpgradeScout")
-    local dropdown, list = frame.ScaleDropdown, frame.List
+    local dropdown, list = frame.ProfileDropdown, frame.List
     local scrollBox
     for _, w in ipairs(W.frames) do
         if w._template == "WowScrollBoxList" then scrollBox = w end
@@ -2744,7 +2748,7 @@ function scenarios.alt()
     eq(ns.Roster.Target(), card, "the lists are for the druid now")
     eq(dropdown:GetText(), ALTY .. ": Balance", "and the field says so")
     eq(S.state, "idle", "no scan by itself")
-    check(list.Hint:GetText():find(ALTY .. " can equip", 1, true) ~= nil and list.Hint:GetText():find("\"Druid: Balance\"", 1, true) ~= nil,
+    check(list.Hint:GetText():find(ALTY .. " can equip", 1, true) ~= nil and list.Hint:GetText():find("\"Balance\"", 1, true) ~= nil,
         "the list says whose it will be: " .. list.Hint:GetText())
     dropdown._tooltip(GameTooltip)
     check(Tooltip(GameTooltip):find(ALTY .. ", level 20. Seen ", 1, true) ~= nil, "the field's tooltip says how old the druid's card is: " .. Tooltip(GameTooltip))
@@ -2756,22 +2760,21 @@ function scenarios.alt()
     W.Run(1)
     eq(S.ctx.who, card, "the scan was for the druid"); eq(S.ctx.level, 20, "at its level"); eq(S.ctx.class, "DRUID", "and class")
     eq(S.ctx.pending, nil, "the chest came")
-    -- Pawn gives nothing for the pebble. It is asked a few more times, in case it read the
-    -- tooltip too early, and then left at that.
-    eq(S.ctx.unread, 1, "the item Pawn cannot read is counted"); near(S.ctx.equipped[13].value, 0, "and scores nothing")
+    -- The pebble has no stats: it is read, and scores nothing.
+    eq(S.ctx.unread, nil, "an item without stats is read all the same"); near(S.ctx.equipped[13].value, 0, "and scores nothing")
     W.Run(5)
     local settled = S.ctx
     W.Run(5)
     eq(S.ctx, settled, "the gear is not read over and over for it")
-    near(S.ctx.equipped[5].value, 12, "and is scored on the druid's scale")
+    near(S.ctx.equipped[5].value, 12, "and is scored on the druid's profile")
     check(Offer("Druid Jerkin") ~= nil, "leather the druid can wear")
     check(Offer("Carved Staff") ~= nil, "a staff above the warrior's level and within the druid's")
     check(Offer("Grove Ring") ~= nil, "a ring for druids only")
     check(Offer("Hide Belt") ~= nil, "a belt for a leatherworker")
     eq(Offer("Elder Staff"), nil, "above the druid's level")
     eq(Offer("Stone Mace"), nil, "a kind of weapon the druid has not learned")
-    eq(Offer("Bark Shield"), nil, "what Pawn says a druid never carries")
-    eq(Offer("Plain Buckler"), nil, "armor the druid has not learned")
+    eq(Offer("Bark Shield"), nil, "what a druid never carries")
+    eq(Offer("Plain Buckler"), nil, "nor this one")
     eq(Offer("Totem Ring"), nil, "a ring for another class")
     eq(Offer("Tinker Goggles"), nil, "a profession the druid has not got")
     eq(Offer("Dawn Cloak"), nil, "standing with a faction is not known")
@@ -2788,7 +2791,7 @@ function scenarios.alt()
     jerkin:GetScript("OnEnter")(jerkin)
     local tip = Tooltip(GameTooltip)
     check(tip:find("For " .. ALTY, 1, true) ~= nil, "the tooltip says whom the item is for: " .. tip)
-    check(tip:find("Pawn score: 20, worn: 12 (+8)", 1, true) ~= nil, "what is worn in the slot, not 'yours'")
+    check(tip:find("Score: 20, worn: 12 (+8)", 1, true) ~= nil, "what is worn in the slot, not 'yours'")
     check(tip:find("Replaces: " .. UpgradeScoutDB.chars["Alty-Testrealm"].gear[5], 1, true) ~= nil, "and which item it replaces")
     eq(W.compared, nil, "the game's own comparison would show the warrior's chest")
     eq(ShoppingTooltip1:IsShown(), true, "the druid's chest is shown beside it instead")
@@ -2829,31 +2832,30 @@ function scenarios.alt()
     W.Run(0.3)
     CheckStandardOffers("the warrior's own scan")
 
-    -- The druid's other scale: chosen from here, remembered with the druid, scanned at once.
+    -- The druid's other profile: chosen from here, remembered with the druid, scanned at once.
     W.RunUntil(function() return W.AH.ready end, 5)
     dropdown:Pick(4)
-    eq(card.scale, "D2", "the druid's scale is kept on its card")
+    eq(card.profile, "D2", "the druid's profile is kept on its card")
     eq(S.state, "browse", "the view had a list: it is made again")
     W.RunUntil(function() return S.state == "idle" end, 300)
     W.Run(0.3)
-    check(Offer("Carved Staff") ~= nil, "on the other scale the staff is still better")
+    check(Offer("Carved Staff") ~= nil, "on the other profile the staff is still better")
     eq(Offer("Druid Jerkin"), nil, "and the jerkin is not")
     eq(OfferCount(), 1, "one upgrade")
-    -- And back to the first, for the same character: a change of scale.
+    -- And back to the first, for the same character: a change of profile.
     W.RunUntil(function() return W.AH.ready end, 5)
     dropdown:Pick(3)
-    eq(card.scale, "D1", "the choice follows"); eq(ns.Roster.Target(), card, "the druid stays")
+    eq(card.profile, "D1", "the choice follows"); eq(ns.Roster.Target(), card, "the druid stays")
     W.RunUntil(function() return S.state == "idle" end, 300)
     W.Run(0.3)
     eq(OfferCount(), 4, "four again")
-    eq(ns.Roster.Me().scale, "S1", "the warrior's own scale is still the one it went back to")
+    eq(ns.Roster.Me().profile, "S1", "the warrior's own profile is still the one it went back to")
 
-    -- The druid logs in again: the scale chosen for it from afar is its scale.
+    -- The druid logs in again: the profile chosen for it from afar is its profile.
     W.CloseAuctionHouse()
-    ScalesFor("DRUID")
     Relog(Druid(), { [5] = W.Link(300), [16] = W.Link(301) })
     eq(ns.Roster.Me().key, "Alty-Testrealm", "the druid is played"); eq(ns.Roster.Target(), nil, "and the lists are its own")
-    eq(ns.Pawn.CurrentScale().name, "D1", "on the scale chosen for it while the warrior was played")
+    eq(ns.Score.Current().name, "D1", "on the profile chosen for it while the warrior was played")
     eq(#ns.Roster.List(), 2, "it knows of the warrior")
     -- A character that is gone is taken out of the list by name.
     SlashCmdList["UPGRADESCOUT"]("forget Nobody")
@@ -2879,16 +2881,12 @@ function scenarios.mail()
     end
     Sell({ id = 310, name = "Druid Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, values = { D1 = 20 }, level = 18 }, 2000)
     Sell({ id = 315, name = "Grove Ring", equipLoc = "INVTYPE_FINGER", values = { D1 = 6 }, level = 10 }, 500)
-    W.pawnWeights.D1 = { Intellect = 1 }
-    PawnCommon.Scales.D1 = { ClassID = 11, PerCharacterOptions = { ["Alty-Testrealm"] = { Visible = true } } }
 
     -- The druid is played once, then the warrior.
     W.Login(Druid(), { [5] = W.Link(300) })
-    ScalesFor("DRUID")
     LoadAddon()
     W.Fire("PLAYER_ENTERING_WORLD")
     W.Run(1.5)
-    ScalesFor("WARRIOR")
     Relog(warrior, warriorGear)
     local S = ns.Scanner
     local ALTY = "|cffff7c0aAlty|r"
@@ -2920,7 +2918,7 @@ function scenarios.mail()
     eq(#UpgradeScoutDB.parcels, 0, "what is bought for oneself is nobody's parcel")
 
     -- The lists are made for the druid, and its jerkin and ring are bought.
-    frame.ScaleDropdown:Pick(3)
+    frame.ProfileDropdown:Pick(3)
     eq(ns.Roster.Target().name, "Alty", "the lists are for the druid")
     -- (Choosing another character scans again by itself.)
     W.RunUntil(function() return S.state == "idle" and Offer("Druid Jerkin") ~= nil end, 600)
@@ -3029,25 +3027,125 @@ function scenarios.mail()
     eq(ns.Mail.Address({ name = "Alty" }), "Alty", "a name alone")
 end
 
-function scenarios.pawn_missing()
+-- Profiles and the score they give an item.
+function scenarios.profiles()
     StandardWorld()
     LoadAddon()
+    local Score = ns.Score
+
+    local current, list = Score.Current()
+    eq(#list, 2, "the profiles of the character's class"); eq(list[1].name, "S1", "in their order")
+    eq(list[1].title, "Arms", "by name"); eq(list[2].title, "Protection ~", "an estimated one is marked")
+    eq(Score.IsApprox("S2"), true, "and known as such"); eq(Score.IsApprox("S1"), false, "the others are not")
+    eq(current.name, "S1", "a character starts on its class's own profile")
+    ns.Weights.start.WARRIOR = "S2"
+    eq(Score.Current().name, "S2", "which need not be the first of the list")
+    ns.Roster.Me().profile = "S1"
+    eq(Score.Current().name, "S1", "a choice is kept with the character")
+    ns.Roster.Me().profile = "Gone"
+    eq(Score.Current().name, "S2", "a choice that is no longer there gives way to the class's own")
+    ns.Roster.Me().profile = nil
+    ns.Weights.start.WARRIOR = "S1"
+    ns.Weights.titles.ruRU = { S1 = "Оружие" }
+    W.locale = "ruRU"
+    eq(Score.Title("S1"), "Оружие", "a profile is named in the player's language")
+    eq(Score.Title("S2"), "Protection ~", "or in English where that language has no name for it")
+    W.locale = nil
+    ns.Weights.profiles.R1 = { class = "PRIEST", role = "HEALER", approx = true, weights = {} }
+    eq(Score.Title("R1"), "Healer ~", "a profile for more than one tree is named by its role")
+    ns.Weights.profiles.D3 = { class = "DRUID", form = "BEAR", weights = {} }
+    ns.Weights.titles.enUS.D3 = "Feral Combat"
+    eq(Score.Title("D3"), "Feral Combat (Bear)", "a druid's shape after the tree it is played in")
+    ns.Weights.profiles.R1, ns.Weights.profiles.D3, ns.Weights.titles.enUS.D3 = nil, nil, nil
+    eq(#Score.Profiles({ class = "DRUID" }), 2, "another character has the profiles of its own class")
+    eq(Score.Current({ class = "DRUID", profile = "D2" }).name, "D2", "and its own choice")
+    eq(#Score.Profiles({ class = "ROGUE" }), 0, "a class without profiles has none")
+
+    -- The score: each stat times its weight. A weapon's damage per second goes by the hand.
+    local DPS = "ITEM_MOD_DAMAGE_PER_SECOND_SHORT"
+    local sword = W.AddItem({ id = 900, name = "Test Sword", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 7, level = 5,
+        game = { ITEM_MOD_STRENGTH_SHORT = 4, [DPS] = 10, ITEM_MOD_UNHEARD_OF_SHORT = 99 } })
+    local item = Score.Item(W.Link(900))
+    eq(item.itemID, 900, "an item to score: its number"); eq(item.invType, "INVTYPE_WEAPON", "how it is worn")
+    eq(item.classID, 2, "its kind"); eq(item.stats.ITEM_MOD_STRENGTH_SHORT, 4, "and its stats")
+    near(Score.Value(item, "S1"), 4 * 1.5 + 10 * 2, "a one-hander: the main hand's weight for its damage")
+    sword.equipLoc = "INVTYPE_WEAPONOFFHAND"
+    near(Score.Value(Score.Item(W.Link(900)), "S1"), 4 * 1.5 + 10 * 1, "an off-hand weapon: the off hand's")
+    sword.equipLoc = "INVTYPE_RANGED"
+    near(Score.Value(Score.Item(W.Link(900)), "S1"), 4 * 1.5, "a ranged weapon: the ranged weight, which this profile has not")
+    sword.equipLoc = "INVTYPE_2HWEAPON"
+    near(Score.Value(Score.Item(W.Link(900)), "S2"), 0, "a profile without weights for any of it scores nothing")
+    near(Score.Value(Score.Item(W.Link(900)), "Gone"), 0, "and so does a profile there is not")
+    eq(Score.Item("a word"), nil, "what is not an item is not scored")
+
+    local parts, total = Score.Parts(Score.Item(W.Link(900)), "S1")
+    near(total, 26, "the same sum, stat by stat"); eq(#parts, 3, "every stat of the item")
+    eq(parts[1].name, DPS, "the heaviest first"); near(parts[1].points, 20, "with what it comes to")
+    eq(parts[3].name, "ITEM_MOD_UNHEARD_OF_SHORT", "a stat without a weight last"); near(parts[3].weight, 0, "at nothing")
+
+    -- Worn gear is scored without its enchantment.
+    local enchanted = W.Link(200):gsub("item:200:", "item:200:66", 1)
+    eq(C_Item.GetItemStats(enchanted).TEST_S1, 1018, "(the stand-in client counts an enchantment)")
+    near(Score.Value(Score.Item(enchanted), "S1"), 18, "an enchanted link is scored as the bare item")
+
+    -- What an item gives through a spell it keeps on its wearer is in the game's tables.
+    ns.GearData.extra[900] = { ITEM_MOD_ATTACK_POWER_SHORT = 10 }
+    near(Score.Value(Score.Item(W.Link(900)), "S1"), 26 + 10 * 0.4, "stats from the tables are added to the item's own")
+    ns.GearData.extra[900] = nil
+
+    -- Effects a score does not count: by the tables for the items they have, by the tooltip for newer ones.
+    local great = Score.Item(W.Link(201))
+    eq(Score.HasUnscoredEffects(great), true, "an item newer than the tables: the tooltip's marked line says so")
+    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), false, "and its absence that there is none")
+    ns.GearData.newest = 1000
+    eq(Score.HasUnscoredEffects(great), false, "an item the tables have and do not list has none, whatever its tooltip")
+    ns.GearData.effects[200] = true
+    eq(Score.HasUnscoredEffects(Score.Item(W.Link(200))), true, "one they list has")
+    ns.GearData.newest, ns.GearData.effects[200] = 0, nil
+
+    -- What a class can ever wear.
+    local function Can(classID, subClassID, who)
+        return Score.ClassCanUse({ classID = classID, subClassID = subClassID }, who)
+    end
+    eq(Can(2, 19), false, "a warrior never holds a wand"); eq(Can(2, 7), true, "a sword it can")
+    eq(Can(4, 4), false, "plate comes to a warrior at 40"); eq(Can(4, 3), true, "mail before that")
+    eq(Can(4, 4, { class = "WARRIOR", level = 40 }), true, "another character is judged by its own level")
+    eq(Can(4, 3, { class = "MAGE", level = 60 }), false, "and class")
+    eq(Can(4, 0), true, "a ring is for everyone")
+
+    -- What a consumable adds is scored by the same sum.
+    near(Score.StatsValue({ ITEM_MOD_STRENGTH_SHORT = 8, ITEM_MOD_AGILITY_SHORT = 4 }, "S1"), 16, "a set of stats that is not an item")
+    near(Score.StatsValue({ ITEM_MOD_SPIRIT_SHORT = 8 }, "S1"), 0, "nothing for what the profile gives no weight")
+    eq(Score.StatsValue({ ITEM_MOD_STRENGTH_SHORT = 8 }, "Gone"), nil, "no answer without a profile")
+
+    -- Below level 60 a rating counts for a share of its worth; other stats count as ever.
+    eq(Score.LevelFactor(10), 1, "without the simulations of leveling, a rating is worth all of it")
+    ns.Weights.leveling = { stats = { ITEM_MOD_CRIT_RATING_SHORT = true }, points = { { 20, 0.2 }, { 40, 0.6 }, { 60, 1 } } }
+    near(Score.LevelFactor(10), 0.2, "below the lowest level simulated: that level's share")
+    near(Score.LevelFactor(30), 0.4, "between two levels: on a straight line")
+    near(Score.LevelFactor(50), 0.8, "and so on up"); near(Score.LevelFactor(60), 1, "all of it at 60")
+    near(Score.LevelFactor(nil), 1, "and for no level given")
+    local keen = { ITEM_MOD_CRIT_RATING_SHORT = 10, ITEM_MOD_STRENGTH_SHORT = 4 }
+    near(Score.StatsValue(keen, "S1", 30), 10 * 8 * 0.4 + 4 * 1.5, "a rating by its share, a stat at its weight")
+    near(Score.StatsValue(keen, "S1"), 10 * 8 + 4 * 1.5, "the whole worth for no level")
+    W.AddItem({ id = 901, name = "Keen Ring", equipLoc = "INVTYPE_FINGER", level = 5, game = { ITEM_MOD_CRIT_RATING_SHORT = 14 } })
+    near(Score.Value(Score.Item(W.Link(901)), "S1", 20), 14 * 8 * 0.2, "an item's rating as well")
+    local ringParts = Score.Parts(Score.Item(W.Link(901)), "S1", 40)
+    near(ringParts[1].weight, 8 * 0.6, "and /upscout stats shows the weight that is used")
+    W.equipped[11] = W.Link(901)
+    near(Score.Context("S1").equipped[11].value, 14 * 8 * 0.2, "what is worn is scored at the character's level (10)")
+    near(Score.Context("S1", { class = "WARRIOR", level = 40, gear = { [11] = W.Link(901) } }).equipped[11].value,
+        14 * 8 * 0.6, "and another character's at its own")
+    W.equipped[11] = nil
+    ns.Weights.leveling = nil
+
+    -- A class without a profile: no scan, and the reason.
     W.OpenAuctionHouse()
-    W.pawnReady = false
-    eq(ns.Scanner.Start(), false, "no scan while Pawn is loading")
-    eq(ns.Scanner.message, ns.L.ERR_PAWN_NOT_READY, "says so")
-    W.pawnReady = true
-    local saved = PawnGetSingleValueFromItem
-    PawnGetSingleValueFromItem = nil
-    eq(ns.Scanner.Start(), false, "no scan when a Pawn function is gone")
-    check(ns.Scanner.message:find("PawnGetSingleValueFromItem", 1, true) ~= nil, "names the missing function")
-    PawnGetSingleValueFromItem = saved
-    local savedScales = PawnGetAllScalesEx
-    PawnGetAllScalesEx = function() return { { Name = "S3", LocalizedName = "Hidden", IsVisible = false } } end
-    eq(ns.Scanner.Start(), false, "no scan without an active scale")
-    eq(ns.Scanner.message, ns.L.ERR_NO_SCALE, "says to enable one")
-    PawnGetAllScalesEx = savedScales
-    check(ns.Scanner.Start(), "scans once Pawn is in order")
+    ns.Weights.classes.WARRIOR = nil
+    eq(ns.Scanner.Start(), false, "no scan for a character whose class has no profile")
+    eq(ns.Scanner.message, ns.L.ERR_NO_PROFILE, "says so")
+    ns.Weights.classes.WARRIOR = { "S1", "S2" }
+    check(ns.Scanner.Start(), "scans once there is one")
 end
 
 -- Everything printed from line `from` on, as one text.
@@ -3057,12 +3155,11 @@ local function Said(from)
     return table.concat(out, "\n")
 end
 
--- What the game counts for an item, and the command that says it.
+-- What the game counts for an item, and the command that says how it comes by its score.
 function scenarios.item_stats()
     StandardWorld()
     W.items["200:0"].game = { ITEM_MOD_STRENGTH_SHORT = 5, ITEM_MOD_STAMINA_SHORT = 3, RESISTANCE0_NAME = 120.5,
         ITEM_MOD_NEW_THING_SHORT = 2, odd = "x" }
-    W.items["200:0"].stats = { Strength = 5, IsMail = 1 }
     W.items["203:0"].cached = false
     LoadAddon()
     local Stats = ns.Stats
@@ -3071,7 +3168,7 @@ function scenarios.item_stats()
     eq(stats.ITEM_MOD_STRENGTH_SHORT, 5, "a stat under the game's name for it")
     eq(stats.RESISTANCE0_NAME, 120.5, "armor as well")
     eq(stats.odd, nil, "what is not a number is left out")
-    eq(next(Stats.Read(W.Link(202))), nil, "an item that adds nothing: an empty table")
+    eq(next(Stats.Read(W.Link(208))), nil, "an item that adds nothing: an empty table")
     eq(Stats.Read(W.Link(203)), nil, "an item the game has not loaded: no answer")
     eq(Stats.Read("a word"), nil, "none for what is not an item")
     eq(Stats.Read(nil), nil, "or not a text")
@@ -3081,23 +3178,32 @@ function scenarios.item_stats()
         "|cff1eff00|Hitem:6551:::::::::15:::1:12727::::::|h[Boots]|h|r", "a link without its enchantment")
     eq(Stats.Bare(W.Link(200)), W.Link(200), "a link that has none is left as it is")
 
-    -- /upscout stats <item>, the item shift-clicked into the chat line
+    -- /upscout stats <item>, the item shift-clicked into the chat line: the score, stat by stat
     local at = #W.printed + 1
     SlashCmdList.UPGRADESCOUT("stats " .. W.Link(200))
     local said = Said(at)
-    check(said:find("Good Chest", 1, true) and said:find("as the game counts it", 1, true), "the item is named")
-    local armor, new, stamina, strength = said:find("Armor: 120.5", 1, true), said:find("ITEM_MOD_NEW_THING_SHORT: 2", 1, true),
-        said:find("Stamina: 3", 1, true), said:find("Strength: 5", 1, true)
-    check(armor and new and stamina and strength, "with each of its stats")
-    check(armor < new and new < stamina and stamina < strength, "by the alphabet")
-    check(said:find("Pawn: IsMail 1, Strength 5", 1, true) ~= nil, "and what Pawn read, while Pawn is here")
+    check(said:find("Good Chest", 1, true) and said:find('on the profile "Arms": score 27', 1, true), "the item, the profile and its score")
+    local own, strength, stamina = said:find("TEST_S1: 18 × 1 = 18", 1, true), said:find("Strength: 5 × 1.5 = 7.5", 1, true),
+        said:find("Stamina: 3 × 0.5 = 1.5", 1, true)
+    check(own and strength and stamina, "each stat, its weight and what the two come to")
+    check(own < strength and strength < stamina, "the heaviest first")
+    check(said:find("Armor: 120.5 × 0", 1, true) ~= nil and said:find("Armor: 120.5 × 0 =", 1, true) == nil,
+        "a stat the profile gives no weight is listed as that")
+    check(said:find("ITEM_MOD_NEW_THING_SHORT: 2 × 0", 1, true) ~= nil, "a stat the game has no word for goes by its name")
+    check(said:find("Pawn", 1, true) == nil, "no word of Pawn where there is no Pawn")
+
+    -- on the profile of the character the lists are for
+    ns.Roster.Me().profile = "S2"
+    at = #W.printed + 1
+    SlashCmdList.UPGRADESCOUT("stats " .. W.Link(200))
+    check(Said(at):find('on the profile "Protection ~": score 1.5', 1, true) ~= nil, "another profile, another score")
+    ns.Roster.Me().profile = nil
 
     -- by its number; an item without stats
     at = #W.printed + 1
-    SlashCmdList.UPGRADESCOUT("stats 202")
+    SlashCmdList.UPGRADESCOUT("stats 208")
     said = Said(at)
-    check(said:find("The game lists no stats for", 1, true) and said:find("Weak Chest", 1, true), "an item that adds nothing")
-    check(said:find("Pawn: nothing", 1, true) ~= nil, "and nothing from Pawn")
+    check(said:find("The game lists no stats for", 1, true) and said:find("Statless Chest", 1, true), "an item that adds nothing")
 
     -- an item the game has not loaded: it is asked for, and the next time it is there
     at = #W.printed + 1
@@ -3115,18 +3221,16 @@ function scenarios.item_stats()
     SlashCmdList.UPGRADESCOUT("stats")
     check(Said(at):find(ns.L.STATS_NONE, 1, true) ~= nil, "alone, the command is about the last scan as before")
 
-    -- Without Pawn the command says what the game counts and no more.
-    local saved = PawnGetItemData
-    PawnGetItemData = nil
+    -- With Pawn installed, and for as long as the check against it is here, its reading is added.
+    PawnGetItemData = function() return { Stats = { Strength = 5, IsMail = 1 } } end
     at = #W.printed + 1
     SlashCmdList.UPGRADESCOUT("stats " .. W.Link(200))
-    said = Said(at)
-    check(said:find("Strength: 5", 1, true) ~= nil and said:find("Pawn", 1, true) == nil, "no word of Pawn without Pawn")
+    check(Said(at):find("Pawn: IsMail 1, Strength 5", 1, true) ~= nil, "what Pawn read, where Pawn is installed")
+    PawnGetItemData = nil
     at = #W.printed + 1
     SlashCmdList.UPGRADESCOUT("check")
-    check(Said(at):find("needs Pawn", 1, true) ~= nil, "and no check against it")
+    check(Said(at):find("needs Pawn", 1, true) ~= nil, "no check against Pawn without Pawn")
     eq(ns.Check.Active(), false, "which stays off")
-    PawnGetItemData = saved
 end
 
 -- The check against Pawn: every row of a scan is read both ways and written down.
@@ -3134,6 +3238,13 @@ function scenarios.check()
     StandardWorld()
     AddBelts()
     AddHighLevelFiller(300)
+    -- Pawn, as far as the check asks it: an item's stats as it reads them off the tooltip
+    -- (`stats` of an item), and the lines it could make nothing of.
+    PawnGetItemData = function(link)
+        local item = W.ParseItem(link)
+        if not item or not item.cached or item.noStats then return nil end
+        return { Stats = item.stats, UnknownLines = item.effects and { ["Use: Does something."] = 1 } or nil }
+    end
     local function Both(id, game, pawn)
         W.items[id].game, W.items[id].stats = game, pawn
     end
@@ -3236,6 +3347,59 @@ function scenarios.check()
     W.OpenAuctionHouse()
     ScanToEnd()
     eq(UpgradeScoutDB.check.seen, data.seen, "and a scan adds nothing to it")
+end
+
+-- The weights the addon comes with, made by scripts/make-weights.py: every class has
+-- profiles, starts on one of its own, and every profile has a name in every language and
+-- weights under the game's names for stats.
+function scenarios.weights_data()
+    local real = {}
+    assert(loadfile(ADDON_DIR .. "Weights.lua"))("UpgradeScout", real)
+    local data = real.Weights
+    check(type(data.source) == "string" and data.source ~= "", "the weights say where they come from")
+    check(type(data.APPROX_MARK) == "string" and data.APPROX_MARK ~= "", "and how an estimate is marked")
+    local LOCALES = { "enUS", "ruRU", "deDE", "frFR", "zhCN", "ptBR", "esES", "esMX", "koKR", "zhTW" }
+    local count = 0
+    for _, class in ipairs({ "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }) do
+        local ids = data.classes[class]
+        check(type(ids) == "table" and #ids > 0, class .. " has profiles")
+        local starts = false
+        for _, id in ipairs(ids or {}) do
+            count = count + 1
+            local profile = data.profiles[id]
+            check(profile ~= nil and profile.class == class, id .. " is a profile of " .. class)
+            for _, locale in ipairs(LOCALES) do
+                local title = data.titles[locale] and data.titles[locale][id]
+                check((type(title) == "string" and title ~= "") or profile.role ~= nil, id .. " has a name in " .. locale)
+            end
+            local any = false
+            for name, weight in pairs(profile.weights) do
+                check(name:find("^ITEM_MOD_[%u%d_]+_SHORT$") or name:find("^RESISTANCE%d_NAME$"), id .. ": the game's name for a stat: " .. name)
+                check(type(weight) == "number" and weight > 0, id .. ": a weight above nothing for " .. name)
+                any = true
+            end
+            check(any, id .. " has weights")
+            for _, hand in ipairs({ "mh", "oh", "ranged" }) do
+                check(profile[hand] == nil or (type(profile[hand]) == "number" and profile[hand] > 0), id .. ": " .. hand)
+            end
+            if id == data.start[class] then starts = true end
+        end
+        check(starts, class .. " starts on a profile of its own")
+    end
+    local listed = 0
+    for _ in pairs(data.profiles) do listed = listed + 1 end
+    eq(listed, count, "every profile is in its class's list")
+    -- The share of a rating's worth below level 60: rising with the level, all of it at 60.
+    local points = data.leveling and data.leveling.points or {}
+    check(#points >= 2, "the share of a rating's worth is known at more than one level")
+    for i = 2, #points do
+        check(points[i][1] > points[i - 1][1] and points[i][2] >= points[i - 1][2], "the share rises with the level")
+    end
+    eq(points[#points] and points[#points][2], 1, "and is all of it at the last")
+    for name in pairs(data.leveling and data.leveling.stats or {}) do
+        check(name:find("^ITEM_MOD_[%u_]+_RATING_SHORT$") ~= nil or name == "ITEM_MOD_SPELL_PENETRATION_SHORT",
+            "a rating, or spell penetration: " .. name)
+    end
 end
 
 -- A translation loads, and a scan works with it. `scan` is its text for the Scan button.

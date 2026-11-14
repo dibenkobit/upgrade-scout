@@ -4,7 +4,7 @@ local AH = C_AuctionHouse
 
 -- The scan, in three steps:
 --   browse  one search for all weapons and armor; gives a row per item with its lowest price
---   score   Pawn scores each row's item; rows that can beat the player's gear become
+--   score   each row's item is scored; rows that can beat the player's gear become
 --           "candidates", the rest drop out
 --   verify  an item search per candidate reads the real auctions, keeps those with a buyout
 --           price the player can equip, and remembers the cheapest of each ("offers")
@@ -44,7 +44,7 @@ S.mode = nil                   -- what the current work is for:
                                --   supplies a scan for consumables (see "Consumables" below)
                                --   supply   the lookup before a consumable is bought
 S.offers = {}                  -- offer id -> offer
-S.ctx = nil                    -- comparison context of the last scan (see PawnBridge.Context)
+S.ctx = nil                    -- comparison context of the last scan (see Score.Context)
 S.info = { rows = 0, scored = 0, toScore = 0, verified = 0, toVerify = 0 }
 S.message = nil                -- note for the status line
 S.partial = false              -- the last scan did not see everything
@@ -87,10 +87,10 @@ local ARMOR_CLASS = Enum.ItemClass.Armor
 local WEAPON_CLASS = Enum.ItemClass.Weapon
 local CONSUMABLE_CLASS = Enum.ItemClass.Consumable
 
--- Gear of a character that is not being played which the client has and Pawn gave nothing
--- for (ctx.unread, see PawnBridge.Context): most likely Pawn read the tooltip a moment before
--- the game had filled it in. The gear snapshot is made again a few times, a second apart; an
--- item that truly has no stats stays at 0, as it should.
+-- Gear of a character that is not being played which the client has and still gave no stats
+-- for (ctx.unread, see Score.Context): most likely it was asked a moment before the game had
+-- the whole item. The gear snapshot is made again a few times, a second apart; an item that
+-- truly has no stats stays at 0, as it should.
 local CONTEXT_RETRIES = 3
 local contextTries = 0
 local function Recheck()
@@ -200,9 +200,9 @@ local function IsUnique(itemID)
     return itemID ~= nil and C_Item.GetItemUniquenessByID(itemID) == true
 end
 
--- Scores an item link with Pawn.
---   table  the item can be worn by this class at this level and Pawn gives it a score
---   false  it never will be an offer (wrong type, too high level, nothing Pawn values)
+-- Scores an item link on the profile in use.
+--   table  the item can be worn by this class at this level and scores above nothing
+--   false  it never will be an offer (wrong type, too high level, nothing the profile values)
 --   nil    the client has not loaded the item yet; ask again later
 local function EvalLink(link)
     local cache = run.evalCache
@@ -215,9 +215,9 @@ local function EvalLink(link)
     local result = false
     local ctx = S.ctx
     if (minLevel or 0) <= ctx.level and ns.Compare.Handles(equipLoc) then
-        local item = ns.Pawn.Item(fullLink)
-        if item and ns.Pawn.ClassCanUse(item, ctx.who) then
-            local value = ns.Pawn.Value(item, ctx.scale)
+        local item = ns.Score.Item(fullLink)
+        if item and ns.Score.ClassCanUse(item, ctx.who) then
+            local value = ns.Score.Value(item, ctx.profile, ctx.level)
             if value > 0 then
                 local itemID = C_Item.GetItemInfoInstant(fullLink)
                 result = {
@@ -230,7 +230,7 @@ local function EvalLink(link)
                     itemID = itemID,
                     unique = IsUnique(itemID),
                     value = value,
-                    effects = ns.Pawn.HasUnscoredEffects(item),
+                    effects = ns.Score.HasUnscoredEffects(item),
                 }
             end
         end
@@ -827,8 +827,8 @@ end
 -- There is no third step. Consumables are sold by the piece out of one pile per item, without
 -- bids, so the lowest price in a browse row is the price of one piece.
 -- Which of them do the same thing, what each is worth to this character and which is the
--- best is Supplies.lua's business: it is settled when the list is drawn, so another Pawn
--- scale needs no new scan.
+-- best is Supplies.lua's business: it is settled when the list is drawn, so another
+-- profile needs no new scan.
 
 -- What the game says about a consumable:
 --   usable  true = the character can use it (nothing red; for a character that is not being
@@ -896,7 +896,7 @@ local function ScoreSupply(row, final)
         kind = kind,            -- the same for every consumable that does the same thing
         power = power,
         -- What the game's tables say it gives, where they say it (see SupplyData.lua):
-        stats = ns.SupplyData.stats[itemID],        -- { Strength = 25, ... } for Pawn to score
+        stats = ns.SupplyData.stats[itemID],        -- { ITEM_MOD_STRENGTH_SHORT = 25, ... } to be scored
         restores = ns.SupplyData.restores[itemID],  -- "H" health, "M" mana, "HM" both...
         price = row.minPrice,   -- of one piece
         quantity = row.quantity,
@@ -1040,7 +1040,7 @@ local function AddRow(result)
     local _, _, _, equipLoc, _, classID, subClassID = C_Item.GetItemInfoInstant(key.itemID)
     if not ns.Compare.Handles(equipLoc) then return end
     -- Armor heavier than the class can ever wear (subclasses 1 to 4, cloth to plate) is dropped
-    -- before scoring. This only saves time: Pawn would score it 0.
+    -- before scoring. This only saves time: it could never be an offer.
     if classID == ARMOR_CLASS and run.armorLimit and subClassID
         and subClassID >= 1 and subClassID <= 4 and subClassID > run.armorLimit then
         return
@@ -1056,9 +1056,9 @@ local function FinishBrowse(partial)
         if run.mode == "supplies" then S.suppliesPartial = true else S.partial = true end
     end
     -- Gear of a character that is not being played may have still been on its way from the
-    -- server when the scan began (see PawnBridge.Context): by now it has had time to come.
+    -- server when the scan began (see Score.Context): by now it has had time to come.
     if run.mode ~= "supplies" and S.ctx and S.ctx.pending then
-        S.ctx = ns.Pawn.Context(S.ctx.scale, S.ctx.who)
+        S.ctx = ns.Score.Context(S.ctx.profile, S.ctx.who)
         Recheck()
         S.changes = S.changes + 1
     end
@@ -1176,7 +1176,7 @@ function S.IsScan()
     return IsScanMode(S.mode)
 end
 
--- Forgets the last scan for gear (its scores belong to another Pawn scale, for instance).
+-- Forgets the last scan for gear (its scores belong to another profile, for instance).
 -- Consumables are left alone, and so is a scan for them that is running: what they are worth
 -- is worked out when their list is drawn.
 function S.Reset()
@@ -1208,7 +1208,7 @@ function S.Retarget()
 end
 
 -- Brings what was bought (S.acquired) in line with a gear snapshot that was just made: what
--- has been put on since is gear now, and the rest is scored on the snapshot's scale, which
+-- has been put on since is gear now, and the rest is scored on the snapshot's profile, which
 -- may be another one than it was bought under.
 local function Reacquire()
     local ctx = S.ctx
@@ -1224,9 +1224,9 @@ local function Reacquire()
     end
     for i = #S.acquired, 1, -1 do
         local item = S.acquired[i]
-        local scored = not worn[ns.ItemKey(item.link) or ""] and ns.Pawn.Item(item.link) or nil
+        local scored = not worn[ns.ItemKey(item.link) or ""] and ns.Score.Item(item.link) or nil
         if scored then
-            item.value = ns.Pawn.Value(scored, ctx.scale)
+            item.value = ns.Score.Value(scored, ctx.profile, ctx.level)
         else
             table.remove(S.acquired, i)
         end
@@ -1244,15 +1244,14 @@ function S.Start()
         return false
     end
     local who = ns.Roster.Target()
-    local problem = ns.Pawn.Problem()
-    local scale = not problem and ns.Pawn.CurrentScale(who) or nil
-    if problem or not scale then
-        S.message = problem or L.ERR_NO_SCALE
+    local profile = ns.Score.Current(who)
+    if not profile then
+        S.message = L.ERR_NO_PROFILE
         ns.Fire("SCAN_STATE")
         return false
     end
 
-    S.ctx = ns.Pawn.Context(scale.name, who)
+    S.ctx = ns.Score.Context(profile.name, who)
     contextTries = 0
     Recheck()
     Reacquire()
@@ -1326,7 +1325,6 @@ end
 function S.Demand()
     if S.state ~= "idle" or S.halted or confirming then return false end
     if not ahOpen or not S.ctx or not scan or not scan.ready then return false end
-    if ns.Pawn.Problem() then return false end
     if not PickCandidate() then return false end
     S.stats = S.stats or NewStats()
     NewRun("more")
@@ -1393,8 +1391,8 @@ end
 -- character that is not being played has come from the server). The offers keep their
 -- scores, so the list can be re-ranked without another scan.
 function S.RefreshContext()
-    if not S.ctx or ns.Pawn.Problem() then return end
-    S.ctx = ns.Pawn.Context(S.ctx.scale, S.ctx.who)
+    if not S.ctx then return end
+    S.ctx = ns.Score.Context(S.ctx.profile, S.ctx.who)
     Recheck()
     Reacquire()
     S.changes = S.changes + 1
@@ -1677,7 +1675,7 @@ local QueueContext = ns.Soon(0.5, function() S.RefreshContext() end)
 
 local function OnItemLoaded(itemID)
     if run and S.state == "score" then run.lastLoad = GetTime() end
-    -- An item the gear snapshot was waiting for (see PawnBridge.Context).
+    -- An item the gear snapshot was waiting for (see Score.Context).
     local ctx = S.ctx
     if ctx and ctx.pending and itemID ~= nil and ctx.pending[itemID] then QueueContext() end
 end

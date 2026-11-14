@@ -9,7 +9,7 @@ local _, ns = ...
 -- made for any of them: see Roster.Target.
 --
 -- A card:
---   key         the name Pawn files the character under ("Name Surname" in Forever)
+--   key         what the character is filed under: "Name Surname" in Forever
 --   name, last  its first name, which the tab shows, and its surname where the game has them
 --   realm, faction, class ("WARRIOR"), className and race (as the game writes them), level
 --   mana        it has mana
@@ -19,7 +19,7 @@ local _, ns = ...
 --   armor       { [armor subclass] = true }   would not say (or said too little to be
 --               believed: see Roster.Update), and then its class decides
 --   skills      { [profession, as the game names it] = rank }
---   scale       the Pawn scale chosen for it
+--   profile     the profile chosen for it (see Score.lua)
 --   seen        when it was last written down (time())
 local Roster = {}
 ns.Roster = Roster
@@ -73,15 +73,6 @@ local ARMOR = {
 local LATE_LEVEL = 40
 -- Librams, idols and totems go by class alone.
 local RELICS = { [7] = "PALADIN", [8] = "DRUID", [9] = "SHAMAN" }
-
--- The number the game and Pawn know each class by: the nine classes Forever has.
-local CLASS_ID = {
-    WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11,
-}
-
-function Roster.ClassID(card)
-    return CLASS_ID[card.class]
-end
 
 -- The heaviest armor a class can ever wear: 1 cloth, 2 leather, 3 mail, 4 plate.
 function Roster.HeaviestArmor(class)
@@ -234,12 +225,9 @@ local levelUp               -- the level PLAYER_LEVEL_UP named; UnitLevel may be
 local function Identity()
     local first, last = UnitName("player")
     if type(first) ~= "string" or first == "" then return nil end
-    -- Pawn's own name for the character where Pawn has settled on one, and the same rule
-    -- where it has not yet: Forever gives a character a surname, other clients a realm.
-    local key = type(PawnPlayerFullName) == "string" and PawnPlayerFullName ~= "" and PawnPlayerFullName or nil
-    if not key then
-        key = last and (first .. " " .. last) or (first .. "-" .. (GetRealmName() or ""))
-    end
+    -- Forever gives a character a surname, other clients a realm. The cards have been kept
+    -- under this name since the first version.
+    local key = last and (first .. " " .. last) or (first .. "-" .. (GetRealmName() or ""))
     return key, first, last
 end
 
@@ -277,12 +265,10 @@ function Roster.Me()
     end
     card.key = myKey
     if not card.class or not card.level then Describe(card) end
-    -- The scale used to be kept with the character's own settings; now a character's scale
-    -- can be chosen while another one is played, so it is on the card.
-    if ns.db.scale ~= nil then
-        if card.scale == nil then card.scale = ns.db.scale end
-        ns.db.scale = nil
-    end
+    -- What version 1 kept as the character's "scale" was the name of a scale in another
+    -- addon. It names nothing now: the character gets the profile its class starts with.
+    ns.db.scale = nil
+    card.scale = nil
     return card
 end
 
@@ -346,7 +332,7 @@ end
 -- A card read from the saved file is used only if it holds what the lists need.
 local function Sound(key, card)
     return type(card) == "table" and card.key == key and type(card.name) == "string" and card.name ~= ""
-        and CLASS_ID[card.class] ~= nil and type(card.level) == "number"
+        and EVERYONE[card.class or ""] == true and type(card.level) == "number"
 end
 
 -- Every character there is a card for: the one being played first, then the others, those
@@ -417,19 +403,6 @@ function Roster.Colored(card, text)
     return color and color:WrapTextInColorCode(text) or text
 end
 
--- A scale's title without the class it begins with ("Druid: Balance"): beside the
--- character's name, written in the colour of its class, the class is said twice.
-function Roster.Short(card, title)
-    local names = ClassNames(card)
-    for i = 1, 3 do
-        local name = names[i]
-        if type(name) == "string" and name ~= "" then
-            local prefix = name .. ": "
-            if #title > #prefix and title:sub(1, #prefix) == prefix then return title:sub(#prefix + 1) end
-        end
-    end
-    return title
-end
 
 ---------------------------------------------------------------------------
 -- Keeping the card of the character being played up to date

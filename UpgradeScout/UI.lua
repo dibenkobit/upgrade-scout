@@ -9,7 +9,7 @@ local S = ns.Scanner
 -- The parts that do the work are still the game's own:
 --   the list        WowScrollBoxList and MinimalScrollBar
 --   prices          MoneyDisplayFrameTemplate
---   the Pawn scale  WowStyle1DropdownTemplate: its menu and its text, under a face of ours
+--   the profile     WowStyle1DropdownTemplate: its menu and its text, under a face of ours
 --   buying          a StaticPopup shaped like the game's own BUYOUT_AUCTION
 --
 -- The "Consumables" tab is the same frame in another view (`view`): the same list with rows
@@ -71,7 +71,7 @@ local PICKS = {
 }
 
 local frame, scrollBox, provider, hint, intro, status, statusBar, listBar
-local scanButton, scaleDropdown, affordCheck, topCheck
+local scanButton, profileDropdown, affordCheck, topCheck
 local view = "gear"         -- what the frame shows: "gear" (Upgrades) or "supplies" (Consumables)
 local holder                -- the frame the Consumables tab is made with (see Build)
 local bestCheck, buyBox     -- the Consumables view's own filter, and its box for buying
@@ -82,7 +82,7 @@ local elements = {}       -- row key -> the table the scroll box knows the row b
 local syncCount = 0
 local toTop = false         -- scroll back to the top at the next refresh
 local keepPlace = false     -- the next refresh must not move the list (see SyncList)
-local scaleShown            -- what the scale dropdown was last built from (see ScaleKey)
+local profileShown            -- what the profile dropdown was last built from (see ProfileKey)
 
 -- How far the scanner is with what it is doing, 0 to 1; nil when it cannot tell.
 local function Progress()
@@ -99,7 +99,7 @@ end
 -- Whom the lists are for
 ---------------------------------------------------------------------------
 -- The lists are for the character being played unless another one of the account is chosen
--- in the scale field (see "Controls"). That one's card (see Roster.lua) is `who` throughout
+-- in the profile field (see "Controls"). That one's card (see Roster.lua) is `who` throughout
 -- this file; nil is the character being played.
 local function WhoName(who)
     return ns.Roster.Colored(who, who.name)
@@ -453,8 +453,8 @@ local function CanBuy()
     return S.state == "idle" and S.IsOpen()
 end
 
--- A consumable: its name, what it does, what that is worth on the Pawn scale (when Pawn can
--- say), the price of one piece and how many are for sale.
+-- A consumable: its name, what it does, what that is worth on the profile (when the game's
+-- tables say), the price of one piece and how many are for sale.
 local function InitSupplyRow(row, entry, share)
     local supply = entry.supply
     row.Icon:SetTexture(supply.icon)
@@ -766,42 +766,35 @@ local function StatusText()
     return ForWho(table.concat(parts, " "))
 end
 
--- Whom the lists are for, the scales to choose from and the one in use, as one string: the
--- dropdown is rebuilt when this changes (a scale enabled or hidden in Pawn while the auction
--- house is open, a character forgotten).
-local function ScaleKey()
-    if ns.Pawn.Problem() then return "" end
+-- Whom the lists are for, the profiles to choose from and the one in use, as one string: the
+-- dropdown is rebuilt when this changes (another character chosen, a character forgotten).
+local function ProfileKey()
     local who = ns.Roster.Target()
-    local current, scales = ns.Pawn.CurrentScale(who)
+    local current, profiles = ns.Score.Current(who)
     local names = {}
-    for i = 1, #scales do names[i] = scales[i].name end
+    for i = 1, #profiles do names[i] = profiles[i].name end
     return (who and who.key or "") .. "\n" .. #ns.Roster.List() .. "\n"
         .. (current and current.name or "") .. "=" .. table.concat(names, "\n")
 end
 
-local function ScaleTitle()
-    if ns.Pawn.Problem() then return NONE end
-    local scale = ns.Pawn.CurrentScale(ns.Roster.Target())
-    return scale and scale.title or NONE
+local function ProfileTitle()
+    local profile = ns.Score.Current(ns.Roster.Target())
+    return profile and profile.title or NONE
 end
 
 -- What an empty list says before its first scan: what the scan will find, and for whom.
 local function IntroText()
     local who = ns.Roster.Target()
     if view == "supplies" then
-        -- Consumables can be listed without Pawn, only without scores: what is wrong with
-        -- Pawn is said in the Upgrades view, which cannot do without it.
         return who and L.SUP_HINT_WHO:format(WhoName(who)) or L.SUP_HINT
     end
-    local problem = ns.Pawn.Problem()
-    if problem then return problem end
-    if who then return L.HINT_WHO:format(WhoName(who), ScaleTitle()) end
-    return L.HINT:format(ScaleTitle())
+    if who then return L.HINT_WHO:format(WhoName(who), ProfileTitle()) end
+    return L.HINT:format(ProfileTitle())
 end
 
 -- The status line, with a bar beside it while the scanner works. An empty list has the
 -- middle of the plate to say more:
---   before the first scan   the addon's emblem and what to do (or what is wrong with Pawn)
+--   before the first scan   the addon's emblem and what to do
 --   during a scan           the same words as the status line, over a wider bar
 --   after one               why the list is empty
 local function ShowStatus()
@@ -852,15 +845,16 @@ local function SetCheck(check, checked)
     check.Tick:SetShown(checked)
 end
 
--- How the list of consumables is to score what one of them adds: with Pawn, on the scale in
--- use. Nothing when Pawn cannot be asked; the list then has no scores and leaves nothing out.
+-- How the list of consumables is to score what one of them adds: on the profile in use, for
+-- the character's level. Nothing for a character without a profile; the list then has no
+-- scores and leaves nothing out.
 local MANA = Enum.PowerType.Mana
 local function SupplyValue(who)
-    if ns.Pawn.Problem() then return nil end
-    local scale = ns.Pawn.CurrentScale(who)
-    if not scale then return nil end
-    local name = scale.name
-    return function(stats) return ns.Pawn.StatsValue(stats, name) end
+    local profile = ns.Score.Current(who)
+    if not profile then return nil end
+    local name = profile.name
+    local level = who and who.level or UnitLevel("player")
+    return function(stats) return ns.Score.StatsValue(stats, name, level) end
 end
 
 ---------------------------------------------------------------------------
@@ -975,10 +969,10 @@ function UI.Refresh()
     SetCheck(topCheck, ns.db.topOnly)
     SetCheck(bestCheck, ns.db.bestOnly)
 
-    local scaleKey = ScaleKey()
-    if scaleKey ~= scaleShown then
-        scaleShown = scaleKey
-        scaleDropdown:GenerateMenu()
+    local profileKey = ProfileKey()
+    if profileKey ~= profileShown then
+        profileShown = profileKey
+        profileDropdown:GenerateMenu()
     end
 
     -- The scan looks up only the prices the list can show. If the list now needs more of them
@@ -1007,16 +1001,16 @@ end
 ---------------------------------------------------------------------------
 -- Controls
 ---------------------------------------------------------------------------
--- The scale field answers two questions at once: whom the lists are for, and on which of
--- that character's Pawn scales. Its menu has the scales of the character being played, and
+-- The profile field answers two questions at once: whom the lists are for, and on which of
+-- that character's profiles. Its menu has the profiles of the character being played, and
 -- under them those of every other character of the account the addon has seen (Roster.List),
 -- each line beginning with the character's name. A line of the menu is a "choice":
---   { who = the character's key, false for the one being played; scale = the scale's name }
+--   { who = the character's key, false for the one being played; profile = the profile's name }
 local function IsChoice(choice)
     local who = ns.Roster.Target()
     if (who and who.key or false) ~= choice.who then return false end
-    local scale = ns.Pawn.CurrentScale(who)
-    return scale ~= nil and scale.name == choice.scale
+    local profile = ns.Score.Current(who)
+    return profile ~= nil and profile.name == choice.profile
 end
 
 local function Choose(choice)
@@ -1029,11 +1023,11 @@ local function Choose(choice)
     local owner = card or ns.Roster.Me()
     if not owner then return end
     local sameWho = card == ns.Roster.Target()
-    -- A character's scale is remembered with the character, whoever chose it.
-    owner.scale = choice.scale
+    -- A character's profile is remembered with the character, whoever chose it.
+    owner.profile = choice.profile
 
     if sameWho then
-        -- Scores of gear from another scale mean nothing now, and the Upgrades view scans
+        -- Scores of gear from another profile mean nothing now, and the Upgrades view scans
         -- again. Consumables are scored as their list is drawn, so theirs follow with the
         -- refresh; a scan for gear is not started from their view, where it would grey out
         -- the Buy buttons.
@@ -1051,26 +1045,25 @@ local function Choose(choice)
         S.Retarget()
         if rescan and S.IsOpen() then
             if view == "supplies" then S.StartSupplies() else S.Start() end
-        elseif card and not ns.Pawn.Problem() then
+        elseif card then
             -- Nothing to scan yet: the character's gear is asked of the server now, so that
-            -- it is at hand when the scan comes (see PawnBridge.Context).
-            ns.Pawn.Context(choice.scale, card)
+            -- it is at hand when the scan comes (see Score.Context).
+            ns.Score.Context(choice.profile, card)
         end
     end
     -- The dropdown shows the choice by itself; it must not be rebuilt while its menu is open.
-    scaleShown = ScaleKey()
+    profileShown = ProfileKey()
     toTop = true
     UI.Refresh()
 end
 
 local MENU_ROWS = 20        -- a menu with more lines than this scrolls
 
-local function ScaleMenu(_, root)
-    if ns.Pawn.Problem() then return end
+local function ProfileMenu(_, root)
     local lines = 0
-    local _, scales = ns.Pawn.CurrentScale()
-    for i = 1, #scales do
-        root:CreateRadio(scales[i].title, IsChoice, Choose, { who = false, scale = scales[i].name })
+    local _, profiles = ns.Score.Current()
+    for i = 1, #profiles do
+        root:CreateRadio(profiles[i].title, IsChoice, Choose, { who = false, profile = profiles[i].name })
         lines = lines + 1
     end
 
@@ -1078,11 +1071,11 @@ local function ScaleMenu(_, root)
     local cards = ns.Roster.List()
     for c = 1, #cards do
         local card = cards[c]
-        local _, theirs = ns.Pawn.CurrentScale(card)
+        local _, theirs = ns.Score.Current(card)
         if card ~= me and #theirs > 0 then
             if lines > 0 then root:CreateDivider() end
-            -- The name in the colour of the class, then the scale without the class it is
-            -- named after: "Diluna: Balance". The field shows the line that is chosen, so
+            -- The name in the colour of the class, then the profile: "Diluna: Balance".
+            -- The field shows the line that is chosen, so
             -- it says whose list this is as long as it is not one's own.
             local name = WhoName(card)
             -- What is bought here cannot be sent to another realm: a character of one is
@@ -1091,8 +1084,8 @@ local function ScaleMenu(_, root)
                 name = name .. " (" .. card.realm .. ")"
             end
             for i = 1, #theirs do
-                root:CreateRadio(name .. ": " .. ns.Roster.Short(card, theirs[i].title), IsChoice, Choose,
-                    { who = card.key, scale = theirs[i].name })
+                root:CreateRadio(name .. ": " .. theirs[i].title, IsChoice, Choose,
+                    { who = card.key, profile = theirs[i].name })
                 lines = lines + 1
             end
         end
@@ -1405,26 +1398,26 @@ local function ApplyView()
     list.Titles[5]:SetText(ns.Upper(gear and L.COL_PER or L.COL_STOCK))
     intro.Heading:SetText(ns.Upper(gear and L.TITLE or L.TITLE_SUP))
 
-    -- Both views score with the Pawn scale; their second filter is another one.
+    -- Both views score on the profile; their second filter is another one.
     local second = gear and topCheck or bestCheck
     topCheck:SetShown(gear)
     bestCheck:SetShown(not gear)
     affordCheck:ClearAllPoints()
     affordCheck:SetPoint("LEFT", second, "LEFT", -(2 * PAD + CheckWidth(affordCheck)), 0)
 
-    -- The scale field takes the room this view's labels leave, within reason. Where a
+    -- The profile field takes the room this view's labels leave, within reason. Where a
     -- language's labels leave too little, the field stands without its own label; its tooltip
     -- says what it is.
-    local label = frame.ScaleLabel
+    local label = frame.ProfileLabel
     local labelWidth = label:GetStringWidth() + PAD
     local room = AuctionHouseFrame:GetWidth() - (BAR_LEFT + SCAN_WIDTH + 2 * PAD
         + 2 * PAD + CheckWidth(affordCheck) + 2 * PAD + CheckWidth(second) + BAR_RIGHT)
     local labelled = room - labelWidth >= DROPDOWN_MIN
     label:SetShown(labelled)
     if not labelled then labelWidth = 0 end
-    scaleDropdown:SetWidth(Clamp(room - labelWidth, DROPDOWN_MIN, DROPDOWN_MAX))
-    scaleDropdown:ClearAllPoints()
-    scaleDropdown:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD + labelWidth, 0)
+    profileDropdown:SetWidth(Clamp(room - labelWidth, DROPDOWN_MIN, DROPDOWN_MAX))
+    profileDropdown:ClearAllPoints()
+    profileDropdown:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD + labelWidth, 0)
 
     buyBox:Hide()
     toTop = true
@@ -1478,26 +1471,41 @@ local function Build()
     scanButton.Label:SetText(ns.Upper(L.SCAN))
     scanButton:SetScript("OnClick", ScanOnClick)
 
-    -- The filters stand against the right edge. (Where the price filter and the scale field
+    -- The filters stand against the right edge. (Where the price filter and the profile field
     -- go, and how wide the field is, depends on the view: see ApplyView.)
     topCheck = NewFilterCheck(L.TOP:format(ns.Results.TOP_COUNT), "topOnly", L.TOP_TIP:format(ns.Results.TOP_COUNT))
     topCheck:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + CheckWidth(topCheck)), -BAR_MIDDLE)
     affordCheck = NewFilterCheck(L.AFFORD, "affordableOnly")
 
-    local scaleLabel = NewText(frame, 9.5, GOLD_DIM)
-    frame.ScaleLabel = scaleLabel
-    scaleLabel:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD, 0)
-    scaleLabel:SetText(Caption(L.SCALE))
+    local profileLabel = NewText(frame, 9.5, GOLD_DIM)
+    frame.ProfileLabel = profileLabel
+    profileLabel:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD, 0)
+    profileLabel:SetText(Caption(L.PROFILE))
 
-    scaleDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
-    scaleDropdown:SetHeight(24)
-    SkinDropdown(scaleDropdown)
-    scaleDropdown:SetDefaultText(NONE)
-    scaleDropdown:SetupMenu(ScaleMenu)
-    scaleDropdown:SetTooltip(function(tooltip)
+    profileDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
+    profileDropdown:SetHeight(24)
+    SkinDropdown(profileDropdown)
+    profileDropdown:SetDefaultText(NONE)
+    profileDropdown:SetupMenu(ProfileMenu)
+    profileDropdown:SetTooltip(function(tooltip)
         local who = ns.Roster.Target()
-        GameTooltip_SetTitle(tooltip, who and L.ST_WHO:format(WhoName(who), ScaleTitle()) or ScaleTitle())
-        GameTooltip_AddNormalLine(tooltip, L.SCALE_TIP)
+        GameTooltip_SetTitle(tooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
+        GameTooltip_AddNormalLine(tooltip, L.PROFILE_TIP)
+        -- Where the weights come from, and that they are an approximation.
+        GameTooltip_AddNormalLine(tooltip, L.PROFILE_SOURCE:format(ns.Weights.source))
+        local _, profiles = ns.Score.Current(who)
+        for i = 1, #profiles do
+            if ns.Score.IsApprox(profiles[i].name) then
+                GameTooltip_AddNormalLine(tooltip, L.PROFILE_APPROX:format(ns.Weights.APPROX_MARK))
+                break
+            end
+        end
+        -- Below level 60 the ratings count for less (see Score.LevelFactor).
+        local level = who and who.level or UnitLevel("player")
+        local factor = ns.Score.LevelFactor(level)
+        if factor < 1 then
+            GameTooltip_AddNormalLine(tooltip, L.PROFILE_LEVEL:format(level, math.floor(factor * 100 + 0.5) .. "%"))
+        end
         GameTooltip_AddBlankLineToTooltip(tooltip)
         if who then
             -- How old what is known of the character is: the list is only as good as that.
@@ -1581,7 +1589,7 @@ local function Build()
     statusBar:Hide()
 
     -- The parts by name, as the game's own windows have theirs.
-    frame.ScanButton, frame.ScaleDropdown = scanButton, scaleDropdown
+    frame.ScanButton, frame.ProfileDropdown = scanButton, profileDropdown
     frame.AffordCheck, frame.TopCheck = affordCheck, topCheck
     frame.List, frame.Progress = list, statusBar
     list.Intro, list.Hint, list.Progress = intro, hint, listBar
@@ -1706,7 +1714,7 @@ end)
 ---------------------------------------------------------------------------
 -- /upscout opens the tab when the auction house is open; /upscout stats tells how the last
 -- scan went; /upscout forget Name takes a character that is gone (deleted, renamed) out of
--- the scale field's menu
+-- the profile field's menu
 ---------------------------------------------------------------------------
 local function Forget(name)
     local was = ns.Roster.Target()

@@ -28,20 +28,17 @@
 ## Category-koKR: 경매
 ## IconTexture: Interface\AddOns\UpgradeScout\icon.tga
 
-# Pawn is a hard requirement: every score in this addon is Pawn's own number for the scale you
-# have active. With this line the game refuses to load Upgrade Scout unless Pawn is installed
-# and enabled (the AddOns list then shows "Dependency missing: Pawn"), and Pawn always loads first.
-## Dependencies: Pawn
-
 Libs\LibStub\LibStub.lua
 Libs\LibAHTab\LibAHTab.lua
 
 Locale.lua
 Core.lua
 Roster.lua
-PawnBridge.lua
-Compare.lua
 Stats.lua
+Weights.lua
+GearData.lua
+Score.lua
+Compare.lua
 Check.lua
 Results.lua
 Plan.lua

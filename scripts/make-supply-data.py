@@ -8,14 +8,14 @@ tooltip, in the player's language. The numbers behind that sentence are in the c
 tables, and wago.tools publishes those as CSV for every build (the Forever client is its
 product "wowf"; https://wago.tools/api/builds lists the builds). This script downloads the
 tables it needs into --tables (once per build) and writes one Lua table: item -> stats under
-the names Pawn knows them by, and item -> what the item restores.
+the names the game has for them on gear (see NAMES below), and item -> what the item restores.
 
 Run it again when the game gets new consumables. An item that is not in the table is still
 listed by the addon, only without a score.
 
 What is read, and what is left out on purpose:
   * the first on-use spell of an item, and the spells it triggers (food: "Well Fed");
-  * auras that add a flat amount of something Pawn has a weight for;
+  * auras that add a flat amount of something a profile can have a weight for;
   * for oils and the like (a temporary enchantment), what the enchantment adds;
   * NOT percentages of a stat, procs, damage, weapon damage, and permanent enchantments
     (what an armor kit is worth depends on what the piece it goes on has now);
@@ -40,12 +40,30 @@ CONSUMABLE = 0          # item class
 # How an item binds: 0 not at all, 2 when equipped, 3 when used. The rest cannot be sold.
 SELLABLE = {0, 2, 3}
 
-STATS = ["Strength", "Agility", "Stamina", "Intellect", "Spirit"]       # by the game's stat number
-SCHOOLS = [(2, "Holy"), (4, "Fire"), (8, "Nature"), (16, "Frost"), (32, "Shadow"), (64, "Arcane")]
+# The names a stat goes by. The addon scores gear by the names the game gives its stats
+# (C_Item.GetItemStats: "ITEM_MOD_STRENGTH_SHORT"), and a profile's weights are under those
+# names, so what a consumable adds is written down under them too.
+#
+# A piece of gear has one rating for a chance, whatever it is a chance with. A consumable can
+# add a chance with weapons only, or with spells only. Those go under the names the game has
+# for exactly that ("ITEM_MOD_CRIT_SPELL_RATING_SHORT"; for haste, where it has none, a name
+# made the same way), which no piece of gear uses, and a profile weighs them by what it does.
+# It is the same with attack power: gear has one number for melee and ranged together.
+def mod(name):
+    return "ITEM_MOD_" + name + "_SHORT"
+
+
+STATS = [mod(n) for n in ("STRENGTH", "AGILITY", "STAMINA", "INTELLECT", "SPIRIT")]     # by the game's stat number
+ARMOR = "RESISTANCE0_NAME"
+# school bit -> (the name of its spell damage, the name of its resistance)
+SCHOOLS = [(2, mod("HOLY_DAMAGE_DONE"), "RESISTANCE1_NAME"), (4, mod("FIRE_DAMAGE_DONE"), "RESISTANCE2_NAME"),
+           (8, mod("NATURE_DAMAGE_DONE"), "RESISTANCE3_NAME"), (16, mod("FROST_DAMAGE_DONE"), "RESISTANCE4_NAME"),
+           (32, mod("SHADOW_DAMAGE_DONE"), "RESISTANCE5_NAME"), (64, mod("ARCANE_DAMAGE_DONE"), "RESISTANCE6_NAME")]
 ALL_MAGIC = 126
 POWERS = {0: "M", 1: "R", 2: "F", 3: "E"}                               # mana, rage, focus, energy
 # A regeneration aura that lasts no longer than this is a meal or a drink, not a buff.
 MEAL_SECONDS = 120
+HEALTH_REGEN, MANA_REGEN = mod("HEALTH_REGENERATION"), mod("MANA_REGENERATION")
 
 # Spell effects
 HEAL, ENERGIZE, TRIGGER_SPELL, APPLY_AURA = 10, 30, 64, 6
@@ -55,44 +73,63 @@ PERIODIC_TRIGGER, PERIODIC_TRIGGER_WITH_VALUE = 23, 227
 
 # Enchantment effects
 ENCHANT_SPELL, ENCHANT_RESISTANCE, ENCHANT_STAT = 3, 4, 5
-# The game's numbers for what an enchantment can add (ITEM_MOD_*), where Pawn has a name for it.
-ITEM_MODS = {0: "Mana", 1: "Health", 3: "Agility", 4: "Strength", 5: "Intellect", 6: "Spirit", 7: "Stamina",
-             38: "Ap", 39: "Rap", 41: "Healing", 42: "SpellDamage", 43: "Mp5", 46: "Hp5", 50: "Armor",
-             51: "FireResist", 52: "FrostResist", 54: "ShadowResist", 55: "NatureResist", 56: "ArcaneResist"}
+# The game's numbers for what an enchantment can add (ITEM_MOD_*): the numbers gear has too.
+ITEM_MODS = {0: mod("MANA"), 1: mod("HEALTH"), 3: mod("AGILITY"), 4: mod("STRENGTH"), 5: mod("INTELLECT"),
+             6: mod("SPIRIT"), 7: mod("STAMINA"), 38: mod("ATTACK_POWER"), 39: mod("RANGED_ATTACK_POWER"),
+             41: mod("SPELL_HEALING_DONE"), 42: mod("SPELL_DAMAGE_DONE"), 43: MANA_REGEN, 45: mod("SPELL_POWER"),
+             46: HEALTH_REGEN, 50: ARMOR,
+             51: "RESISTANCE2_NAME", 52: "RESISTANCE4_NAME", 54: "RESISTANCE5_NAME", 55: "RESISTANCE3_NAME",
+             56: "RESISTANCE6_NAME"}
 
-
-def by_school(mask, all_name, suffix):
-    """Names for a mask of magic schools: one name for all of them where Pawn has one."""
-    if mask & ALL_MAGIC == ALL_MAGIC and all_name:
-        return [all_name]
-    return [name + suffix for bit, name in SCHOOLS if mask & bit]
+# A chance or a speed is a percentage on a consumable and a rating on gear. It is written down
+# as the rating that gives that much of it at level 60 (the numbers are the game's, as the
+# simulator the weights come from has them), so that one weight serves both.
+# aura -> (what it is, with what, rating for 1%)
+CHANCES = {
+    290: ("CRIT", "both", 14), 52: ("CRIT", "MELEE", 14), 57: ("CRIT", "SPELL", 14),
+    54: ("HIT", "MELEE", 10), 55: ("HIT", "SPELL", 10),
+    193: ("HASTE", "both", 10), 342: ("HASTE", "MELEE", 10), 65: ("HASTE", "SPELL", 10),
+    49: ("DODGE", "both", 12), 47: ("PARRY", "both", 15), 51: ("BLOCK", "both", 5),
+}
+# The two auras for attack power: with melee weapons, with ranged ones.
+MELEE_AP, RANGED_AP = 99, 124
 
 
 def aura_stats(aura, misc):
-    """Pawn's names for what a flat aura adds, or None when it is not one this script reads."""
+    """The names for what a flat aura adds, or None when it is not one this script reads."""
     if aura == 29:                                              # a stat; -1 is all five
         return STATS if misc == -1 else [STATS[misc]] if 0 <= misc < len(STATS) else None
     if aura == 13:                                              # spell damage, by school
-        return by_school(misc, "SpellDamage", "SpellDamage") or None
+        if misc & ALL_MAGIC == ALL_MAGIC: return [mod("SPELL_DAMAGE_DONE")]
+        return [damage for bit, damage, _ in SCHOOLS if misc & bit] or None
     if aura in (22, 674):                                       # resistance; school 1 is armor
-        names = (["Armor"] if misc & 1 else []) + by_school(misc, None, "Resist")
-        return [n for n in names if n != "HolyResist"] or None
+        names = ([ARMOR] if misc & 1 else []) + [resist for bit, _, resist in SCHOOLS if misc & bit and bit != 2]
+        return names or None
     return {
-        135: ["Healing"],
-        99: ["Ap"], 124: ["Rap"],
-        34: ["Health"], 230: ["Health"], 250: ["Health"],
-        35: ["Mana"] if misc == 0 else None, 418: ["Mana"] if misc == 0 else None,
-        161: ["Hp5"],
-        # Chances and speeds are percentages, and so are Pawn's weights for them in this game.
-        # Pawn has a name for each of them for weapons and another for spells; an aura for both
-        # is written down as both. What a Forever scale makes of the two names, which has one
-        # weight for a rating, is settled when a consumable is scored (PawnBridge.StatsValue).
-        290: ["CritRating", "SpellCritRating"], 52: ["CritRating"], 57: ["SpellCritRating"],
-        54: ["HitRating"], 55: ["SpellHitRating"],
-        193: ["HasteRating", "SpellHasteRating"], 65: ["SpellHasteRating"], 342: ["HasteRating"],
-        240: ["ExpertiseRating"],
-        49: ["DodgeRating"], 47: ["ParryRating"], 51: ["BlockRating"],
+        135: [mod("SPELL_HEALING_DONE")],
+        MELEE_AP: [mod("MELEE_ATTACK_POWER")], RANGED_AP: [mod("RANGED_ATTACK_POWER")],
+        34: [mod("HEALTH")], 230: [mod("HEALTH")], 250: [mod("HEALTH")],
+        35: [mod("MANA")] if misc == 0 else None, 418: [mod("MANA")] if misc == 0 else None,
+        161: [HEALTH_REGEN],
     }.get(aura)
+
+
+def together(found, apart, whole):
+    """Two halves of one bonus (`apart`: a name for each) become the one name gear has for it."""
+    both = min(found.get(apart[0], 0), found.get(apart[1], 0))
+    if both <= 0: return
+    found[whole] = found.get(whole, 0) + both
+    for name in apart:
+        found[name] -= both
+        if found[name] <= 0: del found[name]
+
+
+def tidy(found):
+    """One spell's bonuses under the names gear has for them."""
+    for what in ("CRIT", "HIT", "HASTE"):
+        together(found, (mod(what + "_MELEE_RATING"), mod(what + "_SPELL_RATING")), mod(what + "_RATING"))
+    together(found, (mod("MELEE_ATTACK_POWER"), mod("RANGED_ATTACK_POWER")), mod("ATTACK_POWER"))
+    return found
 
 
 class Tables:
@@ -170,17 +207,22 @@ class Reading:
                     if misc in POWERS: self.restores.add(POWERS[misc])
                 elif aura == 84:                                # health while it lasts: food
                     if 0 < seconds <= MEAL_SECONDS: self.restores.add("H")
-                    elif amount > 0: found["Hp5"] = max(found.get("Hp5", 0), amount)
+                    elif amount > 0: found[HEALTH_REGEN] = max(found.get(HEALTH_REGEN, 0), amount)
                 elif aura == 85:                                # mana while it lasts: a drink, or an elixir
                     if misc != 0: continue
                     if 0 < seconds <= MEAL_SECONDS: self.restores.add("M")
-                    elif amount > 0: found["Mp5"] = max(found.get("Mp5", 0), amount)
+                    elif amount > 0: found[MANA_REGEN] = max(found.get(MANA_REGEN, 0), amount)
+                elif amount > 0 and aura in CHANCES:
+                    what, with_what, rating = CHANCES[aura]
+                    names = ["MELEE", "SPELL"] if with_what == "both" and what in ("CRIT", "HIT", "HASTE") else [with_what]
+                    for name in names:
+                        name = mod(what + "_RATING") if name == "both" else mod(what + "_" + name + "_RATING")
+                        found[name] = max(found.get(name, 0), amount * rating)
                 elif amount > 0:
-                    # Two auras of one spell that Pawn knows by one name (chance to hit with
-                    # weapons, with spells) are one bonus, not two.
+                    # Two auras of one spell that go by one name are one bonus, not two.
                     for name in aura_stats(aura, misc) or []:
                         found[name] = max(found.get(name, 0), amount)
-        self.add(found)
+        self.add(tidy(found))
 
     def enchantment(self, enchant):
         r = self.t.enchant.get(enchant)
@@ -193,12 +235,17 @@ class Reading:
             elif kind == ENCHANT_STAT and amount > 0 and arg in ITEM_MODS:
                 found[ITEM_MODS[arg]] = found.get(ITEM_MODS[arg], 0) + amount
             elif kind == ENCHANT_RESISTANCE and amount > 0 and arg == 0:
-                found["Armor"] = found.get("Armor", 0) + amount
+                found[ARMOR] = found.get(ARMOR, 0) + amount
         self.add(found)
 
 
 def number(value):
     return str(int(value)) if value == int(value) else f"{value:g}"
+
+
+def short(name):
+    """A stat's name without what every name has, for the report."""
+    return name[9:-6] if name.startswith("ITEM_MOD_") else name
 
 
 def download(build, folder):
@@ -239,7 +286,7 @@ def main():
         if args.report and (reading.stats or reading.restores):
             sparse = tables.sparse[item]
             print(f"{item:7d} sub{row['SubclassID']:>3} req{sparse['RequiredLevel']:>3} {sparse['Display_lang'][:38]:38} "
-                  f"{restores.get(item, ''):3} {', '.join(f'{k} {number(v)}' for k, v in sorted(reading.stats.items()))}")
+                  f"{restores.get(item, ''):3} {', '.join(f'{short(k)} {number(v)}' for k, v in sorted(reading.stats.items()))}")
 
     lines = [
         "-- Made by scripts/make-supply-data.py from the game's tables, build " + args.build + ". Not written by hand:",
@@ -250,11 +297,20 @@ def main():
         "local D = { build = \"" + args.build + "\" }",
         "ns.SupplyData = D",
         "",
-        "-- item -> what its effect adds, under Pawn's names for stats. Chances and haste are in percent.",
-        "D.stats = {",
+        "-- item -> what its effect adds, under the names the game has for the stats of gear, which",
+        "-- are the names a profile's weights go by (Weights.lua). A chance is the rating that gives",
+        "-- that much of it at level 60. The names are long and many times the same, so each is",
+        "-- written once here.",
     ]
+    used = sorted({name for found in stats.values() for name in found})
+    local = {name: "ARMOR" if name == ARMOR else short(name).replace("RESISTANCE", "RESIST").replace("_NAME", "")
+             for name in used}
+    assert len(set(local.values())) == len(local)
+    for name in used:
+        lines.append(f"local {local[name]} = \"{name}\"")
+    lines += ["", "D.stats = {"]
     for item in sorted(stats):
-        pairs = ", ".join(f"{name} = {number(amount)}" for name, amount in sorted(stats[item].items()))
+        pairs = ", ".join(f"[{local[name]}] = {number(amount)}" for name, amount in sorted(stats[item].items()))
         lines.append(f"    [{item}] = {{ {pairs} }},")
     lines += [
         "}",

@@ -11,12 +11,12 @@ local L = ns.L
 --
 -- What a consumable is worth comes from two things the scanner attaches to it out of the
 -- game's own tables (SupplyData.lua), where the tables have them:
---   stats     what its effect adds, for Pawn to score on the player's scale: the number is in
+--   stats     what its effect adds, to be scored on the character's profile: the number is in
 --             the same points as a piece of gear, so +25 Agility from an elixir and from a ring
 --             are worth the same
 --   restores  what it gives back (health, mana...): no score, but mana is of no use to a
 --             character without it
--- A consumable is of no use when Pawn scores what it adds at nothing and it restores nothing
+-- A consumable is of no use when what it adds scores nothing and it restores nothing
 -- the character has. One the tables say nothing about is listed without a score.
 -- Food with a bonus that is worth nothing to the character is still food: all such food under
 -- a heading counts as one kind, so that a warrior is not shown the best meal for Intellect,
@@ -107,9 +107,9 @@ local function Worthier(a, b)
 end
 
 -- What the list makes of one consumable.
---   value  Pawn's score for what it adds, when that is more than nothing
+--   value  the score of what it adds, when that is more than nothing
 --   use    true = of use to this character, false = of none, nil = the tables do not say
---   why    of no use because: "WEIGHT" the scale gives what it adds no weight,
+--   why    of no use because: "WEIGHT" the profile gives what it adds no weight,
 --          "MANA" all it restores is mana and the character has none
 --   plain  of use only for what it restores: what it adds besides is worth nothing
 local function Judge(supply, opts)
@@ -131,7 +131,7 @@ local PLAIN = string.char(255)
 
 -- Kinds come in this order within a subcategory:
 --   1  what restores something (healing potions, food), health before mana
---   2  what Pawn scores, the highest score first
+--   2  what has a score, the highest score first
 --   3  what the tables say nothing about, the highest level first
 --   4  what is of no use to this character (listed only when everything is)
 -- None of it depends on how much is for sale, so the list keeps its order from scan to scan.
@@ -164,7 +164,7 @@ end
 
 -- supplies: id -> consumable (see Scanner.StartSupplies)
 -- opts:     { money = copper the player has, affordableOnly = bool,
---             value = function(stats) -> Pawn's score for them; nil when Pawn cannot be asked,
+--             value = function(stats) -> their score on the profile in use; nil without a profile,
 --             mana = the character has mana,
 --             bestOnly = bool: one row per kind, its best, and nothing that is of no use }
 -- Returns rows, summary

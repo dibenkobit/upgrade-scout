@@ -3,7 +3,7 @@ local L = ns.L
 
 -- Decides which equipment slot an item would go into and how much better it is than what is
 -- there now. No game calls in here except reading localized slot names: the caller passes in
--- the scored item and a snapshot of the player's gear (see PawnBridge.Context).
+-- the scored item and a snapshot of the player's gear (see Score.Context).
 local C = {}
 ns.Compare = C
 
@@ -107,7 +107,7 @@ function C.Wear(equipped, item, placement)
     if item.invType == "INVTYPE_2HWEAPON" then equipped[OFF_HAND] = nil end
 end
 
--- Pawn only calls an item an upgrade when it scores at least 0.5% higher; same rule here.
+-- An item is an upgrade only when it scores at least 0.5% higher: less than that is noise.
 local MIN_GAIN = 1.005
 
 local function Beats(value, base)
@@ -135,7 +135,7 @@ local function IsWorn(equipped, itemID)
 end
 
 -- item: { invType, value, itemID, unique }
--- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield, show1H, show2H }
+-- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield }
 -- Returns a list of placements; empty when the item is not an upgrade anywhere.
 -- A one-hand weapon can appear twice (main hand and off hand) for a dual wielder.
 function C.Place(item, ctx)
@@ -183,19 +183,15 @@ function C.Place(item, ctx)
 
     if invType == "INVTYPE_2HWEAPON" then
         -- A two-hander replaces both hands, so it has to beat both together.
-        if ctx.show2H ~= false then
-            local base = mainValue + offValue
-            if Beats(value, base) then
-                local replaced = {}
-                if main then replaced[#replaced + 1] = main.link end
-                if off then replaced[#replaced + 1] = off.link end
-                out[1] = Placement("MAINHAND", MAIN_HAND, value, base, #replaced > 0 and replaced or nil, off and "BOTH_HANDS" or nil)
-            end
+        local base = mainValue + offValue
+        if Beats(value, base) then
+            local replaced = {}
+            if main then replaced[#replaced + 1] = main.link end
+            if off then replaced[#replaced + 1] = off.link end
+            out[1] = Placement("MAINHAND", MAIN_HAND, value, base, #replaced > 0 and replaced or nil, off and "BOTH_HANDS" or nil)
         end
         return out
     end
-
-    if ctx.show1H == false then return out end
 
     if invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND" then
         -- Against a two-hander the comparison is honest only if the off hand is counted as empty.

@@ -1,6 +1,6 @@
 -- A small stand-in for the World of Warcraft client, enough to run Upgrade Scout outside the
 -- game: frames, events, timers, an item database, an auction house server with paging and a
--- request throttle, and a fake Pawn. Widget methods are a fixed list on purpose: calling a
+-- request throttle. Widget methods are a fixed list on purpose: calling a
 -- method that is not on the list fails the test, which catches misspelled API calls.
 local W = {}
 
@@ -21,10 +21,9 @@ W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dua
 -- Items
 ---------------------------------------------------------------------------
 -- def: { id, suffix, name, level, equipLoc, classID, subClassID, quality, value, value2,
---        red, unique, uniqueEquipped, effects, noStats, uncached, classCant,
---        values = { [scale] = score } for scales other than the two the tests began with,
---        stats = { IsMail = 1, ... } as Pawn reads them off the tooltip,
---        game = { ITEM_MOD_STRENGTH_SHORT = 5, ... } as the game itself counts them,
+--        red, unique, uniqueEquipped, effects, noStats, uncached,
+--        values = { [profile] = score } for profiles other than the two the tests began with,
+--        game = { ITEM_MOD_STRENGTH_SHORT = 5, ... }: stats as the game itself counts them,
 --        classes = "Druid, Shaman" (the classes it is for), races = "Orc, Troll",
 --        skill = { "Engineering", 150 } (the profession it asks for), reputation = true }
 function W.AddItem(def)
@@ -1071,13 +1070,23 @@ function C_Item.GetItemUniquenessByID(id)
     local item = W.items[id .. ":0"]
     return item and item.unique or false
 end
--- The stats the game keeps for an item, under its own names for them: `game` of an item.
--- Nothing for an item the client has not loaded.
+-- The stats the game keeps for an item, under its own names for them. Nothing for an item
+-- the client has not loaded.
+-- A test mostly gives an item its score outright: `value` on the first of the tests'
+-- profiles, `value2` on the second, `values[profile]` on any other. Each becomes a stat
+-- named after its profile, which that profile weighs at 1 and the others at nothing (see
+-- TestWeights in run.lua). `game` adds stats under the game's real names.
+-- An enchantment adds a thousand to the first: a score that reads an enchanted link is found out.
 function C_Item.GetItemStats(info)
     local item = ParseItem(info)
     if not item or not item.cached then return nil end
     local out = {}
+    if item.noStats then return out end
+    if item.value then out.TEST_S1 = item.value end
+    if item.value2 then out.TEST_S2 = item.value2 end
+    for profile, value in pairs(item.values or {}) do out["TEST_" .. profile] = value end
     for name, amount in pairs(item.game or {}) do out[name] = amount end
+    if type(info) == "string" and info:match("item:%d+:%d") then out.TEST_S1 = (out.TEST_S1 or 0) + 1000 end
     return out
 end
 
@@ -1522,79 +1531,5 @@ end
 function PanelTemplates_TabResize() end
 function PanelTemplates_DeselectTab(tab) tab._selected = false end
 function PanelTemplates_SelectTab(tab) tab._selected = true end
-
----------------------------------------------------------------------------
--- Pawn
----------------------------------------------------------------------------
-W.pawnReady = true
-function PawnIsReady() return W.pawnReady end
--- Every scale Pawn has, those it shows for the character being played first. A test that
--- plays another class puts that class's scales here.
-W.pawnScales = {
-    { Name = "S1", LocalizedName = "Arms", IsVisible = true },
-    { Name = "S2", LocalizedName = "Protection", IsVisible = true },
-    { Name = "S3", LocalizedName = "Hidden", IsVisible = false },
-}
-function PawnGetAllScalesEx()
-    local out = {}
-    for i, scale in ipairs(W.pawnScales) do out[i] = scale end
-    return out
-end
--- What Pawn saves for the whole account: every scale, and for each the characters that have
--- it switched on. Scales made from a class's template know their class.
-PawnCommon = { Scales = { S1 = { PerCharacterOptions = {} }, S2 = { PerCharacterOptions = {} }, S3 = { PerCharacterOptions = {} } } }
--- The kinds of item a class never wears, as Pawn lists them by class number.
-PawnNeverUsableStats = { [1] = { "IsWand" }, [8] = { "IsMail", "IsPlate", "IsShield" }, [11] = { "IsMail", "IsPlate", "IsShield" } }
-function PawnGetItemData(link)
-    local item, id = ParseItem(link)
-    if not item or not item.cached or item.noStats then return nil end
-    return {
-        Link = link, ID = id, InvType = item.equipLoc, Name = item.name,
-        CanEquip = not item.classCant,
-        Stats = item.stats,
-        UnknownLines = item.effects and { ["Use: Does something."] = 1 } or nil,
-        _item = item,
-    }
-end
-function PawnGetSingleValueFromItem(record, scale)
-    local item = record._item
-    local value
-    if item.values and item.values[scale] ~= nil then
-        value = item.values[scale]
-    elseif scale == "S1" then
-        value = item.value
-    else
-        -- A scale the item was given no score on values nothing of it.
-        value = scale == "S2" and item.value2 or 0
-    end
-    -- Pawn returns (with enchantments, base item); make the first one wrong on purpose so the
-    -- tests notice if the addon reads the enchanted number.
-    return value + 1000, value
-end
-function PawnGetItemDataForInventorySlot(slot)
-    local link = W.equipped[slot]
-    if not link then return nil, false end
-    return PawnGetItemData(link), true
-end
-function PawnIsArmorBestTypeForPlayer(record) return not record._item.wrongArmor end
-
--- What each scale gives a point of a stat. Scoring a bare set of stats, as the addon does for
--- what a consumable adds, is Pawn's own sum over these.
-W.pawnWeights = {
-    S1 = { Strength = 1.5, Agility = 1, Stamina = 0.5, Ap = 0.4, CritRating = 8, Health = 0.05 },
-    S2 = { Intellect = 1, Stamina = 0.5, SpellDamage = 0.8 },
-}
-W.pawnCalls = {}        -- the arguments of every PawnGetItemValue call after the stats
-function PawnGetAllStatValues(scale) return W.pawnWeights[scale] end
-function PawnGetItemValue(stats, level, socketBonus, scale, debug, noNormalization, noReforging)
-    W.pawnCalls[#W.pawnCalls + 1] = { level = level, socketBonus = socketBonus, scale = scale,
-        debug = debug, noNormalization = noNormalization, noReforging = noReforging }
-    local weights = W.pawnWeights[scale]
-    if not stats or not weights then return nil end
-    local total = 0
-    for name, amount in pairs(stats) do total = total + amount * (weights[name] or 0) end
-    return total, 0, 0
-end
-function PawnGetShowUpgradesForWeapons() return true end
 
 return W
