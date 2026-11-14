@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.1
+
+- Every profile in our tooltip lines is in the colour of your class, as in Pawn.
+
 ## 2.2.0
 
 - The tooltip of any item shows how much better it is than what you wear, on every profile of
