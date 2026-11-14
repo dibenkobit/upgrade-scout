@@ -15,9 +15,7 @@
   stands for an empty slot, and points for a slot whose item adds nothing on your profile. The points are in the tooltip.
 - Gear with a weapon skill or a bonus against one kind of creature gets the yellow `*`: the score
   does not count those.
-
-## 1.3.1
-
+- The addon's lines in an item's tooltip start with its name and the profile the scores are on.
 - Fixed: two variants of one item with the same score, such as "of the Tiger" and "of the Whale",
   showed as one offer, and the second took the place of the first.
 - Fixed: gear you bought counted as already worn when you wore another variant of the same item.
