@@ -305,6 +305,11 @@ local function TooltipLines(link)
     lines[#lines + 1] = { leftText = "Chest", leftColor = HIGHLIGHT_FONT_COLOR, rightText = "Mail",
         rightColor = item.red and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR }
     AddRequirements(lines, item)
+    -- effects: something the item does that is not a stat. The game marks such a line.
+    if item.effects then
+        lines[#lines + 1] = { leftText = ITEM_SPELL_TRIGGER_ONUSE .. " Does something.", leftColor = GREEN_FONT_COLOR,
+            type = Enum.TooltipDataLineType.ItemSpellTriggerOnUse }
+    end
     return lines
 end
 
@@ -1004,7 +1009,8 @@ Enum = {
     ItemClass = { Consumable = 0, Weapon = 2, Armor = 4 },
     PowerType = { Mana = 0, Rage = 1, Energy = 3 },
     -- Tooltip lines, as the Forever client's documentation numbers them.
-    TooltipDataLineType = { UsageRequirement = 43 },
+    TooltipDataLineType = { UsageRequirement = 43, ItemSpellTriggerOnUse = 44, ItemSpellTriggerOnEquip = 45,
+        ItemSpellTriggerOnProc = 46 },
     TooltipDataUsageRequirementType = {
         RaceClass = 0, Faction = 1, Skill = 2, PvPMedal = 3, Reputation = 4, Level = 5, Guild = 6, Achievement = 7,
         PvPRank = 8, EquippedItem = 9, ShapeshiftForm = 10, ArenaRating = 11, EarnCurrency = 12, Specialization = 13,

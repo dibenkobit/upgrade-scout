@@ -3187,7 +3187,12 @@ function scenarios.check()
     local bear = data.items["400:13:7"]
     check(bear ~= nil and bear.suffix == 7, "a variant is a row of its own")
     eq(bear.name, "Belt of the Bear", "under its own name"); eq(bear.game.ITEM_MOD_STAMINA_SHORT, 4, "with its own numbers")
-    eq(data.items["201:15:0"].unknown[1], "Use: Does something.", "the lines Pawn made nothing of")
+    local great = data.items["201:15:0"]
+    eq(great.unknown[1], "Use: Does something.", "the lines Pawn made nothing of")
+    eq(great.spells[1], "use: Use: Does something.", "the lines the game marks as a spell of the item")
+    check(great.kinds:find(",44$") ~= nil, "the kind of every line of the tooltip, in order")
+    check(great.tooltip[1]:find("Great Chest", 1, true) ~= nil, "and for the first items the whole tooltip")
+    eq(chest.spells, nil, "an item without such lines has none"); eq(data.spellLines, 1, "they are counted")
     local statless = data.items["208:6:0"]
     check(statless ~= nil and statless.pawn == false, "an item Pawn gives nothing for is written down so")
     eq(next(statless.game), nil, "and the game gives an empty answer for it")

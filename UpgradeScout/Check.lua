@@ -48,6 +48,17 @@ if GetLocale() == "ruRU" then
     }
 end
 
+-- The game marks the lines of a tooltip that come from a spell of the item: what it does
+-- when used, when worn, when it strikes. Whatever the language, these are the lines a score
+-- made of stats may be missing.
+local LINE = Enum.TooltipDataLineType
+local SPELL_LINES = {
+    [LINE.ItemSpellTriggerOnUse or -1] = "use",
+    [LINE.ItemSpellTriggerOnEquip or -2] = "equip",
+    [LINE.ItemSpellTriggerOnProc or -3] = "proc",
+}
+local SAMPLE = 400          -- whole tooltips written down, to see how the game words a stat
+
 local LIMIT = 20000         -- rows written down at most: the saved file is read at every login
 local BUDGET_MS = 8         -- reading time per step, to keep the game smooth
 local STEP = 0.05           -- seconds between steps
@@ -133,6 +144,28 @@ local function Read(row)
             table.sort(lines)
             record.unknown = lines
         end
+    end
+    -- The tooltip: the kind of every line in order, the words of the lines that are an item
+    -- spell, and for the first few hundred items every line as it stands.
+    local tip = C_TooltipInfo.GetHyperlink(fullLink)
+    local lines = tip and tip.lines
+    if type(lines) == "table" then
+        local kinds, whole = {}, data.count < SAMPLE and {} or nil
+        for i = 1, #lines do
+            local line = lines[i]
+            kinds[i] = tonumber(line.type) or -1
+            local spell = SPELL_LINES[line.type]
+            if spell then
+                record.spells = record.spells or {}
+                record.spells[#record.spells + 1] = spell .. ": " .. tostring(line.leftText)
+                data.spellLines = data.spellLines + 1
+            end
+            if whole then
+                whole[i] = kinds[i] .. "|" .. tostring(line.leftText) .. "|" .. tostring(line.rightText or "")
+            end
+        end
+        record.kinds = table.concat(kinds, ",")
+        record.tooltip = whole
     end
     data.items[row.ks] = record
 
@@ -237,7 +270,8 @@ function Check.Start()
         suffixed = 0, ratings = 0, healing = 0,     -- of them: with a suffix, with a rating, with healing
         noPawn = 0, noGame = 0,                     -- of them: Pawn gave nothing, the game gave nothing
         unread = 0,         -- rows the client never loaded
-        items = {},         -- key string -> { link, name, suffix, game, pawn, unknown }
+        spellLines = 0,     -- tooltip lines the game marked as an item spell
+        items = {},         -- key string -> { link, name, suffix, game, pawn, unknown, spells, kinds, tooltip }
         worn = {},          -- inventory slot -> { link, game, bare, pawn, pawnBare }
     }
     ns.account.check = data
