@@ -4,6 +4,7 @@
 
 - The tooltip of any item shows how much better it is than what you wear, on every profile of
   your class, as Pawn does: in your bags, loot, quest rewards, chat links and the auction house.
+- In those lines the profile in use is in the colour of your class, as in Pawn, no longer in gold.
 
 ## 2.1.0
 

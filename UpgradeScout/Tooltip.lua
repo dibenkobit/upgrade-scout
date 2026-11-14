@@ -40,11 +40,14 @@ local function GainText(gain)
     return L.GAIN_POINTS:format(ns.Num(gain.delta)), gain.delta > 0 and GREEN_FONT_COLOR or GRAY_FONT_COLOR
 end
 
--- The line of one profile: its name, in gold for the profile in use and in white for the
--- others, and the gain (a placement, see Compare.Place).
-function T.AddGain(tooltip, title, gain, current)
+-- The line of one profile: its name and the gain (a placement, see Compare.Place). `class`
+-- is given for the profile in use, whose name is then in the colour of that class, as Pawn
+-- colours its scales; the others are in white.
+function T.AddGain(tooltip, title, gain, class)
     local text, color = GainText(gain)
-    local r, g, b = (current and NORMAL_FONT_COLOR or HIGHLIGHT_FONT_COLOR):GetRGB()
+    local nameColor = HIGHLIGHT_FONT_COLOR
+    if class then nameColor = RAID_CLASS_COLORS[class] or NORMAL_FONT_COLOR end
+    local r, g, b = nameColor:GetRGB()
     local rightR, rightG, rightB = color:GetRGB()
     tooltip:AddDoubleLine(title, text, r, g, b, rightR, rightG, rightB)
 end
@@ -149,11 +152,12 @@ local function OnItem(tooltip)
 
     T.AddHeader(tooltip)
     local current = ns.Score.Current()
+    local class = ns.Roster.Me().class
     local note
     for _, line in ipairs(answer) do
         local inUse = current ~= nil and line.name == current.name
         if inUse then note = line.gain.note end
-        T.AddGain(tooltip, line.title, line.gain, inUse)
+        T.AddGain(tooltip, line.title, line.gain, inUse and class or nil)
     end
     if note and NOTES[note] then GameTooltip_AddNormalLine(tooltip, L[NOTES[note]]) end
     if answer.effects then GameTooltip_AddNormalLine(tooltip, L.TT_EFFECTS) end

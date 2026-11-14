@@ -144,7 +144,7 @@ end
 local AddHeader, AddGain = ns.Tooltip.AddHeader, ns.Tooltip.AddGain
 
 -- What the offer of a row gains on every profile of the class, as Pawn shows its scales:
--- { { title, gain, current }, ... } in the order of the profile menu. The profile the
+-- { { title, gain, class }, ... } in the order of the profile menu; `class` for the one in use. The profile the
 -- list is made on reads as the row does. Each of the others weighs the item and the gear the
 -- same way on its own weights, and measures it against what it would take off: the weaker
 -- of two rings on that profile, say. The game redraws a tooltip that is up several times a
@@ -172,7 +172,7 @@ local function ProfileGains(entry)
                 }
                 gain = ns.Compare.Gain(item, ns.Score.Rescore(ctx, profile.name), entry.group)
             end
-            if gain then gains[#gains + 1] = { title = profile.title, gain = gain, current = gain == entry } end
+            if gain then gains[#gains + 1] = { title = profile.title, gain = gain, class = gain == entry and ctx.class or nil } end
         end
     end
     gainsOf = { entry = entry, gains = gains }
@@ -218,9 +218,9 @@ local function ShowItemTooltip(row)
 
     -- On the right, whose list it is when it is not the character's own.
     AddHeader(GameTooltip, who and WhoName(who) or nil)
-    -- How much better the item is on each profile of the class: the one in use in gold.
+    -- How much better the item is on each profile of the class: the one in use in the class's colour.
     for _, line in ipairs(ProfileGains(entry)) do
-        AddGain(GameTooltip, line.title, line.gain, line.current)
+        AddGain(GameTooltip, line.title, line.gain, line.class)
     end
     if entry.note == "OFFHAND_EMPTY" then
         GameTooltip_AddNormalLine(GameTooltip, who and L.TT_OFFHAND_EMPTY_WHO or L.TT_OFFHAND_EMPTY)

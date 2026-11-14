@@ -1222,7 +1222,7 @@ function scenarios.ui()
     local arms, prot = GameTooltip._lines[header + 1], GameTooltip._lines[header + 2]
     eq(arms.text, "Arms", "then the profiles of the class, in the order of the menu")
     eq(arms.right, "+80%", "each with its gain: on the profile in use, the list's")
-    eq(arms.r, NORMAL_FONT_COLOR.r, "that profile in gold"); eq(arms.rightR, GREEN_FONT_COLOR.r, "a gain in green")
+    eq(arms.r, RAID_CLASS_COLORS.WARRIOR.r, "that profile in the colour of the class"); eq(arms.rightR, GREEN_FONT_COLOR.r, "a gain in green")
     eq(prot.text, "Protection ~", "the other one with its mark")
     eq(prot.right, "-25%", "measured on its own weights: 9 against the 12 of the worn chest")
     eq(prot.r, HIGHLIGHT_FONT_COLOR.r, "in white"); eq(prot.rightR, RED_FONT_COLOR.r, "a loss in red")
@@ -2882,6 +2882,7 @@ function scenarios.alt()
     eq(doubles[1].right, ALTY, "the header says whose list it is")
     eq(doubles[2].text, "Balance", "then the druid's profiles")
     eq(doubles[2].right, "+67%", "against what the druid wears: 20 against 12 on the profile in use")
+    eq(doubles[2].r, RAID_CLASS_COLORS.DRUID.r, "in the colour of the druid's class")
     eq(doubles[3].text, "Feral", "and on the other one")
     eq(doubles[3].right, "-33%", "on its own weights: 2 against 3")
     eq(W.compared, nil, "the game's own comparison would show the warrior's chest")
@@ -3469,7 +3470,7 @@ function scenarios.tooltips()
     end
 
     eq(Ours(GameTooltip, 200), "Arms +80% | Protection ~ -25%", "a chest in the bags: 18 against 10, and 9 against 12")
-    eq(Line(GameTooltip, "Arms").r, NORMAL_FONT_COLOR.r, "the profile in use in gold")
+    eq(Line(GameTooltip, "Arms").r, RAID_CLASS_COLORS.WARRIOR.r, "the profile in use in the colour of the class")
     eq(Line(GameTooltip, "Protection ~").r, HIGHLIGHT_FONT_COLOR.r, "the other in white")
     eq(Line(GameTooltip, "Arms").rightR, GREEN_FONT_COLOR.r, "a gain in green")
     eq(Line(GameTooltip, "Protection ~").rightR, RED_FONT_COLOR.r, "a loss in red")
@@ -3501,7 +3502,7 @@ function scenarios.tooltips()
     -- Another profile chosen: it is in gold now, and the numbers stay.
     ns.Roster.Me().profile = "S2"
     Ours(GameTooltip, 200)
-    eq(Line(GameTooltip, "Protection ~").r, NORMAL_FONT_COLOR.r, "the profile in use in gold")
+    eq(Line(GameTooltip, "Protection ~").r, RAID_CLASS_COLORS.WARRIOR.r, "the profile in use in the colour of the class")
     eq(Line(GameTooltip, "Arms").r, HIGHLIGHT_FONT_COLOR.r, "the other one in white")
     ns.Roster.Me().profile = "S1"
 
