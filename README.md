@@ -55,7 +55,7 @@ To install by hand:
 - **Top 5 per slot** keeps the list short. Turn it off to see every upgrade. The scan then takes
   longer, up to a few minutes on a busy auction house.
 - **Upgrade** is how much better an item is than the one it replaces, in percent. **New** means
-  the slot is empty, or what you wear there adds nothing on your profile.
+  the slot is empty. Points, such as `+6 pts`, mean what you wear there adds nothing on your profile.
 - A yellow `*` after a name means the item has effects the score does not count, such as procs.
 - Health and mana potions have no score: no weight puts a number on "restores 700 health".
 - Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The

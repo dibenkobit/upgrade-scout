@@ -35,8 +35,9 @@ local L = {
     PICK_BOTH = "Best of both",
 
     -- In the Upgrade column where there is no percent to give: the slot is empty, or what is
-    -- in it scores nothing on the profile, which to the profile is the same.
+    -- in it scores nothing on the profile, and then the gain is in points.
     NEW = "New",
+    GAIN_POINTS = "+%s pts",
 
     HINT = "Press Scan. The list will show gear on the auction house that you can equip right now and that scores higher than what you are wearing on the profile \"%s\".",
     ST_BROWSE = "Reading the auction list: %d rows",
@@ -184,6 +185,7 @@ if GetLocale() == "ruRU" then
         PICK_BOTH = "Лучшее и выгодное",
 
         NEW = "Новое",
+        GAIN_POINTS = "+%s очк.",
 
         HINT = "Нажми «Скан». В списке появятся вещи с аукциона, которые можно надеть прямо сейчас и которые по профилю «%s» лучше надетых.",
         ST_BROWSE = "Читаю список лотов: %d строк",
@@ -332,6 +334,7 @@ if GetLocale() == "deDE" then
         PICK_BOTH = "Beste in beidem",
 
         NEW = "Neu",
+        GAIN_POINTS = "+%s Pkt.",
 
         HINT = "Klicke auf »Scannen«. Die Liste zeigt dann Ausrüstung aus dem Auktionshaus, die du sofort anlegen kannst und die nach dem Profil »%s« besser ist als das, was du gerade trägst.",
         ST_BROWSE = "Lese Auktionsliste: %d Zeilen",
@@ -481,6 +484,7 @@ if GetLocale() == "frFR" then
         PICK_BOTH = "Les deux à la fois",
 
         NEW = "Nouveau",
+        GAIN_POINTS = "+%s pts",
 
         HINT = "Cliquez sur « Scanner ». La liste affichera l'équipement de l'hôtel des ventes que vous pouvez équiper dès maintenant et dont le score dépasse celui de votre équipement actuel selon le profil « %s ».",
         ST_BROWSE = "Lecture de la liste des enchères : %d lignes",
@@ -630,6 +634,7 @@ if GetLocale() == "zhCN" then
         PICK_BOTH = "两项最佳",
 
         NEW = "新增",
+        GAIN_POINTS = "+%s 分",
 
         HINT = "点击“扫描”。列表会显示拍卖行中你现在就能装备，并且按方案“%s”评分高于你当前装备的物品。",
         ST_BROWSE = "正在读取拍卖列表：%d行",
@@ -780,6 +785,7 @@ if GetLocale() == "ptBR" then
         PICK_BOTH = "Melhor nos dois",
 
         NEW = "Novo",
+        GAIN_POINTS = "+%s pts",
 
         HINT = "Clique em Escanear. A lista mostrará equipamentos da Casa de Leilões que você pode equipar agora mesmo e que pontuam mais do que os que você está usando no perfil \"%s\".",
         ST_BROWSE = "Lendo a lista de leilões: %d linhas",
@@ -929,6 +935,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         PICK_BOTH = "Mejor en ambos",
 
         NEW = "Nuevo",
+        GAIN_POINTS = "+%s pts",
 
         HINT = "Pulsa «Escanear». La lista mostrará el equipo de la casa de subastas que puedes equiparte ahora mismo y que, según el perfil «%s», puntúa más que lo que llevas puesto.",
         ST_BROWSE = "Leyendo la lista de subastas: %d filas",
@@ -1080,6 +1087,7 @@ if GetLocale() == "koKR" then
         PICK_BOTH = "둘 다 최고",
 
         NEW = "신규",
+        GAIN_POINTS = "+%s점",
 
         HINT = "스캔을 누르세요. 경매장에서 지금 바로 착용할 수 있고 프로필 “%s” 기준으로 현재 장비보다 점수가 높은 장비를 보여줍니다.",
         ST_BROWSE = "경매 목록 읽는 중: %d줄",
@@ -1230,6 +1238,7 @@ if GetLocale() == "zhTW" then
         PICK_BOTH = "兩項最佳",
 
         NEW = "新增",
+        GAIN_POINTS = "+%s 分",
 
         HINT = "點擊「掃描」。列表會顯示拍賣場中你現在就能裝備，並且按方案「%s」評分高於你目前裝備的物品。",
         ST_BROWSE = "正在讀取拍賣列表：%d筆",

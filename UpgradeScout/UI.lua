@@ -532,10 +532,19 @@ local function InitItemRow(row, element)
 
     SetPick(row.Pick, entry.pick)
 
-    -- There is no percent of nothing: an empty slot gets a word, "New". So does a slot whose
-    -- item scores nothing on the profile (armor without a stat, say): to the profile it is as
-    -- good as empty, and the tooltip says what is in it. The points are in the tooltip too.
-    row.Upgrade:SetText(entry.percent and ("+" .. FormatPercentage(entry.percent, true)) or L.NEW)
+    -- The gain in percent of what is worn. There is no percent of nothing: an empty slot says
+    -- "New", and a slot whose item scores nothing on the profile (white armor with no stat but
+    -- its armor, say) gets the gain in points. The rows of one slot all replace the same
+    -- thing, so they all read the same way and can be told apart by their numbers.
+    local text
+    if entry.percent then
+        text = "+" .. FormatPercentage(entry.percent, true)
+    elseif entry.replaced then
+        text = L.GAIN_POINTS:format(ns.Num(entry.delta))
+    else
+        text = L.NEW
+    end
+    row.Upgrade:SetText(text)
     row.Meter:SetWidth(math.max((METER_WIDTH - 1) * data.share, 2))
     row.Meter:SetTexCoord(0, math.max(data.share, 0.03), 0, 1)
 

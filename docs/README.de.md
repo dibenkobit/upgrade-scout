@@ -58,7 +58,8 @@ Von Hand:
 - **Top 5 pro Slot** hält die Liste kurz. Schalte es aus, um jede Verbesserung zu sehen. Der Scan
   dauert dann länger, in einem vollen Auktionshaus bis zu ein paar Minuten.
 - **Verbesserung** zeigt in Prozent, wie viel besser ein Gegenstand ist als der, den er ersetzt.
-  **Neu** heißt: Der Slot ist leer, oder was du dort trägst, bringt deinem Profil nichts.
+  **Neu** heißt: Der Slot ist leer. Punkte wie `+6 Pkt.` heißen: Was du dort trägst, bringt
+  deinem Profil nichts.
 - Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die die Wertung nicht mitzählt.
 - Heil- und Manatränke haben keine Wertung: Kein Gewicht macht aus „stellt 700 Gesundheit wieder her“
   eine Zahl.

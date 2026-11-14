@@ -58,7 +58,8 @@ Manualmente:
 - **Top 5 por espaço** deixa a lista curta. Desative para ver todas as melhorias. O escaneamento
   então demora mais, até alguns minutos em uma Casa de Leilões movimentada.
 - **Melhoria** diz quanto um item é melhor do que o que ele substitui, em porcentagem. **Novo**
-  quer dizer que o espaço está vazio ou que o que você usa ali não acrescenta nada ao seu perfil.
+  quer dizer que o espaço está vazio. Pontos, como `+6 pts`, querem dizer que o que você usa ali
+  não acrescenta nada ao seu perfil.
 - Um `*` amarelo depois do nome: o item tem efeitos que a pontuação não conta.
 - Poções de vida e de mana não têm pontuação: nenhum peso dá um número para "restaura 700 de vida".
 - Botas "do Tigre" e botas "da Baleia" são itens diferentes, com preços diferentes. A aba "Vender"

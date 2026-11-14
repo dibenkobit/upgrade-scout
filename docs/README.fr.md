@@ -59,7 +59,8 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 - **Top 5 par emplacement** garde la liste courte. Désactivez-le pour voir toutes les améliorations.
   Le scan dure alors plus longtemps, jusqu'à quelques minutes dans un hôtel des ventes bien rempli.
 - **Amélioration** dit de combien l'objet est meilleur que celui qu'il remplace, en pour cent.
-  **Nouveau** : l'emplacement est vide, ou ce que vous y portez n'apporte rien à votre profil.
+  **Nouveau** : l'emplacement est vide. Des points, comme `+6 pts` : ce que vous y portez
+  n'apporte rien à votre profil.
 - Un `*` jaune après un nom : l'objet a des effets que le score ne compte pas.
 - Les potions de vie et de mana n'ont pas de score : aucun poids ne chiffre « rend 700 points
   de vie ».

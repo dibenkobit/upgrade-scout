@@ -1098,7 +1098,7 @@ function scenarios.ui()
     -- A ring in the place of one that scores nothing: no percent of nothing, and the tooltip
     -- says what is there, not that the slot is empty.
     local ring = RowNamed("New Ring")
-    eq(ring.Upgrade:GetText(), "New", "the worn ring scores nothing: the same word as for an empty slot")
+    eq(ring.Upgrade:GetText(), "+6 pts", "the worn ring scores nothing: not new, so the gain in points")
     ring:GetScript("OnEnter")(ring)
     local ringTip = {}
     for _, line in ipairs(GameTooltip._lines) do ringTip[#ringTip + 1] = line.text end
