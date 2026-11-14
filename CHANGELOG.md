@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.1
+
+- The profile menu no longer lists your characters of the other faction: nothing bought at
+  your auction house can be mailed to them.
+
 ## 2.3.0
 
 - An arrow on the icon of an item in your bags or bank marks an upgrade on your profile:

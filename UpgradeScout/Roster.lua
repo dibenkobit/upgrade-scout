@@ -332,13 +332,16 @@ local function Sound(key, card)
 end
 
 -- Every character there is a card for: the one being played first, then the others, those
--- of this realm before the rest, by name.
+-- of this realm before the rest, by name. A character of the other faction is left out:
+-- nothing bought here can be mailed to it. (One whose card does not say its faction stays.)
 function Roster.List()
     local me = Roster.Me()
     local out, others = {}, {}
     if me then out[1] = me end
+    local faction = me and me.faction
     for key, card in pairs(ns.account.chars) do
-        if card ~= me and Sound(key, card) then others[#others + 1] = card end
+        local sameSide = not faction or not card.faction or card.faction == faction
+        if card ~= me and sameSide and Sound(key, card) then others[#others + 1] = card end
     end
     local realm = me and me.realm
     table.sort(others, function(a, b)

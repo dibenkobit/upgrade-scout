@@ -2868,6 +2868,13 @@ function scenarios.alt()
     eq(card.gear[2], charm, "what the druid wore when it logged out")
     eq(#ns.Roster.List(), 2, "the warrior knows of two characters"); eq(ns.Roster.List()[1].name, "Tester", "itself first")
     eq(ns.Roster.Target(), nil, "the lists are the warrior's own until asked otherwise")
+    -- A character of the other faction: nothing bought here can be mailed to it.
+    UpgradeScoutDB.chars["Hordy-Testrealm"] = { key = "Hordy-Testrealm", name = "Hordy", realm = "Testrealm",
+        faction = "Horde", class = "DRUID", level = 20 }
+    eq(#ns.Roster.List(), 2, "a character of the Horde is not listed for one of the Alliance")
+    UpgradeScoutDB.chars["Hordy-Testrealm"].faction = nil
+    eq(#ns.Roster.List(), 3, "one whose card does not say its faction is")
+    UpgradeScoutDB.chars["Hordy-Testrealm"] = nil
 
     -- The warrior at the auction house.
     W.OpenAuctionHouse()
