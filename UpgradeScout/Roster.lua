@@ -28,6 +28,7 @@ local WEAPON_CLASS = Enum.ItemClass.Weapon
 local ARMOR_CLASS = Enum.ItemClass.Armor
 local MANA = Enum.PowerType.Mana
 local LAST_SLOT = 18            -- the ranged slot; the shirt and the tabard are not gear
+R.LAST_SLOT = LAST_SLOT
 
 ---------------------------------------------------------------------------
 -- Weapon and armor skills
@@ -73,14 +74,22 @@ local LATE_LEVEL = 40
 -- Librams, idols and totems go by class alone.
 local RELICS = { [7] = "PALADIN", [8] = "DRUID", [9] = "SHAMAN" }
 
--- The number the game and Pawn know each class by.
+-- The number the game and Pawn know each class by: the nine classes Forever has.
 local CLASS_ID = {
-    WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, DEATHKNIGHT = 6, SHAMAN = 7,
-    MAGE = 8, WARLOCK = 9, MONK = 10, DRUID = 11, DEMONHUNTER = 12, EVOKER = 13,
+    WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11,
 }
 
 function R.ClassID(card)
     return CLASS_ID[card.class]
+end
+
+-- The heaviest armor a class can ever wear: 1 cloth, 2 leather, 3 mail, 4 plate.
+function R.HeaviestArmor(class)
+    local heaviest
+    for sub = 1, 4 do
+        if ARMOR[sub].classes[class] then heaviest = sub end
+    end
+    return heaviest
 end
 
 -- The kinds of `kinds` the character being played has learned; nil when it seems to have
@@ -424,16 +433,16 @@ end
 ---------------------------------------------------------------------------
 -- Gear, level and skills change in bursts (a set of gear put on, a visit to a trainer), and
 -- the game says so many times over: the card is written once, a moment later.
-local queued, gearNews = false, false
+local gearNews = false      -- one of the reasons to write it was that the gear changed
+local WriteSoon = ns.Soon(1, function()
+    local news = gearNews
+    gearNews = false
+    R.Update(news)
+end)
+
 local function Queue(gearChanged)
-    gearNews = gearNews or gearChanged or false
-    if queued then return end
-    queued = true
-    C_Timer.After(1, function()
-        local news = gearNews
-        queued, gearNews = false, false
-        R.Update(news)
-    end)
+    gearNews = gearNews or gearChanged
+    WriteSoon()
 end
 
 ns.On("PLAYER_ENTERING_WORLD", function() Queue(false) end)

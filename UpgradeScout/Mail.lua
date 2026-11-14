@@ -28,7 +28,6 @@ local SEPARATOR = Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_S
 
 local panel
 local attached          -- the parcels put into the letter that is being written: { to = key, parcels = {...} }
-local refreshing = false
 
 -- A parcel and the item in the bags are the same thing when the player would say so.
 local ItemKey = ns.ItemKey
@@ -280,7 +279,6 @@ end
 
 -- Shows a button for every character that has parcels here, while a mailbox is open.
 function M.Refresh()
-    refreshing = false
     if not MailOpen() then
         if panel then panel:Hide() end
         return
@@ -304,11 +302,7 @@ function M.Refresh()
     panel:Show()
 end
 
-local function RefreshSoon()
-    if refreshing or not MailOpen() then return end
-    refreshing = true
-    C_Timer.After(0.3, M.Refresh)
-end
+local RefreshSoon = ns.Soon(0.3, function() M.Refresh() end)
 
 ---------------------------------------------------------------------------
 -- Events
@@ -319,9 +313,12 @@ ns.Listen("GEAR_BOUGHT", M.Bought)
 -- of the two: the strip is seen to now, and once more when the window has had its moment.
 ns.On("MAIL_SHOW", function()
     M.Refresh()
-    C_Timer.After(0.3, M.Refresh)
+    RefreshSoon()
 end)
-ns.On("BAG_UPDATE", RefreshSoon)
+-- The bags change all day long; the strip follows them at a mailbox.
+ns.On("BAG_UPDATE", function()
+    if MailOpen() then RefreshSoon() end
+end)
 
 ns.On("MAIL_CLOSED", function()
     attached = nil

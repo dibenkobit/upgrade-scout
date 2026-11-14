@@ -48,6 +48,23 @@ function ns.Fire(message, ...)
 end
 
 ---------------------------------------------------------------------------
+-- Once for many reasons
+---------------------------------------------------------------------------
+-- Gear, bags and skills change in bursts, and the game says so many times over. This makes
+-- a function that runs `fn` once, `delay` seconds after the first of however many calls.
+function ns.Soon(delay, fn)
+    local queued = false
+    return function()
+        if queued then return end
+        queued = true
+        C_Timer.After(delay, function()
+            queued = false
+            fn()
+        end)
+    end
+end
+
+---------------------------------------------------------------------------
 -- Saved settings
 ---------------------------------------------------------------------------
 -- Per character. collapsed: slot id -> true for the slots the player folded away in the list.

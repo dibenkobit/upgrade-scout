@@ -107,6 +107,21 @@ local function MarkPicks(entries)
     end
 end
 
+-- What the list shows of an offer in one of the slots it would go into (see Compare.Place).
+function R.Entry(offer, placement, affordable)
+    return {
+        offer = offer,
+        group = placement.group,
+        delta = placement.delta,
+        base = placement.base,
+        percent = placement.percent,
+        replaced = placement.replaced,
+        note = placement.note,
+        costPer = offer.buyout / placement.delta,
+        affordable = affordable,
+    }
+end
+
 -- The offers the list can show, as entries per slot group (unsorted): one entry for every
 -- slot an offer is an upgrade in, unless the price filter leaves the offer out.
 -- opts: { money = copper the player has, affordableOnly = bool }
@@ -128,17 +143,7 @@ function R.Collect(offers, ctx, opts)
                         list = {}
                         byGroup[p.group] = list
                     end
-                    list[#list + 1] = {
-                        offer = offer,
-                        group = p.group,
-                        delta = p.delta,
-                        base = p.base,
-                        percent = p.percent,
-                        replaced = p.replaced,
-                        note = p.note,
-                        costPer = offer.buyout / p.delta,
-                        affordable = affordable,
-                    }
+                    list[#list + 1] = R.Entry(offer, p, affordable)
                 end
             end
         end

@@ -227,7 +227,7 @@ function P.Context(scaleName, who)
         }
     end
 
-    for slot = 1, 18 do
+    for slot = 1, ns.Roster.LAST_SLOT do
         local link = GetInventoryItemLink("player", slot)
         if link then
             local item = PawnGetItemDataForInventorySlot(slot, true)

@@ -56,7 +56,7 @@ local function Try(ctx, items)
         end
         if not best then return nil end
         -- A two-hander empties the off hand, whatever was just put there.
-        if item.invType == "INVTYPE_2HWEAPON" and used[17] then return nil end
+        if item.invType == "INVTYPE_2HWEAPON" and used[ns.Compare.OFF_HAND] then return nil end
         ns.Compare.Wear(view.equipped, item, best)
         used[best.slot] = true
         gain = gain + best.delta
@@ -277,17 +277,8 @@ function P.Rows(set)
             list = {}
             byGroup[placement.group] = list
         end
-        list[#list + 1] = { kind = "item", entry = {
-            offer = offer,
-            group = placement.group,
-            delta = placement.delta,
-            base = placement.base,
-            percent = placement.percent,
-            replaced = placement.replaced,
-            note = placement.note,
-            costPer = offer.buyout / placement.delta,
-            affordable = true,
-        } }
+        -- (A set costs no more than there is: all of it can be paid for.)
+        list[#list + 1] = { kind = "item", entry = ns.Results.Entry(offer, placement, true) }
         if placement.delta > top then top = placement.delta end
     end
 

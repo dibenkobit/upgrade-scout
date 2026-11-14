@@ -73,6 +73,7 @@ local WEAPON = {
 }
 
 local MAIN_HAND, OFF_HAND = 16, 17
+C.OFF_HAND = OFF_HAND
 
 -- True for item types this addon knows how to place (shirts, tabards, bags and ammo are not).
 function C.Handles(invType)

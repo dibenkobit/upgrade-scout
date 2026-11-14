@@ -83,14 +83,6 @@ local ITEM_SORTS = {
     { sortOrder = Enum.AuctionHouseSortOrder.Bid, reverseSort = false },
 }
 
--- The heaviest armor each class can ever wear (the same class lists Pawn uses). Rows with
--- heavier armor are dropped before scoring; this only saves time, Pawn would score them 0.
-local ARMOR_LIMIT = {
-    MAGE = 1, PRIEST = 1, WARLOCK = 1,
-    ROGUE = 2, DRUID = 2, MONK = 2, DEMONHUNTER = 2,
-    HUNTER = 3, SHAMAN = 3, EVOKER = 3,
-    WARRIOR = 4, PALADIN = 4, DEATHKNIGHT = 4,
-}
 local ARMOR_CLASS = Enum.ItemClass.Armor
 local WEAPON_CLASS = Enum.ItemClass.Weapon
 local CONSUMABLE_CLASS = Enum.ItemClass.Consumable
@@ -1058,6 +1050,8 @@ local function AddRow(result)
 
     local _, _, _, equipLoc, _, classID, subClassID = C_Item.GetItemInfoInstant(key.itemID)
     if not ns.Compare.Handles(equipLoc) then return end
+    -- Armor heavier than the class can ever wear (subclasses 1 to 4, cloth to plate) is dropped
+    -- before scoring. This only saves time: Pawn would score it 0.
     if classID == ARMOR_CLASS and run.armorLimit and subClassID
         and subClassID >= 1 and subClassID <= 4 and subClassID > run.armorLimit then
         return
@@ -1179,6 +1173,12 @@ function S.IsOpen()
     return ahOpen
 end
 
+-- Is the work in hand a scan for gear, or prices the list came to need after one? (As against
+-- a scan for consumables, or a lookup around a purchase.)
+function S.IsScan()
+    return IsScanMode(S.mode)
+end
+
 -- Forgets the last scan for gear (its scores belong to another Pawn scale, for instance).
 -- Consumables are left alone, and so is a scan for them that is running: what they are worth
 -- is worked out when their list is drawn.
@@ -1279,7 +1279,7 @@ function S.Start()
         floorBroken = false,-- so many of them that the row's lowest price cannot be relied on
     }
     NewRun("scan")
-    run.armorLimit = ARMOR_LIMIT[S.ctx.class]
+    run.armorLimit = ns.Roster.HeaviestArmor(S.ctx.class)
     SetState("browse")
     SendBrowse()
     return true
@@ -1662,15 +1662,7 @@ ns.On("ITEM_SEARCH_RESULTS_ADDED", OnItemResults)
 
 -- The gear snapshot is made again a moment after it goes out of date, and once however many
 -- times the game says so: a set of gear is put on piece by piece.
-local contextTimer = false
-local function QueueContext()
-    if not S.ctx or contextTimer then return end
-    contextTimer = true
-    C_Timer.After(0.5, function()
-        contextTimer = false
-        S.RefreshContext()
-    end)
-end
+local QueueContext = ns.Soon(0.5, function() S.RefreshContext() end)
 
 local function OnItemLoaded(itemID)
     if run and S.state == "score" then run.lastLoad = GetTime() end

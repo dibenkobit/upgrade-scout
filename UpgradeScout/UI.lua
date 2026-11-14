@@ -109,6 +109,13 @@ local function NewLine(parent, layer)
     return line
 end
 
+-- The gold rule that sets a part of a plate off from the rest.
+local function NewRule(parent)
+    local rule = NewLine(parent)
+    rule:SetVertexColor(0.80, 0.60, 0.26, 0.55)
+    return rule
+end
+
 -- A picture cut in nine: the corners keep their size, the edges and the middle stretch.
 --   corner   the side of a corner in the picture, as a share of the picture's side
 --   edge     the side of a corner on screen
@@ -282,7 +289,7 @@ local function Progress()
     local info = S.info
     if S.state == "score" and info.toScore > 0 then
         return info.scored / info.toScore
-    elseif S.state == "verify" and (S.mode == "scan" or S.mode == "more") and info.toVerify > 0 then
+    elseif S.state == "verify" and S.IsScan() and info.toVerify > 0 then
         return info.verified / info.toVerify
     end
     return nil
@@ -927,7 +934,7 @@ local function StatusText()
     elseif S.state == "score" then
         return (S.mode == "supplies" and L.ST_SUP_SCORE or L.ST_SCORE):format(S.info.scored, S.info.toScore)
     elseif S.state == "verify" then
-        if S.mode == "scan" or S.mode == "more" then
+        if S.IsScan() then
             local text = L.ST_VERIFY:format(S.info.verified, S.info.toVerify)
             -- Known only when every remaining price will be looked up (see Scanner.TimeLeft).
             local left = S.TimeLeft()
@@ -1162,7 +1169,8 @@ function UI.Refresh()
     -- Red while it starts a scan, dark while it stops one.
     scanButton.Label:SetText(ns.Upper(idle and L.SCAN or L.STOP))
     scanButton.Face:SetFile(idle and "ButtonRed" or "ButtonDark")
-    scanButton:SetEnabled(idle or S.mode == "scan" or S.mode == "more" or S.mode == "supplies")
+    -- (A lookup around a purchase is over in a moment, and is not for the button to stop.)
+    scanButton:SetEnabled(idle or S.IsScan() or S.mode == "supplies")
     SetCheck(affordCheck, ns.db.affordableOnly)
     SetCheck(topCheck, ns.db.topOnly)
     SetCheck(bestCheck, ns.db.bestOnly)
@@ -1357,9 +1365,10 @@ local function NewFilterCheck(text, setting, tip, parent)
     return check
 end
 
--- The label of the scale field: the words of L.SCALE without the colon they end in.
-local function ScaleLabel()
-    return ns.Upper((L.SCALE:gsub("%s*:%s*$", ""):gsub("：$", "")))
+-- A caption beside a field: the words of a label in capitals, without the colon they end in
+-- (the plain one, or the wide one of Chinese).
+local function Caption(text)
+    return ns.Upper((text:gsub("%s*:%s*$", ""):gsub("：$", "")))
 end
 
 ---------------------------------------------------------------------------
@@ -1375,11 +1384,6 @@ end
 -- own: the box offers one piece from the cheapest auction (`auction`), and there is nothing to
 -- choose.
 local BOX_WIDTH, BOX_HEIGHT, BOX_EDGE = 330, 162, 18
-
--- A caption beside a field: the words of a label without the colon they end in.
-local function Caption(text)
-    return ns.Upper((text:gsub("%s*:%s*$", ""):gsub("：$", "")))
-end
 
 local function PaintBox()
     if not buyBox.tiers then return end
@@ -1451,8 +1455,7 @@ local function BuildBuyBox()
     buyBox.Name:SetPoint("LEFT", buyBox.Rim, "RIGHT", PAD, 0)
     buyBox.Name:SetWidth(BOX_WIDTH - 2 * BOX_EDGE - ICON_SIZE - PAD)
 
-    local rule = NewLine(buyBox)
-    rule:SetVertexColor(0.80, 0.60, 0.26, 0.55)
+    local rule = NewRule(buyBox)
     rule:SetPoint("TOPLEFT", buyBox, "TOPLEFT", BOX_EDGE - 4, -48)
     rule:SetPoint("TOPRIGHT", buyBox, "TOPRIGHT", -(BOX_EDGE - 4), -48)
 
@@ -1561,8 +1564,7 @@ local function BuildPlan()
     planBar:SetPoint("BOTTOMRIGHT", list, "BOTTOMRIGHT", -LIST_LEFT, LIST_BOTTOM)
     planBar:SetHeight(PLAN_HEIGHT)
     planBar:Hide()
-    local rule = NewLine(planBar)
-    rule:SetVertexColor(0.80, 0.60, 0.26, 0.55)
+    local rule = NewRule(planBar)
     rule:SetPoint("TOPLEFT", planBar, "TOPLEFT", 0, 0)
     rule:SetPoint("TOPRIGHT", planBar, "TOPRIGHT", 0, 0)
 
@@ -1610,14 +1612,15 @@ local function ApplyView()
     affordCheck:ClearAllPoints()
     affordCheck:SetPoint("LEFT", second, "LEFT", -(2 * PAD + CheckWidth(affordCheck)), 0)
 
-    -- The scale field takes the room this view's labels leave, as in Build; where they leave
-    -- too little, it stands without its own label.
+    -- The scale field takes the room this view's labels leave, within reason. Where a
+    -- language's labels leave too little, the field stands without its own label; its tooltip
+    -- says what it is.
     local label = frame.ScaleLabel
-    local labelWidth = label and label:GetStringWidth() + PAD or 0
+    local labelWidth = label:GetStringWidth() + PAD
     local room = AuctionHouseFrame:GetWidth() - (BAR_LEFT + SCAN_WIDTH + 2 * PAD
         + 2 * PAD + CheckWidth(affordCheck) + 2 * PAD + CheckWidth(second) + BAR_RIGHT)
-    local labelled = label ~= nil and room - labelWidth >= DROPDOWN_MIN
-    if label then label:SetShown(labelled) end
+    local labelled = room - labelWidth >= DROPDOWN_MIN
+    label:SetShown(labelled)
     if not labelled then labelWidth = 0 end
     scaleDropdown:SetWidth(Clamp(room - labelWidth, DROPDOWN_MIN, DROPDOWN_MAX))
     scaleDropdown:ClearAllPoints()
@@ -1679,32 +1682,19 @@ local function Build()
     scanButton.Label:SetText(ns.Upper(L.SCAN))
     scanButton:SetScript("OnClick", ScanOnClick)
 
+    -- The filters stand against the right edge. (Where the price filter and the scale field
+    -- go, and how wide the field is, depends on the view: see ApplyView.)
     topCheck = NewFilterCheck(L.TOP:format(ns.Results.TOP_COUNT), "topOnly", L.TOP_TIP:format(ns.Results.TOP_COUNT))
-    local topWidth = CHECK_SIZE + CHECK_GAP + topCheck.Text:GetStringWidth()
-    topCheck:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + topWidth), -BAR_MIDDLE)
+    topCheck:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + CheckWidth(topCheck)), -BAR_MIDDLE)
     affordCheck = NewFilterCheck(L.AFFORD, "affordableOnly")
-    local affordWidth = CHECK_SIZE + CHECK_GAP + affordCheck.Text:GetStringWidth()
-    affordCheck:SetPoint("LEFT", topCheck, "LEFT", -(2 * PAD + affordWidth), 0)
 
     local scaleLabel = NewText(frame, 9.5, GOLD_DIM)
     frame.ScaleLabel = scaleLabel
     scaleLabel:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD, 0)
-    scaleLabel:SetText(ScaleLabel())
+    scaleLabel:SetText(Caption(L.SCALE))
 
-    -- The dropdown takes the room the labels leave, within reason. Where a language's labels
-    -- leave too little, the field stands without its label; its tooltip says what it is.
-    local labelWidth = scaleLabel:GetStringWidth() + PAD
-    local room = auction:GetWidth() - (BAR_LEFT + SCAN_WIDTH + 2 * PAD + labelWidth
-        + 2 * PAD + affordWidth + 2 * PAD + topWidth + BAR_RIGHT)
-    if room < DROPDOWN_MIN then
-        scaleLabel:Hide()
-        frame.ScaleLabel = nil
-        room = room + labelWidth
-        labelWidth = 0
-    end
     scaleDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
-    scaleDropdown:SetSize(Clamp(room, DROPDOWN_MIN, DROPDOWN_MAX), 24)
-    scaleDropdown:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD + labelWidth, 0)
+    scaleDropdown:SetHeight(24)
     SkinDropdown(scaleDropdown)
     scaleDropdown:SetDefaultText(NONE)
     scaleDropdown:SetupMenu(ScaleMenu)
@@ -1737,8 +1727,7 @@ local function Build()
         title:SetText(ns.Upper(column.text))
         list.Titles[i] = title
     end
-    local rule = NewLine(list)
-    rule:SetVertexColor(0.80, 0.60, 0.26, 0.55)
+    local rule = NewRule(list)
     rule:SetPoint("TOPLEFT", list, "TOPLEFT", LIST_LEFT, -(LIST_TOP - 3))
     rule:SetPoint("TOPRIGHT", list, "TOPRIGHT", -LIST_LEFT, -(LIST_TOP - 3))
 
@@ -1751,11 +1740,11 @@ local function Build()
     scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 8, -2)
     scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 8, 2)
 
-    local view = CreateScrollBoxListLinearView()
-    view:SetElementFactory(RowFactory)
+    local listView = CreateScrollBoxListLinearView()
+    listView:SetElementFactory(RowFactory)
     -- Frames made from a frame type, not a template, have no height of their own.
-    view:SetElementExtent(ROW_HEIGHT)
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+    listView:SetElementExtent(ROW_HEIGHT)
+    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, listView)
 
     provider = CreateDataProvider()
     provider:SetSortComparator(ByOrder, true)       -- true: nothing to sort yet
