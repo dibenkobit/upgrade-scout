@@ -9,7 +9,6 @@ W.frames = {}
 W.texts = {}            -- every font string, so tests can read what the tab says
 W.timers = {}
 W.printed = {}
-W.popups = {}
 W.items = {}        -- "id:suffix" -> item
 W.equipped = {}     -- slot -> link
 -- The character being played. Beyond these a test may give it: last (a surname, as Forever
@@ -83,7 +82,7 @@ W.Widget = Widget
 local function noop() end
 for _, name in ipairs({
     "SetPoint", "ClearAllPoints", "SetAllPoints", "SetJustifyH", "SetWordWrap", "SetSpacing",
-    "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetAlpha",
+    "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetDrawLayer",
     "SetFontObject", "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks",
     "SetFrameStrata", "EnableMouse", "SetSnapToPixelGrid", "SetTexelSnappingBias",
@@ -115,6 +114,11 @@ function W.PressEnter(box)
 end
 
 function M:SetTexture(file) self._texture = file end
+-- How see-through a part is: the addon hides some of the game's own pictures this way.
+function M:SetAlpha(alpha) self._alpha = alpha end
+function M:GetAlpha() return self._alpha or 1 end
+function M:SetFrameLevel(level) self._level = level end
+function M:GetFrameLevel() return self._level or 1 end
 function M:GetTexture() return self._texture end
 function M:SetFont(file, size, flags)
     assert(type(file) == "string" and type(size) == "number" and type(flags) == "string", "a font file, a size and flags")
@@ -173,7 +177,13 @@ function M:HookScript(name, fn)
     end
 end
 function M:RegisterEvent(event) self._events[event] = true end
-function M:CreateTexture() return Widget("Texture", nil, self) end
+-- A frame keeps the textures made on it, so that a test can see what it is drawn with.
+function M:CreateTexture()
+    local texture = Widget("Texture", nil, self)
+    self._textures = self._textures or {}
+    self._textures[#self._textures + 1] = texture
+    return texture
+end
 function M:CreateFontString(name, layer, template)
     local text = Widget("FontString", nil, self)
     text._font = template       -- a font string made from a font template can be written at once
@@ -465,6 +475,15 @@ end
 
 local function ScrollBarModel(bar)
     bar._percentage, bar._visible, bar._pan = 0, 0, 0.1
+    -- The template's parts (MinimalScrollBar.xml): a track with its three pictures, the knob
+    -- on it with three of its own, and an arrow button at each end with one.
+    local track = Widget("Frame", nil, bar)
+    track.Begin, track.Middle, track.End = track:CreateTexture(), track:CreateTexture(), track:CreateTexture()
+    local thumb = Widget("Button", nil, track)
+    thumb.Begin, thumb.Middle, thumb.End = thumb:CreateTexture(), thumb:CreateTexture(), thumb:CreateTexture()
+    track.Thumb = thumb
+    bar.Track, bar.Back, bar.Forward = track, Widget("Button", nil, bar), Widget("Button", nil, bar)
+    bar.Back.Texture, bar.Forward.Texture = bar.Back:CreateTexture(), bar.Forward:CreateTexture()
     Callbacks(bar)
     function bar:SetVisibleExtentPercentage(value) self._visible = Saturate(value) end
     function bar:GetVisibleExtentPercentage() return self._visible end
@@ -680,15 +699,30 @@ local function DropdownModel(dropdown)
     function dropdown:SetTooltip(tooltipFunc) self._tooltip = tooltipFunc end
     function dropdown:GenerateMenu()
         assert(not self._open, "the menu is not rebuilt while it is open")
-        local root = { radios = {}, dividers = 0 }
+        local root = { radios = {}, dividers = 0, rules = {} }
+        -- What the game hands back for a line of the menu: it takes functions that dress the
+        -- line's frame once the game has drawn it (the addon's Widgets.SkinMenuLine).
+        local function Description(entry)
+            entry.initializers = {}
+            function entry:AddInitializer(fn)
+                assert(type(fn) == "function", "an initializer is a function")
+                self.initializers[#self.initializers + 1] = fn
+            end
+            return entry
+        end
         function root:CreateRadio(text, isSelected, setSelected, data)
-            self.radios[#self.radios + 1] = { text = text, isSelected = isSelected, setSelected = setSelected, data = data }
+            local radio = Description({ text = text, isSelected = isSelected, setSelected = setSelected, data = data })
+            self.radios[#self.radios + 1] = radio
+            return radio
         end
         -- A line across the menu; `after` says which radio each one follows.
         function root:CreateDivider()
             self.dividers = self.dividers + 1
             self.after = self.after or {}
             self.after[#self.after + 1] = #self.radios
+            local rule = Description({})
+            self.rules[#self.rules + 1] = rule
+            return rule
         end
         function root:SetScrollMode(extent)
             assert(type(extent) == "number" and extent > 0, "a height in pixels")
@@ -697,6 +731,7 @@ local function DropdownModel(dropdown)
         self._generator(self, root)
         self.radios = root.radios
         self.dividers, self.dividersAfter, self.scroll = root.dividers, root.after or {}, root.scroll
+        self.rules = root.rules
         ShowSelection(self)
     end
     function dropdown:SetupMenu(generator)
@@ -720,7 +755,6 @@ local TEMPLATES = {
     MoneyDisplayFrameTemplate = MoneyDisplayModel,
     WowStyle1DropdownTemplate = DropdownModel,
     AuctionHouseFrameDisplayModeTabTemplate = function() end,       -- a tab of the window (LibAHTab)
-    UIPanelButtonTemplate = function() end,                         -- the game's plain red button
 }
 
 function CreateFrame(kind, name, parent, template)
@@ -905,8 +939,7 @@ RETRIEVING_ITEM_INFO = "Retrieving item information"
 ITEM_SPELL_TRIGGER_ONUSE = "Use:"
 SHIELD_BLOCK_TEMPLATE = "%s Block"
 ITEM_UNIQUE_EQUIPPABLE = "Unique-Equipped"
-ACCEPT, CANCEL, NONE = "Accept", "Cancel", "None"
-BUYOUT_AUCTION_CONFIRMATION = "Buyout auction for:"
+CANCEL, NONE = "Cancel", "None"
 SECONDS_ABBR, MINUTES_ABBR, HOURS_ABBR, DAYS_ABBR = "%d Sec", "%d Min", "%d Hr", "%d Days"
 -- The colours of the classes, as the game's ColorMixin objects.
 RAID_CLASS_COLORS = { WARRIOR = Color(0.78, 0.61, 0.43), DRUID = Color(1, 0.49, 0.04), MAGE = Color(0.25, 0.78, 0.92) }
@@ -1003,53 +1036,8 @@ HEADSLOT, CHESTSLOT, FINGER0SLOT, MAINHANDSLOT, SECONDARYHANDSLOT = "Head", "Che
 -- The game's text for two of the weapon kinds; the addon has its own for the rest.
 INVTYPE_2HWEAPON = "Two-Hand (game)"
 SlashCmdList = {}
--- Confirmation boxes. One of a kind is up at a time; a box that goes away runs its OnHide.
-StaticPopupDialogs = {}
-local function HidePopup(popup)
-    if not popup.shown then return end
-    popup.shown = false
-    local info = StaticPopupDialogs[popup.which]
-    if info.OnHide then info.OnHide(popup.dialog, popup.data) end
-end
-function StaticPopup_Hide(which)
-    for _, popup in ipairs(W.popups) do
-        if popup.which == which then HidePopup(popup) end
-    end
-end
-function StaticPopup_Show(which, arg1, arg2, data)
-    local info = assert(StaticPopupDialogs[which], "a registered dialog")
-    StaticPopup_Hide(which)
-    if info.hasItemFrame then
-        assert(type(data) == "table" and data.link and data.useLinkForItemInfo, "an item for the box to show")
-    end
-    local dialog = Widget("Frame")
-    dialog.which, dialog.data = which, data
-    dialog.MoneyFrame = Widget("Frame", nil, dialog)
-    local popup = { which = which, arg1 = arg1, arg2 = arg2, data = data, dialog = dialog, shown = true }
-    dialog._popup = popup
-    W.popups[#W.popups + 1] = popup
-    if info.OnShow then info.OnShow(dialog, data) end
-    return dialog
-end
--- After "Accept" the box stays up, buttons greyed, until one of the events says it may go.
-function StaticPopup_OnAcceptWithSpinner(onAccept, onEvent, events, spinnerDelay, dialog)
-    assert(type(spinnerDelay) == "number" and dialog and dialog._popup, "called by the box, with its arguments in order")
-    onAccept(dialog)
-    for _, event in ipairs(events) do dialog:RegisterEvent(event) end
-    dialog:SetScript("OnEvent", function(self, event, ...)
-        if onEvent(self, event, ...) then
-            self:SetScript("OnEvent", nil)
-            HidePopup(self._popup)
-        end
-    end)
-    return true
-end
--- The player presses the first button.
-function W.AcceptPopup(popup)
-    assert(popup.shown, "the box is up")
-    local stays = StaticPopupDialogs[popup.which].OnAccept(popup.dialog, popup.data)
-    if not stays then HidePopup(popup) end
-end
+-- The windows Escape closes, by name.
+UISpecialFrames = {}
 
 Enum = {
     ItemClass = { Consumable = 0, Weapon = 2, Armor = 4 },

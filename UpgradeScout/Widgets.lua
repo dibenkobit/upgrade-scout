@@ -6,7 +6,8 @@ local ADDON, ns = ...
 -- buttons in gold rims. Its art is the textures in Media, drawn by scripts/make-textures.py at
 -- two texture pixels per window unit; frames and buttons are cut in nine, so one small picture
 -- serves any size (see NewSlices).
--- Nothing in this file knows what a tab is for: UI.lua makes the tabs out of these parts.
+-- Nothing in this file knows what a tab is for: UI.lua makes the tabs out of these parts, and
+-- Mail.lua its strip at the mailbox.
 local Widgets = {}
 ns.Widgets = Widgets
 
@@ -36,12 +37,16 @@ local function File(name)
     return MEDIA .. name
 end
 
-local function NewTexture(parent, name, layer, sublevel)
-    local texture = parent:CreateTexture(nil, layer or "ARTWORK", nil, sublevel or 0)
-    -- The game moves textures onto whole screen pixels. Pieces of one picture must meet edge
-    -- to edge at any interface scale instead.
+-- The game moves textures onto whole screen pixels. Pieces of one picture must meet edge to
+-- edge at any interface scale instead.
+local function Unsnap(texture)
     texture:SetSnapToPixelGrid(false)
     texture:SetTexelSnappingBias(0)
+    return texture
+end
+
+local function NewTexture(parent, name, layer, sublevel)
+    local texture = Unsnap(parent:CreateTexture(nil, layer or "ARTWORK", nil, sublevel or 0))
     if name then texture:SetTexture(File(name)) end
     return texture
 end
@@ -65,16 +70,24 @@ end
 --   corner   the side of a corner in the picture, as a share of the picture's side
 --   edge     the side of a corner on screen
 --   outset   how far the picture reaches beyond the frame (the soft shadow around a button)
+--   attach   where the pieces come from when the frame may not make textures of its own (a
+--            menu of the game's: see MenuStyle); by default the frame makes them
 -- Pieces are numbered row by row: 1 2 3, 4 5 6, 7 8 9.
 local Slices = {}
 Slices.__index = Slices
 
-local function NewSlices(parent, name, corner, edge, layer, sublevel, outset)
+local function NewSlices(parent, name, corner, edge, layer, sublevel, outset, attach)
     local stops = { 0, corner, 1 - corner, 1 }
     local parts = {}
     for i = 1, 9 do
         local across, down = (i - 1) % 3 + 1, math.floor((i - 1) / 3) + 1
-        local part = NewTexture(parent, nil, layer, sublevel)
+        local part
+        if attach then
+            part = Unsnap(attach())
+            part:SetDrawLayer(layer or "ARTWORK", sublevel or 0)
+        else
+            part = NewTexture(parent, nil, layer, sublevel)
+        end
         part.coords = { stops[across], stops[across + 1], stops[down], stops[down + 1] }
         parts[i] = part
     end
@@ -103,30 +116,56 @@ local function NewSlices(parent, name, corner, edge, layer, sublevel, outset)
     return slices
 end
 
+-- A picture cut in three from top to bottom, for something narrow that is tall (the knob of a
+-- scroll bar): the ends keep their height, the middle stretches. The picture is as wide as the
+-- frame less `inset` on each side.
+--   cap    the height of an end in the picture, as a share of the picture's height
+--   edge   the height of an end on screen
+local function NewColumn(parent, name, cap, edge, layer, sublevel, inset)
+    inset = inset or 0
+    local top = NewTexture(parent, nil, layer, sublevel)
+    top.coords = { 0, 1, 0, cap }
+    top:SetPoint("TOPLEFT", parent, "TOPLEFT", inset, 0)
+    top:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -inset, 0)
+    top:SetHeight(edge)
+    local bottom = NewTexture(parent, nil, layer, sublevel)
+    bottom.coords = { 0, 1, 1 - cap, 1 }
+    bottom:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", inset, 0)
+    bottom:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -inset, 0)
+    bottom:SetHeight(edge)
+    local middle = NewTexture(parent, nil, layer, sublevel)
+    middle.coords = { 0, 1, cap, 1 - cap }
+    middle:SetPoint("TOPLEFT", top, "BOTTOMLEFT")
+    middle:SetPoint("BOTTOMRIGHT", bottom, "TOPRIGHT")
+
+    local column = setmetatable({ parts = { top, middle, bottom } }, Slices)
+    column:SetFile(name)
+    return column
+end
+
 function Slices:SetFile(name)
     if self.file == name then return end
     self.file = name
-    for i = 1, 9 do
-        local part = self.parts[i]
+    for _, part in ipairs(self.parts) do
         part:SetTexture(File(name))
         part:SetTexCoord(part.coords[1], part.coords[2], part.coords[3], part.coords[4])
     end
 end
 
 function Slices:SetVertexColor(r, g, b, a)
-    for i = 1, 9 do self.parts[i]:SetVertexColor(r, g, b, a or 1) end
+    for _, part in ipairs(self.parts) do part:SetVertexColor(r, g, b, a or 1) end
 end
 
 function Slices:SetDesaturated(desaturated)
-    for i = 1, 9 do self.parts[i]:SetDesaturated(desaturated) end
+    for _, part in ipairs(self.parts) do part:SetDesaturated(desaturated) end
 end
 
 function Slices:SetBlendMode(mode)
-    for i = 1, 9 do self.parts[i]:SetBlendMode(mode) end
+    for _, part in ipairs(self.parts) do part:SetBlendMode(mode) end
 end
 
 function Slices:SetShown(shown)
-    for i = 1, 9 do self.parts[i]:SetShown(shown) end
+    for _, part in ipairs(self.parts) do part:SetShown(shown) end
 end
 
 -- Text in the game's own fonts, so that it reads right in every language and follows a font
@@ -229,8 +268,133 @@ local function NewBar(parent, width, height)
     return bar
 end
 
+---------------------------------------------------------------------------
+-- The game's own parts, in our colours
+---------------------------------------------------------------------------
+-- Where the game's part does work that is best left to it (scrolling, a menu), it stays, and
+-- only its look is ours. Its own pictures are made see-through, not removed: the game goes on
+-- setting them as the mouse comes and goes.
+
+-- An arrow of a scroll bar: a gold chevron, grey while there is nothing more that way (the
+-- game greys the whole button then, and ours is dimmed as well).
+local function PaintStepper(button)
+    button.Chevron:SetAlpha(button:IsEnabled() and 1 or 0.35)
+end
+
+local function SkinStepper(button, up)
+    button.Texture:SetAlpha(0)
+    local chevron = NewTexture(button, "Chevron", "ARTWORK")
+    chevron:SetSize(14, 14)
+    chevron:SetPoint("CENTER", button, "CENTER", 0, 0)
+    chevron:SetVertexColor(GOLD[1], GOLD[2], GOLD[3])
+    local glow = NewTexture(button, "Chevron", "HIGHLIGHT")
+    glow:SetSize(14, 14)
+    glow:SetPoint("CENTER", button, "CENTER", 0, 0)
+    glow:SetBlendMode("ADD")
+    glow:SetVertexColor(1, 0.85, 0.50, 0.6)
+    if up then
+        chevron:SetTexCoord(0, 1, 1, 0)
+        glow:SetTexCoord(0, 1, 1, 0)
+    end
+    button.Chevron = chevron
+    button:HookScript("OnEnable", PaintStepper)
+    button:HookScript("OnDisable", PaintStepper)
+    PaintStepper(button)
+end
+
+-- The game's MinimalScrollBar as a gold knob on a dark rail, with gold arrows.
+local function SkinScrollBar(bar)
+    local track = bar.Track
+    local thumb = track.Thumb
+    for _, region in ipairs({ track.Begin, track.Middle, track.End, thumb.Begin, thumb.Middle, thumb.End }) do
+        region:SetAlpha(0)
+    end
+    -- The rail is narrower than the knob, which stands out on both sides of it.
+    NewColumn(track, "ScrollTrack", 0.0625, 2, "BACKGROUND", 0, 2)
+    NewColumn(thumb, "ScrollThumb", 0.125, 4, "ARTWORK")
+    local glow = NewColumn(thumb, "ScrollThumb", 0.125, 4, "HIGHLIGHT")
+    glow:SetBlendMode("ADD")
+    glow:SetVertexColor(1, 1, 1, 0.4)
+    SkinStepper(bar.Back, true)
+    SkinStepper(bar.Forward, false)
+end
+
+-- A menu the game opens for a dropdown of ours, on our plate. The game makes a menu out of a
+-- "style": a table it copies onto the menu's frame, whose Generate draws the background and
+-- whose two other functions say how far the lines keep from the edges. A dropdown takes its
+-- style from its `menuMixin` field. On a menu's frame textures are not made but attached
+-- (AttachTexture), so that the game can take them back when the menu closes.
+-- The plate is drawn on a frame of its own inside the menu: an addon that restyles every menu
+-- of the game repaints the menu's own textures, and leaves those of a frame inside it alone.
+local MENU_INSET = { left = 11, top = 11, right = 11, bottom = 11 }
+local MENU_PADDING = { width = 20, height = 0 }
+local MenuStyle = {}
+
+function MenuStyle:Generate()
+    local plate = self:AttachFrame("Frame")
+    plate:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0)
+    plate:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", 0, 0)
+    -- Under the lines of the menu, which are frames of their own as well.
+    plate:SetFrameLevel(self:GetFrameLevel())
+    NewSlices(plate, "Panel", 0.375, 12, "BACKGROUND", -8, 1.5, function() return plate:AttachTexture() end)
+end
+
+-- (Called on the menu's frame, which they have no need of.)
+function MenuStyle.GetInset()
+    return MENU_INSET
+end
+
+function MenuStyle.GetChildExtentPadding()
+    return MENU_PADDING
+end
+
+-- A line of such a menu that can be chosen (root:CreateRadio), as the game has just drawn it:
+-- a diamond where the game has its round mark, gold when the line is the one chosen and grey
+-- when it is not, the light of our rows under the mouse, the words in our colours. Given to
+-- the line with AddInitializer, so it runs after the game's own drawing every time the line
+-- is shown. The game makes the second mark only for the line that is chosen.
+local function SkinMenuLine(button)
+    local mark, chosen = button.leftTexture1, button.leftTexture2
+    if mark then
+        mark:SetTexture(File("Diamond"))
+        mark:SetTexCoord(0, 1, 0, 1)
+        mark:SetSize(14, 14)
+        mark:SetDesaturated(true)
+        mark:SetAlpha(0.45)
+    end
+    if chosen then
+        chosen:SetTexture(File("Diamond"))
+        chosen:SetTexCoord(0, 1, 0, 1)
+        chosen:SetSize(14, 14)
+    end
+    local glow = button.highlight
+    if glow then
+        glow:SetTexture(File("RowGlow"))
+        glow:SetTexCoord(0, 1, 0, 1)
+        glow:SetBlendMode("ADD")
+        glow:SetVertexColor(1, 0.72, 0.30, 0.22)
+    end
+    local text = button.fontString
+    if text then
+        local color = chosen and GOLD or CREAM
+        text:SetTextColor(color[1], color[2], color[3])
+    end
+end
+
+-- A line across such a menu (root:CreateDivider): our gold rule.
+local function SkinMenuDivider(frame)
+    local line = frame.divider
+    if not line then return end
+    line:SetTexture(File("Line"))
+    line:SetTexCoord(0, 1, 0, 1)
+    line:SetHeight(1)
+    line:SetVertexColor(0.80, 0.60, 0.26, 0.55)
+end
+
 Widgets.GOLD, Widgets.GOLD_DIM, Widgets.CREAM, Widgets.SOFT, Widgets.MUTED, Widgets.GREEN = GOLD, GOLD_DIM, CREAM, SOFT, MUTED, GREEN
 Widgets.NumberFont = NumberFont
 Widgets.File, Widgets.NewTexture, Widgets.NewLine, Widgets.NewRule = File, NewTexture, NewLine, NewRule
-Widgets.NewSlices, Widgets.NewText = NewSlices, NewText
+Widgets.NewSlices, Widgets.NewColumn, Widgets.NewText = NewSlices, NewColumn, NewText
 Widgets.NewButton, Widgets.NewBar, Widgets.SetBar = NewButton, NewBar, SetBar
+Widgets.SkinScrollBar, Widgets.MenuStyle = SkinScrollBar, MenuStyle
+Widgets.SkinMenuLine, Widgets.SkinMenuDivider = SkinMenuLine, SkinMenuDivider

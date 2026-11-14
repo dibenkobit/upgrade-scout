@@ -4,6 +4,8 @@
 
 - An arrow on the icon of an item in your bags or bank marks an upgrade on your profile:
   green when you can put it on now, grey when it asks for a higher level than yours.
+- Buying gear asks in the same box as buying consumables, with the item's gain and buyout. The
+  strip at the mailbox, the profile menu and the list's scroll bar have the addon's own look too.
 
 ## 2.2.3
 

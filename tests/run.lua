@@ -106,6 +106,21 @@ local function Offer(name)
     end
 end
 
+-- How many of the textures made on a frame show this picture of the addon's.
+local function Pictures(frame, name)
+    local n = 0
+    for _, texture in ipairs(frame._textures or {}) do
+        if (texture:GetTexture() or ""):match("[^\\]+$") == name then n = n + 1 end
+    end
+    return n
+end
+
+-- The box that asks before a purchase of gear, while it is up.
+local function Asking()
+    local box = UpgradeScoutBuyBox
+    if box and box:IsShown() and box.offer then return box end
+end
+
 local function OfferCount()
     local n = 0
     for _ in pairs(ns.Scanner.offers) do n = n + 1 end
@@ -536,8 +551,8 @@ function scenarios.scan_suffix_rows()
     W.Run(1)
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
     S.Buy(Offer("Belt of the Bear"))
-    W.RunUntil(function() return #W.popups == 1 end, 30)
-    W.AcceptPopup(W.popups[1])
+    W.RunUntil(Asking, 30)
+    Asking().Buy:Click()
     W.RunUntil(function() return #S.acquired == 1 end, 30)
     W.RunUntil(function() return S.state == "idle" end, 30)
     eq(Offer("Belt of the Bear").buyout, 900, "the next Bear is listed at its own price")
@@ -792,8 +807,8 @@ function scenarios.scan_pages()
     ns.Scanner.Buy(chest)
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
     eq(W.AH.calls.itemMore, 2, "no further pages for that lookup")
-    eq(#W.popups, 1, "asks for confirmation")
-    W.AcceptPopup(W.popups[1])
+    check(Asking() ~= nil, "asks for confirmation")
+    Asking().Buy:Click()
     W.RunUntil(function()
         local now = Offer("Common Chest")
         return ns.Scanner.state == "idle" and now ~= nil and now.buyout == 1002
@@ -909,7 +924,7 @@ function scenarios.buy()
     -- item was being looked up, nothing pops up, and the scanner is free again.
     ns.Scanner.Buy(good)
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
-    eq(#W.popups, 0, "no question away from the tab")
+    eq(Asking(), nil, "no question away from the tab")
     W.RunUntil(function() return W.AH.ready end, 5)
     searches = W.AH.calls.search
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
@@ -917,27 +932,52 @@ function scenarios.buy()
     eq(ns.Scanner.state, "verify", "looks the item up again first")
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
     eq(W.AH.calls.search, searches + 1, "one fresh item search")
-    eq(#W.popups, 1, "asks for confirmation")
-    local box = W.popups[1]
-    eq(box.which, "UPGRADESCOUT_BUY", "our dialog")
-    eq(StaticPopupDialogs.UPGRADESCOUT_BUY.text, "Buyout auction for:", "worded as the game's own buyout question")
-    eq(box.data.link, good.link, "shows the item")
-    eq(box.dialog.MoneyFrame._amount, 4000, "and the price as coins")
+    local box = Asking()
+    check(box ~= nil, "asks for confirmation, in a box of the addon's")
+    eq(box.link, good.link, "about the item"); check(box.Name:GetText():find("Good Chest", 1, true) ~= nil, "named")
+    eq(box.FirstLabel:GetText(), "UPGRADE", "what it gains"); eq(box.Gain:GetText(), "+80%", "as the list says: 18 against 10")
+    eq(box.TotalLabel:GetText(), "BUYOUT", "and its buyout"); eq(box.Total:GetAmount(), 4000, "in coins")
+    eq(box.Count:IsShown(), false, "nothing to count"); eq(box.Stock:IsShown(), false, "nor a stock")
+    eq(box.Buy.Label:GetText(), "BUY", "its button says what it does")
+    check(table.concat(UISpecialFrames, " "):find(box:GetName(), 1, true) ~= nil, "Escape closes it")
+    box.Item:GetScript("OnEnter")(box.Item)
+    eq(GameTooltip._link, good.link, "the item's tooltip over its name")
+    box.Item:GetScript("OnLeave")(box.Item)
+
+    -- "Cancel": nothing is bought, and the scanner is free again.
+    box.Cancel:Click()
+    eq(box:IsShown(), false, "the box goes")
     eq(#W.AH.calls.bids, 0, "nothing bought before the player agrees")
-    W.AcceptPopup(box)
+    W.RunUntil(function() return ns.Scanner.state == "idle" and W.AH.ready end, 30)
+    ns.Scanner.Buy(good)
+    W.RunUntil(Asking, 30)
+    box.Buy:Click()
     eq(#W.AH.calls.bids, 1, "bought")
     eq(W.AH.calls.bids[1].amount, 4000, "at the buyout price")
-    eq(box.shown, true, "the box waits for the auction house to answer")
-    W.RunUntil(function() return not box.shown end, 5)
+    eq(box:IsShown(), true, "the box waits for the auction house to answer")
+    eq(box.Buy:IsEnabled(), false, "its button greyed meanwhile")
+    W.RunUntil(function() return not box:IsShown() end, 5)
     W.RunUntil(function() return ns.Scanner.state == "idle" and Offer("Good Chest") ~= nil and Offer("Good Chest").buyout == 5000 end, 30)
     eq(Offer("Good Chest").count, 1, "the next copy is listed at its own price")
     check(W.printed[#W.printed]:find("Bought", 1, true) ~= nil, "purchase reported in chat")
 
+    -- Someone else was faster: the auction house turns the bid down, and the box goes.
+    W.RunUntil(function() return ns.Scanner.state == "idle" and W.AH.ready end, 30)
+    local bids = #W.AH.calls.bids
+    W.AH.failBid = true
+    ns.Scanner.Buy(Offer("Great Chest"))
+    W.RunUntil(Asking, 30)
+    box.Buy:Click()
+    eq(#W.AH.calls.bids, bids + 1, "the bid went out")
+    W.RunUntil(function() return not box:IsShown() end, 5)
+    W.AH.failBid = nil
+    check(Offer("Great Chest") ~= nil, "and nothing was bought")
+
     -- Too expensive
     W.player.money = 10
-    local count = #W.popups
+    W.RunUntil(function() return ns.Scanner.state == "idle" and W.AH.ready end, 30)
     ns.Scanner.Buy(Offer("Great Chest"))
-    eq(#W.popups, count, "no dialog when the player cannot pay")
+    eq(Asking(), nil, "no box when the player cannot pay")
     eq(ns.Scanner.state, "idle", "and no search")
 end
 
@@ -954,13 +994,13 @@ function scenarios.buy_gone()
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
     ns.Scanner.Buy(Offer("Helm"))
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
-    eq(#W.popups, 0, "no dialog for an item that is gone")
+    eq(Asking(), nil, "no box for an item that is gone")
     eq(Offer("Helm"), nil, "and it leaves the list")
     check(W.printed[#W.printed]:find("no longer for sale", 1, true) ~= nil, "says it is gone")
 
     ns.Scanner.Buy(Offer("Good Chest"))
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
-    eq(#W.popups, 0, "no dialog when the price changed")
+    eq(Asking(), nil, "no box when the price changed")
     eq(Offer("Good Chest").buyout, 5000, "list shows the new price")
     check(W.printed[#W.printed]:find("now costs", 1, true) ~= nil, "says the price changed")
 
@@ -968,7 +1008,7 @@ function scenarios.buy_gone()
     W.AH.dropSearches = 5
     ns.Scanner.Buy(Offer("Good Chest"))
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 60)
-    eq(#W.popups, 0, "no dialog without an answer")
+    eq(Asking(), nil, "no box without an answer")
 end
 
 ---------------------------------------------------------------------------
@@ -1243,11 +1283,10 @@ function scenarios.ui()
 
     -- Buy button -> the question; leaving the tab takes the question down.
     rows[5].Buy:Click()
-    W.RunUntil(function() return #W.popups == 1 end, 30)
-    eq(W.popups[1].data.offer.name, "Good Chest", "confirmation for the clicked item")
-    eq(W.popups[1].shown, true, "the question is up")
+    W.RunUntil(Asking, 30)
+    eq(Asking().offer.name, "Good Chest", "confirmation for the clicked item")
     frame:Hide()
-    eq(W.popups[1].shown, false, "it does not outlive the tab")
+    eq(UpgradeScoutBuyBox:IsShown(), false, "it does not outlive the tab")
     frame:Show()
 
     -- Shift-click links the item; a plain click does nothing.
@@ -1280,6 +1319,38 @@ function scenarios.ui()
     end
     check(#GameTooltip._lines <= 5, "a few lines: " .. #GameTooltip._lines)
     ns.Weights.leveling = nil
+
+    -- Its menu opens on our plate. The game copies the dropdown's style onto the menu's frame
+    -- and calls Generate, which may only attach what it draws: the plate goes on a frame of
+    -- its own inside the menu, a frame no addon that restyles menus repaints.
+    local style = dropdown.menuMixin
+    eq(style, ns.Widgets.MenuStyle, "the menu has our style")
+    local menu = W.Widget("Frame")
+    function menu:AttachFrame(kind)
+        local plate = W.Widget(kind, nil, self)
+        function plate:AttachTexture() return self:CreateTexture() end
+        self.plate = plate
+        return plate
+    end
+    style.Generate(menu)
+    eq(Pictures(menu.plate, "Panel"), 9, "the plate of the list, cut in nine")
+    eq(Pictures(menu, "Panel"), 0, "and nothing on the menu's own frame")
+    check(style.GetInset(menu).left >= 10 and style.GetChildExtentPadding(menu).width > 0, "the lines keep off its gold edge")
+    -- Each line is dressed after the game has drawn it: a diamond where the game has its round
+    -- mark, gold on the line chosen, the light of our rows under the mouse.
+    local function Line(chosen)
+        local line = W.Widget("Button")
+        line.leftTexture1, line.highlight, line.fontString = line:CreateTexture(), line:CreateTexture(), line:CreateFontString()
+        if chosen then line.leftTexture2 = line:CreateTexture() end
+        for _, dress in ipairs(dropdown.radios[1].initializers) do dress(line) end
+        return line
+    end
+    local chosen, other = Line(true), Line(false)
+    eq(Pictures(chosen, "Diamond"), 2, "the line chosen: a diamond over the grey one")
+    eq(chosen.leftTexture2._grey, nil, "in gold")
+    eq(other.leftTexture1._grey, true, "the others: a grey one")
+    eq(Pictures(other, "RowGlow"), 1, "the light of a row under the mouse")
+    eq(#dropdown.radios[2].initializers, 1, "every line is dressed")
     W.RunUntil(function() return W.AH.ready end, 5)
     dropdown:Pick(2)
     eq(ns.Roster.Me().profile, "S2", "choice saved")
@@ -1341,6 +1412,18 @@ function scenarios.ui()
     -- Scrolling is the scroll box's own; the bar beside it is the game's too.
     local bar = Made("MinimalScrollBar")[1]
     check(bar ~= nil, "the list has the game's scroll bar")
+    -- In our colours: the game's own pictures are see-through, ours are on the same parts.
+    local track, knob = bar.Track, bar.Track.Thumb
+    for _, part in ipairs({ track.Begin, track.Middle, track.End, knob.Begin, knob.Middle, knob.End, bar.Back.Texture, bar.Forward.Texture }) do
+        eq(part:GetAlpha(), 0, "the game's own picture is see-through")
+    end
+    eq(Pictures(track, "ScrollTrack"), 3, "a dark rail, cut in three")
+    eq(Pictures(knob, "ScrollThumb"), 6, "a gold knob in three pieces, and its light under the mouse")
+    eq(Pictures(bar.Back, "Chevron"), 2, "a gold arrow at the top"); eq(Pictures(bar.Forward, "Chevron"), 2, "and at the bottom")
+    bar.Back:SetEnabled(false)
+    eq(bar.Back.Chevron:GetAlpha(), 0.35, "dim while there is nothing more that way")
+    bar.Back:SetEnabled(true)
+    eq(bar.Back.Chevron:GetAlpha(), 1, "and bright again when there is")
     local all = ns.Results.Build(ns.Scanner.offers, ns.Scanner.ctx, { money = GetMoney(), affordableOnly = ns.db.affordableOnly })
     local scrollable = #all - PAGE
     check(scrollable > 20, "a long list (" .. #all .. " rows)")
@@ -1807,8 +1890,8 @@ function scenarios.plan_ui()
     W.Run(0.3)
     Row("Helm").Buy:Click()
     Settle()
-    eq(#W.popups, 1, "the usual question")
-    W.AcceptPopup(W.popups[1])
+    check(Asking() ~= nil, "the usual question")
+    Asking().Buy:Click()
     W.RunUntil(function() return #S.acquired == 1 end, 30)
     Settle()
     eq(S.budget, 3500, "the helm's 25 silver are spent")
@@ -2823,6 +2906,10 @@ function scenarios.alt()
     eq(dropdown.radios[3].text, ALTY .. ": Balance", "the druid's by its name, in the colour of its class")
     eq(dropdown.radios[4].text, ALTY .. ": Feral", "each of them")
     eq(dropdown.dividers, 1, "a line between the characters"); eq(dropdown.dividersAfter[1], 2, "after the warrior's own")
+    local rule = W.Widget("Frame")
+    rule.divider = rule:CreateTexture()
+    for _, dress in ipairs(dropdown.rules[1].initializers) do dress(rule) end
+    eq(Pictures(rule, "Line"), 1, "a gold rule of ours")
     eq(dropdown:GetText(), "Arms", "the field shows the warrior's scale")
     check(list.Hint:GetText():find("you can equip", 1, true) ~= nil, "and the list is to be the warrior's")
 
@@ -3001,10 +3088,9 @@ function scenarios.mail()
     ScanToEnd()
     local function Buy(name)
         W.RunUntil(function() return S.state == "idle" and W.AH.ready end, 30)
-        local count = #W.popups
         S.Buy(Offer(name))
-        W.RunUntil(function() return #W.popups == count + 1 end, 30)
-        W.AcceptPopup(W.popups[#W.popups])
+        W.RunUntil(Asking, 30)
+        Asking().Buy:Click()
         W.RunUntil(function() return Offer(name) == nil and S.state == "idle" end, 30)
     end
     Buy("Helm")
@@ -3030,7 +3116,10 @@ function scenarios.mail()
     check(panel ~= nil and panel:IsShown(), "a strip of the addon's under the mail window")
     local button = panel.Buttons[1]
     eq(button:IsShown(), true, "a button for the druid"); eq(panel.Buttons[2]:IsShown(), false, "and for nobody else")
-    eq(button:GetText(), "For " .. ALTY .. ": 0 of 2 in your bags", "it says how much of it is at hand")
+    eq(Pictures(panel, "Panel"), 9, "on the plate of the addon's tabs")
+    eq(button.Face.file, "ButtonDark", "its button in a gold rim, as the tab's are")
+    eq(panel:GetHeight(), 36 + 22 + 10, "as tall as the one button it holds")
+    eq(button.Label:GetText(), "For " .. ALTY .. ": 0 of 2 in your bags", "it says how much of it is at hand")
     button:Click()
     W.Run(0.5)
     check(Printed("Nothing bought for " .. ALTY .. " is in your bags."), "nothing to put in yet, and it says so")
@@ -3041,7 +3130,7 @@ function scenarios.mail()
     W.PutInBags(W.Link(200), { bound = true })
     W.PutInBags(W.Link(310))
     W.Run(0.5)
-    eq(button:GetText(), "For " .. ALTY .. ": 1 of 2 in your bags", "the button follows the bags")
+    eq(button.Label:GetText(), "For " .. ALTY .. ": 1 of 2 in your bags", "the button follows the bags")
     button:GetScript("OnEnter")(button)
     local seen = {}
     for _, line in ipairs(GameTooltip._lines) do seen[#seen + 1] = line.text end
@@ -3065,7 +3154,7 @@ function scenarios.mail()
     W.Run(1)
     eq(#W.mail.sent, 1, "one letter"); eq(W.mail.sent[1].to, "Alty", "to the druid"); eq(W.mail.sent[1].items[1], W.Link(310), "with the jerkin")
     eq(#UpgradeScoutDB.parcels, 1, "the jerkin is struck off"); eq(UpgradeScoutDB.parcels[1].link, W.Link(315), "the ring is still to go")
-    eq(button:GetText(), "For " .. ALTY .. ": 0 of 1 in your bags", "the button counts what is left")
+    eq(button.Label:GetText(), "For " .. ALTY .. ": 0 of 1 in your bags", "the button counts what is left")
 
     -- The ring comes out of the mail, is put into a letter and taken out of it again by hand:
     -- a letter sent without it leaves it a parcel.
@@ -3080,7 +3169,7 @@ function scenarios.mail()
     W.SendLetter()
     W.Run(1)
     eq(#UpgradeScoutDB.parcels, 1, "the ring was not in the letter that went, so it is still a parcel")
-    eq(button:GetText(), "For " .. ALTY .. ": 1 of 1 in your bags", "and still at hand")
+    eq(button.Label:GetText(), "For " .. ALTY .. ": 1 of 1 in your bags", "and still at hand")
 
     -- A letter that already holds something for someone else is not touched.
     local sword = W.PutInBags(W.Link(102))

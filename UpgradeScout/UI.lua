@@ -6,11 +6,11 @@ local S = ns.Scanner
 --
 -- The tab has a look of its own, made of the parts in Widgets.lua: a dark plate in a fine gold
 -- edge, headings in gold capitals, buttons in gold rims.
--- The parts that do the work are still the game's own:
---   the list        WowScrollBoxList and MinimalScrollBar
+-- Some parts that do the work are still the game's own, in our colours:
+--   the list        WowScrollBoxList, and MinimalScrollBar as a gold knob on a dark rail
 --   prices          MoneyDisplayFrameTemplate
---   the profile     WowStyle1DropdownTemplate: its menu and its text, under a face of ours
---   buying          a StaticPopup shaped like the game's own BUYOUT_AUCTION
+--   the profile     WowStyle1DropdownTemplate: its text, and its menu on our plate
+-- A purchase is asked about in a box of ours (see BuildBuyBox), for gear as for consumables.
 --
 -- The "Consumables" tab is the same frame in another view (`view`): the same list with rows
 -- of another kind, another second filter, a status line of its own, and a box that asks how
@@ -20,7 +20,6 @@ ns.UI = UI
 
 local TAB_ID = "UpgradeScout"
 local TAB_SUPPLIES = "UpgradeScoutSupplies"
-local POPUP = "UPGRADESCOUT_BUY"
 
 -- Layout, in the coordinates of the auction window (800 by 538). The game keeps the strip
 -- under the title for a tab's controls and the strip at the bottom for the gold display; the
@@ -483,6 +482,16 @@ local function CanBuy()
     return S.state == "idle" and S.IsOpen()
 end
 
+-- The gain in percent of what is worn. There is no percent of nothing: an empty slot says
+-- "New", and a slot whose item scores nothing on the profile (white armor with no stat but
+-- its armor, say) gets the gain in points. The rows of one slot all replace the same thing,
+-- so they all read the same way and can be told apart by their numbers.
+local function GainText(entry)
+    if entry.percent then return "+" .. FormatPercentage(entry.percent, true) end
+    if entry.replaced then return L.GAIN_POINTS:format(ns.Num(entry.delta)) end
+    return L.NEW
+end
+
 -- A consumable: its name, what it does, what that is worth on the profile (when the game's
 -- tables say), the price of one piece and how many are for sale.
 local function InitSupplyRow(row, entry, share)
@@ -562,19 +571,7 @@ local function InitItemRow(row, element)
 
     SetPick(row.Pick, entry.pick)
 
-    -- The gain in percent of what is worn. There is no percent of nothing: an empty slot says
-    -- "New", and a slot whose item scores nothing on the profile (white armor with no stat but
-    -- its armor, say) gets the gain in points. The rows of one slot all replace the same
-    -- thing, so they all read the same way and can be told apart by their numbers.
-    local text
-    if entry.percent then
-        text = "+" .. FormatPercentage(entry.percent, true)
-    elseif entry.replaced then
-        text = L.GAIN_POINTS:format(ns.Num(entry.delta))
-    else
-        text = L.NEW
-    end
-    row.Upgrade:SetText(text)
+    row.Upgrade:SetText(GainText(entry))
     row.Meter:SetWidth(math.max((METER_WIDTH - 1) * data.share, 2))
     row.Meter:SetTexCoord(0, math.max(data.share, 0.03), 0, 1)
 
@@ -1085,7 +1082,6 @@ local function Choose(choice)
         -- making one, gets it made again; the other waits for its Scan button.
         local rescan = S.state ~= "idle"
         if view == "gear" then rescan = rescan or S.finishedAt ~= nil else rescan = rescan or S.suppliesAt ~= nil end
-        StaticPopup_Hide(POPUP)
         buyBox:Hide()
         ns.Roster.SetTarget(card)
         S.Retarget()
@@ -1105,11 +1101,16 @@ end
 
 local MENU_ROWS = 20        -- a menu with more lines than this scrolls
 
+-- The lines and the rules of the menu in our colours (see Widgets.SkinMenuLine).
+local function AddLine(root, text, choice)
+    root:CreateRadio(text, IsChoice, Choose, choice):AddInitializer(Widgets.SkinMenuLine)
+end
+
 local function ProfileMenu(_, root)
     local lines = 0
     local _, profiles = ns.Score.Current()
     for i = 1, #profiles do
-        root:CreateRadio(profiles[i].title, IsChoice, Choose, { who = false, profile = profiles[i].name })
+        AddLine(root, profiles[i].title, { who = false, profile = profiles[i].name })
         lines = lines + 1
     end
 
@@ -1119,7 +1120,7 @@ local function ProfileMenu(_, root)
         local card = cards[c]
         local _, theirs = ns.Score.Current(card)
         if card ~= me and #theirs > 0 then
-            if lines > 0 then root:CreateDivider() end
+            if lines > 0 then root:CreateDivider():AddInitializer(Widgets.SkinMenuDivider) end
             -- The name in the colour of the class, then the profile: "Diluna: Balance".
             -- The field shows the line that is chosen, so
             -- it says whose list this is as long as it is not one's own.
@@ -1130,8 +1131,7 @@ local function ProfileMenu(_, root)
                 name = name .. " (" .. card.realm .. ")"
             end
             for i = 1, #theirs do
-                root:CreateRadio(name .. ": " .. theirs[i].title, IsChoice, Choose,
-                    { who = card.key, profile = theirs[i].name })
+                AddLine(root, name .. ": " .. theirs[i].title, { who = card.key, profile = theirs[i].name })
                 lines = lines + 1
             end
         end
@@ -1141,8 +1141,9 @@ end
 
 -- The game's dropdown under a face of ours: a recess with a gold arrow. Its own plate and
 -- arrow are made see-through, not removed, because the dropdown goes on setting them as its
--- state changes; its text and its menu are left as they are.
+-- state changes; its text is left as it is. Its menu opens on our plate (Widgets.MenuStyle).
 local function SkinDropdown(dropdown)
+    dropdown.menuMixin = Widgets.MenuStyle
     dropdown.Background:SetAlpha(0)
     dropdown.Arrow:SetAlpha(0)
     NewSlices(dropdown, "Inset", 0.25, 8, "BACKGROUND", -1)
@@ -1211,10 +1212,16 @@ local function Caption(text)
 end
 
 ---------------------------------------------------------------------------
--- The box that asks how many of a consumable to buy
+-- The box that asks before a purchase
 ---------------------------------------------------------------------------
--- A purchase of a consumable goes in steps (see "Consumables: the scan and the purchase" in
--- Scanner.lua), and the box follows them in `step`:
+-- One box for both views: the item at its top, two lines about the purchase, "Buy" and
+-- "Cancel". It follows the purchase in `step`.
+-- Gear (`offer`): the gain the list shows for the item, and its buyout.
+--   confirm  the item was looked up again and is still there at its price
+--   wait     "Buy" was pressed: the bid is out, and the box stays until the auction house
+--            answers, as the game's own question before a buyout does
+-- A consumable (`supply`, `tiers`) is bought by the piece, in steps (see "Consumables: the scan
+-- and the purchase" in Scanner.lua): how many, and what that many cost.
 --   choose   the player types how many; the box shows what that many cost by the price list
 --   quote    "Buy" was pressed: the server is being asked what exactly they cost
 --   confirm  the server's price is shown and the button reads "Confirm"
@@ -1224,7 +1231,22 @@ end
 -- choose.
 local BOX_WIDTH, BOX_HEIGHT, BOX_EDGE = 330, 162, 18
 
+local function PaintGearBox()
+    local offer, step = buyBox.offer, buyBox.step
+    local affordable = offer.buyout <= GetMoney()
+    buyBox.TotalLabel:SetText(Caption(L.COL_PRICE))
+    buyBox.Total:Show()
+    buyBox.Total:SetFontObject(affordable and PriceFontWhite or PriceFontRed)
+    SetMoney(buyBox.Total, offer.buyout)
+    buyBox.Buy.Label:SetText(ns.Upper(L.BUY))
+    buyBox.Buy:SetEnabled(step == "confirm" and affordable)
+end
+
 local function PaintBox()
+    if buyBox.offer then
+        PaintGearBox()
+        return
+    end
     if not buyBox.tiers then return end
     local step = buyBox.step
     local settled = step == "confirm" or step == "wait"
@@ -1258,7 +1280,11 @@ end
 local function BoxBuyOnClick()
     PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
     local step = buyBox.step
-    if step == "confirm" then
+    if buyBox.offer then
+        if step ~= "confirm" then return end
+        buyBox.step = "wait"
+        S.ConfirmPurchase(buyBox.offer)
+    elseif step == "confirm" then
         buyBox.step = "wait"
         S.ConfirmSupply()
     elseif step ~= "choose" then
@@ -1273,8 +1299,22 @@ local function BoxBuyOnClick()
     PaintBox()
 end
 
+-- The item at the top of the box has its tooltip, and a modified click links it or tries it
+-- on, as on a row.
+local function BoxItemOnEnter(item)
+    GameTooltip:SetOwner(item, "ANCHOR_RIGHT")
+    GameTooltip:SetHyperlink(buyBox.link, nil, nil, true)
+    GameTooltip:Show()
+end
+
+local function BoxItemOnClick()
+    HandleModifiedItemClick(buyBox.link)
+end
+
 local function BuildBuyBox()
-    buyBox = CreateFrame("Frame", nil, frame)
+    -- By name: Escape closes it, as it does the game's own windows (UISpecialFrames).
+    buyBox = CreateFrame("Frame", "UpgradeScoutBuyBox", frame)
+    table.insert(UISpecialFrames, buyBox:GetName())
     buyBox:SetSize(BOX_WIDTH, BOX_HEIGHT)
     buyBox:SetPoint("CENTER", scrollBox, "CENTER", 0, 0)
     -- Above the rows, and in the way of clicks meant for the rows under it.
@@ -1293,19 +1333,28 @@ local function BuildBuyBox()
     buyBox.Name = NewText(buyBox, 13, CREAM, "LEFT", true)
     buyBox.Name:SetPoint("LEFT", buyBox.Rim, "RIGHT", PAD, 0)
     buyBox.Name:SetWidth(BOX_WIDTH - 2 * BOX_EDGE - ICON_SIZE - PAD)
+    local item = CreateFrame("Button", nil, buyBox)
+    item:SetPoint("TOPLEFT", buyBox.Rim, "TOPLEFT", 0, 0)
+    item:SetPoint("BOTTOMRIGHT", buyBox.Name, "BOTTOMRIGHT", 0, 0)
+    item:SetScript("OnEnter", BoxItemOnEnter)
+    item:SetScript("OnLeave", GameTooltip_Hide)
+    item:SetScript("OnClick", BoxItemOnClick)
+    buyBox.Item = item
 
     local rule = NewRule(buyBox)
     rule:SetPoint("TOPLEFT", buyBox, "TOPLEFT", BOX_EDGE - 4, -48)
     rule:SetPoint("TOPRIGHT", buyBox, "TOPRIGHT", -(BOX_EDGE - 4), -48)
 
-    local countLabel = NewText(buyBox, 9.5, GOLD_DIM)
-    countLabel:SetPoint("LEFT", buyBox, "TOPLEFT", BOX_EDGE, -70)
-    countLabel:SetText(Caption(L.QTY))
+    -- The first line: how many pieces of a consumable, or what the gear gains.
+    buyBox.FirstLabel = NewText(buyBox, 9.5, GOLD_DIM)
+    buyBox.FirstLabel:SetPoint("LEFT", buyBox, "TOPLEFT", BOX_EDGE, -70)
+    buyBox.Gain = NewText(buyBox, 14, GREEN, "RIGHT", true)
+    buyBox.Gain:SetPoint("RIGHT", buyBox, "TOPRIGHT", -BOX_EDGE, -70)
 
     -- The field for the number: an edit box of the game's in a recess of ours.
     local count = CreateFrame("EditBox", nil, buyBox)
     count:SetSize(56, 22)
-    count:SetPoint("LEFT", countLabel, "RIGHT", PAD, 0)
+    count:SetPoint("LEFT", buyBox.FirstLabel, "RIGHT", PAD, 0)
     NewSlices(count, "Inset", 0.25, 6, "BACKGROUND")
     count:SetFont(Widgets.NumberFont(), 13, "")
     count:SetTextColor(CREAM[1], CREAM[2], CREAM[3])
@@ -1339,7 +1388,32 @@ local function BuildBuyBox()
     buyBox.Cancel:SetScript("OnClick", CloseBox)
 
     -- However the box goes away, a purchase that was not confirmed is off.
-    buyBox:SetScript("OnHide", function() S.CancelSupply() end)
+    buyBox:SetScript("OnHide", function()
+        if buyBox.offer then S.CancelPurchase() else S.CancelSupply() end
+    end)
+end
+
+-- What the box shows at its top, and which of its parts the kind of purchase has.
+local function SetBoxItem(icon, quality, name, link)
+    buyBox.Icon:SetTexture(icon)
+    buyBox.Rim:SetVertexColor(ns.QualityColor(quality))
+    buyBox.Name:SetText(ns.QualityText(name, quality))
+    buyBox.link = link
+end
+
+local function SetBoxKind(gear)
+    buyBox.Gain:SetShown(gear)
+    buyBox.Count:SetShown(not gear)
+    buyBox.Stock:SetShown(not gear)
+end
+
+-- The row of the list an offer is on, for the gain the box repeats. (An offer is not listed
+-- when it was bought from somewhere else than its row.)
+local function ListedEntry(offer)
+    for i = 1, #rows do
+        local entry = rows[i].entry
+        if entry and entry.offer and entry.offer.id == offer.id then return entry end
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -1497,10 +1571,7 @@ local function BuildViews(auction)
         UI.Refresh()
     end)
     -- Another tab, or the window closed: a question about buying must not stay up.
-    frame:SetScript("OnHide", function()
-        StaticPopup_Hide(POPUP)
-        buyBox:Hide()
-    end)
+    frame:SetScript("OnHide", function() buyBox:Hide() end)
     ApplyView()
 end
 
@@ -1575,13 +1646,15 @@ local function Build()
     rule:SetPoint("TOPRIGHT", list, "TOPRIGHT", -LIST_LEFT, -(LIST_TOP - 3))
 
     -- The game's scroll box and scroll bar, set up the way Blizzard_AuctionHouseItemList sets
-    -- up the Buy tab's list. Scrolling, the mouse wheel and the bar are all the scroll box's own.
+    -- up the Buy tab's list. Scrolling, the mouse wheel and the bar are all the scroll box's own;
+    -- the bar only looks ours.
     scrollBox = CreateFrame("Frame", nil, list, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", list, "TOPLEFT", LIST_LEFT, -LIST_TOP)
     scrollBox:SetPoint("BOTTOMRIGHT", list, "BOTTOMRIGHT", -LIST_RIGHT, LIST_BOTTOM)
     local scrollBar = CreateFrame("EventFrame", nil, list, "MinimalScrollBar")
     scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 8, -2)
     scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 8, 2)
+    Widgets.SkinScrollBar(scrollBar)
 
     local listView = CreateScrollBoxListLinearView()
     listView:SetElementFactory(RowFactory)
@@ -1662,53 +1735,42 @@ ns.Listen("SCAN_PROGRESS", QueueRefresh)
 ns.Listen("OFFERS_CHANGED", QueueRefresh)
 
 ---------------------------------------------------------------------------
--- Buying
+-- Buying gear (the box is built in BuildBuyBox)
 ---------------------------------------------------------------------------
--- The question before a purchase, shaped like the game's own BUYOUT_AUCTION: its words, the
--- price as coins, and after "Accept" the box stays up until the auction house has answered.
--- On top of that it shows the item itself, with its tooltip.
-local function PopupOnAccept(dialog)
-    S.ConfirmPurchase(dialog.data.offer)
-end
-
--- true closes the box.
-local function PopupOnEvent(dialog, event, ...)
-    if event == "AUCTION_HOUSE_PURCHASE_COMPLETED" then
-        local auctionID = ...
-        return auctionID == dialog.data.offer.auctionID
-    end
-    return event == "AUCTION_HOUSE_SHOW_ERROR"
-end
-
-StaticPopupDialogs[POPUP] = {
-    text = BUYOUT_AUCTION_CONFIRMATION,
-    button1 = ACCEPT,
-    button2 = CANCEL,
-    OnAccept = GenerateClosure(StaticPopup_OnAcceptWithSpinner, PopupOnAccept, PopupOnEvent,
-        { "AUCTION_HOUSE_PURCHASE_COMPLETED", "AUCTION_HOUSE_SHOW_ERROR" }, 2),
-    OnShow = function(dialog, data)
-        MoneyFrame_Update(dialog.MoneyFrame, data.offer.buyout)
-    end,
-    -- However the box goes away, the scanner may go back to work.
-    OnHide = function() S.CancelPurchase() end,
-    hasItemFrame = 1,
-    hasMoneyFrame = 1,
-    timeout = 0,
-    hideOnEscape = 1,
-}
-
 ns.Listen("CONFIRM_BUY", function(offer)
-    -- The lookup before the question takes a moment; the player may have left the tab since.
-    if not frame:IsVisible() then
+    -- The lookup before the question takes a moment; the player may have left the view since.
+    if not frame:IsVisible() or view ~= "gear" then
         S.CancelPurchase()
         return
     end
-    -- link and useLinkForItemInfo are for the popup's item frame, which fills in the rest.
-    StaticPopup_Show(POPUP, nil, nil, { offer = offer, link = offer.link, useLinkForItemInfo = true })
+    buyBox.offer, buyBox.supply, buyBox.tiers, buyBox.auction = offer, nil, nil, nil
+    buyBox.step = "confirm"
+    SetBoxItem(offer.icon, offer.quality, offer.name, offer.link)
+    SetBoxKind(true)
+    local entry = ListedEntry(offer)
+    buyBox.FirstLabel:SetText(Caption(L.COL_UPGRADE))
+    buyBox.FirstLabel:SetShown(entry ~= nil)
+    buyBox.Gain:SetText(entry and GainText(entry) or "")
+    buyBox:Show()
+    PaintBox()
+end)
+
+-- The auction house's answer to the bid: bought, or turned down (someone else was faster).
+-- Either way the box has done its work. A purchase is told in the chat by the scanner; what
+-- went wrong, the game shows itself.
+ns.On("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
+    if buyBox and buyBox:IsShown() and buyBox.offer and buyBox.step == "wait"
+        and buyBox.offer.auctionID == auctionID then
+        buyBox:Hide()
+    end
+end)
+
+ns.On("AUCTION_HOUSE_SHOW_ERROR", function()
+    if buyBox and buyBox:IsShown() and buyBox.offer and buyBox.step == "wait" then buyBox:Hide() end
 end)
 
 ---------------------------------------------------------------------------
--- Buying a consumable (the box is built in BuildBuyBox)
+-- Buying a consumable
 ---------------------------------------------------------------------------
 ns.Listen("CONFIRM_SUPPLY", function(supply, tiers)
     -- The lookup before the question takes a moment; the player may have left the view since.
@@ -1716,12 +1778,13 @@ ns.Listen("CONFIRM_SUPPLY", function(supply, tiers)
         S.CancelSupply()
         return
     end
-    buyBox.supply, buyBox.tiers = supply, tiers
+    buyBox.offer, buyBox.supply, buyBox.tiers = nil, supply, tiers
     buyBox.auction = tiers[1].auctionID and tiers[1] or nil
     buyBox.step, buyBox.quoted = "choose", nil
-    buyBox.Icon:SetTexture(supply.icon)
-    buyBox.Rim:SetVertexColor(ns.QualityColor(supply.quality))
-    buyBox.Name:SetText(ns.QualityText(supply.name, supply.quality))
+    SetBoxItem(supply.icon, supply.quality, supply.name, supply.link)
+    SetBoxKind(false)
+    buyBox.FirstLabel:SetText(Caption(L.QTY))
+    buyBox.FirstLabel:Show()
     buyBox.Stock:SetText(L.QTY_OF:format(supply.quantity))
     buyBox:Show()
 

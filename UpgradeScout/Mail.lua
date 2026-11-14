@@ -1,4 +1,4 @@
-local _, ns = ...
+local ADDON, ns = ...
 local L = ns.L
 
 -- Gear bought for another character of the account, on its way to that character.
@@ -22,6 +22,11 @@ local MAX_ATTACH = ATTACHMENTS_MAX_SEND or 12
 local KEEP_DAYS = 30            -- a parcel nobody sent is forgotten after this long
 local MAX_BUTTONS = 6           -- characters with parcels the mailbox lists at once
 local STEP = 0.1                -- seconds between two attachments
+
+-- The strip under the mail window: its width, its margin, how far down its buttons begin, and
+-- the height of a button and the room between two.
+local WIDTH, EDGE, TOP = 320, 10, 36
+local BUTTON_HEIGHT, BUTTON_GAP = 22, 4
 
 -- The game writes a full name with this between the name and the surname.
 local SEPARATOR = Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_SEPARATOR
@@ -257,18 +262,30 @@ end
 
 local function Build()
     -- A frame of its own beside the game's mail window, not a part of it: nothing of the
-    -- addon's then runs inside the game's own mail code.
+    -- addon's then runs inside the game's own mail code. It has the look of the addon's tabs
+    -- (Widgets.lua): a dark plate in a gold edge, the addon's emblem and a gold title, a
+    -- button in a gold rim for each character.
+    local W = ns.Widgets
     panel = CreateFrame("Frame", "UpgradeScoutMailFrame", UIParent)
-    panel:SetSize(320, 24)
+    panel:SetSize(WIDTH, TOP)
     panel:Hide()
-    panel.Title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    panel.Title:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, 0)
+    W.NewSlices(panel, "Panel", 0.375, 12, "BACKGROUND", 0, 1.5)
+    local emblem = panel:CreateTexture(nil, "ARTWORK")
+    emblem:SetTexture("Interface\\AddOns\\" .. ADDON .. "\\icon")
+    emblem:SetSize(16, 16)
+    emblem:SetPoint("LEFT", panel, "TOPLEFT", EDGE, -EDGE - 8)
+    panel.Title = W.NewText(panel, 11, W.GOLD)
+    panel.Title:SetPoint("LEFT", emblem, "RIGHT", 6, 0)
+    panel.Title:SetPoint("RIGHT", panel, "TOPRIGHT", -EDGE, -EDGE - 8)
     panel.Title:SetText(L.MAIL_TITLE)
+    local rule = W.NewRule(panel)
+    rule:SetPoint("TOPLEFT", panel, "TOPLEFT", EDGE - 4, -(TOP - 6))
+    rule:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -(EDGE - 4), -(TOP - 6))
     panel.Buttons = {}
     for i = 1, MAX_BUTTONS do
-        local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-        button:SetSize(320, 22)
-        button:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -(16 + (i - 1) * 24))
+        local button = W.NewButton(panel, WIDTH - 2 * EDGE, BUTTON_HEIGHT, "ButtonDark", 11)
+        button.Label:SetWidth(WIDTH - 2 * EDGE - 16)
+        button:SetPoint("TOPLEFT", panel, "TOPLEFT", EDGE, -(TOP + (i - 1) * (BUTTON_HEIGHT + BUTTON_GAP)))
         button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         button:SetScript("OnClick", ButtonOnClick)
         button:SetScript("OnEnter", ButtonOnEnter)
@@ -296,9 +313,12 @@ function M.Refresh()
         button.group = group
         button:SetShown(group ~= nil)
         if group then
-            button:SetText(L.MAIL_TO:format(ns.Roster.Colored(group.card, group.card.name), group.count, #group.parcels))
+            button.Label:SetText(L.MAIL_TO:format(ns.Roster.Colored(group.card, group.card.name), group.count, #group.parcels))
         end
     end
+    -- The plate is as tall as the buttons it holds.
+    local shown = math.min(#groups, MAX_BUTTONS)
+    panel:SetHeight(TOP + shown * (BUTTON_HEIGHT + BUTTON_GAP) - BUTTON_GAP + EDGE)
     panel:Show()
 end
 

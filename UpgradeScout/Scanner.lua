@@ -1692,7 +1692,7 @@ ns.On("COMMODITY_PURCHASE_FAILED", SupplyFailed)
 
 -- The auction house turned something down, and says no more than that. With a bid on a
 -- consumable's auction out, the bid is what it turned down: the auction is gone, most likely.
--- (A bid on gear waits in the game's own kind of box, which closes itself on this.)
+-- (A bid on gear waits in the tab's box, which closes itself on this: see UI.lua.)
 ns.On("AUCTION_HOUSE_SHOW_ERROR", function()
     if not next(supplyBids) then return end
     for _, bid in pairs(supplyBids) do

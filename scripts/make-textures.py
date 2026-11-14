@@ -200,6 +200,33 @@ def bar():
     c.save("Bar")
 
 
+# The knob of a scroll bar: a bar of gold standing up, rounded at both ends, the light on its
+# left side. Cut in three from top to bottom (the ends keep their size, the middle stretches).
+def scroll_thumb():
+    c = Canvas(16, 64)
+    x, y = grid(16, 64)
+    d = box(x, y, 2, 1.5, 14, 62.5, 6)
+    c.over((0, 0, 0), 0.70 * (1 - smooth(0, 1.6, d)) * (d > -1))
+    t = (x - 2) / 12
+    face = np.where((t < 0.35)[..., None],
+                    mix((1.00, 0.93, 0.60), (0.96, 0.74, 0.22), smooth(0.0, 0.35, t)),
+                    mix((0.96, 0.74, 0.22), (0.58, 0.35, 0.06), smooth(0.35, 1.0, t)))
+    c.over(face, cover(d))
+    c.over(lit(d, GOLD_HI, GOLD, GOLD_LO), band(d, 0, -1.4))
+    c.save("ScrollThumb")
+
+
+# The rail the knob runs on: a narrow recess, lit as the Inset is. Cut in three like the knob.
+def scroll_track():
+    c = Canvas(8, 64)
+    x, y = grid(8, 64)
+    d = box(x, y, 0.5, 0.5, 7.5, 63.5, 3.5)
+    c.over((0.026, 0.020, 0.016), 0.92 * cover(d))
+    c.over((0, 0, 0), 0.45 * np.exp(-np.maximum(y - 2, 0) / 3.0) * cover(d + 1))
+    c.over(lit(d, BRONZE_HI, BRONZE, BRONZE_LO, flip=True), 0.85 * band(d, 0, -1.2))
+    c.save("ScrollTrack")
+
+
 # ---------------------------------------------------------------------------
 # Small marks
 # ---------------------------------------------------------------------------
@@ -304,6 +331,8 @@ def main():
     button_glow()
     inset()
     bar()
+    scroll_thumb()
+    scroll_track()
     check()
     chevron()
     diamond()
