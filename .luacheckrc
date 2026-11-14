@@ -11,7 +11,7 @@ exclude_files = { "UpgradeScout/Libs" }     -- other people's libraries
 read_globals = {
     -- functions of the game
     "CanDualWield", "Clamp", "CreateDataProvider", "CreateFrame", "CreateScrollBoxListLinearView", "CursorHasItem",
-    "FormatPercentage", "GenerateClosure", "GetBuildInfo", "GetInventoryItemLink", "GetLocale", "GetMoney", "GetMoneyString",
+    "FormatPercentage", "GenerateClosure", "GetInventoryItemLink", "GetLocale", "GetMoney", "GetMoneyString",
     "GetProfessionInfo", "GetProfessions", "GetRealmName", "GetSendMailItem", "GetTime", "HandleModifiedItemClick",
     "IsModifiedClick", "MoneyFrame_Update", "PlaySound", "ResetCursor", "ShowInspectCursor", "StaticPopup_Hide",
     "StaticPopup_OnAcceptWithSpinner", "StaticPopup_Show", "UnitClass", "UnitFactionGroup", "UnitLevel", "UnitName",
@@ -33,8 +33,6 @@ read_globals = {
     "RETRIEVING_ITEM_INFO", "SHIELD_BLOCK_TEMPLATE",
     -- its numbers
     "ATTACHMENTS_MAX_SEND", "NUM_TOTAL_EQUIPPED_BAG_SLOTS",
-    -- Pawn, for as long as the stats are checked against its reading (Check.lua)
-    "PawnGetItemData",
     -- the libraries that come with the addon
     "LibStub",
 }

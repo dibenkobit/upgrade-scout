@@ -39,7 +39,6 @@ Weights.lua
 GearData.lua
 Score.lua
 Compare.lua
-Check.lua
 Results.lua
 Plan.lua
 SupplyData.lua

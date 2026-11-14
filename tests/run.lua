@@ -11,7 +11,7 @@ local names = {
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui",
-    "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "check", "locale_ru", "locale_de", "locale_fr", "locale_zh",
+    "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
 }
 
@@ -2506,7 +2506,6 @@ function scenarios.roster()
     -- Learned: cloth, leather, mail, shields; one-handed swords and axes.
     W.player.spells = { [9078] = true, [9077] = true, [8737] = true, [9116] = true, [201] = true, [196] = true }
     W.player.professions = { { "Mining", 75 }, { "Engineering", 150 }, { "Cooking", 40 } }
-    UpgradeScoutCharDB = { scale = "S2" }   -- a scale of another addon, as version 1 kept it
     LoadAddon()
     local R = ns.Roster
 
@@ -2514,9 +2513,6 @@ function scenarios.roster()
     eq(me.key, "Tester Mainsson", "the card is filed under the character's name and surname")
     eq(me.name, "Tester", "shown by the first name"); eq(me.class, "WARRIOR", "its class"); eq(me.level, 10, "its level")
     eq(UpgradeScoutDB.chars["Tester Mainsson"], me, "kept for the whole account")
-    eq(ns.db.scale, nil, "what version 1 kept as the character's scale is dropped from its settings")
-    me.scale = "S2"
-    eq(R.Me().scale, nil, "and from its card")
     eq(ns.Score.Current().name, "S1", "the character is scored on the profile its class starts with")
     eq(me.gear, nil, "nothing is written down before the character is in the world")
 
@@ -3295,132 +3291,13 @@ function scenarios.item_stats()
     SlashCmdList.UPGRADESCOUT("stats")
     check(Said(at):find(ns.L.STATS_NONE, 1, true) ~= nil, "alone, the command is about the last scan as before")
 
-    -- With Pawn installed, and for as long as the check against it is here, its reading is added.
-    PawnGetItemData = function() return { Stats = { Strength = 5, IsMail = 1 } } end
+    -- With Pawn installed it is the same: the addon asks nothing of it.
+    PawnGetItemData = function() return { Stats = { Strength = 99 } } end
     at = #W.printed + 1
     SlashCmdList.UPGRADESCOUT("stats " .. W.Link(200))
-    check(Said(at):find("Pawn: IsMail 1, Strength 5", 1, true) ~= nil, "what Pawn read, where Pawn is installed")
+    said = Said(at)
+    check(said:find('score 27', 1, true) ~= nil and said:find("Pawn", 1, true) == nil, "Pawn installed changes nothing")
     PawnGetItemData = nil
-    at = #W.printed + 1
-    SlashCmdList.UPGRADESCOUT("check")
-    check(Said(at):find("needs Pawn", 1, true) ~= nil, "no check against Pawn without Pawn")
-    eq(ns.Check.Active(), false, "which stays off")
-end
-
--- The check against Pawn: every row of a scan is read both ways and written down.
-function scenarios.check()
-    StandardWorld()
-    AddBelts()
-    AddHighLevelFiller(300)
-    -- Pawn, as far as the check asks it: an item's stats as it reads them off the tooltip
-    -- (`stats` of an item), and the lines it could make nothing of.
-    PawnGetItemData = function(link)
-        local item = W.ParseItem(link)
-        if not item or not item.cached or item.noStats then return nil end
-        return { Stats = item.stats, UnknownLines = item.effects and { ["Use: Does something."] = 1 } or nil }
-    end
-    local function Both(id, game, pawn)
-        W.items[id].game, W.items[id].stats = game, pawn
-    end
-    Both("200:0", { ITEM_MOD_STRENGTH_SHORT = 5, RESISTANCE0_NAME = 120 }, { Strength = 5, Armor = 120, IsMail = 1 })
-    Both("203:0", { ITEM_MOD_CRIT_RATING_SHORT = 14 }, { CritRating = 1 })             -- above the character's level
-    Both("210:0", { ITEM_MOD_SPELL_HEALING_DONE_SHORT = 11 }, { Healing = 11 })
-    Both("400:7", { ITEM_MOD_STAMINA_SHORT = 4 }, { Stamina = 4 })                      -- a suffix
-    Both("100:0", { ITEM_MOD_STAMINA_SHORT = 2 }, { Stamina = 2 })                      -- worn
-    LoadAddon()
-    local S = ns.Scanner
-    W.OpenAuctionHouse()
-
-    -- An ordinary scan stops reading the list where the rows are all above the character.
-    ScanToEnd()
-    eq(S.stats.early, true, "a scan without the check stops early")
-    eq(UpgradeScoutDB.check, nil, "and writes nothing down")
-    local offers = OfferCount()
-
-    -- With the check on, the same scan reads on to the end, and every row is read both ways.
-    local at = #W.printed + 1
-    SlashCmdList.UPGRADESCOUT("check")
-    eq(ns.Check.Active(), true, "the check is on")
-    check(S.state ~= "idle", "and a scan has begun, the auction house being open")
-    check(Said(at):find("a scan has begun", 1, true) ~= nil, "which it says")
-    W.RunUntil(function() return S.state == "idle" end, 600)
-    W.Run(5)
-    eq(S.stats.early, false, "the list was read to its end")
-    eq(OfferCount(), offers, "the scan's own list is what it was")
-
-    local data = UpgradeScoutDB.check
-    check(type(data) == "table" and type(data.items) == "table", "what was read is kept with the account")
-    local written = 0
-    for _ in pairs(data.items) do written = written + 1 end
-    eq(data.count, written, "the count is of what was written down")
-    eq(data.build, "70938", "with the build of the game"); eq(data.class, "WARRIOR", "and whose scan it was")
-    local worn = data.worn[5]
-    check(worn ~= nil and worn.link:find("^item:100:") ~= nil, "what the character wears is written down too")
-    eq(worn.game.ITEM_MOD_STAMINA_SHORT, 2, "as the game counts it"); eq(worn.bare.ITEM_MOD_STAMINA_SHORT, 2, "without its enchantment")
-    eq(worn.pawn.Stamina, 2, "and as Pawn does")
-    eq(data.worn[1], nil, "an empty slot is no entry")
-
-    local chest = data.items["200:13:0"]
-    check(chest ~= nil, "a row the character can use")
-    eq(chest.name, "Good Chest", "by name"); check(chest.link:find("^item:200:") ~= nil, "and by the link of a real auction")
-    eq(chest.game.ITEM_MOD_STRENGTH_SHORT, 5, "the game's numbers"); eq(chest.game.RESISTANCE0_NAME, 120, "all of them")
-    eq(chest.pawn.Strength, 5, "Pawn's numbers"); eq(chest.pawn.IsMail, 1, "its marks too")
-    local future = data.items["203:19:0"]
-    check(future ~= nil, "a row above the character's level is read as well")
-    eq(future.game.ITEM_MOD_CRIT_RATING_SHORT, 14, "a rating as the game has it"); eq(future.pawn.CritRating, 1, "and as Pawn has it")
-    check(data.items["5300:25:0"] ~= nil, "down to the last row of the list")
-    local bear = data.items["400:13:7"]
-    check(bear ~= nil and bear.suffix == 7, "a variant is a row of its own")
-    eq(bear.name, "Belt of the Bear", "under its own name"); eq(bear.game.ITEM_MOD_STAMINA_SHORT, 4, "with its own numbers")
-    local great = data.items["201:15:0"]
-    eq(great.unknown[1], "Use: Does something.", "the lines Pawn made nothing of")
-    eq(great.spells[1], "use: Use: Does something.", "the lines the game marks as a spell of the item")
-    check(great.kinds:find(",44$") ~= nil, "the kind of every line of the tooltip, in order")
-    check(great.tooltip[1]:find("Great Chest", 1, true) ~= nil, "and for the first items the whole tooltip")
-    eq(chest.spells, nil, "an item without such lines has none"); eq(data.spellLines, 1, "they are counted")
-    local statless = data.items["208:6:0"]
-    check(statless ~= nil and statless.pawn == false, "an item Pawn gives nothing for is written down so")
-    eq(next(statless.game), nil, "and the game gives an empty answer for it")
-    eq(data.items["207:6:0"], nil, "a shirt is not gear")
-
-    eq(data.suffixed, 3, "three variants of the belt"); eq(data.ratings, 1, "one item with a rating")
-    eq(data.healing, 1, "one with healing")
-    check(data.noPawn >= 1 and data.noGame >= 1, "the silent ones are counted")
-    eq(data.unread, 0, "no row was given up on")
-    check(data.seen > data.count, "rows that are not gear were seen and passed over")
-    local said = Said(at)
-    check(said:find("Check done: " .. data.count .. " items read", 1, true) ~= nil, "the outcome is said")
-    check(said:find("Not for sale right now", 1, true) == nil, "nothing was missing from this one")
-    check(said:find("/reload", 1, true) ~= nil, "and how to save it")
-
-    -- A scan with none of the kinds the check is after says which are missing.
-    Both("203:0", {}, {}); Both("210:0", {}, {})
-    W.AH.auctions = {}
-    W.AddAuction(203, 100); W.AddAuction(210, 800)
-    at = #W.printed + 1
-    SlashCmdList.UPGRADESCOUT("check")
-    W.RunUntil(function() return S.state == "idle" end, 600)
-    W.Run(5)
-    data = UpgradeScoutDB.check
-    eq(data.count, 2, "a new check starts from nothing")
-    check(Said(at):find("items with a suffix, with ratings, with healing", 1, true) ~= nil, "what was not for sale is named")
-
-    -- Closing the auction house ends a check in progress with what it has.
-    W.AddAuction(200, 4000)
-    at = #W.printed + 1
-    SlashCmdList.UPGRADESCOUT("check")
-    W.RunUntil(function() return UpgradeScoutDB.check.seen > 0 end, 60)
-    W.CloseAuctionHouse()
-    check(Said(at):find("Check done", 1, true) ~= nil, "closing the auction house ends the check")
-
-    -- Off: the rows are no longer taken, and what was written stays.
-    data = UpgradeScoutDB.check
-    SlashCmdList.UPGRADESCOUT("check off")
-    eq(ns.Check.Active(), false, "the check is off")
-    eq(UpgradeScoutDB.check, data, "what it wrote down stays")
-    W.OpenAuctionHouse()
-    ScanToEnd()
-    eq(UpgradeScoutDB.check.seen, data.seen, "and a scan adds nothing to it")
 end
 
 -- The weights the addon comes with, made by scripts/make-weights.py: every class has

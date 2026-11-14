@@ -999,12 +999,10 @@ local function TrackOrder(required)
 end
 
 -- The browse can stop before the end only if the rows really are arriving in level order
--- and a long unbroken run of them is already above the player's level. (And not while the
--- check against Pawn is on, which is after every row there is.)
+-- and a long unbroken run of them is already above the player's level.
 local function CanStopEarly()
     local order = run.order
-    return not (ns.Check and ns.Check.Active())
-        and run.variant == 1
+    return run.variant == 1
         and order.above >= EARLY_STOP_RUN
         and order.count >= EARLY_STOP_RUN * 2
         and order.inversions <= order.count * 0.02
@@ -1014,9 +1012,6 @@ local function AddRow(result)
     local key = result.itemKey
     if not key or not key.itemID then return end
     run.rowCount = run.rowCount + 1
-    -- While the check against Pawn is on, it reads every row of gear: see Check.lua. (The
-    -- check is a passing tool, and the scan does not lean on its file being loaded.)
-    if ns.Check and run.mode ~= "supplies" then ns.Check.Row(key) end
 
     local required = AH.GetItemKeyRequiredLevel(key) or 0
     TrackOrder(required)

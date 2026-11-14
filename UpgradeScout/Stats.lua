@@ -75,7 +75,4 @@ function Stats.Report(text)
             print("   " .. line)
         end
     end
-    -- While the check against Pawn is here: what Pawn read for the same item (see Check.lua).
-    local pawn = ns.Check and ns.Check.PawnLine(link or item)
-    if pawn then print("   " .. pawn) end
 end

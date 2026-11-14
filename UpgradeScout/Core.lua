@@ -84,6 +84,10 @@ EventUtil.ContinueOnAddOnLoaded(ADDON, function()
 
     if type(UpgradeScoutDB) ~= "table" then UpgradeScoutDB = {} end
     if type(UpgradeScoutDB.chars) ~= "table" then UpgradeScoutDB.chars = {} end
+    -- What the in-game check of the stats wrote while 2.0 was made (tag pre-2.0-check): a few
+    -- megabytes the game would otherwise read at every login. (Take this out with the check, if
+    -- it is ever brought back.)
+    UpgradeScoutDB.check = nil
     ns.account = UpgradeScoutDB
 end)
 

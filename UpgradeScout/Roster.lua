@@ -265,10 +265,6 @@ function Roster.Me()
     end
     card.key = myKey
     if not card.class or not card.level then Describe(card) end
-    -- What version 1 kept as the character's "scale" was the name of a scale in another
-    -- addon. It names nothing now: the character gets the profile its class starts with.
-    ns.db.scale = nil
-    card.scale = nil
     return card
 end
 
