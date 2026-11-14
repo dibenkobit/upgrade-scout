@@ -1120,29 +1120,30 @@ function scenarios.ui()
     eq(rows[3].Count:GetText(), "", "nothing cut, so no count in the header")
     eq(checkbox:GetChecked(), true, "afford filter on by default")
     local function Status()
-        for _, text in ipairs(W.texts) do
-            local said = text:GetText()
-            if said and (said:find("Scanned", 1, true) or said:find("Checking", 1, true)) then return said end
-        end
-        return ""
+        return frame.Status:GetText() or ""
+    end
+    -- The age of the scan stands on its own at the right end of the strip.
+    local function Age()
+        return frame.Age:IsShown() and frame.Age:GetText() or ""
     end
     -- Helm, Good Chest, New Ring, Big Axe and Shield are listed; the robe costs 9 gold.
     check(Status():find("5 upgrades in 5 slots. 1 more cost more than you have.", 1, true) ~= nil, "status counts the robe that was not looked up: " .. Status())
-    check(Status():find("Sec ago", 1, true) ~= nil, "the age of the scan in the game's units: " .. Status())
+    check(Status():find("ago", 1, true) == nil, "the status line leaves the age out: " .. Status())
+    check(Age():find("Sec ago", 1, true) ~= nil, "the age of the scan in the game's units: " .. Age())
     -- The age goes on counting while the tab is only looked at: no event comes with a second.
     local finished = ns.Scanner.finishedAt
     W.Run(7)
     check(time() - finished >= 7, "seven seconds on")
-    check(Status():find("Scanned " .. ns.Ago(time() - finished) .. " ago.", 1, true) ~= nil, "the age keeps up with the clock: " .. Status())
+    eq(Age(), "Scanned " .. ns.Ago(time() - finished) .. " ago.", "the age keeps up with the clock")
     W.Run(120, 0.5)
-    check(Status():find("Scanned 2 Min ago.", 1, true) ~= nil, "and goes on to minutes: " .. Status())
+    eq(Age(), "Scanned 2 Min ago.", "and goes on to minutes")
     -- Not while the tab is out of view.
     frame:Hide()
-    local said = Status()
+    local said = frame.Age:GetText()
     W.Run(60, 0.5)
-    eq(Status(), said, "nothing is written while the tab is hidden")
+    eq(frame.Age:GetText(), said, "nothing is written while the tab is hidden")
     frame:Show()
-    check(Status():find("Scanned 3 Min ago.", 1, true) ~= nil, "the age is right again when the tab comes back: " .. Status())
+    eq(Age(), "Scanned 3 Min ago.", "the age is right again when the tab comes back")
 
     -- Showing everything brings the robe back, marked as too expensive.
     local searches = W.AH.calls.search
@@ -1159,6 +1160,7 @@ function scenarios.ui()
     check(Status():find("Checking buyout prices", 1, true) ~= nil, "and says so")
     eq(scan.Label:GetText(), "STOP", "the lookup can be stopped")
     eq(frame.Progress:IsShown(), true, "its bar is beside the status line")
+    eq(frame.Age:IsShown(), false, "in the place of the age")
     eq(list.Progress:IsShown(), false, "and not over the list, which has rows")
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
     W.Run(0.3)
@@ -2319,6 +2321,8 @@ function scenarios.supplies_ui()
         "the best of each kind that is of use and that the character can pay for, by subcategory")
     check(Said("6 consumables in 5 categories. 1 more cost more than you have.") ~= nil, "the status line counts them")
     check(Said("Sec ago") ~= nil, "and says how old the scan is")
+    check(frame.Status:GetText():find("ago", 1, true) == nil, "at the right end, not in the status line: " .. frame.Status:GetText())
+    check(frame.Age:GetText():find("Sec ago", 1, true) ~= nil, "but on its own: " .. frame.Age:GetText())
     eq(list.Intro:IsShown(), false, "the emblem is gone")
 
     local potion = Row("Greater Healing Potion")

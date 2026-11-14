@@ -5,6 +5,8 @@
 - Armor counts on every profile, not only a tank's, and so do shield block, defense, dodge and
   parry. 2.0.0 offered a warrior an off-hand item in place of a shield with 400 armor, and leather
   over better mail.
+- How long ago the scan was now stands at the right end of the bottom line, where the progress bar
+  runs during a scan.
 
 ## 2.0.0
 

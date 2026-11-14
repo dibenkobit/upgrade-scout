@@ -70,7 +70,7 @@ local PICKS = {
     BOTH = { text = L.PICK_BOTH, fill = { 1.00, 0.80, 0.30, 1 }, edge = { 1.00, 0.92, 0.62, 1 }, ink = { 0.17, 0.10, 0.02 }, solid = true },
 }
 
-local frame, scrollBox, provider, hint, intro, status, statusBar, listBar
+local frame, scrollBox, provider, hint, intro, status, statusBar, listBar, age
 local scanButton, profileDropdown, affordCheck, topCheck
 local view = "gear"         -- what the frame shows: "gear" (Upgrades) or "supplies" (Consumables)
 local holder                -- the frame the Consumables tab is made with (see Build)
@@ -744,7 +744,6 @@ local function SuppliesText()
             parts[#parts + 1] = L.ST_SUP_DONE:format(summary.items, summary.groups)
         end
         if S.suppliesPartial and not S.suppliesNote then parts[#parts + 1] = L.ST_PARTIAL end
-        parts[#parts + 1] = L.ST_AGE:format(ns.Ago(time() - S.suppliesAt))
     end
     return ForWho(table.concat(parts, " "))
 end
@@ -773,7 +772,6 @@ local function StatusText()
         -- The best set for a budget: what it comes to stands in the strip under the list.
         if summary.upgrades == 0 then parts[#parts + 1] = L.PLAN_NONE end
         if (S.partial or S.halted) and not S.message then parts[#parts + 1] = L.ST_PARTIAL end
-        parts[#parts + 1] = L.ST_AGE:format(ns.Ago(time() - S.finishedAt))
     elseif S.finishedAt then
         if summary.upgrades == 0 then
             parts[#parts + 1] = summary.hidden > 0 and L.ST_NONE_AFFORD:format(summary.hidden) or L.ST_NONE
@@ -783,9 +781,16 @@ local function StatusText()
             parts[#parts + 1] = L.ST_DONE:format(summary.upgrades, summary.slots)
         end
         if (S.partial or S.halted) and not S.message then parts[#parts + 1] = L.ST_PARTIAL end
-        parts[#parts + 1] = L.ST_AGE:format(ns.Ago(time() - S.finishedAt))
     end
     return ForWho(table.concat(parts, " "))
+end
+
+-- How long ago this view's last scan was, for the right end of the strip; "" while the scanner
+-- works (its bar stands there then) and before the first scan.
+local function AgeText()
+    local at = FinishedAt()
+    if S.state ~= "idle" or not at then return "" end
+    return L.ST_AGE:format(ns.Ago(time() - at))
 end
 
 -- Whom the lists are for, the profiles to choose from and the one in use, as one string: the
@@ -809,8 +814,8 @@ local function IntroText()
     return L.HINT:format(ProfileTitle())
 end
 
--- The status line, with a bar beside it while the scanner works. An empty list has the
--- middle of the plate to say more:
+-- The status line, with a bar at its right end while the scanner works and the age of the last
+-- scan there when it does not. An empty list has the middle of the plate to say more:
 --   before the first scan   the addon's emblem and what to do
 --   during a scan           the same words as the status line, over a wider bar
 --   after one               why the list is empty
@@ -820,9 +825,17 @@ local function ShowStatus()
     local progress = not idle and Progress() or nil
 
     status:SetText(text)
-    -- The line gives way to the bar only while there is one.
-    status:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT",
-        idle and -PAD or -(BAR_RIGHT + STATUS_BAR_WIDTH + PAD), PANEL_BOTTOM - 1)
+    local ageText = AgeText()
+    age:SetText(ageText)
+    age:SetShown(ageText ~= "")
+    -- The line gives way to what stands at its right end: the bar, or the age.
+    local right = PAD
+    if not idle then
+        right = BAR_RIGHT + STATUS_BAR_WIDTH + PAD
+    elseif ageText ~= "" then
+        right = BAR_RIGHT + age:GetStringWidth() + PAD
+    end
+    status:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", -right, PANEL_BOTTOM - 1)
     statusBar:SetShown(not idle)
     if not idle then SetBar(statusBar, progress) end
 
@@ -846,8 +859,8 @@ local function ShowStatus()
     end
 end
 
--- The age of the scan in the status line grows with the clock, and no event comes when a
--- second passes. This runs on a frame inside the tab, so only while the tab is in view.
+-- The age of the scan grows with the clock, and no event comes when a second passes. This
+-- runs on a frame inside the tab, so only while the tab is in view.
 local clockAt
 local function ClockOnUpdate()
     local now = time()
@@ -1597,11 +1610,16 @@ local function Build()
     statusBar = NewBar(frame, STATUS_BAR_WIDTH, 10)
     statusBar:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -BAR_RIGHT, GOLD_BOTTOM + 12)
     statusBar:Hide()
+    -- How long ago the last scan was, against the right end of the strip, where the bar is
+    -- while a scan runs.
+    age = NewText(frame, 11, SOFT, "RIGHT")
+    age:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -BAR_RIGHT, GOLD_BOTTOM + 12)
+    age:Hide()
 
     -- The parts by name, as the game's own windows have theirs.
     frame.ScanButton, frame.ProfileDropdown = scanButton, profileDropdown
     frame.AffordCheck, frame.TopCheck = affordCheck, topCheck
-    frame.List, frame.Progress = list, statusBar
+    frame.List, frame.Progress, frame.Status, frame.Age = list, statusBar, status, age
     list.Intro, list.Hint, list.Progress = intro, hint, listBar
 
     CreateFrame("Frame", nil, frame):SetScript("OnUpdate", ClockOnUpdate)
