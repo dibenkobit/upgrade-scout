@@ -4,7 +4,8 @@
 
 Everything is drawn from shapes and gradients in this file, at two texture pixels per window
 unit, so the art stays sharp on a 4K screen. Frames are made to be cut in nine (corners keep
-their size, edges and middle stretch); UI.lua lists the corner size it cuts each one with.
+their size, edges and middle stretch); Widgets.lua and UI.lua say the corner size each one is
+cut with, where they call NewSlices.
 Pass a folder as the second argument to also get PNG copies for looking at.
 """
 import os

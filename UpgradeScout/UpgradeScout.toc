@@ -47,4 +47,5 @@ SupplyData.lua
 Supplies.lua
 Scanner.lua
 Mail.lua
+Widgets.lua
 UI.lua
