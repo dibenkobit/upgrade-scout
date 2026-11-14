@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0
+
+- Pawn is no longer needed. The addon scores gear with its own stat weights for every talent tree,
+  worked out with the [wowsims/forever](https://github.com/wowsims/forever) simulator.
+- One setting: the **Profile** dropdown. It starts on a profile that suits your class. The Pawn
+  scale chosen in 1.x is replaced by it.
+- Below level 60, hit, crit, haste and expertise count for less, as simulations of leveling
+  characters show.
+- `/upscout stats` and an item shows how the item gets its score, stat by stat.
+- Gear with a weapon skill or a bonus against one kind of creature gets the yellow `*`: the score
+  does not count those.
+
 ## 1.3.1
 
 - Fixed: two variants of one item with the same score, such as "of the Tiger" and "of the Whale",

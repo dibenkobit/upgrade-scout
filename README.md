@@ -13,7 +13,8 @@ better than what you wear, slot by slot, with prices. Press **Buy** on the one y
 
 ## What it does
 
-- Scores gear with [Pawn](https://www.curseforge.com/wow/addons/pawn), so the list matches Pawn's green arrows.
+- Scores gear with its own stat weights for every talent tree, worked out with the
+  [wowsims/forever](https://github.com/wowsims/forever) simulator. Pawn is not needed.
 - Shows only what you can equip right now and can pay for.
 - Marks two items in every slot: the **Best upgrade** is the strongest, the **Best value** is the
   cheapest per point of improvement.
@@ -29,10 +30,9 @@ Spanish, Brazilian Portuguese and Korean.
 
 **[Install from CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-The CurseForge app does it all for you, Pawn included.
+The CurseForge app does it all for you.
 
-You need World of Warcraft Forever (1.60.1) and [Pawn](https://www.curseforge.com/wow/addons/pawn).
-Without Pawn the addon does not load.
+You need World of Warcraft Forever (1.60.1). No other addon is needed.
 
 To install by hand:
 
@@ -43,11 +43,18 @@ To install by hand:
 
 ## Good to know
 
+- An item's score is the sum of its stats, each times its weight in your **Profile**. The profile
+  starts on one that suits your class. Pick the one for your talent tree in the dropdown. Its
+  tooltip says where the weights come from.
+- The weights are worked out for a level 60 character, so they are an approximation. Below 60,
+  hit, crit, haste and expertise count for less, as simulations of leveling characters show.
+- A `~` after a profile's name means no simulation covers that tree yet and its weights are
+  estimated.
 - Prices are buyouts. Auctions that only take bids are skipped.
 - **Top 5 per slot** keeps the list short. Turn it off to see every upgrade. The scan then takes
   longer, up to a few minutes on a busy auction house.
-- A yellow `*` after a name means the item has effects Pawn can't score, such as procs.
-- Health and mana potions have no score: Pawn has no number for "restores 700 health".
+- A yellow `*` after a name means the item has effects the score does not count, such as procs.
+- Health and mana potions have no score: no weight puts a number on "restores 700 health".
 - Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The
   game's Sell tab shows all of them in one list, so the lowest price there can be for another item.
 
@@ -55,7 +62,7 @@ To install by hand:
 
 1. Log in to the other character once with the addon installed. The addon saves its gear, level
    and skills.
-2. On the character at the auction house, pick the other character's scale in the **Pawn scale**
+2. On the character at the auction house, pick the other character's profile in the **Profile**
    dropdown and press **Scan**.
 
 The list is now for that character. The one you are playing still pays.
@@ -70,6 +77,8 @@ levels up or changes gear.
 
 - `/upscout` opens the Upgrades tab. The auction house must be open.
 - `/upscout stats` shows how long the last scan took.
+- `/upscout stats` and an item (shift-click it into the chat line) shows each stat of the item,
+  its weight in your profile and what they add up to.
 - `/upscout forget Name` removes a deleted character from the dropdown.
 
 ## Development
@@ -96,4 +105,7 @@ runs the tests and uploads the zip to CurseForge and GitHub.
 
 ## License
 
-All rights reserved, see [LICENSE](LICENSE). Pawn is a separate addon by Vger and is not included.
+All rights reserved, see [LICENSE](LICENSE). The stat weights were worked out with
+[wowsims/forever](https://github.com/wowsims/forever), and their share below level 60 with
+[MythicSim's forever engine](https://github.com/sage3648/mythicsim-forever-engine). Both are under
+the MIT license.

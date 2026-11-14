@@ -14,8 +14,8 @@ avec les prix. Appuyez sur **Acheter** pour l'objet que vous voulez.
 
 ## Ce qu'il fait
 
-- Évalue l'équipement avec [Pawn](https://www.curseforge.com/wow/addons/pawn) : la liste correspond donc aux
-  flèches vertes de Pawn.
+- Évalue l'équipement avec ses propres poids pour chaque arbre de talents, calculés avec le
+  simulateur [wowsims/forever](https://github.com/wowsims/forever). Pawn n'est pas nécessaire.
 - Montre seulement ce que vous pouvez équiper tout de suite et payer.
 - Marque deux objets par emplacement. **Meilleure amélioration** est le plus fort.
   **Meilleure affaire** est le moins cher par point d'amélioration.
@@ -32,10 +32,9 @@ russe, français, espagnol, portugais du Brésil et coréen.
 
 **[Installer depuis CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-L'application CurseForge s'occupe de tout, Pawn compris.
+L'application CurseForge s'occupe de tout.
 
-Il vous faut World of Warcraft Forever (1.60.1) et [Pawn](https://www.curseforge.com/wow/addons/pawn).
-Sans Pawn, l'addon ne se charge pas.
+Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécessaire.
 
 À la main :
 
@@ -46,11 +45,20 @@ Sans Pawn, l'addon ne se charge pas.
 
 ## Bon à savoir
 
+- Le score d'un objet est la somme de ses caractéristiques, chacune multipliée par son poids dans le
+  profil. Le profil se choisit dans la liste **Profil** ; au départ, elle indique celui qui convient
+  à votre classe. Choisissez celui de votre arbre de talents. L'infobulle de la liste dit d'où
+  viennent les poids.
+- Les poids sont calculés pour un personnage de niveau 60 : c'est une approximation. Sous le
+  niveau 60, le toucher, le critique, la hâte et l'expertise comptent moins, d'après des simulations
+  de personnages qui montent de niveau.
+- Un `~` après le nom d'un profil signifie qu'aucune simulation ne couvre encore cet
+  arbre et que ses poids sont estimés.
 - Les prix sont des prix d'achat immédiat. Les enchères sans achat immédiat sont ignorées.
 - **Top 5 par emplacement** garde la liste courte. Désactivez-le pour voir toutes les améliorations.
   Le scan dure alors plus longtemps, jusqu'à quelques minutes dans un hôtel des ventes bien rempli.
-- Un `*` jaune après un nom : l'objet a des effets que Pawn ne sait pas évaluer.
-- Les potions de vie et de mana n'ont pas de score : Pawn n'a pas de valeur pour « rend 700 points
+- Un `*` jaune après un nom : l'objet a des effets que le score ne compte pas.
+- Les potions de vie et de mana n'ont pas de score : aucun poids ne chiffre « rend 700 points
   de vie ».
 - Des bottes « du tigre » et des bottes « de la baleine » sont des objets différents, à des prix
   différents. L'onglet « Vente » du jeu les montre tous dans une seule liste. Le prix le plus bas
@@ -60,8 +68,8 @@ Sans Pawn, l'addon ne se charge pas.
 
 1. Connectez-vous une fois avec l'autre personnage, l'addon installé. L'addon retient son
    équipement, son niveau et ses compétences.
-2. Avec le personnage qui est à l'hôtel des ventes, choisissez l'échelle de l'autre personnage dans
-   la liste **Échelle Pawn** et appuyez sur **Scanner**.
+2. Avec le personnage qui est à l'hôtel des ventes, choisissez le profil de l'autre personnage dans
+   la liste **Profil** et appuyez sur **Scanner**.
 
 La liste est maintenant faite pour ce personnage. C'est toujours celui que vous jouez qui paie.
 
@@ -76,6 +84,8 @@ Reconnectez-vous avec lui quand il a pris un niveau ou changé d'équipement.
 
 - `/upscout` ouvre l'onglet « Améliorations ». L'hôtel des ventes doit être ouvert.
 - `/upscout stats` montre combien de temps a pris le dernier scan.
+- `/upscout stats` suivi d'un objet (Maj-clic pour l'insérer dans la ligne de discussion) montre
+  chaque caractéristique de l'objet, son poids dans le profil et leur total.
 - `/upscout forget Nom` retire un personnage supprimé de la liste.
 
 ## Développement
@@ -84,5 +94,6 @@ Les tests et la publication des versions sont décrits dans la [version anglaise
 
 ## Licence
 
-Tous droits réservés, voir [LICENSE](../LICENSE). Pawn est un addon à part, de Vger, et n'est pas
-inclus.
+Tous droits réservés, voir [LICENSE](../LICENSE). Les poids ont été calculés avec
+[wowsims/forever](https://github.com/wowsims/forever), et leur part sous le niveau 60 avec [MythicSim](https://github.com/sage3648/mythicsim-forever-engine).
+Tous deux sont sous licence MIT.

@@ -14,8 +14,8 @@ Drücke **Kaufen** bei dem Gegenstand, den du willst.
 
 ## Was es kann
 
-- Bewertet Ausrüstung mit [Pawn](https://www.curseforge.com/wow/addons/pawn), deshalb passt die Liste zu den
-  grünen Pfeilen von Pawn.
+- Bewertet Ausrüstung mit eigenen Gewichten für jeden Talentbaum, berechnet mit dem Simulator
+  [wowsims/forever](https://github.com/wowsims/forever). Pawn wird nicht gebraucht.
 - Zeigt nur, was du jetzt anlegen und bezahlen kannst.
 - Markiert in jedem Slot zwei Gegenstände. **Beste Verbesserung** ist der stärkste.
   **Beste Preis-Leistung** ist der günstigste pro Punkt Verbesserung.
@@ -32,10 +32,9 @@ Französisch, Spanisch, brasilianisches Portugiesisch und Koreanisch.
 
 **[Über CurseForge installieren](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-Die CurseForge-App erledigt alles für dich, auch Pawn.
+Die CurseForge-App erledigt alles für dich.
 
-Du brauchst World of Warcraft Forever (1.60.1) und [Pawn](https://www.curseforge.com/wow/addons/pawn).
-Ohne Pawn lädt das Addon nicht.
+Du brauchst World of Warcraft Forever (1.60.1). Ein anderes Addon ist nicht nötig.
 
 Von Hand:
 
@@ -46,11 +45,20 @@ Von Hand:
 
 ## Gut zu wissen
 
+- Die Wertung eines Gegenstands ist die Summe seiner Werte, jeder mal sein Gewicht im Profil. Das
+  Profil wählst du in der Liste **Profil**; anfangs steht dort eines, das zu deiner Klasse passt.
+  Wähle das für deinen Talentbaum. Der Tooltip der Liste sagt, woher die Gewichte stammen.
+- Die Gewichte sind für einen Charakter der Stufe 60 berechnet, also eine Näherung. Unter Stufe 60
+  zählen Treffer, kritische Treffer, Tempo und Waffenkunde weniger, wie Simulationen von Charakteren
+  beim Leveln zeigen.
+- Ein `~` hinter dem Namen eines Profils heißt: Für diesen Baum gibt es noch
+  keine Simulation, seine Gewichte sind geschätzt.
 - Die Preise sind Sofortkaufpreise. Auktionen, auf die man nur bieten kann, werden übersprungen.
 - **Top 5 pro Slot** hält die Liste kurz. Schalte es aus, um jede Verbesserung zu sehen. Der Scan
   dauert dann länger, in einem vollen Auktionshaus bis zu ein paar Minuten.
-- Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die Pawn nicht bewerten kann.
-- Heil- und Manatränke haben keine Wertung: Pawn hat keine Zahl für „stellt 700 Gesundheit wieder her“.
+- Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die die Wertung nicht mitzählt.
+- Heil- und Manatränke haben keine Wertung: Kein Gewicht macht aus „stellt 700 Gesundheit wieder her“
+  eine Zahl.
 - Stiefel „des Tigers“ und Stiefel „des Wals“ sind verschiedene Gegenstände mit verschiedenen
   Preisen. Der Tab „Verkaufen“ im Spiel zeigt sie alle in einer Liste. Der niedrigste Preis dort
   kann also zu einem anderen Gegenstand gehören.
@@ -59,8 +67,8 @@ Von Hand:
 
 1. Logge dich einmal mit dem anderen Charakter ein, während das Addon installiert ist. Das Addon
    merkt sich seine Ausrüstung, seine Stufe und seine Fertigkeiten.
-2. Wähle mit dem Charakter im Auktionshaus die Skala des anderen Charakters in der Liste
-   **Pawn-Skala** und drücke **Scannen**.
+2. Wähle mit dem Charakter im Auktionshaus das Profil des anderen Charakters in der Liste
+   **Profil** und drücke **Scannen**.
 
 Die Liste gilt jetzt für diesen Charakter. Es bezahlt weiterhin der Charakter, den du gerade spielst.
 
@@ -75,6 +83,8 @@ wieder mit ihm ein, wenn er eine Stufe aufgestiegen ist oder neue Ausrüstung tr
 
 - `/upscout` öffnet den Tab „Verbesserungen“. Das Auktionshaus muss offen sein.
 - `/upscout stats` zeigt, wie lange der letzte Scan gedauert hat.
+- `/upscout stats` und ein Gegenstand (per Umschalt-Klick in die Chatzeile) zeigt jeden Wert des
+  Gegenstands, sein Gewicht im Profil und was zusammenkommt.
 - `/upscout forget Name` entfernt einen gelöschten Charakter aus der Liste.
 
 ## Entwicklung
@@ -83,5 +93,6 @@ Tests und Releases sind in der [englischen Version](../README.md#development) be
 
 ## Lizenz
 
-Alle Rechte vorbehalten, siehe [LICENSE](../LICENSE). Pawn ist ein eigenes Addon von Vger und nicht
-enthalten.
+Alle Rechte vorbehalten, siehe [LICENSE](../LICENSE). Die Gewichte wurden mit
+[wowsims/forever](https://github.com/wowsims/forever) berechnet, ihr Anteil unter Stufe 60 mit [MythicSim](https://github.com/sage3648/mythicsim-forever-engine).
+Beide stehen unter der MIT-Lizenz.

@@ -14,8 +14,8 @@ equipamentos melhores do que os que está usando, espaço por espaço, com os pr
 
 ## O que ele faz
 
-- Avalia os equipamentos com o [Pawn](https://www.curseforge.com/wow/addons/pawn), então a lista bate com as
-  setas verdes do Pawn.
+- Avalia os equipamentos com pesos próprios para cada árvore de talentos, calculados com o
+  simulador [wowsims/forever](https://github.com/wowsims/forever). Não precisa do Pawn.
 - Mostra só o que você pode equipar agora e pagar.
 - Marca dois itens em cada espaço. **Maior melhoria** é o mais forte. **Melhor custo-benefício** é
   o mais barato por ponto de melhoria.
@@ -32,10 +32,9 @@ francês, espanhol, português do Brasil e coreano.
 
 **[Instalar pelo CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-O aplicativo do CurseForge faz tudo por você, inclusive instalar o Pawn.
+O aplicativo do CurseForge faz tudo por você.
 
-Você precisa do World of Warcraft Forever (1.60.1) e do [Pawn](https://www.curseforge.com/wow/addons/pawn).
-Sem o Pawn, o addon não carrega.
+Você precisa do World of Warcraft Forever (1.60.1). Nenhum outro addon é necessário.
 
 Manualmente:
 
@@ -46,11 +45,19 @@ Manualmente:
 
 ## Bom saber
 
+- A pontuação de um item é a soma dos seus atributos, cada um vezes o seu peso no perfil. O perfil
+  se escolhe na lista **Perfil**; no começo ela traz um que combina com a sua classe. Escolha o da
+  sua árvore de talentos. A dica da lista diz de onde vêm os pesos.
+- Os pesos são calculados para um personagem de nível 60, então são uma aproximação. Abaixo do
+  nível 60, acerto, crítico, aceleração e especialização valem menos, segundo simulações de
+  personagens subindo de nível.
+- Um `~` depois do nome de um perfil quer dizer que essa árvore ainda não tem
+  simulação e os pesos dela são estimados.
 - Os preços são de arremate. Leilões que só aceitam lances são ignorados.
 - **Top 5 por espaço** deixa a lista curta. Desative para ver todas as melhorias. O escaneamento
   então demora mais, até alguns minutos em uma Casa de Leilões movimentada.
-- Um `*` amarelo depois do nome: o item tem efeitos que o Pawn não sabe avaliar.
-- Poções de vida e de mana não têm pontuação: o Pawn não tem um número para "restaura 700 de vida".
+- Um `*` amarelo depois do nome: o item tem efeitos que a pontuação não conta.
+- Poções de vida e de mana não têm pontuação: nenhum peso dá um número para "restaura 700 de vida".
 - Botas "do Tigre" e botas "da Baleia" são itens diferentes, com preços diferentes. A aba "Vender"
   do jogo mostra todos em uma lista só, então o menor preço ali pode ser de outro item.
 
@@ -58,8 +65,8 @@ Manualmente:
 
 1. Entre uma vez no outro personagem com o addon instalado. O addon guarda o equipamento, o nível
    e as perícias dele.
-2. No personagem que está na Casa de Leilões, escolha a escala do outro personagem na lista
-   **Escala do Pawn** e aperte **Escanear**.
+2. No personagem que está na Casa de Leilões, escolha o perfil do outro personagem na lista
+   **Perfil** e aperte **Escanear**.
 
 Agora a lista é para esse personagem. Quem paga continua sendo o personagem com que você está
 jogando.
@@ -75,6 +82,8 @@ nele de novo quando ele subir de nível ou trocar de equipamento.
 
 - `/upscout` abre a aba "Melhorias". A Casa de Leilões precisa estar aberta.
 - `/upscout stats` mostra quanto tempo levou o último escaneamento.
+- `/upscout stats` e um item (Shift-clique nele para colocá-lo na linha do chat) mostra cada
+  atributo do item, o peso dele no perfil e quanto somam.
 - `/upscout forget Nome` remove da lista um personagem excluído.
 
 ## Desenvolvimento
@@ -83,5 +92,6 @@ Os testes e a publicação de versões estão descritos na [versão em inglês](
 
 ## Licença
 
-Todos os direitos reservados, veja [LICENSE](../LICENSE). O Pawn é um addon separado, de Vger, e não
-está incluído.
+Todos os direitos reservados, veja [LICENSE](../LICENSE). Os pesos foram calculados com o
+[wowsims/forever](https://github.com/wowsims/forever), e a parte deles abaixo do nível 60 com o [MythicSim](https://github.com/sage3648/mythicsim-forever-engine).
+Os dois têm licença MIT.

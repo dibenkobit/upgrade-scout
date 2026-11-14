@@ -14,8 +14,8 @@ objeto que quieras.
 
 ## Qué hace
 
-- Puntúa el equipo con [Pawn](https://www.curseforge.com/wow/addons/pawn), así que la lista coincide con las
-  flechas verdes de Pawn.
+- Puntúa el equipo con pesos propios para cada rama de talentos, calculados con el simulador
+  [wowsims/forever](https://github.com/wowsims/forever). No hace falta Pawn.
 - Muestra solo lo que puedes equipar ahora mismo y pagar.
 - Marca dos objetos en cada ranura. **Mayor mejora** es el más fuerte. **Más rentable** es el más
   barato por punto de mejora.
@@ -32,10 +32,9 @@ francés, español, portugués de Brasil y coreano.
 
 **[Instalar desde CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout)**
 
-La aplicación de CurseForge lo hace todo por ti, Pawn incluido.
+La aplicación de CurseForge lo hace todo por ti.
 
-Necesitas World of Warcraft Forever (1.60.1) y [Pawn](https://www.curseforge.com/wow/addons/pawn).
-Sin Pawn el addon no se carga.
+Necesitas World of Warcraft Forever (1.60.1). No hace falta ningún otro addon.
 
 A mano:
 
@@ -46,11 +45,19 @@ A mano:
 
 ## Conviene saber
 
+- La puntuación de un objeto es la suma de sus estadísticas, cada una por su peso en el perfil. El
+  perfil se elige en la lista **Perfil**; al principio tiene uno que va con tu clase. Elige el de tu
+  rama de talentos. La descripción emergente de la lista dice de dónde salen los pesos.
+- Los pesos están calculados para un personaje de nivel 60, así que son una aproximación. Por
+  debajo del nivel 60, el golpe, el crítico, la celeridad y la pericia valen menos, según
+  simulaciones de personajes subiendo de nivel.
+- Un `~` tras el nombre de un perfil significa que esa rama aún no tiene
+  simulación y sus pesos son estimados.
 - Los precios son de compra inmediata. Las subastas que solo admiten pujas se omiten.
 - **Top 5 por ranura** mantiene la lista corta. Desactívalo para ver todas las mejoras. El escaneo
   tarda entonces más, hasta unos minutos en una casa de subastas con mucho movimiento.
-- Un `*` amarillo tras el nombre: el objeto tiene efectos que Pawn no sabe puntuar.
-- Las pociones de salud y de maná no tienen puntuación: Pawn no tiene un número para «restaura
+- Un `*` amarillo tras el nombre: el objeto tiene efectos que la puntuación no cuenta.
+- Las pociones de salud y de maná no tienen puntuación: ningún peso pone número a «restaura
   700 p. de salud».
 - Unas botas «del tigre» y unas botas «de la ballena» son objetos distintos con precios distintos.
   La pestaña «Vender» del juego los muestra todos en una sola lista, así que el precio más bajo de
@@ -60,8 +67,8 @@ A mano:
 
 1. Entra una vez con el otro personaje con el addon instalado. El addon guarda su equipo, su nivel
    y sus habilidades.
-2. Con el personaje que está en la casa de subastas, elige la escala del otro personaje en la lista
-   **Escala de Pawn** y pulsa **Escanear**.
+2. Con el personaje que está en la casa de subastas, elige el perfil del otro personaje en la lista
+   **Perfil** y pulsa **Escanear**.
 
 Ahora la lista es para ese personaje. Sigue pagando el personaje con el que juegas.
 
@@ -76,6 +83,8 @@ con él cuando suba de nivel o cambie de equipo.
 
 - `/upscout` abre la pestaña «Mejoras». La casa de subastas debe estar abierta.
 - `/upscout stats` muestra cuánto tardó el último escaneo.
+- `/upscout stats` y un objeto (Mayús-clic para ponerlo en la línea de chat) muestra cada
+  estadística del objeto, su peso en el perfil y lo que suman.
 - `/upscout forget Nombre` quita de la lista un personaje borrado.
 
 ## Desarrollo
@@ -84,5 +93,6 @@ Las pruebas y la publicación de versiones se explican en la [versión en inglé
 
 ## Licencia
 
-Todos los derechos reservados, consulta [LICENSE](../LICENSE). Pawn es un addon aparte, de Vger, y
-no está incluido.
+Todos los derechos reservados, consulta [LICENSE](../LICENSE). Los pesos se calcularon con
+[wowsims/forever](https://github.com/wowsims/forever), y su parte por debajo del nivel 60 con [MythicSim](https://github.com/sage3648/mythicsim-forever-engine).
+Ambos tienen licencia MIT.
