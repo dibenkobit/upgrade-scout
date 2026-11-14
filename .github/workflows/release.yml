@@ -1,9 +1,11 @@
 # Pushing a tag named after the version in the .toc (for example 1.0.0) builds the archive, uploads
-# it to CurseForge and attaches it to a GitHub release.
+# it to CurseForge and Wago Addons and attaches it to a GitHub release.
 #
-# CurseForge needs two things, and the upload is skipped while either is missing:
-#   - "## X-Curse-Project-ID: <number>" in UpgradeScout/UpgradeScout.toc
-#   - a repository secret CF_API_TOKEN (https://authors.curseforge.com/#/settings/api-tokens)
+# Each site needs two things, and its upload is skipped while either is missing:
+#   - CurseForge: "## X-Curse-Project-ID: <number>" in UpgradeScout/UpgradeScout.toc and a
+#     repository secret CF_API_TOKEN (https://authors.curseforge.com/#/settings/api-tokens)
+#   - Wago Addons: "## X-Wago-ID: <id>" in UpgradeScout/UpgradeScout.toc and a repository secret
+#     WAGO_API_TOKEN (https://addons.wago.io/account/apikeys)
 name: Package and release
 
 on:
@@ -19,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
       GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # provided by GitHub, nothing to set up
     steps:
       - name: Clone project

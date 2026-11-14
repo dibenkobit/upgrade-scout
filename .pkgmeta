@@ -1,5 +1,5 @@
 # Read by the BigWigsMods packager (https://github.com/BigWigsMods/packager), which builds the
-# release archive and uploads it to CurseForge when a version tag is pushed
+# release archive and uploads it to CurseForge and Wago Addons when a version tag is pushed
 # (.github/workflows/release.yml).
 
 package-as: UpgradeScout
