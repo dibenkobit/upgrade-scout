@@ -3528,17 +3528,24 @@ function scenarios.arrows()
         return arrow ~= nil and arrow:IsShown()
     end
     local function Bag(slot) return Arrow(ContainerFrameCombinedBags.Items[slot]) end
+    -- Whether the arrow of a slot of the bag window is the grey one.
+    local function Grey(slot) return ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow._grey end
+    -- Better than the worn chest, but it asks for level 14 and is mail not learned.
+    W.AddItem({ id = 230, name = "Future Mail", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 70, level = 14, red = true })
 
     local slot = {}
-    for _, id in ipairs({ 200, 211, 202, 203, 204, 220, 214, 208, 201 }) do slot[id] = W.PutInBags(W.Link(id)) end
+    for _, id in ipairs({ 200, 211, 202, 203, 204, 220, 214, 208, 201, 230 }) do slot[id] = W.PutInBags(W.Link(id)) end
     W.OpenBags()
     eq(Bag(slot[200]), true, "a better chest: 18 against 10 on the profile in use")
     eq(ContainerFrameCombinedBags.Items[slot[200]].UpgradeScoutArrow._atlas, "bags-greenarrow", "the game's own green arrow")
+    eq(Grey(slot[200]), false, "green: the character can put it on now")
     eq(Bag(slot[211]), true, "a helm for the empty head")
     eq(Bag(slot[201]), true, "the robe, whose effects the score leaves out")
     eq(Bag(slot[202]), false, "not a weaker chest")
-    eq(Bag(slot[203]), false, "not a chest above the character's level: its tooltip says so in red")
+    eq(Bag(slot[203]), true, "a better chest above the character's level")
+    eq(Grey(slot[203]), true, "grey: its tooltip says in red that it asks for level 14")
     eq(Bag(slot[204]), false, "not mail the character has not learned")
+    eq(Bag(slot[230]), false, "nor such mail of a higher level: more than the level is red")
     eq(Bag(slot[220]), false, "not a wand: a warrior never uses one")
     eq(Bag(slot[214]), false, "not a potion")
     eq(Bag(slot[208]), false, "not a chest worth nothing")
@@ -3582,6 +3589,8 @@ function scenarios.arrows()
     W.Fire("PLAYER_LEVEL_UP", 14)
     W.Run(2)
     eq(Bag(slot[203]), true, "the chest of level 14, now that the character has it")
+    eq(Grey(slot[203]), false, "is green now")
+    eq(Bag(slot[230]), false, "the mail still not learned")
 
     -- New gear: the future chest goes on, so the good chest is no better than what is worn.
     W.equipped[5] = W.Link(203)

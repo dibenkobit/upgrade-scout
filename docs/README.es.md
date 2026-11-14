@@ -33,7 +33,7 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
 - La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, para
   cada rama de talentos de tu clase, como Armas, Furia y Protección para un guerrero.
 - Una flecha verde en el icono de un objeto de tus bolsas o del banco indica una mejora que
-  puedes equiparte ahora mismo.
+  puedes equiparte ahora mismo. Una gris: una mejora en cuanto alcances su nivel.
 - Funciona en cuanto lo instalas. No hay nada que configurar: la lista **Perfil** empieza en un
   perfil que va con tu clase.
 - Puntúa el equipo con pesos propios para cada rama de talentos, calculados con el simulador

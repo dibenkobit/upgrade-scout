@@ -2,8 +2,8 @@
 
 ## 2.3.0
 
-- A green arrow on the icon of an item in your bags or bank means it is an
-  upgrade you can put on now: better on your profile, and nothing in its tooltip is red.
+- An arrow on the icon of an item in your bags or bank marks an upgrade on your profile:
+  green when you can put it on now, grey when it asks for a higher level than yours.
 
 ## 2.2.3
 

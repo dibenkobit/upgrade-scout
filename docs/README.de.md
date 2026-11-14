@@ -35,7 +35,8 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
 - Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden
   Talentbaum deiner Klasse, etwa Waffen, Furor und Schutz beim Krieger.
 - Ein grüner Pfeil auf dem Symbol eines Gegenstands in deinen Taschen oder der Bank heißt: eine
-  Verbesserung, die du jetzt anlegen kannst.
+  Verbesserung, die du jetzt anlegen kannst. Ein grauer: eine Verbesserung, sobald du ihre Stufe
+  erreichst.
 - Funktioniert gleich nach der Installation. Einzurichten gibt es nichts: In der Liste **Profil**
   steht anfangs ein Profil, das zu deiner Klasse passt.
 - Bewertet Ausrüstung mit eigenen Gewichten für jeden Talentbaum, berechnet mit dem Simulator

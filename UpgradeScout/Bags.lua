@@ -1,8 +1,11 @@
 local _, ns = ...
 
--- A green arrow on the icon of an item in the bags or the bank that is an upgrade for the
--- character being played: on the profile in use its line in the item's tooltip is green
--- (Tooltip.Upgrade), and nothing in that tooltip is red, so the character can put it on now.
+-- An arrow on the icon of an item in the bags or the bank that is an upgrade for the character
+-- being played: on the profile in use its line in the item's tooltip is green
+-- (Tooltip.Upgrade). The arrow is green when nothing in the item's tooltip is red, so the
+-- character can put it on now, and grey when the one red line is the level it asks for: an
+-- upgrade to keep for later. Anything else in red (a class, a skill, a reputation, armor not
+-- learned) and there is no arrow.
 -- The arrow is the game's own, the one its bag slots have a place for and Forever leaves
 -- unused. It is drawn on a texture of our own in that place: another addon that shows or
 -- hides the game's does not take ours with it.
@@ -13,27 +16,42 @@ local ATLAS = "bags-greenarrow"
 local RETRIES = 10              -- times the items not yet judged are looked at again
 local RETRY_DELAY = 1           -- seconds between those times
 
--- Whether the character can put an item on now, by link; kept until the level, the gear, the
--- spells or the skills change.
+local REQUIREMENT = Enum.TooltipDataLineType.UsageRequirement
+local LEVEL = Enum.TooltipDataUsageRequirementType.Level
+
+-- When the character can put an item on, by link: "now", "later" (when it has the level the
+-- item asks for) or false; kept until the level, the gear, the spells or the skills change.
 local wearable = {}
 
-local function CanWear(link)
+local function Wearable(link)
     local known = wearable[link]
     if known ~= nil then return known end
     local data = C_TooltipInfo.GetHyperlink(link)
     local lines = data and data.lines
     local name = lines and lines[1] and lines[1].leftText
     if not name or name == "" or name == RETRIEVING_ITEM_INFO then return nil end
-    known = not ns.AnyRed(lines)
+    known = "now"
+    for i = 2, #lines do
+        local line = lines[i]
+        if ns.IsRedLine(line) then
+            if line.type == REQUIREMENT and line.requirementType == LEVEL then
+                known = "later"
+            else
+                known = false
+                break
+            end
+        end
+    end
     wearable[link] = known
     return known
 end
 
--- true when the item gets the arrow, false when not, nil while that cannot be told yet.
-function B.IsUpgrade(link)
+-- "now" when the item gets the green arrow, "later" when it gets the grey one, false when it
+-- gets none, nil while that cannot be told yet.
+function B.Arrow(link)
     local upgrade = ns.Tooltip.Upgrade(link)
     if not upgrade then return upgrade end
-    return CanWear(link)
+    return Wearable(link)
 end
 
 ---------------------------------------------------------------------------
@@ -45,20 +63,22 @@ local MarkAll
 
 -- Shows or hides the arrow on an item button for the item it holds (link nil: none).
 local function Mark(button, link)
-    local show = false
+    local kind = false
     if link then
-        local upgrade = B.IsUpgrade(link)
-        if upgrade == nil then pending = true end
-        show = upgrade == true
+        kind = B.Arrow(link)
+        if kind == nil then pending = true end
     end
     local arrow = button.UpgradeScoutArrow
-    if show and not arrow then
+    if kind and not arrow then
         arrow = button:CreateTexture(nil, "OVERLAY", nil, 1)
         arrow:SetAtlas(ATLAS, true)
         arrow:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
         button.UpgradeScoutArrow = arrow
     end
-    if arrow then arrow:SetShown(show) end
+    if arrow then
+        arrow:SetShown(kind and true or false)
+        arrow:SetDesaturated(kind == "later")
+    end
 end
 
 -- An item not judged yet (the game still loads it, or what is worn): a look again in a moment.

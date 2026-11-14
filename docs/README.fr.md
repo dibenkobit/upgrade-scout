@@ -36,7 +36,8 @@ chat.
 - L'infobulle de chaque objet montre de combien il est meilleur que ce que vous portez, pour chaque
   arbre de talents de votre classe, par exemple Armes, Fureur et Protection pour un guerrier.
 - Une flèche verte sur l'icône d'un objet dans vos sacs ou à la banque signale une amélioration
-  que vous pouvez équiper tout de suite.
+  que vous pouvez équiper tout de suite. Une flèche grise : une amélioration dès que vous aurez
+  atteint son niveau.
 - Fonctionne dès l'installation. Rien à régler : la liste **Profil** commence sur un profil qui
   convient à votre classe.
 - Évalue l'équipement avec ses propres poids pour chaque arbre de talents, calculés avec le

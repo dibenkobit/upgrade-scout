@@ -33,7 +33,7 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
 - A dica de qualquer item mostra quanto ele é melhor do que o que você usa, para cada árvore de
   talentos da sua classe, como Armas, Fúria e Proteção para um guerreiro.
 - Uma seta verde no ícone de um item nas bolsas ou no banco indica uma melhoria que você pode
-  equipar agora.
+  equipar agora. Uma cinza: uma melhoria assim que você chegar ao nível dela.
 - Funciona logo depois de instalado. Não há nada para configurar: a lista **Perfil** já começa num
   perfil que combina com a sua classe.
 - Avalia os equipamentos com pesos próprios para cada árvore de talentos, calculados com o

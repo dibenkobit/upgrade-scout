@@ -199,13 +199,15 @@ local function IsRed(text, color)
     return r > 0.9 and g < 0.2 and b < 0.2
 end
 
+-- Is this line of a tooltip red, on the left or on the right?
+function ns.IsRedLine(line)
+    return IsRed(line.leftText, line.leftColor) or IsRed(line.rightText, line.rightColor)
+end
+
 -- Is anything in these lines (after the name) red?
 function ns.AnyRed(lines)
     for i = 2, #lines do
-        local line = lines[i]
-        if IsRed(line.leftText, line.leftColor) or IsRed(line.rightText, line.rightColor) then
-            return true
-        end
+        if ns.IsRedLine(lines[i]) then return true end
     end
     return false
 end
