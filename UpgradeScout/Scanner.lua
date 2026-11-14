@@ -270,19 +270,27 @@ local function AnyRed(lines)
     return false
 end
 
---   true = the character can equip it, false = it cannot, nil = the client has not loaded
---   the item yet
-local function Usable(link)
-    local data = C_TooltipInfo.GetHyperlink(link)
+-- Reads the tooltip of a scored item (see EvalLink) for what only the tooltip tells:
+--   eval.usable  true = the character can equip it, false = it cannot. Left nil while the
+--                client has not loaded the item.
+--   eval.unique  set for "Unique-Equipped" too. Nothing says that the game's function for
+--                uniqueness counts it, and a second copy of such an item cannot be worn
+--                beside the first any more than of a plain unique one.
+local function ReadTooltip(eval)
+    local data = C_TooltipInfo.GetHyperlink(eval.link)
     local lines = data and data.lines
     local name = lines and lines[1] and lines[1].leftText
-    if not name or name == "" or name == RETRIEVING_ITEM_INFO then return nil end
+    if not name or name == "" or name == RETRIEVING_ITEM_INFO then return end
+    for i = 2, #lines do
+        if lines[i].leftText == ITEM_UNIQUE_EQUIPPABLE then eval.unique = true end
+    end
     local who = run.who
     if who then
-        local _, _, _, _, _, classID, subClassID = C_Item.GetItemInfoInstant(link)
-        return ns.Roster.Wields(who, classID, subClassID) and ns.Roster.Allows(who, lines)
+        local _, _, _, _, _, classID, subClassID = C_Item.GetItemInfoInstant(eval.link)
+        eval.usable = ns.Roster.Wields(who, classID, subClassID) and ns.Roster.Allows(who, lines)
+    else
+        eval.usable = not AnyRed(lines)
     end
-    return not AnyRed(lines)
 end
 
 ---------------------------------------------------------------------------
@@ -644,7 +652,7 @@ local function ReadJob(job)
             elseif eval == false then
                 if job.expect and scan then scan.bucketsVary = true end
             else
-                if eval.usable == nil then eval.usable = Usable(eval.link) end
+                if eval.usable == nil then ReadTooltip(eval) end
                 if eval.usable == nil then
                     notReady = true
                 elseif eval.usable then
@@ -818,15 +826,12 @@ local function ScoreRow(row)
     local eval = EvalLink(link)
     if eval == nil then return false end
 
-    local upgrade = false
-    if eval then
-        local placements = ns.Compare.Place(eval, S.ctx)
-        upgrade = #placements > 0
-    end
-    if upgrade then
+    if eval and #ns.Compare.Place(eval, S.ctx) > 0 then
         -- Red text is about the item, not the auction, so the sample answers for the row.
-        if eval.usable == nil then eval.usable = Usable(eval.link) end
+        if eval.usable == nil then ReadTooltip(eval) end
         if eval.usable == nil then return false end
+        -- (An item the tooltip has just called unique-equipped, and that is worn, is a
+        -- candidate still: SkipReason finds it no better than the gear.)
         if eval.usable then
             AddCandidate(row, eval)
             return true

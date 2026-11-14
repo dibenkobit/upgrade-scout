@@ -378,11 +378,17 @@ end
 function scenarios.scan_unsorted()
     StandardWorld()
     AddHighLevelFiller(400)
+    -- A ring of which only one can be worn is on, and another copy of it is for sale. It would
+    -- beat the weaker ring in the other slot, if it could be put there.
+    W.AddItem({ id = 220, name = "Band of One", equipLoc = "INVTYPE_FINGER", value = 6, level = 9, uniqueEquipped = true })
+    W.equipped[12] = W.Link(220)
+    W.AddAuction(220, 300)
     W.AH.honorLevelSort = false
     W.AH.bidsIgnored = true              -- this server's rows show the cheapest buyout, never a bid
     LoadAddon()
     W.OpenAuctionHouse()
     ScanToEnd()
+    eq(Offer("Band of One"), nil, "a second copy of a unique-equipped ring is no upgrade: it cannot be worn beside the first")
     CheckStandardOffers("unsorted")
     local pages = math.ceil(#W.AH.rows / W.AH.pageSize)
     eq(W.AH.calls.more, pages - 1, "read every page when the server does not sort by level")

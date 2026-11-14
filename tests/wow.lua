@@ -21,7 +21,7 @@ W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dua
 -- Items
 ---------------------------------------------------------------------------
 -- def: { id, suffix, name, level, equipLoc, classID, subClassID, quality, value, value2,
---        red, unique, effects, noStats, uncached, classCant,
+--        red, unique, uniqueEquipped, effects, noStats, uncached, classCant,
 --        values = { [scale] = score } for scales other than the two the tests began with,
 --        stats = { IsMail = 1, ... } as Pawn reads them off the tooltip,
 --        classes = "Druid, Shaman" (the classes it is for), races = "Orc, Troll",
@@ -292,9 +292,15 @@ local function TooltipLines(link)
     local lines = {
         { leftText = item.name, leftColor = Color(0.1, 1, 0) },
         { leftText = "Binds when equipped", leftColor = HIGHLIGHT_FONT_COLOR },
-        { leftText = "Chest", leftColor = HIGHLIGHT_FONT_COLOR, rightText = "Mail",
-            rightColor = item.red and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR },
     }
+    -- uniqueEquipped: any number of it can be owned, one worn. The tooltip says so, and
+    -- C_Item.GetItemUniquenessByID does not (which is the worse of the two things the real
+    -- one may do: the game's documentation does not tell).
+    if item.uniqueEquipped then
+        lines[#lines + 1] = { leftText = ITEM_UNIQUE_EQUIPPABLE, leftColor = HIGHLIGHT_FONT_COLOR }
+    end
+    lines[#lines + 1] = { leftText = "Chest", leftColor = HIGHLIGHT_FONT_COLOR, rightText = "Mail",
+        rightColor = item.red and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR }
     AddRequirements(lines, item)
     return lines
 end
@@ -816,6 +822,7 @@ function GameTooltip_AddErrorLine(tooltip, text) GameTooltip_AddColoredLine(tool
 
 RETRIEVING_ITEM_INFO = "Retrieving item information"
 ITEM_SPELL_TRIGGER_ONUSE = "Use:"
+ITEM_UNIQUE_EQUIPPABLE = "Unique-Equipped"
 ACCEPT, CANCEL, NONE = "Accept", "Cancel", "None"
 BUYOUT_AUCTION_CONFIRMATION = "Buyout auction for:"
 SECONDS_ABBR, MINUTES_ABBR, HOURS_ABBR, DAYS_ABBR = "%d Sec", "%d Min", "%d Hr", "%d Days"
