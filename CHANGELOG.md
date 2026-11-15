@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.0
+
+- **Only my talent tree**, a new box in the addon's window, under **In item tooltips**. Ticked,
+  an item's tooltip has one line from the addon: how much better the item is for the tree you
+  play. Unticked, it has a line for every tree of your class, as before.
+
 ## 2.5.0
 
 - A welcome window comes up on your first login. It shows what the addon puts into the game: the

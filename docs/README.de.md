@@ -36,7 +36,8 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
 - Kauft auch für deine anderen Charaktere ein. Ein Button am Briefkasten legt die gekaufte
   Ausrüstung in einen Brief an sie.
 - Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden
-  Talentbaum deiner Klasse, etwa Waffen, Furor und Schutz beim Krieger.
+  Talentbaum deiner Klasse, etwa Waffen, Furor und Schutz beim Krieger. Mit **Nur mein Talentbaum**
+  im Fenster des Addons bleibt eine Zeile: die für den Baum, mit dem du spielst.
 - Ein grüner Pfeil auf dem Symbol eines Gegenstands in deinen Taschen oder der Bank heißt: eine
   Verbesserung, die du jetzt anlegen kannst. Ein grauer: eine Verbesserung, sobald du ihre Stufe
   erreichst.

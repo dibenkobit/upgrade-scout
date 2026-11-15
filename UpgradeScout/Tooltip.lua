@@ -3,6 +3,8 @@ local L = ns.L
 
 -- Our lines in an item's tooltip: under the addon's name, how much better the item is than
 -- what the character wears, on every profile of its class, the way Pawn shows its scales.
+-- A player whose tooltips are long enough as it is can have one line in their place, for the
+-- profile in use ("Only my talent tree" in the welcome window: ns.OwnTree).
 -- The Upgrades list writes them under its own rows (UI.lua), for the character the list is
 -- for. Everywhere else in the game they come from here, for the character being played: the
 -- bags, loot, quest rewards, links in the chat, the auction house's own lists.
@@ -15,7 +17,8 @@ ns.Tooltip = T
 -- They start with the addon's icon and name, so that they are not taken for the lines another
 -- addon puts there. `right`, when given, goes on the right of that line. The blue is the lens
 -- of the logo.
-local BRAND = "|TInterface\\AddOns\\" .. ADDON .. "\\icon.tga:0|t Upgrade Scout"
+local ICON = "|TInterface\\AddOns\\" .. ADDON .. "\\icon.tga:0|t "
+local BRAND = ICON .. "Upgrade Scout"
 local BRAND_R, BRAND_G, BRAND_B = 0.53, 0.78, 0.96
 
 function T.AddHeader(tooltip, right)
@@ -47,6 +50,14 @@ function T.AddGain(tooltip, title, gain, class)
     local r, g, b = (RAID_CLASS_COLORS[class or ""] or HIGHLIGHT_FONT_COLOR):GetRGB()
     local rightR, rightG, rightB = color:GetRGB()
     tooltip:AddDoubleLine(title, text, r, g, b, rightR, rightG, rightB)
+end
+
+-- With "Only my talent tree" ticked (ns.OwnTree) the lines are one: the profile in use and
+-- the gain on it. There is no heading over a single line; the addon's icon before the
+-- profile's name says whose line it is, and a blank line sets it off as it does the heading.
+function T.AddOwn(tooltip, title, gain, class)
+    GameTooltip_AddBlankLineToTooltip(tooltip)
+    T.AddGain(tooltip, ICON .. title, gain, class)
 end
 
 ---------------------------------------------------------------------------
@@ -169,14 +180,26 @@ local function OnItem(tooltip)
     local answer = Answer(link)
     if not answer then return end
 
-    T.AddHeader(tooltip)
     local current = ns.Score.Current()
     local class = ns.Roster.Me().class
     local note
-    for _, line in ipairs(answer) do
-        local inUse = current ~= nil and line.name == current.name
-        if inUse then note = line.gain.note end
-        T.AddGain(tooltip, line.title, line.gain, class)
+    -- "Only my talent tree": the line of the profile in use, and no other.
+    local own
+    if ns.OwnTree() and current then
+        for _, line in ipairs(answer) do
+            if line.name == current.name then own = line end
+        end
+    end
+    if own then
+        note = own.gain.note
+        T.AddOwn(tooltip, own.title, own.gain, class)
+    else
+        T.AddHeader(tooltip)
+        for _, line in ipairs(answer) do
+            local inUse = current ~= nil and line.name == current.name
+            if inUse then note = line.gain.note end
+            T.AddGain(tooltip, line.title, line.gain, class)
+        end
     end
     if note and NOTES[note] then GameTooltip_AddNormalLine(tooltip, L[NOTES[note]]) end
     if answer.effects then GameTooltip_AddNormalLine(tooltip, L.TT_EFFECTS) end

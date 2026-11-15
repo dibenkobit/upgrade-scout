@@ -34,7 +34,9 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
 - Compra también para tus otros personajes. Un botón en el buzón mete el equipo que compraste en
   una carta para ellos.
 - La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, para
-  cada rama de talentos de tu clase, como Armas, Furia y Protección para un guerrero.
+  cada rama de talentos de tu clase, como Armas, Furia y Protección para un guerrero. Marca
+  **Solo mi rama de talentos** en la ventana del addon y quedará una sola línea: la de la rama
+  con la que juegas.
 - Una flecha verde en el icono de un objeto de tus bolsas o del banco indica una mejora que
   puedes equiparte ahora mismo. Una gris: una mejora en cuanto alcances su nivel.
 - Funciona en cuanto lo instalas. La lista **Perfil** empieza en la rama de talentos donde tienes

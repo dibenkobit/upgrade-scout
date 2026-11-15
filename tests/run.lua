@@ -14,6 +14,7 @@ local names = {
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
     "talents", "welcome", "minimap",
+    "own_tree",
 }
 
 if not scenario then
@@ -3646,6 +3647,19 @@ function scenarios.alt()
     eq(ShoppingTooltip1._lines[1].text, "Alt's Jerkin", "in the game's second tooltip")
     jerkin:GetScript("OnLeave")(jerkin)
     eq(ShoppingTooltip1:IsShown(), false, "and goes with the tooltip")
+    -- With "Only my talent tree" ticked the row's tooltip has one line of ours: whose list
+    -- it is and the profile it is made on, then the gain.
+    UpgradeScoutDB.ownTree = true
+    jerkin:GetScript("OnEnter")(jerkin)
+    doubles = {}
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right then doubles[#doubles + 1] = line end
+    end
+    eq(#doubles, 1, "one line of ours with 'Only my talent tree' ticked")
+    eq(doubles[1].text, "|TInterface\\AddOns\\UpgradeScout\\icon.tga:0|t " .. ALTY .. ": Balance", "the druid and the profile in use, after the addon's icon")
+    eq(doubles[1].right, "+67%", "with the gain of the row"); eq(doubles[1].r, RAID_CLASS_COLORS.DRUID.r, "in the colour of the druid's class")
+    jerkin:GetScript("OnLeave")(jerkin)
+    UpgradeScoutDB.ownTree = nil
     -- Where the parts that every row has stand on a row: how far from its left edge the gain
     -- (or the score) and the price end. The list hands its frames from one view to the
     -- other, and the two have their columns in different places.
@@ -4392,6 +4406,147 @@ function scenarios.tooltips()
     eq(Ours(GameTooltip, 200), nil, "the chest now worn has nothing to be compared with")
     eq(Ours(GameTooltip, 100), "Arms -44% | Protection ~ +33%", "the old chest against it: 10 against 18, 12 against 9")
     eq(Ours(GameTooltip, 212), "Arms -4% | Protection ~ +0 pts | Takes both hands.", "the two-hander against sword and shield, 26 against 27")
+end
+
+-- "Only my talent tree", the box under the sentence of the tooltip's card in the welcome
+-- window: wherever a tooltip has our lines it then has one, for the profile in use.
+function scenarios.own_tree()
+    StandardWorld()
+    W.player.money = 50000
+    -- The two rings of the window's pictures.
+    W.AddItem({ id = 16999, name = "Royal Seal", equipLoc = "INVTYPE_FINGER", quality = 3, level = 54 })
+    W.AddItem({ id = 5000, name = "Coral Band", equipLoc = "INVTYPE_FINGER", level = 21 })
+    -- On the second profile the two chests score 9 (for sale) and 12 (worn).
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    LoadAddon()
+    W.Run(1)
+
+    local ICON = "|TInterface\\AddOns\\UpgradeScout\\icon.tga:0|t "
+    -- What the addon wrote in the tooltip that is up: from its first line on (the one with
+    -- its icon, written "*" here), each as "left right", joined by " | "; nil when it wrote
+    -- nothing.
+    local function Ours(tooltip)
+        local first
+        for i, line in ipairs(tooltip._lines) do
+            if line.text:find(ICON, 1, true) then
+                eq(first, nil, "the addon's icon once only")
+                first = i
+            end
+        end
+        if not first then return nil end
+        eq(tooltip._lines[first - 1].text, " ", "a blank line before our lines")
+        local out = {}
+        for i = first, #tooltip._lines do
+            local line = tooltip._lines[i]
+            out[#out + 1] = (line.text:gsub("|T.-|t ", "*", 1)) .. (line.right and " " .. line.right or "")
+        end
+        return table.concat(out, " | ")
+    end
+    -- The same for an item shown in a tooltip, as the bags or the chat show one.
+    local function Item(tooltip, id)
+        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:SetHyperlink(W.Link(id))
+        return Ours(tooltip)
+    end
+    local function Line(tooltip, text)
+        for _, line in ipairs(tooltip._lines) do
+            if line.text == text then return line end
+        end
+    end
+
+    -- Until the box is ticked: every profile of the class under the addon's name.
+    eq(ns.OwnTree(), false, "off to begin with")
+    eq(Item(GameTooltip, 200), "*Upgrade Scout | Arms +80% | Protection ~ -25%", "a line for every profile, as before")
+
+    -- The box: on the tooltip's card of the welcome window, under its sentence.
+    ns.Welcome.Show()
+    local window = UpgradeScoutWelcome
+    local card, tip = window.Cards[2], window.Cards[2].Picture.Tip
+    local box = card.Option
+    check(box ~= nil, "the tooltip's card has a second box")
+    eq(card.OptionText:GetText(), "Only my talent tree", "which says what it is for")
+    eq(window.Cards[1].Option, nil, "the auction house's card has none"); eq(window.Cards[3].Option, nil, "nor has the bags'")
+    eq(box:GetChecked(), false, "not ticked to begin with"); eq(box.Tick:IsShown(), false, "no tick in it")
+    eq(tip.Brand:IsShown(), true, "the card's picture: the addon's name over the lines")
+    eq(tip.Lines[1].Title:GetText(), "Arms", "a line for each profile"); eq(tip.Lines[2].Title:IsShown(), true, "both of them")
+    local tall, high = tip:GetHeight(), window:GetHeight()
+
+    box:SetChecked(true)
+    box:Click()
+    eq(UpgradeScoutDB.ownTree, true, "ticked: written down for the account"); eq(ns.OwnTree(), true, "and in force at once")
+    eq(box.Tick:IsShown(), true, "the tick comes")
+    eq(tip.Brand:IsShown(), false, "the picture has no heading now")
+    eq(tip.Lines[1].Title:GetText(), ICON .. "Arms", "but one line: the addon's icon and the profile in use")
+    eq(tip.Lines[1].Gain:GetText(), "+31%", "with its gain"); eq(tip.Lines[1].Gain:IsShown(), true, "which shows")
+    eq(tip.Lines[2].Title:IsShown(), false, "the other profile is gone"); eq(tip.Lines[2].Gain:IsShown(), false, "with its gain")
+    check(tip:GetHeight() < tall, "and the tooltip in the picture is shorter")
+    eq(window:GetHeight(), high, "the window stays as tall as it was")
+
+    -- An item's tooltip anywhere in the game: one line, under a blank one.
+    eq(Item(GameTooltip, 200), "*Arms +80%", "the chest in the bags: the profile in use and its gain")
+    eq(Line(GameTooltip, ICON .. "Arms").r, RAID_CLASS_COLORS.WARRIOR.r, "the profile in the colour of the class")
+    eq(Line(GameTooltip, ICON .. "Arms").rightR, GREEN_FONT_COLOR.r, "a gain in green")
+    eq(Item(ItemRefTooltip, 200), "*Arms +80%", "the same for a link clicked in the chat")
+    eq(Item(GameTooltip, 211), "*Arms +12 pts", "a helm for the empty head: in points")
+    eq(Item(GameTooltip, 201), "*Arms +200% | Has effects the score does not count.", "what a score leaves out is still said")
+    eq(Item(GameTooltip, 100), nil, "nothing for the chest the character has on")
+    eq(Item(GameTooltip, 214), nil, "nothing for a potion")
+
+    -- Another tree chosen in the window: the line is that tree's.
+    window.Trees[2]:Click()
+    eq(Item(GameTooltip, 200), "*Protection ~ -25%", "the line follows the profile in use")
+    eq(Line(GameTooltip, ICON .. "Protection ~").rightR, RED_FONT_COLOR.r, "a loss in red")
+    eq(tip.Lines[2].Title:GetText(), ICON .. "Protection ~", "and so does the picture"); eq(tip.Lines[2].Gain:GetText(), "+36%", "with that profile's gain")
+    eq(tip.Lines[1].Title:IsShown(), false, "the first profile's line is gone from it")
+    window.Trees[1]:Click()
+
+    -- The notes of the line in use stay under it.
+    W.equipped[17] = W.Link(213)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    eq(Item(GameTooltip, 212), "*Arms -4% | Takes both hands.", "the two-hander against sword and shield")
+    W.equipped[17] = nil
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+
+    -- The tooltip's lines switched off: nothing in a tooltip, and the box keeps its tick.
+    local lines = card.Switch
+    lines:SetChecked(false)
+    lines:Click()
+    eq(Item(GameTooltip, 200), nil, "the card switched off: no line at all")
+    eq(box:GetChecked(), true, "the box under it keeps its tick"); eq(UpgradeScoutDB.ownTree, true, "and what it wrote")
+    lines:SetChecked(true)
+    lines:Click()
+    eq(Item(GameTooltip, 200), "*Arms +80%", "switched on again: the one line")
+
+    -- A row of the list at the auction house goes by the box as well.
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    ScanToEnd()
+    W.Run(0.3)
+    local rows
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then rows = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(rows:GetFrames()) do
+            if w._shown and w._kind == "Button" and w.entry and w.entry.offer.name == name then return w end
+        end
+    end
+    local chest = Row("Good Chest")
+    check(chest ~= nil, "the good chest is in the list")
+    chest:GetScript("OnEnter")(chest)
+    eq(Ours(GameTooltip), "*Arms +80%", "a row's tooltip: one line, for the profile the list is made on")
+    chest:GetScript("OnLeave")(chest)
+
+    -- Unticked: every profile again, everywhere, and nothing is left written.
+    box:SetChecked(false)
+    box:Click()
+    eq(UpgradeScoutDB.ownTree, nil, "unticked: nothing is left written"); eq(box.Tick:IsShown(), false, "the tick goes")
+    eq(tip.Brand:IsShown(), true, "the picture has its heading back"); eq(tip.Lines[2].Title:IsShown(), true, "and both profiles")
+    eq(tip.Lines[1].Title:GetText(), "Arms", "by their names alone"); eq(tip:GetHeight(), tall, "as tall as it was")
+    chest:GetScript("OnEnter")(chest)
+    eq(Ours(GameTooltip), "*Upgrade Scout | Arms +80% | Protection ~ -25%", "the row's tooltip has every profile again")
+    chest:GetScript("OnLeave")(chest)
+    eq(Item(GameTooltip, 200), "*Upgrade Scout | Arms +80% | Protection ~ -25%", "and so has an item's anywhere")
 end
 
 function scenarios.arrows()

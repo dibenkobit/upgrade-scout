@@ -16,7 +16,9 @@ local L = ns.L
 --   what the addon puts into the game, a card for each: the tabs at the auction house, the
 --     lines in an item's tooltip, the arrows in the bags. A card has a picture of the thing as
 --     it looks in the game, its name and a sentence. The last two can be switched off, by the
---     tick box before the name (ns.Shows).
+--     tick box before the name (ns.Shows). The tooltip's card has one more box under its
+--     sentence, "Only my talent tree" (ns.OwnTree): one line in a tooltip, not one for every
+--     tree. Its picture shows what either choice looks like.
 --   how to get the window back, and the button that closes it
 -- Everything is laid out from the height its texts turn out to have (see Layout): a language
 -- with longer words gets a taller window, not a cut sentence.
@@ -163,8 +165,12 @@ local function NewListPicture(picture)
 end
 
 -- An item's tooltip: its name, and under the addon's own heading a line for every profile of
--- the class with the gain on it, as Tooltip.lua writes them.
-local TIP_TOP, TIP_STEP = 41, 12.5
+-- the class with the gain on it, as Tooltip.lua writes them. With "Only my talent tree"
+-- ticked (about.own) it has the one line of the profile in use, where the heading was, the
+-- addon's icon before the profile's name (Tooltip.AddOwn).
+-- How far down the heading is, the first line under it, and each line under the one before.
+local TIP_HEAD, TIP_TOP, TIP_STEP = 28, 41, 12.5
+local TIP_ICON = "|T" .. ICON .. ".tga:0|t "
 
 local function PaintTip(picture, about)
     local tip = picture.Tip
@@ -175,27 +181,32 @@ local function PaintTip(picture, about)
 
     local r, g, b = (RAID_CLASS_COLORS[about.class or ""] or HIGHLIGHT_FONT_COLOR):GetRGB()
     local count = #about.profiles
+    local own = about.own and about.profiles[about.place] ~= nil
+    tip.Brand:SetShown(not own)
     for i = 1, math.max(count, #tip.Lines) do
         local line = tip.Lines[i]
         if not line then
             line = { Title = NewText(tip, 9.5, CREAM), Gain = NewText(tip, 9.5, GREEN, "RIGHT") }
-            local down = TIP_TOP + (i - 1) * TIP_STEP
-            line.Title:SetPoint("LEFT", tip, "TOPLEFT", 8, -down)
-            line.Gain:SetPoint("RIGHT", tip, "TOPRIGHT", -8, -down)
-            line.Title:SetPoint("RIGHT", line.Gain, "LEFT", -6, 0)
             line.Gain:SetTextColor(GREEN_FONT_COLOR:GetRGB())
             tip.Lines[i] = line
         end
         local profile = about.profiles[i]
-        line.Title:SetShown(profile ~= nil)
-        line.Gain:SetShown(profile ~= nil)
-        if profile then
-            line.Title:SetText(profile.title)
+        local shown = profile ~= nil and (not own or i == about.place)
+        line.Title:SetShown(shown)
+        line.Gain:SetShown(shown)
+        if shown then
+            local down = own and TIP_HEAD or TIP_TOP + (i - 1) * TIP_STEP
+            line.Title:ClearAllPoints()
+            line.Gain:ClearAllPoints()
+            line.Title:SetPoint("LEFT", tip, "TOPLEFT", 8, -down)
+            line.Gain:SetPoint("RIGHT", tip, "TOPRIGHT", -8, -down)
+            line.Title:SetPoint("RIGHT", line.Gain, "LEFT", -6, 0)
+            line.Title:SetText(own and TIP_ICON .. profile.title or profile.title)
             line.Title:SetTextColor(r, g, b)
             line.Gain:SetText(Gain(sample, i))
         end
     end
-    tip:SetHeight(TIP_TOP + math.max(count - 1, 0) * TIP_STEP + 12)
+    tip:SetHeight((own and TIP_HEAD or TIP_TOP + math.max(count - 1, 0) * TIP_STEP) + 12)
 end
 
 local function NewTipPicture(picture)
@@ -219,10 +230,10 @@ local function NewTipPicture(picture)
     tip.Name:SetPoint("LEFT", tip, "TOPLEFT", 8, -13)
     tip.Name:SetPoint("RIGHT", tip, "TOPRIGHT", -8, -13)
     -- The addon's heading in a tooltip (see T.AddHeader in Tooltip.lua).
-    local brand = NewText(tip, 9.5, CREAM)
-    brand:SetPoint("LEFT", tip, "TOPLEFT", 8, -28)
-    brand:SetText("|T" .. ICON .. ".tga:0|t Upgrade Scout")
-    brand:SetTextColor(0.53, 0.78, 0.96)
+    tip.Brand = NewText(tip, 9.5, CREAM)
+    tip.Brand:SetPoint("LEFT", tip, "TOPLEFT", 8, -TIP_HEAD)
+    tip.Brand:SetText(TIP_ICON .. "Upgrade Scout")
+    tip.Brand:SetTextColor(0.53, 0.78, 0.96)
     tip.Lines = {}
     picture.Tip = tip
     picture.Paint = PaintTip
@@ -265,10 +276,17 @@ end
 ---------------------------------------------------------------------------
 local Paint
 
--- The tick box of a card that can be switched off: `part` is "tooltip" or "arrows" (ns.Shows).
--- What it says is done at once, and written down only when it is "off".
-local function NewSwitch(card, part)
+-- A tick box of a card. `part` is what it switches, and `usual` how that is until the player
+-- says otherwise: "tooltip" and "arrows" are on (ns.Shows), "ownTree" is off (ns.OwnTree).
+-- What the box says is done at once, and written down only when it is not the usual.
+local function Ticked(switch)
+    if switch.usual then return ns.account[switch.part] ~= false end
+    return ns.account[switch.part] == true
+end
+
+local function NewSwitch(card, part, usual)
     local check = CreateFrame("CheckButton", nil, card)
+    check.part, check.usual = part, usual
     check:SetSize(15, 15)
     NewSlices(check, "Inset", 0.25, 6, "BACKGROUND")
     local glow = NewTexture(check, "Glow", "HIGHLIGHT")
@@ -282,7 +300,7 @@ local function NewSwitch(card, part)
     check:SetScript("OnClick", function(self)
         local on = self:GetChecked() and true or false
         PlaySound(on and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-        if on then ns.account[part] = nil else ns.account[part] = false end
+        if on == usual then ns.account[part] = nil else ns.account[part] = on end
         ns.Fire("SETTING_CHANGED", part)
     end)
     return check
@@ -290,7 +308,9 @@ end
 
 -- part: what the card's tick box switches, nil for a card that has none (the auction house:
 -- its tabs are in nobody's way).
-local function NewCard(part, title, body, NewPicture)
+-- option: one more choice about that part, a tick box of its own under the card's sentence:
+-- { part = what it switches, text = what it says }. It is off until ticked.
+local function NewCard(part, title, body, NewPicture, option)
     local card = CreateFrame("Frame", nil, frame)
     card:SetWidth(CARD_WIDTH)
     NewSlices(card, "Inset", 0.25, 8, "BACKGROUND")
@@ -307,7 +327,7 @@ local function NewCard(part, title, body, NewPicture)
 
     -- The name, after its tick box or, where there is none, a diamond in its place.
     if part then
-        card.Switch = NewSwitch(card, part)
+        card.Switch = NewSwitch(card, part, true)
         card.Switch:SetPoint("TOPLEFT", card, "TOPLEFT", 11, -(PICTURE + 11))
     else
         local diamond = NewTexture(card, "Diamond", "ARTWORK")
@@ -327,6 +347,17 @@ local function NewCard(part, title, body, NewPicture)
     card.Body:SetSpacing(3)
     card.Body:SetWidth(CARD_WIDTH - 24)
     card.Body:SetText(body)
+
+    -- The option stands under the sentence as the name stands under the picture: the box,
+    -- then its words, which a click ticks as well (see Layout for where).
+    if option then
+        card.Option = NewSwitch(card, option.part, false)
+        card.OptionText = NewText(card, 10.5, CREAM)
+        card.OptionText:SetWordWrap(true)
+        card.OptionText:SetWidth(CARD_WIDTH - 32 - 10)
+        card.OptionText:SetText(option.text)
+        card.Option:SetHitRectInsets(0, -(6 + card.OptionText:GetStringWidth()), -4, -4)
+    end
     return card
 end
 
@@ -401,14 +432,24 @@ local function Layout()
     frame.Shows:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + 2, -down)
     down = down + frame.Shows:GetStringHeight() + 9
 
-    -- The cards are all as tall as the one with the most to say.
+    -- The cards are all as tall as the one with the most to say. `under` is how far under
+    -- the picture a card's next part begins.
     local words = 0
     for i = 1, #frame.Cards do
         local card = frame.Cards[i]
-        local title = math.max(card.Title:GetStringHeight(), 15)
+        local under = 11 + math.max(card.Title:GetStringHeight(), 15) + 8
         card.Body:ClearAllPoints()
-        card.Body:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -(PICTURE + 11 + title + 8))
-        words = math.max(words, 11 + title + 8 + card.Body:GetStringHeight() + 12)
+        card.Body:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -(PICTURE + under))
+        under = under + card.Body:GetStringHeight()
+        if card.Option then
+            under = under + 9
+            card.Option:ClearAllPoints()
+            card.Option:SetPoint("TOPLEFT", card, "TOPLEFT", 11, -(PICTURE + under))
+            card.OptionText:ClearAllPoints()
+            card.OptionText:SetPoint("TOPLEFT", card, "TOPLEFT", 32, -(PICTURE + under + 2))
+            under = under + math.max(card.OptionText:GetStringHeight() + 2, 15)
+        end
+        words = math.max(words, under + 12)
     end
     for i = 1, #frame.Cards do
         local card = frame.Cards[i]
@@ -433,7 +474,7 @@ end
 Paint = function()
     local me = ns.Roster.Me()
     local current, profiles = ns.Score.Current()
-    local about = { profiles = profiles, place = 1, class = me and me.class }
+    local about = { profiles = profiles, place = 1, class = me and me.class, own = ns.OwnTree() }
 
     frame.About:SetText(greeting and L.WELCOME_FIRST or L.WELCOME_ABOUT)
     frame.Shows:SetText(L.WELCOME_SHOWS .. Aside(L.WELCOME_OFF))
@@ -466,6 +507,13 @@ Paint = function()
         if card.Switch then
             card.Switch:SetChecked(on)
             card.Switch.Tick:SetShown(on)
+        end
+        -- The option keeps its tick while its card is switched off: it is what would come
+        -- back, and the rows of the list at the auction house go by it all the while.
+        if card.Option then
+            local ticked = Ticked(card.Option)
+            card.Option:SetChecked(ticked)
+            card.Option.Tick:SetShown(ticked)
         end
         -- What is switched off is still shown, faded: it is what would come back.
         card.Picture:SetAlpha(on and 1 or 0.3)
@@ -536,7 +584,8 @@ local function Build()
 
     frame.Cards = {
         NewCard(nil, L.WELCOME_AUCTION, L.WELCOME_AUCTION_TEXT:format(L.SCAN, L.TAB, L.TAB_SUP), NewListPicture),
-        NewCard("tooltip", L.WELCOME_TOOLTIP, L.WELCOME_TOOLTIP_TEXT, NewTipPicture),
+        NewCard("tooltip", L.WELCOME_TOOLTIP, L.WELCOME_TOOLTIP_TEXT, NewTipPicture,
+            { part = "ownTree", text = L.WELCOME_OWN_TREE }),
         NewCard("arrows", L.WELCOME_ARROWS, L.WELCOME_ARROWS_TEXT, NewBagPicture),
     }
 

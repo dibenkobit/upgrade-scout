@@ -142,7 +142,7 @@ end
 -- Rows
 ---------------------------------------------------------------------------
 -- Our lines under a row's tooltip (see Tooltip.lua for how they look).
-local AddHeader, AddGain = ns.Tooltip.AddHeader, ns.Tooltip.AddGain
+local AddHeader, AddGain, AddOwn = ns.Tooltip.AddHeader, ns.Tooltip.AddGain, ns.Tooltip.AddOwn
 
 -- What the offer of a row gains on every profile of the class, as Pawn shows its scales:
 -- { { title, gain }, ... } in the order of the profile menu. The profile the
@@ -233,11 +233,18 @@ local function ShowItemTooltip(row)
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
 
-    -- On the right, whose list it is when it is not the character's own.
-    AddHeader(GameTooltip, who and WhoName(who) or nil)
-    -- How much better the item is on each profile of the class, in the class's colour.
-    for _, line in ipairs(ProfileGains(entry)) do
-        AddGain(GameTooltip, line.title, line.gain, S.ctx.class)
+    if ns.OwnTree() and S.ctx then
+        -- "Only my talent tree": one line, for the profile the list is made on, which reads
+        -- as the row does. Whose list it is stands before the profile, as in the field.
+        local title = ns.Score.Title(S.ctx.profile)
+        AddOwn(GameTooltip, who and L.ST_WHO:format(WhoName(who), title) or title, entry, S.ctx.class)
+    else
+        -- On the right, whose list it is when it is not the character's own.
+        AddHeader(GameTooltip, who and WhoName(who) or nil)
+        -- How much better the item is on each profile of the class, in the class's colour.
+        for _, line in ipairs(ProfileGains(entry)) do
+            AddGain(GameTooltip, line.title, line.gain, S.ctx.class)
+        end
     end
     if entry.note == "OFFHAND_EMPTY" then
         GameTooltip_AddNormalLine(GameTooltip, who and L.TT_OFFHAND_EMPTY_WHO or L.TT_OFFHAND_EMPTY)
