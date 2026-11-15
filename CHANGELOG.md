@@ -20,8 +20,7 @@
 - Where: one box for the addon's tabs at the auction house, one for the rest of the game (bags,
   loot, chat). Before, the lines on the addon's tabs could not be switched off.
 - A third box is for the notes in the tooltip of a row on the addon's tabs: how much gold you
-  are short of, what a net cost is made of, that an item takes both hands. It works with Pawn
-  chosen too.
+  are short of, that an item takes both hands. It works with Pawn chosen too.
 - The window has a new layout: the auction house and the bags side by side, and the tooltip in
   a block of its own under them.
 - When an item's price has changed since the scan, **Buy** still asks: the box shows the
@@ -41,8 +40,8 @@
 - Coins stand closer together, as in your bags: in the lists, in the box before a purchase and
   in the gold display under the addon's tabs.
 - **Best set for** always says what the set costs in the end, beside what you pay for it.
-- With **Value by net cost** ticked, a row's tooltip has the whole sum: **Buyout**, **Vendor
-  sell price** and **Net cost**. The vendor's line used to read "Sell Price".
+- A row's tooltip no longer has the lines for the buyout and the vendor's price: both prices
+  are in the row.
 - The item in the box before a purchase has the same tooltip as its row in the list. Before,
   the addon's lines were missing there.
 - The tick boxes above the lists are now in one menu, **Filters**, at the right end of the strip.

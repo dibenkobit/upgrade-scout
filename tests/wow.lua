@@ -1211,9 +1211,6 @@ RETRIEVING_ITEM_INFO = "Retrieving item information"
 ITEM_SPELL_TRIGGER_ONUSE = "Use:"
 SHIELD_BLOCK_TEMPLATE = "%s Block"
 ITEM_UNIQUE_EQUIPPABLE = "Unique-Equipped"
--- What a vendor pays, as item tooltips head it, and what they say of an item no vendor buys.
--- The first ends in a space, as the French client's does (for the colon written after it).
-SELL_PRICE, ITEM_UNSELLABLE = "Sell Price ", "No sell price"
 CANCEL, NONE = "Cancel", "None"
 SECONDS_ABBR, MINUTES_ABBR, HOURS_ABBR, DAYS_ABBR = "%d Sec", "%d Min", "%d Hr", "%d Days"
 -- The colours of the classes, as the game's ColorMixin objects.

@@ -31,8 +31,8 @@ local L = ns.L
 --     house, elsewhere in the game, a tick box for each (ns.Shows "rowTooltip" and
 --     "tooltip"), so both, either or neither.
 --     Of the notes in the tooltip of a row of the addon's tabs (what the player is short of,
---     what a net cost is made of, both hands: AddNotes in UI.lua), under a fine line, whether
---     they show: a tick box (ns.Shows "rowNotes").
+--     both hands: AddNotes in UI.lua), under a fine line, whether they show: a tick box
+--     (ns.Shows "rowNotes").
 --     The picture shows what the answers come to, and fades when nothing shows.
 --     With Pawn scoring, the score in a tooltip is Pawn's to write: the block says so in
 --     place of its sentence, and what is asked of the score is out of use. The notes are

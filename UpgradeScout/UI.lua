@@ -223,26 +223,9 @@ local function ShowSupplyTooltip(row)
     GameTooltip:Show()
 end
 
--- With "Value by net cost" on, a row is judged by what the item costs in the end. Its tooltip
--- then has the whole sum: what is paid now, what a vendor gives back, and what that leaves,
--- the net cost. The vendor's line is named in our own words: the game's "Sell Price" does
--- not say who pays it, and beside a buyout it reads as another price of the auction.
-local function AddNetLines(tooltip, offer)
-    local r, g, b = NORMAL_FONT_COLOR:GetRGB()
-    local wr, wg, wb = HIGHLIGHT_FONT_COLOR:GetRGB()
-    tooltip:AddDoubleLine(L.COL_PRICE, ns.Money(offer.buyout), r, g, b, wr, wg, wb)
-    if (offer.sell or 0) > 0 then
-        tooltip:AddDoubleLine(L.NET_VENDOR, ns.Money(offer.sell), r, g, b, wr, wg, wb)
-    else
-        -- "No sell price": why the net cost is the whole buyout.
-        GameTooltip_AddDisabledLine(tooltip, ITEM_UNSELLABLE)
-    end
-    tooltip:AddDoubleLine(L.NET, ns.Money(ns.Results.Net(offer.buyout, offer.sell)), r, g, b, wr, wg, wb)
-end
-
 -- What a row's tooltip says about buying the item, after how much better it is: how it
--- would be worn, what the score leaves out, what it costs in the end, what the player is
--- short of.
+-- would be worn, what the score leaves out, what the player is short of. Nothing of the
+-- prices: the row has both, the buyout and the net cost.
 local function AddNotes(tooltip, entry, who)
     local offer = entry.offer
     if entry.note == "OFFHAND_EMPTY" then
@@ -253,7 +236,6 @@ local function AddNotes(tooltip, entry, who)
     if offer.effects then
         GameTooltip_AddNormalLine(tooltip, L.TT_EFFECTS)
     end
-    if ns.db.net then AddNetLines(tooltip, offer) end
     if not entry.affordable then
         GameTooltip_AddErrorLine(tooltip, L.TT_CANT_AFFORD:format(ns.Money(offer.buyout - GetMoney())))
     end
@@ -262,8 +244,7 @@ end
 -- Has AddNotes anything to say of this row?
 local function HasNotes(entry)
     local note = entry.note
-    return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or entry.offer.effects or ns.db.net
-        or not entry.affordable
+    return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or entry.offer.effects or not entry.affordable
 end
 
 -- Our lines under the tooltip of a row of gear. They are of two kinds, and each has a box
@@ -271,7 +252,7 @@ end
 --   the score (ns.Shows "rowTooltip"): how much better the item is, as an item's tooltip
 --     says it anywhere in the game (Tooltip.lua);
 --   the notes (ns.Shows "rowNotes"): what the row cannot say for want of room (the hands,
---     the effects, what the net cost is made of) and what is missing to pay.
+--     the effects) and what is missing to pay.
 -- With Pawn scoring (Score.Engine) the score in a tooltip is not the box's to switch.
 -- Under a row of the player's own list stand Pawn's lines: how much of an upgrade the item
 -- is on each of the player's scales. Ours would say it twice and are left out. Under a row
