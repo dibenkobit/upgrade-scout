@@ -80,20 +80,50 @@ function Score.Profiles(who)
     return out
 end
 
--- The profile to score with for a character: the one chosen for it, otherwise the one its
--- class starts with. (A card written by version 1 has no profile on it, and gets the
--- class's own.)
+-- The profile to score with for a character: the one chosen for it; otherwise the one for
+-- the talent tree it had the most points in when it was last played (its card's `talents`,
+-- see Roster.Update); otherwise the one its class starts with.
 function Score.Current(who)
     local list = Score.Profiles(who)
     local owner = who or ns.Roster.Me()
     local chosen = owner and owner.profile
+    local talents = owner and owner.talents
     local start = owner and ns.Weights.start[owner.class or ""]
-    local first
+    local byTalents, byClass
     for i = 1, #list do
         if list[i].name == chosen then return list[i], list end
-        if list[i].name == start then first = list[i] end
+        if list[i].name == talents then byTalents = list[i] end
+        if list[i].name == start then byClass = list[i] end
     end
-    return first or list[1], list
+    return byTalents or byClass or list[1], list
+end
+
+-- The profile for a talent tree of a class: `name` is the tree as the game names it, `place`
+-- its place among the class's trees from the left, `count` how many trees there are. A tree
+-- is told by its name first, which is what the profiles are named by (Weights.titles). A
+-- class with a profile for each of its trees can be told by the place as well. Where one
+-- profile stands for more trees than one (a priest's Healer), a tree that none is named
+-- after is one of its. nil when none of that tells.
+function Score.ForTree(class, name, place, count)
+    local data = ns.Weights
+    local ids = data.classes[class or ""]
+    if not ids then return nil end
+    if name ~= nil then
+        local titles, english = data.titles[GetLocale()] or data.titles.enUS, data.titles.enUS
+        for i = 1, #ids do
+            if titles[ids[i]] == name or english[ids[i]] == name then return ids[i] end
+        end
+    end
+    if #ids == count then return ids[place] end
+    local shared
+    for i = 1, #ids do
+        local profile = data.profiles[ids[i]]
+        if profile and profile.role then
+            if shared then return nil end
+            shared = ids[i]
+        end
+    end
+    return shared
 end
 
 -- True when the profile's weights are an estimate (see Weights.lua).

@@ -49,6 +49,8 @@ end
 -- "now" when the item gets the green arrow, "later" when it gets the grey one, false when it
 -- gets none, nil while that cannot be told yet.
 function B.Arrow(link)
+    -- Switched off in the welcome window: no item gets one.
+    if not ns.Shows("arrows") then return false end
     local upgrade = ns.Tooltip.Upgrade(link)
     if not upgrade then return upgrade end
     return Wearable(link)
@@ -178,4 +180,11 @@ ns.Listen("PROFILE_CHANGED", function(card)
     if card ~= ns.Roster.Me() then return end
     retries = 0
     MarkAllSoon()
+end)
+
+-- The arrows switched on or off in the welcome window: they come or go at once.
+ns.Listen("SETTING_CHANGED", function(part)
+    if part ~= "arrows" then return end
+    retries = 0
+    MarkAll()
 end)

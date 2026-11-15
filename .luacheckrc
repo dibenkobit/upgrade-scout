@@ -13,14 +13,15 @@ read_globals = {
     "CanDualWield", "Clamp", "CreateDataProvider", "CreateFontFamily", "CreateFrame", "CreateScrollBoxListLinearView", "CursorHasItem",
     "FormatPercentage", "GetInventoryItemLink", "GetLocale", "GetMoney", "GetMoneyString",
     "GetInboxItemLink", "GetInboxNumItems", "GetProfessionInfo", "GetProfessions", "GetRealmName", "GetSendMailItem",
-    "GetSendMailItemLink", "GetTime", "HandleModifiedItemClick",
+    "GetSendMailItemLink", "GetTime", "HandleModifiedItemClick", "InCombatLockdown",
     "IsModifiedClick", "PlaySound", "ResetCursor", "SendMail", "ShowInspectCursor", "UnitClass", "UnitFactionGroup", "UnitLevel", "UnitName",
     "UnitPowerMax", "UnitRace", "debugprofilestop", "hooksecurefunc", "issecretvalue", "securecallfunction", "time",
     "GameTooltip_AddBlankLineToTooltip", "GameTooltip_AddColoredLine", "GameTooltip_AddDisabledLine",
     "GameTooltip_AddErrorLine", "GameTooltip_AddHighlightLine", "GameTooltip_AddNormalLine", "GameTooltip_Hide",
     "GameTooltip_SetTitle", "GameTooltip_ShowCompareItem",
     -- its tables of functions and of numbers
-    "C_AuctionHouse", "C_Container", "C_Item", "C_SpellBook", "C_Timer", "C_TooltipInfo", "ColorManager", "Constants",
+    "C_AuctionHouse", "C_ClassTalents", "C_Container", "C_Item", "C_SpellBook", "C_Timer", "C_TooltipInfo", "C_Traits",
+    "ColorManager", "Constants", "Settings",
     "Enum", "EventUtil", "TooltipDataProcessor", "TooltipUtil", "MoneyStringConstants", "PixelUtil", "SOUNDKIT", "ScrollBoxConstants", "ScrollUtil",
     "BankPanelItemButtonMixin",
     -- its frames, fonts and colours

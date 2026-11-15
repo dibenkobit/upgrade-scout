@@ -1154,6 +1154,26 @@ local function Choose(choice)
     UI.Refresh()
 end
 
+-- The same choice made away from the tab, in the welcome window (Welcome.lua): `id` is a
+-- profile of the character being played. While the lists are for that character, it is as if
+-- its line of the menu were clicked. While they are for another one they stay as they are:
+-- the choice is written on the character's card, the bags and the tooltips go by it, and the
+-- menu shows it the next time it opens.
+function UI.ChooseProfile(id)
+    local me = ns.Roster.Me()
+    if not me then return end
+    if frame and not ns.Roster.Target() then
+        Choose({ who = false, profile = id })
+        -- The field shows a choice made in its own menu by itself; this one it has to read.
+        profileDropdown:GenerateMenu()
+        return
+    end
+    local current = ns.Score.Current()
+    if current and current.name == id then return end
+    me.profile = id
+    ns.Fire("PROFILE_CHANGED", me)
+end
+
 -- Does the menu have lines for other characters (see ProfileMenu)? The field then has to
 -- show a name with a profile.
 local function OthersListed()
@@ -1941,9 +1961,9 @@ ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function()
 end)
 
 ---------------------------------------------------------------------------
--- /upscout opens the tab when the auction house is open; /upscout stats tells how the last
--- scan went; /upscout forget Name takes a character that is gone (deleted, renamed) out of
--- the profile field's menu
+-- /upscout opens the tab when the auction house is open, and the welcome window otherwise;
+-- /upscout stats tells how the last scan went; /upscout forget Name takes a character that is
+-- gone (deleted, renamed) out of the profile field's menu
 ---------------------------------------------------------------------------
 local function Forget(name)
     local was = ns.Roster.Target()
@@ -1976,9 +1996,11 @@ SlashCmdList["UPGRADESCOUT"] = function(message)
         Forget(message:match("^%s*%a+%s*(.-)%s*$"))
         return
     end
-    if not (frame and S.IsOpen()) then
-        ns.Print(L.ERR_AH_CLOSED)
+    -- At the auction house, with another tab in view: to ours. Anywhere else, and on our own
+    -- tab: the window that says what the addon does and has its settings (Welcome.lua).
+    if frame and S.IsOpen() and not frame:IsVisible() then
+        LibStub("LibAHTab-1-0"):SetSelected(TAB_ID)
         return
     end
-    LibStub("LibAHTab-1-0"):SetSelected(TAB_ID)
+    ns.Welcome.Show()
 end

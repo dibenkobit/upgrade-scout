@@ -20,6 +20,8 @@ local _, ns = ...
 --               believed: see Roster.Update), and then its class decides
 --   skills      { [profession, as the game names it] = rank }
 --   profile     the profile chosen for it (see Score.lua)
+--   talents     the profile for the talent tree it has the most points in; what it is
+--               scored on while none is chosen
 --   seen        when it was last written down (time())
 local Roster = {}
 ns.Roster = Roster
@@ -284,6 +286,59 @@ local function Skills()
     return out
 end
 
+-- The talent tree the character has the most points in: its name as the game writes it, its
+-- place among the class's trees from the left, and how many trees there are. nil with no
+-- points spent, or when the game does not say.
+-- Forever keeps talents the way the game's later versions do: a tree of "traits" whose nodes
+-- stand in groups, one group for each talent tree of the first game, and the game counts the
+-- points spent in a group. (Mastercraft, the one addon made for this client, reads them the
+-- same way.)
+local function TalentTree()
+    if not (C_ClassTalents and C_Traits) then return nil end
+    local config = C_ClassTalents.GetActiveConfigID()
+    if type(config) ~= "number" then return nil end
+    local info = C_Traits.GetConfigInfo(config)
+    local tree = type(info) == "table" and type(info.treeIDs) == "table" and info.treeIDs[1] or nil
+    if type(tree) ~= "number" then return nil end
+    local groups = C_Traits.GetGroupDisplayInfoByTreeID(tree)
+    if type(groups) ~= "table" or #groups == 0 then return nil end
+
+    -- Left to right, as the talents window has them.
+    local order, ids = {}, {}
+    for i = 1, #groups do
+        order[i] = { group = groups[i], at = i }
+        ids[i] = groups[i].groupID
+    end
+    table.sort(order, function(a, b)
+        local aIndex, bIndex = a.group.orderIndex or 0, b.group.orderIndex or 0
+        if aIndex ~= bIndex then return aIndex < bIndex end
+        return a.at < b.at
+    end)
+
+    local spent = {}
+    for _, counted in ipairs(C_Traits.GetGroupCurrencyInfo(config, ids) or {}) do
+        local currency = type(counted.currencyInfos) == "table" and counted.currencyInfos[1] or nil
+        local points = type(currency) == "table" and currency.spent or nil
+        if not issecretvalue(points) and type(points) == "number" then spent[counted.traitNodeGroupID] = points end
+    end
+    local best, most = nil, 0
+    for place = 1, #order do
+        local points = spent[order[place].group.groupID] or 0
+        if points > most then best, most = place, points end
+    end
+    if not best then return nil end
+    return order[best].group.displayName, best, #order
+end
+
+-- The profile for that tree (Score.ForTree), nil when there is nothing to go by. These
+-- functions of the game are known from its documentation, not from the game itself: an error
+-- in them is taken as no answer.
+function Roster.TalentProfile(class)
+    local ok, name, place, count = pcall(TalentTree)
+    if not ok or not place then return nil end
+    return ns.Score.ForTree(class, name, place, count)
+end
+
 -- Writes the character being played down as it is now.
 --   gearChanged  the game has just said that the gear changed
 function Roster.Update(gearChanged)
@@ -318,6 +373,23 @@ function Roster.Update(gearChanged)
     end
     if whole then card.armor = armor end
     card.skills = Skills()
+
+    -- The profile for the tree its talents are in: what the character is scored on until the
+    -- player chooses another (Score.Current). No answer leaves what was known.
+    local talents = Roster.TalentProfile(card.class)
+    if talents and talents ~= card.talents then
+        local before = ns.Score.Current(card)
+        card.talents = talents
+        local after = ns.Score.Current(card)
+        if before and after and before.name ~= after.name then
+            -- A list of gear made for this character was made on the other profile.
+            if not Roster.Target() and ns.Scanner.ctx then
+                ns.Scanner.Reset()
+                ns.Fire("OFFERS_CHANGED")
+            end
+            ns.Fire("PROFILE_CHANGED", card)
+        end
+    end
 
     card.seen = time()
 end
@@ -428,6 +500,8 @@ ns.On("PLAYER_LEVEL_UP", function(level)
 end)
 ns.On("SPELLS_CHANGED", function() Queue(false) end)
 ns.On("SKILL_LINES_CHANGED", function() Queue(false) end)
+-- Talents learned or taken back.
+ns.On("TRAIT_CONFIG_UPDATED", function() Queue(false) end)
 ns.On("AUCTION_HOUSE_SHOW", function() Queue(false) end)
 -- The last word on the character before another one is played. No timer outlives a logout.
 ns.On("PLAYER_LOGOUT", function() Roster.Update(gearNews) end)

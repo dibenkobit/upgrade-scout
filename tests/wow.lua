@@ -88,6 +88,8 @@ for _, name in ipairs({
     "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks",
     "SetFrameStrata", "EnableMouse", "SetSnapToPixelGrid", "SetTexelSnappingBias", "SetClampedToScreen",
+    -- a window the player can drag about
+    "SetMovable", "RegisterForDrag", "StartMoving", "StopMovingOrSizing",
     -- edit boxes
     "SetAutoFocus", "SetNumeric", "SetMaxLetters", "SetFocus", "ClearFocus", "HighlightText",
 }) do
@@ -169,6 +171,14 @@ function M:GetStringWidth()
 end
 -- How wide the text would be if nothing cut it short.
 M.GetUnboundedStringWidth = M.GetStringWidth
+-- How tall the text stands: twelve pixels a line, and as many lines as it takes to fit the
+-- width the text was given (one where it was given none). Nothing for no text.
+function M:GetStringHeight()
+    local width = self:GetStringWidth()
+    if width == 0 then return 0 end
+    local room = self._width or 0
+    return 12 * (room > 0 and math.ceil(width / room) or 1)
+end
 function M:SetHeight(h) self._height = h end
 function M:GetHeight() return self._height or 0 end
 function M:GetWidth() return self._width or 0 end
@@ -932,6 +942,38 @@ function UnitPowerMax(_, power)
     return power == 0 and (W.player.mana or 0) or 0
 end
 function GetInventoryItemLink(_, slot) return W.equipped[slot] end
+-- W.combat: the character is in a fight.
+function InCombatLockdown() return W.combat == true end
+-- Talents, as Forever keeps them: a tree of "traits" whose groups are the talent trees of the
+-- first game. W.player.talents lists those from the left, each { name, points = spent in it };
+-- a character without the list has a game that does not say. The game hands the groups out in
+-- no order of its own (here: last first), each with its place among them.
+local function Talents() return W.player.talents end
+C_ClassTalents = {}
+function C_ClassTalents.GetActiveConfigID() return Talents() and 1 or nil end
+C_Traits = {}
+function C_Traits.GetConfigInfo(config)
+    assert(config == 1, "the character's own set of talents")
+    return { ID = config, name = "Talents", treeIDs = { 7 } }
+end
+function C_Traits.GetGroupDisplayInfoByTreeID(tree)
+    assert(tree == 7, "the tree of the character's talents")
+    local out = {}
+    for place = #Talents(), 1, -1 do
+        out[#out + 1] = { groupID = 100 + place, treeID = tree, orderIndex = place, displayName = Talents()[place].name }
+    end
+    return out
+end
+function C_Traits.GetGroupCurrencyInfo(config, groups)
+    assert(config == 1 and type(groups) == "table", "the set of talents and the groups asked about")
+    if W.talentsFail then error("the game does not answer about talents") end
+    local out = {}
+    for _, group in ipairs(groups) do
+        local points = Talents()[group - 100].points
+        out[#out + 1] = { traitNodeGroupID = group, currencyInfos = { { traitCurrencyID = 1, quantity = 0, spent = points } } }
+    end
+    return out
+end
 -- W.modified: true for "some modifier is held", or the name of one action ("DRESSUP").
 function IsModifiedClick(action) return W.modified == true or (action ~= nil and W.modified == action) end
 -- The game looks at the modifier keys itself and says whether it did anything.

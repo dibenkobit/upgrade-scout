@@ -13,6 +13,7 @@ local names = {
     "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "fonts", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
+    "talents", "welcome",
 }
 
 if not scenario then
@@ -1773,9 +1774,11 @@ function scenarios.ui()
     SlashCmdList.UPGRADESCOUT("")
     eq(frame:IsShown(), true, "/upscout shows the tab")
     W.CloseAuctionHouse()
+    UpgradeScoutWelcome:Hide()
     local printed = #W.printed
     SlashCmdList.UPGRADESCOUT("")
-    eq(#W.printed, printed + 1, "/upscout away from the auction house explains itself")
+    eq(#W.printed, printed, "/upscout away from the auction house says nothing in the chat")
+    eq(UpgradeScoutWelcome:IsShown(), true, "it opens the addon's own window (see the scenario welcome)")
 end
 
 ---------------------------------------------------------------------------
@@ -4476,6 +4479,221 @@ function scenarios.arrows()
     W.Run(1)
     eq(Bag(slot[200]), false, "the good chest against the chest now worn, 18 against 60")
     eq(Bag(slot[211]), true, "the helm still")
+end
+
+---------------------------------------------------------------------------
+-- The welcome window, and what it sets
+---------------------------------------------------------------------------
+-- The profile a character is scored on while none is chosen for it: the one for the talent
+-- tree it has the most points in.
+function scenarios.talents()
+    StandardWorld()
+    -- Three trees, most points in the last. The tests' warrior has two profiles, named after
+    -- the first tree and the last.
+    W.player.talents = { { name = "Arms", points = 3 }, { name = "Fury", points = 0 }, { name = "Protection", points = 11 } }
+    LoadAddon()
+    local Score, me = ns.Score, ns.Roster.Me()
+    eq(Score.Current().name, "S1", "before the character is written down: the profile its class starts with")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    eq(me.talents, "S2", "the profile named after the tree with the most points")
+    eq(Score.Current().name, "S2", "is the one the character is scored on"); eq(me.profile, nil, "without being chosen")
+    me.profile = "S1"
+    eq(Score.Current().name, "S1", "a choice of the player's stands above it")
+    me.profile = nil
+
+    -- Points go into the first tree: the profile follows, and the addon is told.
+    local told = 0
+    ns.Listen("PROFILE_CHANGED", function(card) if card == me then told = told + 1 end end)
+    W.player.talents[1].points = 20
+    W.Fire("TRAIT_CONFIG_UPDATED", 1)
+    W.Run(1.5)
+    eq(Score.Current().name, "S1", "talents learned: the profile of the tree now ahead"); eq(told, 1, "the addon is told of it")
+    W.Fire("TRAIT_CONFIG_UPDATED", 1)
+    W.Run(1.5)
+    eq(told, 1, "and only when it changes")
+
+    -- No answer leaves what was known: no points anywhere, an error in the game's functions,
+    -- a game without them.
+    W.player.talents = { { name = "Arms", points = 0 }, { name = "Fury", points = 0 }, { name = "Protection", points = 0 } }
+    W.Fire("TRAIT_CONFIG_UPDATED", 1)
+    W.Run(1.5)
+    eq(me.talents, "S1", "no points spent: what was known stays")
+    W.player.talents[3].points, W.talentsFail = 30, true
+    W.Fire("TRAIT_CONFIG_UPDATED", 1)
+    W.Run(1.5)
+    eq(me.talents, "S1", "an error in the game's talent functions is no answer"); eq(#W.errors, 0, "and no error of ours")
+    W.talentsFail, W.player.talents = nil, nil
+    W.Fire("TRAIT_CONFIG_UPDATED", 1)
+    W.Run(1.5)
+    eq(me.talents, "S1", "nor is a game that says nothing of talents")
+
+    -- Which profile a tree is: by its name, by its place, by the one profile that stands for several.
+    eq(Score.ForTree("WARRIOR", "Protection", 3, 3), "S2", "a tree by its name")
+    eq(Score.ForTree("WARRIOR", "Fury", 2, 3), nil, "none for a tree no profile is named after, in a class with fewer profiles than trees")
+    eq(Score.ForTree("DRUID", "Wild", 2, 2), "D2", "by its place, where the class has a profile for each tree")
+    eq(Score.ForTree("SHAMAN", "Elemental", 1, 3), nil, "none for a class without profiles")
+    ns.Weights.classes.PRIEST = { "R1", "R2" }
+    ns.Weights.profiles.R1 = { class = "PRIEST", role = "HEALER", weights = {} }
+    ns.Weights.profiles.R2 = { class = "PRIEST", weights = {} }
+    ns.Weights.titles.enUS.R2 = "Shadow"
+    eq(Score.ForTree("PRIEST", "Shadow", 3, 3), "R2", "a priest's Shadow by its name")
+    eq(Score.ForTree("PRIEST", "Holy", 2, 3), "R1", "its other trees are the profile that stands for several")
+    ns.Weights.titles.ruRU = { S2 = "Защита" }
+    W.locale = "ruRU"
+    eq(Score.ForTree("WARRIOR", "Защита", 3, 3), "S2", "a tree by its name in the player's language")
+    eq(Score.ForTree("WARRIOR", "Arms", 1, 3), "S1", "or in English")
+    W.locale = nil
+
+    -- The card of a character that is not being played carries it too.
+    eq(Score.Current({ class = "DRUID", talents = "D2" }).name, "D2", "another character: the profile of its talents")
+    eq(Score.Current({ class = "DRUID", talents = "D2", profile = "D1" }).name, "D1", "under the one chosen for it")
+    eq(Score.Current({ class = "DRUID", talents = "Gone" }).name, "D1", "one that is no longer there gives way to the class's own")
+end
+
+-- The window that comes up the first time: what the addon does, the talent tree, and the two
+-- things that can be switched off.
+function scenarios.welcome()
+    StandardWorld()
+    -- The two rings of the window's pictures. The game has not loaded the second yet.
+    W.AddItem({ id = 16999, name = "Royal Seal", equipLoc = "INVTYPE_FINGER", quality = 3, level = 54 })
+    W.AddItem({ id = 5000, name = "Coral Band", equipLoc = "INVTYPE_FINGER", level = 21, uncached = true })
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.player.talents = { { name = "Arms", points = 2 }, { name = "Fury", points = 0 }, { name = "Protection", points = 9 } }
+    W.combat = true
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(3)
+    eq(UpgradeScoutWelcome, nil, "not the moment the character is in the world")
+    W.Run(8)
+    eq(UpgradeScoutWelcome, nil, "and not in the middle of a fight")
+    W.combat = nil
+    W.RunUntil(function() return UpgradeScoutWelcome ~= nil end, 6)
+    local window = UpgradeScoutWelcome
+    eq(window:IsShown(), true, "the window comes up by itself once the fight is over")
+    eq(window.About:GetText(), ns.L.WELCOME_FIRST, "with a welcome")
+    eq(UpgradeScoutDB.welcomed, nil, "not seen yet while it is up")
+    local escape = false
+    for _, name in ipairs(UISpecialFrames) do escape = escape or name == "UpgradeScoutWelcome" end
+    check(escape, "Escape closes it")
+    check(window:GetHeight() > 300, "as tall as what it holds")
+
+    -- A button for each profile of the class; the one in use is the tree the talents are in.
+    local trees = window.Trees
+    eq(#trees, 2, "a button for each profile of the class")
+    eq(trees[1].Label:GetText(), "Arms", "by its name"); eq(trees[2].Label:GetText(), "Protection ~", "an estimated one marked as in the field")
+    eq(trees[2].Mark:IsShown(), true, "the one in use is lit: the tree the talents are in"); eq(trees[1].Mark:IsShown(), false, "the other is not")
+    check(window.Ask:GetText():find("Tester", 1, true) ~= nil, "the question names the character")
+    check(window.Ask:GetText():find(ns.L.WELCOME_TREE_WHY, 1, true) ~= nil, "and says what the answer is for")
+
+    -- The pictures: the list, an item's tooltip, the bags.
+    local list, tip, bag = window.Cards[1].Picture, window.Cards[2].Picture.Tip, window.Cards[3].Picture
+    eq(list.Rows[1].Name:GetText(), "Royal Seal", "the list's picture: an item by the name the game has for it")
+    eq(list.Rows[2].Name:GetText(), "", "no name for one the game has not loaded")
+    eq(list.Rows[1].Gain:GetText(), "+36%", "its gain on the profile in use, the second of the class")
+    eq(list.Rows[1].Price:GetText(), "1g 69s", "and a price")
+    eq(tip.Name:GetText(), "Royal Seal", "the tooltip's picture: the same item")
+    eq(tip.Lines[1].Title:GetText(), "Arms", "a line for each profile"); eq(tip.Lines[1].Gain:GetText(), "+31%", "with its gain")
+    eq(tip.Lines[2].Title:GetText(), "Protection ~", "every one of them"); eq(tip.Lines[2].Gain:GetText(), "+36%", "each its own")
+    eq(tip.Lines[3], nil, "and no more lines than profiles")
+    eq(bag.Slots[1].Arrow._atlas, "bags-greenarrow", "the bags' picture: the game's arrow")
+    eq(bag.Slots[1].Arrow._grey, false, "green on the first"); eq(bag.Slots[2].Arrow._grey, true, "grey on the second")
+    W.Run(1)
+    eq(list.Rows[2].Name:GetText(), "Coral Band", "the second ring, once the game has loaded it")
+    check(window.Cards[1].Body:GetText():find("Scan", 1, true) and window.Cards[1].Body:GetText():find("Consumables", 1, true),
+        "the auction house's card names the button and the tabs")
+    eq(window.Cards[2].Title:GetText(), "IN ITEM TOOLTIPS", "a card's name in capitals")
+
+    -- Another tree chosen: written on the character's card, as in the field on the tab.
+    local told = 0
+    ns.Listen("PROFILE_CHANGED", function() told = told + 1 end)
+    trees[1]:Click()
+    eq(ns.Roster.Me().profile, "S1", "a click on a tree chooses its profile"); eq(told, 1, "and the addon is told")
+    eq(trees[1].Mark:IsShown(), true, "the button lights up"); eq(trees[2].Mark:IsShown(), false, "the other goes dark")
+    eq(list.Rows[1].Gain:GetText(), "+31%", "the list's picture goes by the profile in use")
+    eq(tip.Lines[2].Gain:GetText(), "+36%", "the tooltip's has every profile, as before")
+    trees[1]:Click()
+    eq(told, 1, "the profile in use clicked again: nothing changes")
+
+    -- Our lines in the tooltip of any item, switched off and on.
+    local function Ours(id)
+        GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        GameTooltip:SetHyperlink(W.Link(id))
+        for _, line in ipairs(GameTooltip._lines) do
+            if line.text:find("Upgrade Scout", 1, true) then return true end
+        end
+        return false
+    end
+    local tips = window.Cards[2].Switch
+    eq(tips:GetChecked(), true, "the tooltip's box is ticked to begin with"); eq(Ours(200), true, "and an item's tooltip has our lines")
+    tips:SetChecked(false)
+    tips:Click()
+    eq(UpgradeScoutDB.tooltip, false, "unticked: written down for the account"); eq(Ours(200), false, "and the lines are gone")
+    eq(tips.Tick:IsShown(), false, "the tick goes"); eq(window.Cards[2].Picture:GetAlpha(), 0.3, "and the picture fades")
+
+    -- The arrows in the bags, the same way: they go and come at once.
+    local slot = W.PutInBags(W.Link(200))
+    W.OpenBags()
+    local function Arrow()
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    eq(Arrow(), true, "an arrow on the better chest")
+    local arrows = window.Cards[3].Switch
+    arrows:SetChecked(false)
+    arrows:Click()
+    eq(UpgradeScoutDB.arrows, false, "unticked: written down"); eq(Arrow(), false, "and the arrow is gone at once")
+    W.DrawBags()
+    eq(Arrow(), false, "it stays away when the bags are drawn again")
+    arrows:SetChecked(true)
+    arrows:Click()
+    eq(UpgradeScoutDB.arrows, nil, "ticked again: nothing is left written"); eq(Arrow(), true, "and the arrow is back")
+    eq(window.Cards[1].Switch, nil, "the auction house has no box: its tabs are in nobody's way")
+    eq(ns.Tooltip.Upgrade(W.Link(200)), true, "the arrows do not need the tooltip's lines")
+
+    -- Closed, it has been seen: it does not come up by itself again.
+    window.Done:Click()
+    eq(window:IsShown(), false, "the button closes it"); eq(UpgradeScoutDB.welcomed, true, "and it has been seen")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(window:IsShown(), false, "it does not come up by itself again")
+
+    -- /upscout brings it back, without the welcome and with the boxes as they were left.
+    SlashCmdList.UPGRADESCOUT("")
+    eq(window:IsShown(), true, "/upscout away from the auction house opens it")
+    eq(window.About:GetText(), ns.L.WELCOME_ABOUT, "without the welcome this time")
+    eq(tips:GetChecked(), false, "the boxes as they were left"); eq(arrows:GetChecked(), true, "both of them")
+    window.Close:Click()
+    eq(window:IsShown(), false, "the cross closes it")
+
+    -- At the auction house the command goes to the tab first, and from the tab to the window.
+    W.OpenAuctionHouse()
+    local tab = UpgradeScoutFrame
+    eq(tab:IsShown(), false, "the auction house is open on another tab")
+    SlashCmdList.UPGRADESCOUT("")
+    eq(tab:IsShown(), true, "/upscout: to the addon's tab"); eq(window:IsShown(), false, "not to the window")
+    SlashCmdList.UPGRADESCOUT("")
+    eq(window:IsShown(), true, "on the tab already: the window")
+
+    -- A tree chosen there with a list made: as in the field, the list is made again.
+    ScanToEnd()
+    eq(ns.Scanner.ctx.profile, "S1", "a list on the first profile")
+    trees[2]:Click()
+    eq(ns.Roster.Me().profile, "S2", "the second tree chosen in the window")
+    check(ns.Scanner.state ~= "idle", "the scan starts again")
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 600)
+    eq(ns.Scanner.ctx.profile, "S2", "and the list is on the profile chosen")
+    eq(tab.ProfileDropdown:GetText(), "Protection ~", "the field on the tab shows it")
+    eq(trees[2].Mark:IsShown(), true, "and so does the window")
+
+    -- Another character of the account is not greeted again, and has the same boxes.
+    Relog({ name = "Alty", level = 20, class = "DRUID", money = 5000 }, {})
+    W.Run(12)
+    eq(ns.Welcome.IsShown(), false, "another character of the account: no window by itself")
+    eq(ns.Shows("tooltip"), false, "what was switched off stays off for it"); eq(ns.Shows("arrows"), true, "what was on stays on")
+    ns.Welcome.Show()
+    eq(#UpgradeScoutWelcome.Trees, 2, "asked for, it has the trees of this character's class")
+    eq(UpgradeScoutWelcome.Trees[2].Label:GetText(), "Feral", "by their names")
 end
 
 local function CheckLocale(locale, language, scan)

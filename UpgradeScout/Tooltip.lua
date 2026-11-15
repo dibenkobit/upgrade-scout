@@ -159,6 +159,8 @@ local NOTES = { OFFHAND_EMPTY = "TT_OFFHAND_EMPTY", BOTH_HANDS = "TT_BOTH_HANDS"
 -- for a link in the chat get our lines: the tooltips beside them show what is worn.
 local function OnItem(tooltip)
     if tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip then return end
+    -- Switched off in the welcome window. (The rows of our own list keep their lines.)
+    if not ns.Shows("tooltip") then return end
     -- A row of our own list writes its lines itself.
     local owner = tooltip:GetOwner()
     if owner and owner.upgradeScoutRow then return end
