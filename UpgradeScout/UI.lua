@@ -1384,8 +1384,9 @@ end
 -- One box for both views: the item at its top, two lines about the purchase, "Buy" and
 -- "Cancel". It follows the purchase in `step`.
 -- Gear (`offer`): the gain the list shows for the item, and its buyout. With "Net cost" on, a
--- third line under them: what the item costs in the end, as its row says.
---   confirm  the item was looked up again and is still there at its price
+-- line under them: what the item costs in the end, as its row says. When the price has moved
+-- since the scan (`was`), the price the list had stands over the one it has now.
+--   confirm  the item was looked up again and is still there
 --   wait     "Buy" was pressed: the bid is out, and the box stays until the auction house
 --            answers, as the game's own question before a buyout does
 -- A consumable (`supply`, `tiers`) is bought by the piece, in steps (see "Consumables: the scan
@@ -1399,25 +1400,39 @@ end
 -- choose.
 local BOX_WIDTH, BOX_HEIGHT, BOX_EDGE = 330, 162, 18
 local BOX_LINE = 32         -- from one line of the box to the next
+local BOX_FIRST = -70       -- its first line, from the top of the box
 
--- The third line of the box, which only gear with "Net cost" on has. The box is taller by it;
--- the buttons hang from its bottom edge.
-local function ShowBoxNet(shown)
-    buyBox.NetLabel:SetShown(shown)
-    buyBox.Net:SetShown(shown)
-    buyBox:SetHeight(BOX_HEIGHT + (shown and BOX_LINE or 0))
+local function PlaceBoxLine(label, value, y)
+    label:SetPoint("LEFT", buyBox, "TOPLEFT", BOX_EDGE, y)
+    value:SetPoint("RIGHT", buyBox, "TOPRIGHT", -BOX_EDGE, y)
+end
+
+-- The lines under the first. What is paid is always there. Only gear has the other two: the
+-- old price over it when the price has moved, the net cost under it with "Net cost" on. The
+-- box is taller by each; the buttons hang from its bottom edge.
+local function ShowBoxLines(was, net)
+    local y = BOX_FIRST - BOX_LINE
+    buyBox.WasLabel:SetShown(was)
+    buyBox.Was:SetShown(was)
+    if was then y = y - BOX_LINE end
+    PlaceBoxLine(buyBox.TotalLabel, buyBox.Total, y)
+    buyBox.NetLabel:SetShown(net)
+    buyBox.Net:SetShown(net)
+    if net then PlaceBoxLine(buyBox.NetLabel, buyBox.Net, y - BOX_LINE) end
+    buyBox:SetHeight(BOX_HEIGHT + ((was and 1 or 0) + (net and 1 or 0)) * BOX_LINE)
 end
 
 local function PaintGearBox()
-    local offer, step = buyBox.offer, buyBox.step
+    local offer, step, was = buyBox.offer, buyBox.step, buyBox.was
     local affordable = offer.buyout <= GetMoney()
+    local net = ns.db.net and true or false
+    ShowBoxLines(was ~= nil, net)
+    if was then SetMoney(buyBox.Was, was) end
     -- What is paid is the buyout, whatever the list prices the item at.
-    buyBox.TotalLabel:SetText(Caption(L.COL_PRICE))
+    buyBox.TotalLabel:SetText(Caption(was and L.BOX_NOW or L.COL_PRICE))
     buyBox.Total:Show()
     buyBox.Total:SetFontObject(affordable and PriceFontWhite or PriceFontRed)
     SetMoney(buyBox.Total, offer.buyout)
-    local net = ns.db.net and true or false
-    ShowBoxNet(net)
     if net then SetMoney(buyBox.Net, ns.Results.Net(offer.buyout, offer.sell)) end
     buyBox.Buy.Label:SetText(ns.Upper(L.BUY))
     buyBox.Buy:SetEnabled(step == "confirm" and affordable)
@@ -1552,24 +1567,28 @@ local function BuildBuyBox()
     buyBox.Stock = NewText(buyBox, 11, MUTED, "LEFT", true)
     buyBox.Stock:SetPoint("LEFT", count, "RIGHT", PAD, 0)
 
+    -- The lines under the first stand where ShowBoxLines puts them.
+    -- The price the list had for gear, in grey: it is no longer the price.
+    buyBox.WasLabel = NewText(buyBox, 9.5, GOLD_DIM)
+    buyBox.WasLabel:SetText(Caption(L.BOX_WAS))
+    buyBox.Was = CreateFrame("Frame", nil, buyBox, "MoneyDisplayFrameTemplate")
+    buyBox.Was:SetFontObject(PriceFontGray)
+    PlaceBoxLine(buyBox.WasLabel, buyBox.Was, BOX_FIRST - BOX_LINE)
+
     buyBox.TotalLabel = NewText(buyBox, 9.5, GOLD_DIM)
-    buyBox.TotalLabel:SetPoint("LEFT", buyBox, "TOPLEFT", BOX_EDGE, -102)
     buyBox.Total = CreateFrame("Frame", nil, buyBox, "MoneyDisplayFrameTemplate")
-    buyBox.Total:SetPoint("RIGHT", buyBox, "TOPRIGHT", -BOX_EDGE, -102)
     if not C_AuctionHouse.SupportsCopperValues() then
+        buyBox.Was.CopperDisplay:SetForcedHidden(true)
         buyBox.Total.CopperDisplay:SetForcedHidden(true)
     end
 
-    -- The net cost of gear, a line further down (see ShowBoxNet). To the copper wherever the
-    -- auction house is: a vendor pays to the copper.
+    -- The net cost of gear. To the copper wherever the auction house is: a vendor pays to
+    -- the copper.
     buyBox.NetLabel = NewText(buyBox, 9.5, GOLD_DIM)
-    buyBox.NetLabel:SetPoint("LEFT", buyBox, "TOPLEFT", BOX_EDGE, -(102 + BOX_LINE))
     buyBox.NetLabel:SetText(Caption(L.NET))
-    buyBox.NetLabel:Hide()
     buyBox.Net = CreateFrame("Frame", nil, buyBox, "MoneyDisplayFrameTemplate")
-    buyBox.Net:SetPoint("RIGHT", buyBox, "TOPRIGHT", -BOX_EDGE, -(102 + BOX_LINE))
     buyBox.Net:SetFontObject(PriceFontWhite)
-    buyBox.Net:Hide()
+    ShowBoxLines(false, false)
 
     buyBox.Buy = NewButton(buyBox, 138, 24, "ButtonRed", 11)
     buyBox.Buy:SetPoint("BOTTOMLEFT", buyBox, "BOTTOMLEFT", BOX_EDGE, 16)
@@ -1597,8 +1616,9 @@ local function SetBoxKind(gear)
     buyBox.Gain:SetShown(gear)
     buyBox.Count:SetShown(not gear)
     buyBox.Stock:SetShown(not gear)
-    -- A consumable is used up: it has no net cost. (For gear, PaintGearBox says.)
-    if not gear then ShowBoxNet(false) end
+    -- A consumable is used up, and its price is asked for on the spot: it has neither a net
+    -- cost nor an old price. (For gear, PaintGearBox says.)
+    if not gear then ShowBoxLines(false, false) end
 end
 
 -- The row of the list an offer is on, for the gain the box repeats. (An offer is not listed
@@ -1959,13 +1979,17 @@ ns.Listen("OFFERS_CHANGED", QueueRefresh)
 ---------------------------------------------------------------------------
 -- Buying gear (the box is built in BuildBuyBox)
 ---------------------------------------------------------------------------
-ns.Listen("CONFIRM_BUY", function(offer)
+-- `was` is the price the list had, when the item is no longer at it.
+ns.Listen("CONFIRM_BUY", function(offer, was)
     -- The lookup before the question takes a moment; the player may have left the view since.
+    -- Nothing is asked then; a price that has moved is told in the chat.
     if not frame:IsVisible() or view ~= "gear" then
         S.CancelPurchase()
+        if was then ns.Print(L.MSG_PRICE:format(offer.link, ns.Money(offer.buyout), ns.Money(was))) end
         return
     end
     buyBox.offer, buyBox.supply, buyBox.tiers, buyBox.auction = offer, nil, nil, nil
+    buyBox.was = was
     buyBox.step = "confirm"
     SetBoxItem(offer.icon, offer.quality, offer.name, offer.link)
     SetBoxKind(true)

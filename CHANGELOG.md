@@ -24,6 +24,9 @@
   chosen too.
 - The window has a new layout: the auction house and the bags side by side, and the tooltip in
   a block of its own under them.
+- When an item's price has changed since the scan, **Buy** still asks: the box shows the
+  **old price** and the **new price**, and you buy or cancel. Before, the chat said so and you
+  had to press Buy again.
 
 ## 2.5.0
 

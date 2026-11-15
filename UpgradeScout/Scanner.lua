@@ -1341,7 +1341,8 @@ local function SearchOne(mode, offer, onDone, stopAt)
 end
 
 -- Before buying, look the item up again: the scan may be minutes old. Fires CONFIRM_BUY
--- with the fresh offer when it is still there at the same price.
+-- with the fresh offer when it is still there, and with the price the list had when that
+-- is no longer its price: the question then shows both.
 function S.Buy(offer)
     if S.state ~= "idle" then
         ns.Print(L.ERR_BUSY)
@@ -1361,11 +1362,9 @@ function S.Buy(offer)
             ns.Print(L.ERR_BROWSE)
         elseif not fresh then
             ns.Print(L.MSG_GONE:format(link))
-        elseif fresh.buyout ~= price then
-            ns.Print(L.MSG_PRICE:format(link, ns.Money(fresh.buyout), ns.Money(price)))
         else
             confirming = true
-            ns.Fire("CONFIRM_BUY", fresh)
+            ns.Fire("CONFIRM_BUY", fresh, fresh.buyout ~= price and price or nil)
         end
     end, offer.uniform and price or nil)
 end

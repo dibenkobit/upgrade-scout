@@ -26,7 +26,7 @@ read_globals = {
     "BankPanelItemButtonMixin",
     -- its frames, fonts and colours
     "AuctionHouseFrame", "GameTooltip", "MailFrame", "MailFrameTab2", "Minimap", "SendMailNameEditBox", "SendMailSubjectEditBox",
-    "ItemRefTooltip", "ShoppingTooltip1", "UIParent", "UISpecialFrames", "BankPanel", "ContainerFrameCombinedBags", "ContainerFrameContainer", "GameFontNormal", "Number13FontWhite", "PriceFontRed", "PriceFontWhite", "STANDARD_TEXT_FONT",
+    "ItemRefTooltip", "ShoppingTooltip1", "UIParent", "UISpecialFrames", "BankPanel", "ContainerFrameCombinedBags", "ContainerFrameContainer", "GameFontNormal", "Number13FontWhite", "PriceFontGray", "PriceFontRed", "PriceFontWhite", "STANDARD_TEXT_FONT",
     "GRAY_FONT_COLOR", "GREEN_FONT_COLOR", "HIGHLIGHT_FONT_COLOR", "NORMAL_FONT_COLOR", "RED_FONT_COLOR", "RAID_CLASS_COLORS",
     -- its words
     "CANCEL", "DAYS_ABBR", "HOURS_ABBR", "MINUTES_ABBR", "SECONDS_ABBR", "NONE",

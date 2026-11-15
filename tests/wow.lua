@@ -1035,7 +1035,7 @@ CANCEL, NONE = "Cancel", "None"
 SECONDS_ABBR, MINUTES_ABBR, HOURS_ABBR, DAYS_ABBR = "%d Sec", "%d Min", "%d Hr", "%d Days"
 -- The colours of the classes, as the game's ColorMixin objects.
 RAID_CLASS_COLORS = { WARRIOR = Color(0.78, 0.61, 0.43), DRUID = Color(1, 0.49, 0.04), MAGE = Color(0.25, 0.78, 0.92) }
-PriceFontWhite, PriceFontRed = { name = "PriceFontWhite" }, { name = "PriceFontRed" }
+PriceFontWhite, PriceFontRed, PriceFontGray = { name = "PriceFontWhite" }, { name = "PriceFontRed" }, { name = "PriceFontGray" }
 -- The font files the tab writes with: the standard one, and the one behind the game's number fonts.
 STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
 -- The game's fonts are families: a font file for each alphabet, of which a text takes the one

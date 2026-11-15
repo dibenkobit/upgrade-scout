@@ -1181,6 +1181,32 @@ function scenarios.buy_gone()
         local a = W.AH.auctions[i]
         if a.id == 211 or (a.id == 200 and a.buyout == 4000) then table.remove(W.AH.auctions, i) end
     end
+    -- How far below the top of the box a line stands.
+    local function Y(part)
+        for _, point in ipairs(part._points) do
+            if point.point == "LEFT" or point.point == "RIGHT" then return point.y end
+        end
+    end
+    -- How many lines the chat has about a price that changed.
+    local function Told()
+        local n = 0
+        for _, line in ipairs(W.printed) do
+            if line:find("now costs", 1, true) then n = n + 1 end
+        end
+        return n
+    end
+    local function Idle() return ns.Scanner.state == "idle" and W.AH.ready end
+
+    -- The price changed, and the player is not looking at the list: nothing pops up, and the
+    -- chat says what happened.
+    ns.Scanner.Buy(Offer("Good Chest"))
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
+    eq(Asking(), nil, "no question away from the tab")
+    eq(Offer("Good Chest").buyout, 5000, "list shows the new price")
+    eq(Told(), 1, "the chat says the price changed")
+    check(W.printed[#W.printed]:find("now costs 50s (was 40s)", 1, true) ~= nil, "the new price and the old: " .. W.printed[#W.printed])
+
+    W.RunUntil(Idle, 5)
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
     ns.Scanner.Buy(Offer("Helm"))
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
@@ -1188,17 +1214,80 @@ function scenarios.buy_gone()
     eq(Offer("Helm"), nil, "and it leaves the list")
     check(W.printed[#W.printed]:find("no longer for sale", 1, true) ~= nil, "says it is gone")
 
+    -- The price changed, and the player is looking: the box comes up as for any purchase, with
+    -- the price the list had over the one the item has now. Here someone put a cheaper copy up.
+    local cheaper = W.AddAuction(200, 4500)
+    W.RunUntil(Idle, 5)
     ns.Scanner.Buy(Offer("Good Chest"))
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 30)
-    eq(Asking(), nil, "no box when the price changed")
-    eq(Offer("Good Chest").buyout, 5000, "list shows the new price")
-    check(W.printed[#W.printed]:find("now costs", 1, true) ~= nil, "says the price changed")
+    local box = Asking()
+    check(box ~= nil, "a box when the price changed")
+    eq(Told(), 1, "and not a word in the chat")
+    eq(box.offer.buyout, 4500, "about the item at its new price"); eq(Offer("Good Chest").buyout, 4500, "which the list shows too")
+    eq(box.Gain:GetText(), "+80%", "the gain, as ever")
+    eq(box.WasLabel:IsShown(), true, "a line for the old price"); eq(box.WasLabel:GetText(), "OLD PRICE", "named")
+    eq(box.Was:IsShown(), true, "with its coins"); eq(box.Was:GetAmount(), 5000, "what the list had")
+    eq(box.Was._font, PriceFontGray, "in grey: it is not the price any more")
+    eq(box.TotalLabel:GetText(), "NEW PRICE", "under it the new one"); eq(box.Total:GetAmount(), 4500, "which is what is paid")
+    eq(box.Total._font, PriceFontWhite, "in white: the player can pay")
+    eq(Y(box.WasLabel), -102, "the old price on the second line"); eq(Y(box.Was), -102, "coins and all")
+    eq(Y(box.TotalLabel), -134, "the new one on the third"); eq(Y(box.Total), -134, "coins and all")
+    eq(box.NetLabel:IsShown(), false, "no net cost: the list is by buyout")
+    eq(box:GetHeight(), 194, "the box is taller by the line")
+    eq(box.Buy.Label:GetText(), "BUY", "the button is the usual one"); eq(box.Buy:IsEnabled(), true, "and ready")
+    box.Cancel:Click()
+    eq(#W.AH.calls.bids, 0, "nothing bought before the player agrees")
+
+    -- The list has the new price now, so the next question is the usual one.
+    W.RunUntil(Idle, 30)
+    ns.Scanner.Buy(Offer("Good Chest"))
+    W.RunUntil(Asking, 30)
+    eq(box.WasLabel:IsShown(), false, "no old price when the price holds"); eq(box.Was:IsShown(), false, "nor its coins")
+    eq(box.TotalLabel:GetText(), "BUYOUT", "the buyout under its usual name"); eq(box.Total:GetAmount(), 4500, "as listed")
+    eq(Y(box.TotalLabel), -102, "back on the second line"); eq(Y(box.Total), -102, "coins and all")
+    eq(box:GetHeight(), 162, "and the box at its usual height")
+    box.Cancel:Click()
+
+    -- With "Net cost" on the box has all four lines. The cheaper copy is sold meanwhile; "Buy"
+    -- pays the price the box shows.
+    for i = #W.AH.auctions, 1, -1 do
+        if W.AH.auctions[i] == cheaper then table.remove(W.AH.auctions, i) end
+    end
+    ns.db.net = true
+    W.RunUntil(Idle, 30)
+    ns.Scanner.Buy(Offer("Good Chest"))
+    W.RunUntil(Asking, 30)
+    eq(box.Was:GetAmount(), 4500, "the old price"); eq(box.Total:GetAmount(), 5000, "the new one")
+    eq(box.NetLabel:IsShown(), true, "and the net cost"); eq(box.Net:GetAmount(), ns.Results.Net(5000, box.offer.sell), "of the new price")
+    eq(Y(box.WasLabel), -102, "one"); eq(Y(box.TotalLabel), -134, "under the other"); eq(Y(box.NetLabel), -166, "and the third"); eq(Y(box.Net), -166, "coins and all")
+    eq(box:GetHeight(), 226, "the box is taller by two lines")
+    box.Buy:Click()
+    eq(#W.AH.calls.bids, 1, "bought"); eq(W.AH.calls.bids[1].amount, 5000, "at the new price")
+    W.RunUntil(function() return not box:IsShown() end, 5)
+    ns.db.net = false
+    eq(Told(), 1, "the chat was told once, by the purchase away from the tab")
 
     -- The server never answers the lookup.
+    W.RunUntil(Idle, 30)
     W.AH.dropSearches = 5
-    ns.Scanner.Buy(Offer("Good Chest"))
+    ns.Scanner.Buy(Offer("Great Chest"))
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 60)
     eq(Asking(), nil, "no box without an answer")
+    W.AH.dropSearches = nil
+
+    -- The new price is more than the player has: the box says so in red, and there is nothing
+    -- to press but "Cancel".
+    for _, a in ipairs(W.AH.auctions) do
+        if a.id == 201 then a.buyout = 99000 end
+    end
+    W.RunUntil(Idle, 30)
+    check(W.player.money >= 90000 and W.player.money < 99000, "enough for the old price only")
+    ns.Scanner.Buy(Offer("Great Chest"))
+    W.RunUntil(Asking, 30)
+    eq(box.Was:GetAmount(), 90000, "the old price"); eq(box.Total:GetAmount(), 99000, "the new one")
+    eq(box.Total._font, PriceFontRed, "in red: out of reach"); eq(box.Buy:IsEnabled(), false, "and cannot be paid")
+    box.Cancel:Click()
+    eq(#W.AH.calls.bids, 1, "nothing more was bought")
 end
 
 ---------------------------------------------------------------------------
