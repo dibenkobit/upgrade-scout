@@ -1,7 +1,5 @@
 # Upgrade Scout
 
-<img src="https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/logo/logo.png" alt="Upgrade Scout logo" width="128" align="right">
-
 **Finds the gear upgrades and consumables on the auction house that you can use and afford.** An addon for World of Warcraft Forever.
 
 ![Upgrade Scout: gear and consumables worth buying. One scan of the auction house shows what you can use and afford.](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/cover.png)
