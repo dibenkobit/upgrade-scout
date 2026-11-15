@@ -134,6 +134,9 @@ local L = {
     NET = "Net cost",
     NET_VALUE = "Value by net cost",
     NET_TIP = "The best value is judged by what an item costs you in the end: its buyout less what a vendor pays for it when you are done with it. Bought for 4 silver and sold for 3, it cost you 1. Unticked, it is judged by the buyout.",
+    -- In a row's tooltip, beside the buyout: what a vendor pays for the item. (The game's own
+    -- "Sell Price" does not say who pays it.)
+    NET_VENDOR = "Vendor sell price",
     PLAN_SUM = "%d items, +%s points, %s, net cost %s",
 
     -- Gear bought for another character, on its way by mail
@@ -345,6 +348,7 @@ if GetLocale() == "ruRU" then
         NET = "Чистая цена",
         NET_VALUE = "Выгода по чистой цене",
         NET_TIP = "«Самое выгодное» выбирается по тому, во что вещь обойдётся в итоге: выкуп минус то, что даст за неё торговец, когда она станет не нужна. Куплена за 4 серебра и продана за 3: стоила 1. Без галочки выбирается по выкупу.",
+        NET_VENDOR = "Цена продажи торговцу",
         PLAN_SUM = "Вещей: %d, очков: +%s, цена: %s, чистая: %s",
 
         -- Gear bought for another character, on its way by mail
@@ -544,6 +548,7 @@ if GetLocale() == "deDE" then
         NET = "Nettokosten",
         NET_VALUE = "Preis-Leistung nach Nettokosten",
         NET_TIP = "Die beste Preis-Leistung richtet sich danach, was dich ein Gegenstand am Ende kostet: der Sofortkauf abzüglich dessen, was ein Händler dafür zahlt, wenn du ihn nicht mehr brauchst. Für 4 Silber gekauft und für 3 verkauft, hat er dich 1 gekostet. Ohne Häkchen richtet sie sich nach dem Sofortkauf.",
+        NET_VENDOR = "Verkaufspreis beim Händler",
         PLAN_SUM = "%d Gegenstände, +%s Punkte, %s, netto %s",
 
         -- Gear bought for another character, on its way by mail
@@ -744,6 +749,7 @@ if GetLocale() == "frFR" then
         NET = "Coût net",
         NET_VALUE = "Meilleure affaire selon le coût net",
         NET_TIP = "La meilleure affaire est choisie selon ce qu'un objet vous coûte au final : son achat immédiat moins ce qu'un marchand vous en donne quand vous n'en avez plus besoin. Acheté 4 pièces d'argent et revendu 3, il vous en a coûté 1. Case décochée, elle est choisie selon l'achat immédiat.",
+        NET_VENDOR = "Prix de vente au marchand",
         PLAN_SUM = "%d objets, +%s points, %s, coût net %s",
 
         -- Gear bought for another character, on its way by mail
@@ -944,6 +950,7 @@ if GetLocale() == "zhCN" then
         NET = "净花费",
         NET_VALUE = "按净花费选最高性价比",
         NET_TIP = "“最高性价比”按一件物品最终花掉你多少来选：一口价减去用完后卖给商人的价钱。4银币买入，3银币卖出，实际花了1银币。不勾选时按一口价来选。",
+        NET_VENDOR = "商人收购价",
         PLAN_SUM = "%d 件，+%s 分，%s，净花费 %s",
 
         -- Gear bought for another character, on its way by mail
@@ -1145,6 +1152,7 @@ if GetLocale() == "ptBR" then
         NET = "Custo líquido",
         NET_VALUE = "Custo-benefício pelo custo líquido",
         NET_TIP = "O melhor custo-benefício é escolhido pelo que um item custa no fim das contas: o arremate menos o que um mercador paga por ele quando você não precisar mais dele. Comprado por 4 de prata e vendido por 3, custou 1. Desmarcada, a escolha é pelo arremate.",
+        NET_VENDOR = "Preço de venda ao mercador",
         PLAN_SUM = "%d itens, +%s pontos, %s, custo líquido %s",
 
         -- Gear bought for another character, on its way by mail
@@ -1345,6 +1353,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         NET = "Precio neto",
         NET_VALUE = "Rentabilidad por precio neto",
         NET_TIP = "El más rentable se elige por lo que un objeto te cuesta al final: la compra menos lo que un mercader te paga por él cuando ya no lo necesites. Comprado por 4 de plata y vendido por 3, te costó 1. Sin marcar, se elige por la compra.",
+        NET_VENDOR = "Precio de venta al mercader",
         PLAN_SUM = "%d objetos, +%s puntos, %s, precio neto %s",
 
         -- Gear bought for another character, on its way by mail
@@ -1548,6 +1557,7 @@ if GetLocale() == "koKR" then
         NET = "순비용",
         NET_VALUE = "순비용 기준 가성비",
         NET_TIP = "최고 가성비를 아이템에 결국 드는 비용으로 고릅니다. 즉시 구입가에서, 다 쓴 뒤 상인에게 팔아 받는 값을 뺀 비용입니다. 4실버에 사서 3실버에 팔면 1실버가 든 셈입니다. 체크하지 않으면 즉시 구입가로 고릅니다.",
+        NET_VENDOR = "상인 판매가",
         PLAN_SUM = "%d개, +%s점, %s, 순비용 %s",
 
         -- Gear bought for another character, on its way by mail
@@ -1749,6 +1759,7 @@ if GetLocale() == "zhTW" then
         NET = "淨花費",
         NET_VALUE = "按淨花費選最划算",
         NET_TIP = "「最划算」按一件物品最終花掉你多少來選：直購價減去用完後賣給商人的價錢。4銀幣買入，3銀幣賣出，實際花了1銀幣。不勾選時按直購價來選。",
+        NET_VENDOR = "商人收購價",
         PLAN_SUM = "%d 件，+%s 分，%s，淨花費 %s",
 
         -- Gear bought for another character, on its way by mail

@@ -2933,7 +2933,8 @@ function scenarios.net_ui()
     eq(Row("New Ring").Net:GetAmount(), 0, "the ring is for sale below its vendor price: it costs nothing in the end")
     eq(Row("Big Axe").Net:GetAmount(), 2900, "the axe less its silver"); eq(Row("Shield").Net:GetAmount(), 600, "and the shield")
     robe:GetScript("OnEnter")(robe)
-    eq(Lines().Buyout, nil, "a row's tooltip says nothing of the price: the row does"); eq(Lines()["Sell Price"], nil, "nor of what a vendor pays")
+    eq(Lines().Buyout, nil, "a row's tooltip says nothing of the price: the row does"); eq(Lines()["Vendor sell price"], nil, "nor of what a vendor pays")
+    eq(Lines()["Net cost"], nil, "nor of what that leaves")
     robe:GetScript("OnLeave")(robe)
 
     -- Ticked: the picks go by what each item costs in the end. The numbers stay where they
@@ -2957,20 +2958,25 @@ function scenarios.net_ui()
     eq(Row("Helm").Price:GetAmount(), 2500, "the helm's buyout"); eq(Row("Helm").Net:GetAmount(), 2500, "and all of it again")
     eq(Row("Helm").Upgrade:GetText(), "New", "the gains are what they were")
 
-    -- A row's tooltip then has the two halves of its price, the second under the game's own name for it.
+    -- A row's tooltip then has the whole sum: the buyout, what a vendor pays (in the addon's own
+    -- words: the game's "Sell Price" does not say who pays it), and what that leaves.
     robe:GetScript("OnEnter")(robe)
     local tip = Lines()
     check(tip.Buyout ~= nil, "what is paid now"); eq(tip.Buyout.right, "9g", "the buyout")
     eq(tip.Buyout.r, NORMAL_FONT_COLOR.r, "its name in the tooltip's gold"); eq(tip.Buyout.rightR, 1, "the sum in white")
-    check(tip["Sell Price"] ~= nil, "what comes back, without the space the game's words end in"); eq(tip["Sell Price"].right, "8g 80s", "from a vendor")
+    check(tip["Vendor sell price"] ~= nil, "what comes back, and from whom"); eq(tip["Vendor sell price"].right, "8g 80s", "from a vendor")
+    eq(tip["Sell Price"], nil, "not under the game's name for it")
+    check(tip["Net cost"] ~= nil, "and what is left of the buyout"); eq(tip["Net cost"].right, "20s", "the net cost, as the row has it")
+    eq(tip["Net cost"].r, NORMAL_FONT_COLOR.r, "named in gold like the other two"); eq(tip["Net cost"].rightR, 1, "its sum in white")
     eq(tip.Arms.right, "+200%", "under the gains on every profile, which stay")
     robe:GetScript("OnLeave")(robe)
     local helm = Row("Helm")
     helm:GetScript("OnEnter")(helm)
     tip = Lines()
-    eq(tip.Buyout.right, "25s", "the helm's buyout"); eq(tip["Sell Price"], nil, "and no sell price")
+    eq(tip.Buyout.right, "25s", "the helm's buyout"); eq(tip["Vendor sell price"], nil, "and no sell price")
     check(tip["No sell price"] ~= nil, "the game's words for an item no vendor buys")
     eq(tip["No sell price"].r, DISABLED_FONT_COLOR.r, "in grey")
+    eq(tip["Net cost"].right, "25s", "so the net cost is the whole buyout")
     helm:GetScript("OnLeave")(helm)
 
     -- A scan with the box ticked sends the searches a scan without it sends: it looks up what
@@ -6011,7 +6017,7 @@ function scenarios.pawn_tooltips()
     eq(named, false, "notes are nobody's score: the heading is the addon's name alone")
     noted:GetScript("OnLeave")(noted)
     ns.db.net = true
-    eq(Under("Good Chest"), "Buyout 40s | Sell Price 1s", "with Net cost ticked: what the cost is made of")
+    eq(Under("Good Chest"), "Buyout 40s | Vendor sell price 1s | Net cost 39s", "with Value by net cost ticked: what the cost is made of, and what it comes to")
     ns.db.net = nil
     -- The notes have a box of their own in the welcome window; the one of the score's lines
     -- on the tabs has nothing to say here.

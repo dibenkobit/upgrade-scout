@@ -224,19 +224,20 @@ local function ShowSupplyTooltip(row)
 end
 
 -- With "Value by net cost" on, a row is judged by what the item costs in the end. Its tooltip
--- then says what that is made of: what is paid now, and what a vendor gives back, under the
--- game's own name for it ("Sell Price"; the French one ends in a space, for the colon the
--- game writes after it).
+-- then has the whole sum: what is paid now, what a vendor gives back, and what that leaves,
+-- the net cost. The vendor's line is named in our own words: the game's "Sell Price" does
+-- not say who pays it, and beside a buyout it reads as another price of the auction.
 local function AddNetLines(tooltip, offer)
     local r, g, b = NORMAL_FONT_COLOR:GetRGB()
     local wr, wg, wb = HIGHLIGHT_FONT_COLOR:GetRGB()
     tooltip:AddDoubleLine(L.COL_PRICE, ns.Money(offer.buyout), r, g, b, wr, wg, wb)
     if (offer.sell or 0) > 0 then
-        tooltip:AddDoubleLine((SELL_PRICE:gsub("%s+$", "")), ns.Money(offer.sell), r, g, b, wr, wg, wb)
+        tooltip:AddDoubleLine(L.NET_VENDOR, ns.Money(offer.sell), r, g, b, wr, wg, wb)
     else
         -- "No sell price": why the net cost is the whole buyout.
         GameTooltip_AddDisabledLine(tooltip, ITEM_UNSELLABLE)
     end
+    tooltip:AddDoubleLine(L.NET, ns.Money(ns.Results.Net(offer.buyout, offer.sell)), r, g, b, wr, wg, wb)
 end
 
 -- What a row's tooltip says about buying the item, after how much better it is: how it
