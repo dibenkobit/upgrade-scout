@@ -163,6 +163,15 @@ local function AddNumber(button)
     local card = Owner()
     local words = button.fontString
     local box = button:AttachFrame("EditBox")
+    -- The game hands a frame over reset to nothing: in no layer of the menu's, so that it is
+    -- drawn under the menu's plate and nothing of it is seen, and with the rest of what it was
+    -- made with wiped as well. (Its own menus say as much where they attach a button, and set
+    -- these by hand: MenuTemplates.AttachBasicButton.) So the field is put in the menu's layer,
+    -- above its line, in view and in reach of the mouse.
+    box:SetFrameStrata(button:GetFrameStrata())
+    box:SetFrameLevel(button:GetFrameLevel() + 1)
+    box:Show()
+    box:EnableMouse(true)
     box:SetSize(NUMBER_WIDTH, NUMBER_HEIGHT)
     box:SetPoint("LEFT", words, "RIGHT", 6, -1)
     NewSlices(box, "Inset", 0.25, 6, "BACKGROUND", 0, 0, function() return box:AttachTexture() end)

@@ -88,7 +88,7 @@ for _, name in ipairs({
     "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetDrawLayer",
     "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks", "SetHighlightTexture",
-    "SetFrameStrata", "EnableMouse", "SetSnapToPixelGrid", "SetTexelSnappingBias", "SetClampedToScreen",
+    "SetSnapToPixelGrid", "SetTexelSnappingBias", "SetClampedToScreen",
     -- a window the player can drag about
     "SetMovable", "RegisterForDrag", "StartMoving", "StopMovingOrSizing",
     -- edit boxes
@@ -146,6 +146,22 @@ function M:SetAlpha(alpha) self._alpha = alpha end
 function M:GetAlpha() return self._alpha or 1 end
 function M:SetFrameLevel(level) self._level = level end
 function M:GetFrameLevel() return self._level or 1 end
+-- The layer a frame is drawn in: its own where it was given one, or else its parent's. A frame
+-- in a lower layer than another is drawn under it, whatever their levels.
+function M:SetFrameStrata(strata)
+    assert(type(strata) == "string", "the name of a layer")
+    self._strata = strata
+end
+function M:GetFrameStrata()
+    local widget = self
+    while widget do
+        if widget._strata then return widget._strata end
+        widget = widget._parent
+    end
+    return "MEDIUM"
+end
+-- Whether the mouse reaches the frame: widget._mouse, for a frame that was told.
+function M:EnableMouse(enabled) self._mouse = enabled and true or false end
 function M:GetTexture() return self._texture end
 function M:SetFont(file, size, flags)
     assert(type(file) == "string" and type(size) == "number" and type(flags) == "string", "a font file, a size and flags")
@@ -853,13 +869,22 @@ local function DropdownModel(dropdown)
         function frame:AttachFrame(kind)
             assert(kind == "Frame" or kind == "Button" or kind == "CheckButton" or kind == "StatusBar" or kind == "EditBox",
                 "a kind of frame a menu can attach")
-            return Attachable(Widget(kind, nil, self))
+            -- The game resets the frame it hands over (SetToDefaults): nothing it was made
+            -- with can be taken for granted. It is in a layer of its own and not the menu's,
+            -- which puts it under the menu's plate, at the bottom of that layer, out of view
+            -- and deaf to the mouse, until the one who attached it says otherwise. The game's
+            -- own menus do (MenuTemplates.AttachBasicButton: "Machinery is broken").
+            local child = Attachable(Widget(kind, nil, self))
+            child._strata, child._level, child._shown, child._mouse = "MEDIUM", 0, false, false
+            return child
         end
         return frame
     end
     local function MenuLine(check)
         local line = Attachable(Widget("Button"))
         line._check = check
+        -- A menu is in the layer over the game's windows, its lines above its own frame.
+        line._strata, line._level = "FULLSCREEN_DIALOG", 520
         line.leftTexture1, line.highlight = line:AttachTexture(), line:AttachTexture()
         line.leftTexture1:SetAtlas("common-dropdown-ticksquare")
         if check.isSelected(check.data) then

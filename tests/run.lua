@@ -6690,6 +6690,12 @@ function scenarios.gain_ui()
     check(number ~= nil and number._kind == "EditBox", "the line has a field for the number")
     eq(number:GetText(), "10", "with ten in it before a number is typed"); eq(line.Tick:IsShown(), false, "and no tick")
     eq(number:GetWidth(), 46, "wide enough for four digits")
+    -- The game hands an attached frame over in a layer under the menu, out of view and deaf to
+    -- the mouse: the field is put where it can be seen and typed into.
+    eq(number:IsVisible(), true, "the field is in view")
+    eq(number:GetFrameStrata(), "FULLSCREEN_DIALOG", "in the menu's layer, not under its plate")
+    check(number:GetFrameLevel() > line:GetFrameLevel(), "above its line")
+    eq(number._mouse, true, "and in reach of the mouse")
     eq(Pictures(number, "Inset"), 9, "a recess of ours, like the tick box's")
     check(line._size ~= nil, "the line says how big it is with its field")
     eq(line._size[1], 16 + 7 + line.fontString:GetStringWidth() + 6 + 46 + 4 + 6, "the box, the words, the field and the sign in a row")
