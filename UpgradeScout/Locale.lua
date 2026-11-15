@@ -249,7 +249,7 @@ if GetLocale() == "ruRU" then
         TT_EFFECTS = "Есть эффекты, которые оценка не учитывает.",
         TT_OFFHAND_EMPTY = "Левая рука останется пустой.",
         TT_BOTH_HANDS = "Занимает обе руки.",
-        TT_CANT_AFFORD = "Не хватает %s.",
+        TT_CANT_AFFORD = "Не хватает %s",
 
         MSG_GONE = "%s уже не продаётся.",
         MSG_PRICE = "%s теперь стоит %s (было %s).",
@@ -430,7 +430,7 @@ if GetLocale() == "deDE" then
         TT_EFFECTS = "Hat Effekte, die die Wertung nicht mitzählt.",
         TT_OFFHAND_EMPTY = "Deine Schildhand bleibt leer.",
         TT_BOTH_HANDS = "Belegt beide Hände.",
-        TT_CANT_AFFORD = "Dir fehlen %s.",
+        TT_CANT_AFFORD = "Dir fehlen %s",
 
         MSG_GONE = "%s wird nicht mehr angeboten.",
         MSG_PRICE = "%s kostet jetzt %s (vorher %s).",
@@ -612,7 +612,7 @@ if GetLocale() == "frFR" then
         TT_EFFECTS = "Possède des effets que le score ne compte pas.",
         TT_OFFHAND_EMPTY = "Votre main gauche sera vide.",
         TT_BOTH_HANDS = "Occupe les deux mains.",
-        TT_CANT_AFFORD = "Il vous manque %s.",
+        TT_CANT_AFFORD = "Il vous manque %s",
 
         MSG_GONE = "%s n'est plus en vente.",
         MSG_PRICE = "%s coûte maintenant %s (%s auparavant).",
@@ -794,7 +794,7 @@ if GetLocale() == "zhCN" then
         TT_EFFECTS = "带有未计入评分的效果。",
         TT_OFFHAND_EMPTY = "你的副手将会空出。",
         TT_BOTH_HANDS = "占用双手。",
-        TT_CANT_AFFORD = "还差 %s。",
+        TT_CANT_AFFORD = "还差 %s",
 
         MSG_GONE = "%s 已不再出售。",
         MSG_PRICE = "%s 现在售价 %s（之前为 %s）。",
@@ -977,7 +977,7 @@ if GetLocale() == "ptBR" then
         TT_EFFECTS = "Tem efeitos que a pontuação não conta.",
         TT_OFFHAND_EMPTY = "Sua mão secundária ficará vazia.",
         TT_BOTH_HANDS = "Ocupa as duas mãos.",
-        TT_CANT_AFFORD = "Faltam %s.",
+        TT_CANT_AFFORD = "Faltam %s",
 
         MSG_GONE = "%s não está mais à venda.",
         MSG_PRICE = "%s agora custa %s (antes: %s).",
@@ -1159,7 +1159,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         TT_EFFECTS = "Tiene efectos que la puntuación no cuenta.",
         TT_OFFHAND_EMPTY = "Tu mano izquierda quedará vacía.",
         TT_BOTH_HANDS = "Ocupa ambas manos.",
-        TT_CANT_AFFORD = "Te faltan %s.",
+        TT_CANT_AFFORD = "Te faltan %s",
 
         MSG_GONE = "%s ya no está en venta.",
         MSG_PRICE = "%s ahora cuesta %s (antes %s).",
@@ -1526,7 +1526,7 @@ if GetLocale() == "zhTW" then
         TT_EFFECTS = "帶有未計入評分的效果。",
         TT_OFFHAND_EMPTY = "你的副手將會空出。",
         TT_BOTH_HANDS = "佔用雙手。",
-        TT_CANT_AFFORD = "還差 %s。",
+        TT_CANT_AFFORD = "還差 %s",
 
         MSG_GONE = "%s 已不再販售。",
         MSG_PRICE = "%s 現在售價 %s（之前為 %s）。",
