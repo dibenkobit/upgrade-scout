@@ -257,14 +257,17 @@ end
 
 -- The rows of a set for the list: its offers under the headings of their slots, in the order
 -- the list has its slots.
+-- A set is chosen by what is paid for it now, the buyouts: a budget is money in hand. With
+-- `net` its rows are priced as the list's are, at their net cost (see Results.Cost).
 -- Returns rows, summary
 --   rows      as Results.Build makes them. A heading is `plain`: nothing is folded away under
 --             it and it counts nothing. An item's `share` is its gain next to the biggest gain
 --             of the set, for its meter.
---   summary   { upgrades, slots, hidden = 0, cost = copper for the set, gain = points it adds }
-function Plan.Rows(set)
+--   summary   { upgrades, slots, hidden = 0, cost = copper for the set, gain = points it adds,
+--               net = what the set costs in the end (the net costs of its items) }
+function Plan.Rows(set, net)
     local rows = {}
-    local summary = { upgrades = 0, slots = 0, hidden = 0, cost = 0, gain = 0 }
+    local summary = { upgrades = 0, slots = 0, hidden = 0, cost = 0, gain = 0, net = 0 }
     if not set then return rows, summary end
 
     local picks = {}
@@ -278,7 +281,8 @@ function Plan.Rows(set)
             byGroup[placement.group] = list
         end
         -- (A set costs no more than there is: all of it can be paid for.)
-        list[#list + 1] = { kind = "item", entry = ns.Results.Entry(offer, placement, true) }
+        list[#list + 1] = { kind = "item", entry = ns.Results.Entry(offer, placement, true, net) }
+        summary.net = summary.net + ns.Results.Net(offer.buyout, offer.sell)
         if placement.delta > top then top = placement.delta end
     end
 

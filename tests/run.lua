@@ -10,7 +10,7 @@ local names = {
     "events", "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
-    "buy", "buy_gone", "plan", "plan_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "tooltips", "arrows",
+    "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
 }
@@ -937,6 +937,8 @@ function scenarios.buy()
     eq(box.link, good.link, "about the item"); check(box.Name:GetText():find("Good Chest", 1, true) ~= nil, "named")
     eq(box.FirstLabel:GetText(), "UPGRADE", "what it gains"); eq(box.Gain:GetText(), "+80%", "as the list says: 18 against 10")
     eq(box.TotalLabel:GetText(), "BUYOUT", "and its buyout"); eq(box.Total:GetAmount(), 4000, "in coins")
+    eq(box.NetLabel:IsShown(), false, "no line for a net cost: the list is by buyout"); eq(box.Net:IsShown(), false, "nor its coins")
+    eq(box:GetHeight(), 162, "the box at its usual height")
     eq(box.Count:IsShown(), false, "nothing to count"); eq(box.Stock:IsShown(), false, "nor a stock")
     eq(box.Buy.Label:GetText(), "BUY", "its button says what it does")
     check(table.concat(UISpecialFrames, " "):find(box:GetName(), 1, true) ~= nil, "Escape closes it")
@@ -1966,6 +1968,392 @@ function scenarios.plan_ui()
     eq(frame.AffordCheck:IsEnabled(), true, "and their price filter works")
 end
 
+---------------------------------------------------------------------------
+-- Net cost: gear priced at its buyout less what a vendor pays for it afterwards. What the
+-- list makes of it, and that a scan still looks up no more prices than the list can show.
+function scenarios.net()
+    BusyWorld()
+    -- What a vendor pays for each of the 150 items: from nothing up to two gold, so that many
+    -- of them sell for more than they cost at auction.
+    for i = 1, 150 do W.items[(2000 + i) .. ":0"].sell = (i * 7919) % 20000 end
+    W.player.money = 15000
+    LoadAddon()
+    local R = ns.Results
+
+    eq(R.Net(400, 300), 100, "bought for 4 silver and sold for 3: it cost 1")
+    eq(R.Net(400, 0), 400, "an item no vendor buys costs its whole buyout")
+    eq(R.Net(400), 400, "and so does one of which nothing is known")
+    eq(R.Net(200, 300), 0, "an auction below the vendor's price costs nothing, and no less than that")
+    eq(R.Cost({ buyout = 400, sell = 300 }, false), 400, "the list prices an offer at its buyout")
+    eq(R.Cost({ buyout = 400, sell = 300 }, true), 100, "or, with the box ticked, at its net cost")
+
+    -- Three chests against one worth 10. By buyout the cheap one is the best value. The dear
+    -- one sells back for nearly all of its price: by net cost it is the cheapest per point.
+    local ctx = { equipped = { [5] = { link = "WORN", value = 10, invType = "INVTYPE_CHEST", itemID = 1 } } }
+    local function offer(id, value, buyout, sell)
+        return { id = id, name = id, value = value, buyout = buyout, sell = sell, invType = "INVTYPE_CHEST", itemID = 100, count = 1 }
+    end
+    local offers = {
+        a = offer("a", 50, 100000, 96000),  -- +40 for 10 gold, 40 silver net: 100 a point
+        b = offer("b", 30, 20000, 2000),    -- +20 for 2 gold, 1 gold 80 net: 900 a point
+        c = offer("c", 22, 6000, 0),        -- +12 for 60 silver, which no vendor gives back: 500 a point
+    }
+    local rows
+    -- "a@100000!UPGRADE b@20000 ...": the offers of the chest slot with what the list prices them at.
+    local function Read()
+        local out = {}
+        for _, row in ipairs(rows) do
+            if row.kind == "item" then
+                out[#out + 1] = row.entry.offer.id .. "@" .. row.entry.cost .. (row.entry.pick and ("!" .. row.entry.pick) or "")
+            end
+        end
+        return table.concat(out, " ")
+    end
+    rows = R.Build(offers, ctx, { money = 1e9 })
+    eq(Read(), "a@100000!UPGRADE b@20000 c@6000!VALUE", "by buyout: the cheap chest is the best value")
+    near(rows[2].entry.costPer, 2500, "a point of the dear one costs 25 silver")
+    rows = R.Build(offers, ctx, { money = 1e9, net = true })
+    eq(Read(), "a@4000!BOTH b@18000 c@6000", "by net cost: the dear chest is the best value too")
+    near(rows[2].entry.costPer, 100, "a point of it costs a silver in the end")
+    eq(rows[2].entry.offer.buyout, 100000, "the offer keeps its buyout")
+    -- "Top N per slot" goes by the same price: nothing weaker is cheaper per point than the dear chest.
+    rows = R.Build(offers, ctx, { money = 1e9, net = true, limit = 5 })
+    eq(Read(), "a@4000!BOTH", "top five by net cost: the dear chest alone")
+    eq(rows[1].shown, 1, "one row"); eq(rows[1].total, 3, "of three")
+    rows = R.Build(offers, ctx, { money = 1e9, limit = 5 })
+    eq(Read(), "a@100000!UPGRADE b@20000 c@6000!VALUE", "top five by buyout: each cheaper per point than the one above")
+    -- What can be paid for is a matter of the buyout: ten gold are not there, whatever comes back later.
+    local summary
+    rows, summary = R.Build(offers, ctx, { money = 50000, affordableOnly = true, net = true })
+    eq(Read(), "b@18000!UPGRADE c@6000!VALUE", "five gold: the dear chest is left out for its buyout")
+    eq(summary.hidden, 1, "and counted as too dear")
+    rows = R.Build(offers, ctx, { money = 50000, net = true })
+    eq(rows[2].entry.affordable, false, "listed, it is marked as too dear")
+
+    -- Of two offers that gain the same, the one that costs less in the end stands first.
+    offers = { d = offer("d", 30, 5000, 100), e = offer("e", 30, 6000, 2000) }
+    rows = R.Build(offers, ctx, { money = 1e9 })
+    eq(Read(), "d@5000!BOTH e@6000", "by buyout")
+    rows = R.Build(offers, ctx, { money = 1e9, net = true })
+    eq(Read(), "e@4000!BOTH d@4900", "by net cost")
+    -- An offer below the vendor's price costs nothing a point: no better value than that.
+    offers = { a = offer("a", 50, 100000, 96000), f = offer("f", 40, 300, 500), g = offer("g", 35, 300, 500) }
+    rows = R.Build(offers, ctx, { money = 1e9, net = true, limit = 5 })
+    eq(Read(), "a@4000!UPGRADE f@0!VALUE", "free in the end: the best value, and nothing weaker has a place beside it")
+
+    -- What the scanner asks before an item search: would "top five" hide an item whatever its
+    -- price turns out to be? The least it can cost is then a net cost as well.
+    local entries = R.Collect({ a = offer("a", 50, 100000, 96000) }, ctx, { money = 1e9, net = true }).CHEST
+    eq(R.Dominated(entries, 20, 2000), true, "+20 for a silver a point at the least: no cheaper than the dear chest")
+    eq(R.Dominated(entries, 20, 1999), false, "a copper less and it may be worth a row")
+    eq(R.Dominated(entries, 40, 4001), true, "the same gain for more")
+    eq(R.Dominated(entries, 40, 4000), false, "but not for the same")
+    entries = R.Collect({ a = offer("a", 50, 100000, 96000) }, ctx, { money = 1e9 }).CHEST
+    eq(R.Dominated(entries, 20, 2000), false, "by buyout the dear chest rules that item out no more")
+
+    -- A set is chosen by its buyouts, and says what it costs in the end.
+    local plan = ns.Plan
+    local worn = { equipped = { [5] = { link = "worn", itemID = 1, invType = "INVTYPE_CHEST", value = 10 } }, dualWield = false }
+    local chest = { id = "o1", itemID = 11, invType = "INVTYPE_CHEST", value = 20, buyout = 40000, sell = 30000, link = "l1", name = "Chest", count = 1 }
+    local boots = { id = "o2", itemID = 12, invType = "INVTYPE_FEET", value = 8, buyout = 20000, sell = 25000, link = "l2", name = "Boots", count = 1 }
+    local set = plan.Choose(plan.Ladder({ o1 = chest, o2 = boots }, worn, 60000), 60000)
+    rows, summary = plan.Rows(set, true)
+    eq(summary.cost, 60000, "a set for six gold"); eq(summary.net, 10000, "costs one in the end: the boots sell for more than they cost")
+    eq(Read(), "o1@10000 o2@0", "its rows are priced at their net cost")
+    rows, summary = plan.Rows(set)
+    eq(Read(), "o1@40000 o2@20000", "or at their buyouts"); eq(summary.net, 10000, "with the same net cost of the set")
+    eq(plan.Choose(plan.Ladder({ o1 = chest, o2 = boots }, worn, 30000), 30000).cost, 20000,
+        "three gold buy the boots alone: the chest's net cost of one gold does not make it fit")
+
+    -- The scan. Reference: both filters off, so every price is looked up.
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    local function Shown(net, topOnly)
+        local list = R.Build(S.offers, S.ctx, { money = GetMoney(), affordableOnly = true, net = net, limit = topOnly and R.TOP_COUNT or nil })
+        local out = {}
+        for _, row in ipairs(list) do
+            if row.kind == "header" then
+                out[#out + 1] = "[" .. row.group .. "]"
+            else
+                local entry = row.entry
+                out[#out + 1] = entry.offer.id .. "@" .. entry.cost .. (entry.pick and ("!" .. entry.pick) or "")
+            end
+        end
+        return table.concat(out, " ")
+    end
+    local function Scan(net, affordableOnly, topOnly)
+        ns.db.net = net
+        SetView(affordableOnly, topOnly)
+        W.RunUntil(function() return W.AH.ready end, 5)
+        local before = W.AH.calls.search
+        ScanToEnd()
+        return W.AH.calls.search - before
+    end
+    local function Idle() return S.state == "idle" end
+
+    local all = Scan(true, false, false)
+    eq(S.stats.skipped, 0, "the reference scan skips nothing")
+    local free, cheaper = 0, 0
+    for _, found in pairs(S.offers) do
+        eq(found.sell, W.items[found.itemID .. ":0"].sell, "an offer knows what a vendor pays for its item")
+        if R.Net(found.buyout, found.sell) == 0 then free = free + 1 elseif found.sell > 0 then cheaper = cheaper + 1 end
+    end
+    check(free >= 10 and cheaper >= 10, "offers below the vendor's price and above it (" .. free .. ", " .. cheaper .. ")")
+    local want = { net = Shown(true, true), buyout = Shown(false, true) }
+    check(want.net ~= want.buyout, "the net cost changes what 'top five' shows in this world")
+
+    -- Scanned with the box ticked and the filters on: the same list for fewer searches.
+    local used = Scan(true, true, true)
+    eq(Shown(true, true), want.net, "the same list by net cost as the full scan")
+    check(used < all, "for fewer item searches (" .. used .. " of " .. all .. ")")
+    eq(S.stats.searches + S.stats.skipped, S.stats.candidates, "every candidate is either searched or skipped")
+
+    -- Scanned without it, the list is the one by buyout. Ticking the box afterwards looks up
+    -- the prices the list by net cost needs and the one by buyout did not.
+    local plain = Scan(false, true, true)
+    eq(Shown(false, true), want.buyout, "the same list by buyout as the full scan")
+    eq(S.Demand(), false, "which needs nothing more")
+    ns.db.net = true
+    eq(S.Demand(), true, "ticked after the scan: the offers only the net cost brings up get their prices looked up")
+    eq(S.mode, "more", "as a follow-up, not as a new scan")
+    W.RunUntil(Idle, 600)
+    eq(Shown(true, true), want.net, "then the list is the one a scan with the box ticked makes")
+    eq(S.Demand(), false, "and nothing is left to look up")
+    ns.db.net = false
+    if S.Demand() then W.RunUntil(Idle, 600) end
+    eq(Shown(false, true), want.buyout, "unticked: the list by buyout again")
+    realPrint(string.format("      item searches: %d with both filters off, %d by net cost, %d by buyout", all, used, plain))
+end
+
+-- The "Net cost" box of the Upgrades tab, and what it changes there.
+function scenarios.net_ui()
+    StandardWorld()
+    -- What a vendor pays. The robe sells back for nearly all of its nine gold, the good chest
+    -- for a quarter of its 40 silver. No vendor buys the helm. The ring is for sale below its
+    -- vendor price. The axe and the shield sell for the stand-in's one silver.
+    W.items["201:0"].sell = 88000
+    W.items["200:0"].sell = 1000
+    W.items["211:0"].sell = 0
+    W.items["210:0"].sell = 900
+    -- A chest that adds little, +4 for 18 silver. By buyout that is less per point than the
+    -- good chest's 50 copper, so "top five" lists it; too small a gain to be the best value.
+    -- By net cost the robe costs less per point, and the list has no use for it.
+    W.AddItem({ id = 221, name = "Slight Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 14, level = 8 })
+    W.AddAuction(221, 1800)
+    LoadAddon()
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    local frame = UpgradeScoutFrame
+    local tabs = LibStub("LibAHTab-1-0")
+    tabs:SetSelected("UpgradeScout")
+    local list, net, afford, top = frame.List, frame.NetCheck, frame.AffordCheck, frame.TopCheck
+    local box
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then box = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(box:GetFrames()) do
+            if w._shown and w._kind == "Button" and w.entry and w.entry.offer.name == name then return w end
+        end
+    end
+    local function Heading(title)
+        for _, w in ipairs(box:GetFrames()) do
+            if w._shown and w.Title and w.Title:GetText() == title then return w end
+        end
+    end
+    local function Settle()
+        W.RunUntil(function() return S.state == "idle" end, 120)
+        W.Run(0.3)
+    end
+    local function Tick(tickBox, on)
+        tickBox:SetChecked(on)
+        tickBox:Click()
+        Settle()
+    end
+    -- The lines of the tooltip that is up, by the words on their left.
+    local function Lines()
+        local out = {}
+        for _, line in ipairs(GameTooltip._lines) do out[line.text] = line end
+        return out
+    end
+
+    -- The box: the last in the row of tick boxes above the list, off until it is ticked.
+    check(net ~= nil, "the tab has the box")
+    eq(net._kind, "CheckButton", "a tick box like the filters"); eq(net.Text:GetText(), "Net cost", "with its label")
+    eq(net:IsShown(), true, "in view on the Upgrades tab")
+    eq(net:GetChecked(), false, "not ticked"); eq(net.Tick:IsShown(), false, "no tick showing")
+    eq(ns.db.net, nil, "off until the player says otherwise")
+    net:GetScript("OnEnter")(net)
+    eq(GameTooltip._lines[1].text, "Net cost", "its tooltip is titled with its label")
+    check(GameTooltip._lines[2].text:find("less what a vendor pays for it", 1, true) ~= nil, "and says what a net cost is")
+    check(GameTooltip._lines[2].text:find("Bought for 4 silver and sold for 3, it cost you 1.", 1, true) ~= nil, "with an example")
+    net:GetScript("OnLeave")(net)
+    -- Where the boxes stand, from the left edge of the window (800 wide): each a box, a gap and
+    -- its label wide, 16 apart, the last one ending 14 short of the right edge. The profile
+    -- field keeps clear of the first.
+    local function Left(part)
+        eq(#part._points, 1, "one anchor"); eq(part._points[1].point, "LEFT", "by its left edge")
+        return 800 + part._points[1].x
+    end
+    local function Width(part) return 16 + 6 + part.Text:GetStringWidth() end
+    eq(Left(net) + Width(net), 800 - 14, "the net cost box ends at the right end of the bar")
+    eq(Left(top) + Width(top) + 16, Left(net), "top five stands before it")
+    eq(Left(afford) + Width(afford) + 16, Left(top), "and the price filter before that")
+    local dropdown, scan = frame.ProfileDropdown, frame.ScanButton
+    eq(frame.ProfileLabel:IsShown(), true, "the profile field keeps its caption: its menu has no other characters")
+    check(dropdown:GetWidth() >= 110, "and a width that shows a profile's name (" .. dropdown:GetWidth() .. ")")
+    check(72 + scan:GetWidth() + dropdown._points[1].x + dropdown:GetWidth() + 16 <= Left(afford), "and ends clear of the first box")
+
+    -- By buyout, as ever.
+    ScanToEnd()
+    W.Run(0.3)
+    eq(list.Titles[4]:GetText(), "BUYOUT", "the price column is headed by what it shows")
+    eq(Row("Great Chest").Price:GetAmount(), 90000, "the robe at its nine gold"); eq(Row("Great Chest").Pick.Text:GetText(), "Best upgrade", "the best upgrade")
+    eq(Row("Good Chest").Price:GetAmount(), 4000, "the good chest at its 40 silver"); eq(Row("Good Chest").Pick.Text:GetText(), "Best value", "the best value")
+    eq(Row("Slight Chest").Price:GetAmount(), 1800, "the slight chest under them")
+    local robe = Row("Great Chest")
+    robe:GetScript("OnEnter")(robe)
+    eq(Lines().Buyout, nil, "a row's tooltip says nothing of the price: the row does"); eq(Lines()["Sell Price"], nil, "nor of what a vendor pays")
+    robe:GetScript("OnLeave")(robe)
+
+    -- Ticked: the column shows what each item costs in the end, and the picks go by that.
+    local searches = W.AH.calls.search
+    local sounds = #W.sounds
+    Tick(net, true)
+    eq(#W.sounds, sounds + 1, "the box clicks")
+    eq(ns.db.net, true, "the setting is kept"); eq(UpgradeScoutCharDB.net, true, "with the character's saved ones")
+    eq(net.Tick:IsShown(), true, "the tick shows")
+    eq(W.AH.calls.search, searches, "nothing to look up: every price here was known")
+    eq(list.Titles[4]:GetText(), "NET COST", "the column is headed anew")
+    robe = Row("Great Chest")
+    eq(robe.Price:GetAmount(), 2000, "the robe: nine gold less the 8 gold 80 a vendor pays")
+    eq(robe.Price._font, PriceFontWhite, "in white: its buyout can be paid")
+    eq(robe.Pick.Text:GetText(), "Best of both", "the strongest chest is the cheapest per point too: 20 silver for +20")
+    eq(Row("Good Chest"), nil, "top five has no use for the good chest now: weaker, and 30 silver for +8")
+    eq(Row("Slight Chest"), nil, "nor for the slight one: 17 silver for +4")
+    eq(Heading("CHEST").Count:GetText(), "1 of 3", "the heading counts them")
+    eq(Row("Helm").Price:GetAmount(), 2500, "no vendor buys the helm: its whole buyout")
+    eq(Row("New Ring").Price:GetAmount(), 0, "the ring is for sale below its vendor price: it costs nothing in the end")
+    eq(Row("Big Axe").Price:GetAmount(), 2900, "the axe less its silver"); eq(Row("Shield").Price:GetAmount(), 600, "and the shield")
+    eq(Row("Helm").Upgrade:GetText(), "New", "the gains are what they were")
+
+    -- A row's tooltip then has the two halves of its price, the second under the game's own name for it.
+    robe:GetScript("OnEnter")(robe)
+    local tip = Lines()
+    check(tip.Buyout ~= nil, "what is paid now"); eq(tip.Buyout.right, "9g", "the buyout")
+    eq(tip.Buyout.r, NORMAL_FONT_COLOR.r, "its name in the tooltip's gold"); eq(tip.Buyout.rightR, 1, "the sum in white")
+    check(tip["Sell Price"] ~= nil, "what comes back, without the space the game's words end in"); eq(tip["Sell Price"].right, "8g 80s", "from a vendor")
+    eq(tip.Arms.right, "+200%", "under the gains on every profile, which stay")
+    robe:GetScript("OnLeave")(robe)
+    local helm = Row("Helm")
+    helm:GetScript("OnEnter")(helm)
+    tip = Lines()
+    eq(tip.Buyout.right, "25s", "the helm's buyout"); eq(tip["Sell Price"], nil, "and no sell price")
+    check(tip["No sell price"] ~= nil, "the game's words for an item no vendor buys")
+    eq(tip["No sell price"].r, DISABLED_FONT_COLOR.r, "in grey")
+    helm:GetScript("OnLeave")(helm)
+
+    -- A scan with the box ticked looks up no price the list by net cost has no use for: the
+    -- slight chest goes unpriced. (The first scan, by buyout, searched for all nine items that
+    -- score as upgrades. The good chest's row has a bid on it, so its lowest price says nothing
+    -- of its buyouts, and it is searched for either way.) Unticking the box brings the slight
+    -- chest up: the list by buyout has a row for it.
+    eq(searches, 9, "the scan by buyout: nine item searches")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    ScanToEnd()
+    W.Run(0.3)
+    eq(W.AH.calls.search - searches, 8, "the scan by net cost: one fewer")
+    eq(Offer("Slight Chest"), nil, "the slight chest's price was not looked up")
+    eq(Heading("CHEST").Count:GetText(), "1 of about 3", "its heading counts it all the same")
+    Tick(net, false)
+    eq(W.AH.calls.search - searches, 9, "unticked: one search more")
+    check(Row("Slight Chest") ~= nil, "for the slight chest, which the list by buyout shows")
+    eq(Row("Good Chest").Pick.Text:GetText(), "Best value", "under the best value")
+    Tick(net, true)
+    eq(Row("Slight Chest"), nil, "ticked again: out of the list once more")
+
+    -- The best set for a budget is chosen by buyouts, as ever. Its rows are priced as the list's,
+    -- and the strip says both sums.
+    local bar = frame.PlanBar
+    Tick(bar.Check, true)
+    eq(bar.Summary:GetText(), "4 items, +45 points, 9g 40s, net cost 51s", "the set for ten gold: what is paid, and what it costs in the end")
+    eq(Row("Great Chest").Price:GetAmount(), 2000, "a row of the set at its net cost")
+    eq(list.Titles[4]:GetText(), "NET COST", "under the same heading")
+    eq(net:IsEnabled(), true, "the box keeps its say in a set"); eq(top:IsEnabled(), false, "where the filters have none")
+    Tick(net, false)
+    eq(bar.Summary:GetText(), "4 items, +45 points, 9g 40s", "unticked: the set and its buyouts")
+    eq(Row("Great Chest").Price:GetAmount(), 90000, "row by row")
+    Tick(net, true)
+    Tick(bar.Check, false)
+
+    -- What can be paid for is a matter of the buyout. With five gold the robe is out of reach,
+    -- whatever a vendor would give for it later.
+    W.player.money = 50000
+    W.Fire("PLAYER_MONEY")
+    Settle()
+    eq(Row("Great Chest"), nil, "five gold: the robe is left out, 20 silver in the end or not")
+    eq(Row("Good Chest").Pick.Text:GetText(), "Best of both", "and the good chest is the pick of the slot")
+    Tick(afford, false)
+    robe = Row("Great Chest")
+    eq(robe.Price:GetAmount(), 2000, "listed again, at its net cost"); eq(robe.Price._font, PriceFontRed, "in red: its buyout cannot be paid")
+    eq(robe.Buy:IsEnabled(), false, "and it cannot be bought")
+    robe:GetScript("OnEnter")(robe)
+    check(Lines()["You are 4g short."] ~= nil, "the tooltip counts what is missing from the buyout")
+    robe:GetScript("OnLeave")(robe)
+    W.player.money = 100000
+    W.Fire("PLAYER_MONEY")
+    Tick(afford, true)
+
+    -- The box that asks before a purchase: what is paid, and under it what it costs in the end.
+    Row("Great Chest").Buy:Click()
+    W.RunUntil(Asking, 30)
+    local ask = Asking()
+    eq(ask.TotalLabel:GetText(), "BUYOUT", "the buyout"); eq(ask.Total:GetAmount(), 90000, "is what is paid")
+    eq(ask.NetLabel:IsShown(), true, "a third line"); eq(ask.NetLabel:GetText(), "NET COST", "headed as the column is")
+    eq(ask.Net:IsShown(), true, "with its coins"); eq(ask.Net:GetAmount(), 2000, "the net cost, as the row has it")
+    eq(ask:GetHeight(), 194, "the box is taller by the line")
+    eq(ask.Gain:GetText(), "+200%", "above them the gain")
+    -- The tick box is in reach while the box is up.
+    net:SetChecked(false)
+    net:Click()
+    eq(ask.NetLabel:IsShown(), false, "unticked: the line goes"); eq(ask.Net:IsShown(), false, "with its coins")
+    eq(ask:GetHeight(), 162, "and the box is as it was")
+    net:SetChecked(true)
+    net:Click()
+    eq(ask.Net:IsShown(), true, "ticked: back again")
+    ask.Buy:Click()
+    eq(#W.AH.calls.bids, 1, "bought"); eq(W.AH.calls.bids[1].amount, 90000, "for the buyout")
+    W.RunUntil(function() return not ask:IsShown() end, 5)
+    Settle()
+
+    -- A consumable is used up: no net cost in the other view.
+    tabs:SetSelected("UpgradeScoutSupplies")
+    W.Run(0.3)
+    eq(net:IsShown(), false, "no such box over consumables")
+    eq(list.Titles[4]:GetText(), "EACH", "whose price column is the price of a piece")
+    local best = frame.BestCheck
+    eq(Left(best) + Width(best), 800 - 14, "their own box stands at the right end")
+    eq(Left(afford) + Width(afford) + 16, Left(best), "and the price filter before it")
+    tabs:SetSelected("UpgradeScout")
+    W.Run(0.3)
+    eq(net:IsShown(), true, "back on the Upgrades tab"); eq(net:GetChecked(), true, "still ticked")
+    eq(list.Titles[4]:GetText(), "NET COST", "and the column still by net cost")
+    eq(Left(net) + Width(net), 800 - 14, "the boxes where they were")
+
+    -- An auction house that deals in whole silver shows no copper in a buyout. A net cost has
+    -- copper all the same: a vendor pays to the copper.
+    W.AH.copper = false
+    ns.UI.Refresh()
+    local shield = Row("Shield")
+    eq(shield.Price:GetAmount(), 600, "the shield at its net cost")
+    eq(shield.Price.CopperDisplay:IsShown(), true, "to the copper")
+    Tick(net, false)
+    shield = Row("Shield")
+    eq(shield.Price:GetAmount(), 700, "at its buyout"); eq(shield.Price.CopperDisplay:IsShown(), false, "in whole silver")
+    eq(list.Titles[4]:GetText(), "BUYOUT", "under the old heading")
+    eq(ns.db.net, false, "the setting is kept")
+end
+
 -- Which consumables do the same thing, which of them is the best, and the rows of the list.
 function scenarios.supplies()
     LoadAddon()
@@ -2589,7 +2977,9 @@ function scenarios.supplies_ui()
     W.Run(0.3)
     eq(ns.Roster.Me().profile, "S1", "back on the first profile"); check(Row("Elixir of Agility") ~= nil, "and to its elixirs")
 
-    -- Buy: first the price list is read, then the box asks how many.
+    -- Buy: first the price list is read, then the box asks how many. (With "Net cost" ticked
+    -- on the other tab: a consumable is used up, and its box has no line for a net cost.)
+    ns.db.net = true
     eq(box:IsShown(), false, "no box before a purchase")
     potion = Row("Greater Healing Potion")
     potion.Buy:Click()
@@ -2602,6 +2992,7 @@ function scenarios.supplies_ui()
     eq(box.Count:GetNumber(), 5, "it starts at one stack")
     eq(box.TotalLabel:GetText(), "TOTAL", "with the price of that many")
     eq(box.Total:GetAmount(), 3 * 900 + 2 * 1000, "the cheapest pieces first")
+    eq(box.NetLabel:IsShown(), false, "no net cost for what is used up"); eq(box:GetHeight(), 162, "the box at its usual height")
     eq(box.Buy.Label:GetText(), "BUY", "the button buys"); eq(box.Buy:IsEnabled(), true, "and is ready")
     potion = Row("Greater Healing Potion")
     eq(potion.Price:GetAmount(), 900, "the list now shows the price that can be had"); eq(potion.Stock:GetText(), "13", "and the pieces that can be bought")
@@ -2960,6 +3351,11 @@ function scenarios.alt()
     eq(dropdown.radios[3].text, ALTY .. ": Balance", "the druid's by its name, in the colour of its class")
     eq(dropdown.radios[4].text, ALTY .. ": Feral", "each of them")
     eq(dropdown.dividers, 1, "a line between the characters"); eq(dropdown.dividersAfter[1], 2, "after the warrior's own")
+    -- For another character the field shows a name and a profile, which takes its full width.
+    -- The three tick boxes of the Upgrades tab leave no room for that and the field's caption
+    -- both, so the field stands without its caption.
+    eq(frame.ProfileLabel:IsShown(), false, "no caption before the field on the Upgrades tab")
+    eq(dropdown:GetWidth(), 200, "which has its full width")
     local rule = W.Widget("Frame")
     rule.divider = rule:CreateTexture()
     for _, dress in ipairs(dropdown.rules[1].initializers) do dress(rule) end
@@ -3059,6 +3455,8 @@ function scenarios.alt()
     -- Consumables for the druid: its level, its mana, its profession.
     lib:SetSelected("UpgradeScoutSupplies")
     check(list.Hint:GetText():find(ALTY .. " can use", 1, true) ~= nil, "the other view is the druid's too: " .. list.Hint:GetText())
+    eq(frame.ProfileLabel:IsShown(), true, "two tick boxes leave room for the field's caption")
+    eq(dropdown:GetWidth(), 200, "and for its full width")
     W.RunUntil(function() return W.AH.ready end, 5)
     frame.ScanButton:Click()
     W.RunUntil(function() return S.state == "idle" end, 120)

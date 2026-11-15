@@ -21,6 +21,8 @@ W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dua
 ---------------------------------------------------------------------------
 -- def: { id, suffix, name, level, equipLoc, classID, subClassID, quality, value, value2,
 --        red, unique, uniqueEquipped, effects, noStats, uncached,
+--        sell = what a vendor pays for it, in copper: a silver unless said, 0 for an item no
+--               vendor buys,
 --        values = { [profile] = score } for profiles other than the two the tests began with,
 --        game = { ITEM_MOD_STRENGTH_SHORT = 5, ... }: stats as the game itself counts them,
 --        classes = "Druid, Shaman" (the classes it is for), races = "Orc, Troll",
@@ -962,6 +964,9 @@ RETRIEVING_ITEM_INFO = "Retrieving item information"
 ITEM_SPELL_TRIGGER_ONUSE = "Use:"
 SHIELD_BLOCK_TEMPLATE = "%s Block"
 ITEM_UNIQUE_EQUIPPABLE = "Unique-Equipped"
+-- What a vendor pays, as item tooltips head it, and what they say of an item no vendor buys.
+-- The first ends in a space, as the French client's does (for the colon written after it).
+SELL_PRICE, ITEM_UNSELLABLE = "Sell Price ", "No sell price"
 CANCEL, NONE = "Cancel", "None"
 SECONDS_ABBR, MINUTES_ABBR, HOURS_ABBR, DAYS_ABBR = "%d Sec", "%d Min", "%d Hr", "%d Days"
 -- The colours of the classes, as the game's ColorMixin objects.
@@ -1098,7 +1103,7 @@ function C_Item.GetItemInfo(info)
     local item, id, suffix = ParseItem(info)
     if not item or not item.cached then return nil end
     return item.name, W.Link(id, suffix), item.quality, item.level + 5, item.level, "Type", "SubType", item.stack or 1,
-        item.equipLoc, 134400, 100, item.classID, item.subClassID
+        item.equipLoc, 134400, item.sell or 100, item.classID, item.subClassID
 end
 -- The spell an item casts when it is used: consumables have one, and say what it does (`use`).
 function C_Item.GetItemSpell(info)

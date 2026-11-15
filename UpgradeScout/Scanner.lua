@@ -208,7 +208,7 @@ local function EvalLink(link)
     local known = cache[link]
     if known ~= nil then return known end
 
-    local name, fullLink, quality, _, minLevel, _, _, _, equipLoc, icon = C_Item.GetItemInfo(link)
+    local name, fullLink, quality, _, minLevel, _, _, _, equipLoc, icon, sellPrice = C_Item.GetItemInfo(link)
     if not name or not fullLink then return nil end
 
     local result = false
@@ -230,6 +230,9 @@ local function EvalLink(link)
                     unique = IsUnique(itemID),
                     value = value,
                     effects = ns.Score.HasUnscoredEffects(item),
+                    -- What a vendor pays for it, in copper; 0 for an item no vendor buys.
+                    -- The net cost of an offer is its buyout less this (Results.Net).
+                    sell = sellPrice or 0,
                 }
             end
         end
@@ -311,10 +314,11 @@ local front = {}
 local function Front()
     local money = GetMoney()
     local afford = ns.db.affordableOnly and true or false
+    local net = ns.db.net and true or false
     if front.dirty or front.offers ~= S.offers or front.ctx ~= S.ctx
-        or front.money ~= money or front.afford ~= afford then
-        front.groups = ns.Results.Collect(S.offers, S.ctx, { money = money, affordableOnly = afford })
-        front.offers, front.ctx, front.money, front.afford, front.dirty = S.offers, S.ctx, money, afford, false
+        or front.money ~= money or front.afford ~= afford or front.net ~= net then
+        front.groups = ns.Results.Collect(S.offers, S.ctx, { money = money, affordableOnly = afford, net = net })
+        front.offers, front.ctx, front.money, front.afford, front.net, front.dirty = S.offers, S.ctx, money, afford, net, false
     end
     return front.groups
 end
@@ -369,7 +373,10 @@ end
 --   worse      it no longer beats the player's gear
 --   price      "only what I can afford" is on and even the row's lowest price is too high
 --   dominated  "top N per slot" is on and, in every slot it fits, an offer already verified
---              is stronger and no dearer per point than this could possibly be
+--              is stronger and no dearer per point than this could possibly be. With "Net
+--              cost" on, the list prices its offers at their net cost (Results.Cost), and
+--              the least the candidate can cost is its row's lowest price less what a
+--              vendor pays for the item.
 -- The last two rest on the row's lowest price being a floor under its buyouts. ReadJob checks
 -- that against every row it reads; if the server turns out to mean something else by that
 -- number (scan.floorBroken), nothing is skipped for its price any more.
@@ -391,10 +398,11 @@ local function SkipReason(cand)
     if ns.db.affordableOnly and cand.minPrice > GetMoney() then return "price" end
     if ns.db.topOnly then
         local groups = Front()
+        local least = ns.db.net and ns.Results.Net(cand.minPrice, cand.eval.sell) or cand.minPrice
         for i = 1, #placements do
             local p = placements[i]
             local entries = groups[p.group]
-            if not entries or not ns.Results.Dominated(entries, p.delta, cand.minPrice) then
+            if not entries or not ns.Results.Dominated(entries, p.delta, least) then
                 return nil
             end
         end
@@ -594,6 +602,7 @@ local function CountAuction(found, job, eval, info)
         unique = eval.unique,
         value = eval.value,
         effects = eval.effects,
+        sell = eval.sell,
         buyout = info.buyoutAmount,
         auctionID = info.auctionID,
         count = offer and offer.count + 1 or 1,

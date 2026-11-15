@@ -13,8 +13,24 @@ Results.VALUE_MIN_SHARE = 0.25
 -- How many rows a slot keeps at most when "Top N per slot" is ticked.
 Results.TOP_COUNT = 5
 
+-- What gear costs in the end: its buyout less what a vendor pays for it (`sell`) once the
+-- character is done with it. Bought for 4 silver and sold for 3, it cost 1. Never less than
+-- nothing: an auction below the vendor's price is free, and the list does not call it a gain.
+function Results.Net(buyout, sell)
+    return math.max(buyout - (sell or 0), 0)
+end
+
+-- What the list prices an offer at: its buyout, or with `net` (the "Net cost" box of the tab)
+-- its net cost. The price per point, and so the best value and "Top N per slot", go by the
+-- same. What the player can pay for is always a matter of the buyout.
+function Results.Cost(offer, net)
+    if net then return Results.Net(offer.buyout, offer.sell) end
+    return offer.buyout
+end
+
 local function ByDelta(a, b)
     if a.delta ~= b.delta then return a.delta > b.delta end
+    if a.cost ~= b.cost then return a.cost < b.cost end
     if a.offer.buyout ~= b.offer.buyout then return a.offer.buyout < b.offer.buyout end
     return a.offer.id < b.offer.id
 end
@@ -37,17 +53,18 @@ local function Sensible(entries)
     return kept
 end
 
--- Would Sensible() drop an item that gives `delta` in this slot and costs at least `minPrice`,
+-- Would Sensible() drop an item that gives `delta` in this slot and costs at least `minCost`,
 -- whatever its real price turns out to be? True when an entry that sorts before it already
 -- costs no more per point than the item's best case. The scanner uses this to skip item
 -- searches whose result "Top N per slot" would hide; it must stay in step with Sensible().
-function Results.Dominated(entries, delta, minPrice)
-    local bestCase = minPrice / delta
+-- `minCost` is a cost as the entries have theirs (see Results.Cost).
+function Results.Dominated(entries, delta, minCost)
+    local bestCase = minCost / delta
     for i = 1, #entries do
         local entry = entries[i]
         if entry.delta > delta then
             if entry.costPer <= bestCase then return true end
-        elseif entry.delta == delta and entry.offer.buyout < minPrice then
+        elseif entry.delta == delta and entry.cost < minCost then
             return true
         end
     end
@@ -108,7 +125,10 @@ local function MarkPicks(entries)
 end
 
 -- What the list shows of an offer in one of the slots it would go into (see Compare.Place).
-function Results.Entry(offer, placement, affordable)
+-- `cost` is what the list prices it at, the buyout or with `net` the net cost (Results.Cost),
+-- and `costPer` that for a point of the gain.
+function Results.Entry(offer, placement, affordable, net)
+    local cost = Results.Cost(offer, net)
     return {
         offer = offer,
         group = placement.group,
@@ -117,14 +137,15 @@ function Results.Entry(offer, placement, affordable)
         percent = placement.percent,
         replaced = placement.replaced,
         note = placement.note,
-        costPer = offer.buyout / placement.delta,
+        cost = cost,
+        costPer = cost / placement.delta,
         affordable = affordable,
     }
 end
 
 -- The offers the list can show, as entries per slot group (unsorted): one entry for every
 -- slot an offer is an upgrade in, unless the price filter leaves the offer out.
--- opts: { money = copper the player has, affordableOnly = bool }
+-- opts: { money = copper the player has, affordableOnly = bool, net = bool (see Results.Cost) }
 -- Returns byGroup, hidden (upgrades left out for their price)
 function Results.Collect(offers, ctx, opts)
     local byGroup, hidden = {}, 0
@@ -143,7 +164,7 @@ function Results.Collect(offers, ctx, opts)
                         list = {}
                         byGroup[p.group] = list
                     end
-                    list[#list + 1] = Results.Entry(offer, p, affordable)
+                    list[#list + 1] = Results.Entry(offer, p, affordable, opts.net)
                 end
             end
         end
@@ -154,6 +175,7 @@ end
 -- offers: offer id -> offer (see Scanner)
 -- ctx:    comparison context (see Score.Context)
 -- opts:   { money = copper the player has, affordableOnly = bool,
+--             net = the offers are priced at their net cost (see Results.Cost),
 --             limit = nil for everything, or the most rows a slot may take (see Shortlist),
 --             unchecked = upgrades whose price the scanner has not looked up (Scanner.Unchecked) }
 -- Returns rows, summary

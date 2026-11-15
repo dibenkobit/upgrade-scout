@@ -28,6 +28,9 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
   ausgelassen.
 - Markiert in jedem Slot zwei Gegenstände. **Beste Verbesserung** ist der stärkste.
   **Beste Preis-Leistung** ist der günstigste pro Punkt Verbesserung.
+- **Nettokosten** zeigt, was dich ein Gegenstand am Ende kostet: der Sofortkauf abzüglich dessen,
+  was ein Händler dafür zahlt, wenn du ihn nicht mehr brauchst. Für 4 Silber gekauft und für 3
+  verkauft, hat er dich 1 gekostet.
 - **Bestes Set für** wählt die Verbesserungen, die zusammen am meisten für dein Gold bringen, oder
   für einen Betrag, den du eintippst.
 - Kauft auch für deine anderen Charaktere ein. Ein Button am Briefkasten legt die gekaufte
@@ -73,6 +76,9 @@ Von Hand:
 - Ein `~` hinter dem Namen eines Profils heißt: Für diesen Baum gibt es noch
   keine Simulation, seine Gewichte sind geschätzt.
 - Die Preise sind Sofortkaufpreise. Auktionen, auf die man nur bieten kann, werden übersprungen.
+- Mit **Nettokosten** richten sich die Preisspalte und **Beste Preis-Leistung** nach den
+  Nettokosten. Was du dir leisten kannst und **Bestes Set für** richten sich weiter nach dem
+  Sofortkauf: Den zahlst du.
 - **Top 5 pro Slot** hält die Liste kurz. Schalte es aus, um jede Verbesserung zu sehen. Der Scan
   dauert dann länger, in einem vollen Auktionshaus bis zu ein paar Minuten.
 - **Verbesserung** zeigt in Prozent, wie viel besser ein Gegenstand ist als der, den er ersetzt.

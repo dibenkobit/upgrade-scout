@@ -2,6 +2,10 @@
 
 ## 2.4.0
 
+- **Net cost**, a new box on the Upgrades tab. Ticked, the list prices gear at what it costs
+  you in the end: the buyout less what a vendor pays for it when you are done with it. Bought
+  for 4 silver and sold for 3, it cost you 1. **Best value** and **Top 5 per slot** go by that
+  cost. What you can afford, and **Best set for**, still go by the buyout.
 - The list of upgrades no longer shows the price per point. The buyout stands next to the
   **Buy** button, and item names have more room. **Best value** is picked as before.
 

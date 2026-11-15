@@ -72,6 +72,7 @@ local PICKS = {
 
 local frame, scrollBox, provider, hint, intro, status, statusBar, listBar, age
 local scanButton, profileDropdown, affordCheck, topCheck
+local netCheck              -- "Net cost": what the Upgrades view prices gear at (see Results.Cost)
 local view = "gear"         -- what the frame shows: "gear" (Upgrades) or "supplies" (Consumables)
 local holder                -- the frame the Consumables tab is made with (see Build)
 local bestCheck, buyBox     -- the Consumables view's own filter, and its box for buying
@@ -203,6 +204,22 @@ local function ShowSupplyTooltip(row)
     GameTooltip:Show()
 end
 
+-- With "Net cost" on, a row is priced at what the item costs in the end. Its tooltip then says
+-- what that is made of: what is paid now, and what a vendor gives back, under the game's own
+-- name for it ("Sell Price"; the French one ends in a space, for the colon the game writes
+-- after it).
+local function AddNetLines(tooltip, offer)
+    local r, g, b = NORMAL_FONT_COLOR:GetRGB()
+    local wr, wg, wb = HIGHLIGHT_FONT_COLOR:GetRGB()
+    tooltip:AddDoubleLine(L.COL_PRICE, ns.Money(offer.buyout), r, g, b, wr, wg, wb)
+    if (offer.sell or 0) > 0 then
+        tooltip:AddDoubleLine((SELL_PRICE:gsub("%s+$", "")), ns.Money(offer.sell), r, g, b, wr, wg, wb)
+    else
+        -- "No sell price": why the net cost is the whole buyout.
+        GameTooltip_AddDisabledLine(tooltip, ITEM_UNSELLABLE)
+    end
+end
+
 local function ShowItemTooltip(row)
     local entry = row.entry
     if entry.supply then
@@ -230,6 +247,7 @@ local function ShowItemTooltip(row)
     if offer.effects then
         GameTooltip_AddNormalLine(GameTooltip, L.TT_EFFECTS)
     end
+    if ns.db.net then AddNetLines(GameTooltip, offer) end
     if not entry.affordable then
         GameTooltip_AddErrorLine(GameTooltip, L.TT_CANT_AFFORD:format(ns.Money(offer.buyout - GetMoney())))
     end
@@ -327,6 +345,15 @@ local function SetMoney(money, copper)
     end
 end
 
+-- The price in a row. An auction house that deals in whole silver shows no copper in its
+-- prices. A net cost has copper all the same (`toCopper`): a vendor pays to the copper.
+local function SetPrice(money, copper, toCopper)
+    if not C_AuctionHouse.SupportsCopperValues() then
+        money.CopperDisplay:SetForcedHidden(not toCopper)
+    end
+    SetMoney(money, copper)
+end
+
 -- The plate a pick is named on.
 local function NewPick(row)
     local pick = CreateFrame("Frame", nil, row)
@@ -419,10 +446,6 @@ local function BuildItemRow(row)
     row.Meter:SetPoint("LEFT", row.Trough, "LEFT", 0.5, 0)
 
     row.Price = CreateFrame("Frame", nil, row, "MoneyDisplayFrameTemplate")
-    -- An auction house that deals in whole silver shows no copper in its prices.
-    if not C_AuctionHouse.SupportsCopperValues() then
-        row.Price.CopperDisplay:SetForcedHidden(true)
-    end
 
     -- A consumable's row says what the item does where a gear row has its pick, and after
     -- the price how many pieces are for sale. Its score stands where a gear row has its
@@ -532,7 +555,7 @@ local function InitSupplyRow(row, entry, share)
     end
 
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
-    SetMoney(row.Price, supply.price)
+    SetPrice(row.Price, supply.price)
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
 end
@@ -583,8 +606,10 @@ local function InitItemRow(row, element)
     row.Meter:SetWidth(math.max((METER_WIDTH - 1) * data.share, 2))
     row.Meter:SetTexCoord(0, math.max(data.share, 0.03), 0, 1)
 
+    -- The buyout, or with "Net cost" on what is left of it once a vendor has the item
+    -- (Results.Cost). Red is about the buyout either way: that is what has to be paid.
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
-    SetMoney(row.Price, offer.buyout)
+    SetPrice(row.Price, entry.cost, ns.db.net)
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
 end
@@ -932,7 +957,7 @@ local function PlanRows()
             ladder = ns.Plan.Ladder(S.offers, ns.Plan.Wearing(S.ctx, S.acquired), money),
         }
     end
-    return ns.Plan.Rows(ns.Plan.Choose(planCache.ladder, S.PlanCap()))
+    return ns.Plan.Rows(ns.Plan.Choose(planCache.ladder, S.PlanCap()), ns.db.net)
 end
 
 -- The budget in its two fields: the sum that was typed, or, in a dimmer ink, all the gold
@@ -956,7 +981,8 @@ local function PaintPlan()
         scrollBox:SetPoint("BOTTOMRIGHT", frame.List, "BOTTOMRIGHT", -LIST_RIGHT, LIST_BOTTOM + (shown and PLAN_HEIGHT or 0))
     end
     local planned = Planned()
-    -- What the set holds is not for the two filters to say.
+    -- What the set holds is not for the two filters to say. ("Net cost" keeps its say: it
+    -- changes what the rows of a set are priced at, not what is in the set.)
     affordCheck:SetEnabled(not planned)
     affordCheck:SetAlpha(planned and 0.4 or 1)
     topCheck:SetEnabled(not planned)
@@ -966,12 +992,20 @@ local function PaintPlan()
     SetCheck(planBar.Check, ns.db.plan)
     PaintBudget()
     local text = ""
-    if planned and summary.upgrades > 0 then
+    if planned and summary.upgrades > 0 and ns.db.net then
+        -- What is paid for the set now, and what it costs in the end.
+        text = L.PLAN_SUM_NET:format(summary.upgrades, ns.Num(summary.gain), ns.Money(summary.cost), ns.Money(summary.net))
+    elseif planned and summary.upgrades > 0 then
         text = L.PLAN_SUM:format(summary.upgrades, ns.Num(summary.gain), ns.Money(summary.cost))
     elseif planned then
         text = L.PLAN_NONE
     end
     planBar.Summary:SetText(text)
+end
+
+-- What the price column of gear is headed: the buyout, or the net cost with its box ticked.
+local function PriceTitle()
+    return ns.db.net and L.NET or L.COL_PRICE
 end
 
 function UI.Refresh()
@@ -998,6 +1032,7 @@ function UI.Refresh()
         all, summary = ns.Results.Build(S.offers, S.ctx, {
             money = GetMoney(),
             affordableOnly = ns.db.affordableOnly,
+            net = ns.db.net,
             limit = ns.db.topOnly and ns.Results.TOP_COUNT or nil,
             unchecked = S.Unchecked(),
         })
@@ -1006,6 +1041,8 @@ function UI.Refresh()
     rows = summary.cost and all or Fold(all)
     SyncList()
     PaintPlan()
+    -- The price column says what its numbers are.
+    if view == "gear" then frame.List.Titles[4]:SetText(ns.Upper(PriceTitle())) end
 
     local idle = S.state == "idle"
     ShowStatus()
@@ -1016,6 +1053,7 @@ function UI.Refresh()
     scanButton:SetEnabled(idle or S.IsScan() or S.mode == "supplies")
     SetCheck(affordCheck, ns.db.affordableOnly)
     SetCheck(topCheck, ns.db.topOnly)
+    SetCheck(netCheck, ns.db.net)
     SetCheck(bestCheck, ns.db.bestOnly)
 
     local profileKey = ProfileKey()
@@ -1104,6 +1142,17 @@ local function Choose(choice)
     profileShown = ProfileKey()
     toTop = true
     UI.Refresh()
+end
+
+-- Does the menu have lines for other characters (see ProfileMenu)? The field then has to
+-- show a name with a profile.
+local function OthersListed()
+    local me = ns.Roster.Me()
+    for _, card in ipairs(ns.Roster.List()) do
+        local _, theirs = ns.Score.Current(card)
+        if card ~= me and #theirs > 0 then return true end
+    end
+    return false
 end
 
 local MENU_ROWS = 20        -- a menu with more lines than this scrolls
@@ -1223,7 +1272,8 @@ end
 ---------------------------------------------------------------------------
 -- One box for both views: the item at its top, two lines about the purchase, "Buy" and
 -- "Cancel". It follows the purchase in `step`.
--- Gear (`offer`): the gain the list shows for the item, and its buyout.
+-- Gear (`offer`): the gain the list shows for the item, and its buyout. With "Net cost" on, a
+-- third line under them: what the item costs in the end, as its row says.
 --   confirm  the item was looked up again and is still there at its price
 --   wait     "Buy" was pressed: the bid is out, and the box stays until the auction house
 --            answers, as the game's own question before a buyout does
@@ -1237,14 +1287,27 @@ end
 -- own: the box offers one piece from the cheapest auction (`auction`), and there is nothing to
 -- choose.
 local BOX_WIDTH, BOX_HEIGHT, BOX_EDGE = 330, 162, 18
+local BOX_LINE = 32         -- from one line of the box to the next
+
+-- The third line of the box, which only gear with "Net cost" on has. The box is taller by it;
+-- the buttons hang from its bottom edge.
+local function ShowBoxNet(shown)
+    buyBox.NetLabel:SetShown(shown)
+    buyBox.Net:SetShown(shown)
+    buyBox:SetHeight(BOX_HEIGHT + (shown and BOX_LINE or 0))
+end
 
 local function PaintGearBox()
     local offer, step = buyBox.offer, buyBox.step
     local affordable = offer.buyout <= GetMoney()
+    -- What is paid is the buyout, whatever the list prices the item at.
     buyBox.TotalLabel:SetText(Caption(L.COL_PRICE))
     buyBox.Total:Show()
     buyBox.Total:SetFontObject(affordable and PriceFontWhite or PriceFontRed)
     SetMoney(buyBox.Total, offer.buyout)
+    local net = ns.db.net and true or false
+    ShowBoxNet(net)
+    if net then SetMoney(buyBox.Net, ns.Results.Net(offer.buyout, offer.sell)) end
     buyBox.Buy.Label:SetText(ns.Upper(L.BUY))
     buyBox.Buy:SetEnabled(step == "confirm" and affordable)
 end
@@ -1386,6 +1449,17 @@ local function BuildBuyBox()
         buyBox.Total.CopperDisplay:SetForcedHidden(true)
     end
 
+    -- The net cost of gear, a line further down (see ShowBoxNet). To the copper wherever the
+    -- auction house is: a vendor pays to the copper.
+    buyBox.NetLabel = NewText(buyBox, 9.5, GOLD_DIM)
+    buyBox.NetLabel:SetPoint("LEFT", buyBox, "TOPLEFT", BOX_EDGE, -(102 + BOX_LINE))
+    buyBox.NetLabel:SetText(Caption(L.NET))
+    buyBox.NetLabel:Hide()
+    buyBox.Net = CreateFrame("Frame", nil, buyBox, "MoneyDisplayFrameTemplate")
+    buyBox.Net:SetPoint("RIGHT", buyBox, "TOPRIGHT", -BOX_EDGE, -(102 + BOX_LINE))
+    buyBox.Net:SetFontObject(PriceFontWhite)
+    buyBox.Net:Hide()
+
     buyBox.Buy = NewButton(buyBox, 138, 24, "ButtonRed", 11)
     buyBox.Buy:SetPoint("BOTTOMLEFT", buyBox, "BOTTOMLEFT", BOX_EDGE, 16)
     buyBox.Buy:SetScript("OnClick", BoxBuyOnClick)
@@ -1412,6 +1486,8 @@ local function SetBoxKind(gear)
     buyBox.Gain:SetShown(gear)
     buyBox.Count:SetShown(not gear)
     buyBox.Stock:SetShown(not gear)
+    -- A consumable is used up: it has no net cost. (For gear, PaintGearBox says.)
+    if not gear then ShowBoxNet(false) end
 end
 
 -- The row of the list an offer is on, for the gain the box repeats. (An offer is not listed
@@ -1528,25 +1604,34 @@ local function ApplyView()
     end
     Title(titles[2], gear and L.COL_PICK or L.COL_EFFECT, "LEFT", at.second)
     Title(titles[3], gear and L.COL_UPGRADE or L.COL_SCORE, "RIGHT", at.upgrade)
-    Title(titles[4], gear and L.COL_PRICE or L.COL_UNIT, "RIGHT", at.price)
+    Title(titles[4], gear and PriceTitle() or L.COL_UNIT, "RIGHT", at.price)
     titles[5]:SetShown(not gear)
     intro.Heading:SetText(ns.Upper(gear and L.TITLE or L.TITLE_SUP))
 
-    -- Both views score on the profile; their second filter is another one.
-    local second = gear and topCheck or bestCheck
+    -- Both views have the price filter; the tick boxes after it are the view's own. They
+    -- stand in a row against the right edge, the last of them at the edge.
+    local checks = gear and { affordCheck, topCheck, netCheck } or { affordCheck, bestCheck }
     topCheck:SetShown(gear)
+    netCheck:SetShown(gear)
     bestCheck:SetShown(not gear)
-    affordCheck:ClearAllPoints()
-    affordCheck:SetPoint("LEFT", second, "LEFT", -(2 * PAD + CheckWidth(affordCheck)), 0)
+    local taken = 0             -- the width of the row, with the room before each box
+    for i = #checks, 1, -1 do
+        local check = checks[i]
+        taken = taken + CheckWidth(check)
+        check:ClearAllPoints()
+        check:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + taken), -BAR_MIDDLE)
+        taken = taken + 2 * PAD
+    end
 
     -- The profile field takes the room this view's labels leave, within reason. Where a
     -- language's labels leave too little, the field stands without its own label; its tooltip
-    -- says what it is.
+    -- says what it is. Too little is less than the field has a use for: with other characters
+    -- in its menu it shows a name and a profile ("Diluna: Beast Mastery"), which takes all
+    -- the width it can have.
     local label = frame.ProfileLabel
     local labelWidth = label:GetStringWidth() + PAD
-    local room = AuctionHouseFrame:GetWidth() - (BAR_LEFT + SCAN_WIDTH + 2 * PAD
-        + 2 * PAD + CheckWidth(affordCheck) + 2 * PAD + CheckWidth(second) + BAR_RIGHT)
-    local labelled = room - labelWidth >= DROPDOWN_MIN
+    local room = AuctionHouseFrame:GetWidth() - (BAR_LEFT + SCAN_WIDTH + 2 * PAD + taken + BAR_RIGHT)
+    local labelled = room - labelWidth >= (OthersListed() and DROPDOWN_MAX or DROPDOWN_MIN)
     label:SetShown(labelled)
     if not labelled then labelWidth = 0 end
     profileDropdown:SetWidth(Clamp(room - labelWidth, DROPDOWN_MIN, DROPDOWN_MAX))
@@ -1563,10 +1648,18 @@ end
 local function BuildViews(auction)
     -- Where the Upgrades view has "Top N per slot".
     bestCheck = NewFilterCheck(L.SUP_BEST, "bestOnly", L.SUP_BEST_TIP)
-    bestCheck:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + CheckWidth(bestCheck)), -BAR_MIDDLE)
+    -- The Upgrades view's third box: gear priced at what it costs in the end, the buyout less
+    -- what a vendor pays for it afterwards. It is a way to read the prices, not a filter: the
+    -- price column, the best value and "Top N per slot" go by it (Results.Cost); what the
+    -- player can pay for, and the best set for a budget, stay a matter of the buyout.
+    netCheck = NewFilterCheck(L.NET, "net", L.NET_TIP)
     BuildBuyBox()
     BuildPlan()
-    frame.BestCheck, frame.BuyBox = bestCheck, buyBox
+    -- The box that asks before a purchase may be up when "Net cost" is ticked.
+    netCheck:HookScript("OnClick", function()
+        if buyBox:IsShown() then PaintBox() end
+    end)
+    frame.BestCheck, frame.NetCheck, frame.BuyBox = bestCheck, netCheck, buyBox
 
     -- The library that makes the tabs shows and hides the frame a tab was made with. So the
     -- Consumables tab is made with an empty frame of its own, and the real one comes and goes
@@ -1602,10 +1695,9 @@ local function Build()
     scanButton.Label:SetText(ns.Upper(L.SCAN))
     scanButton:SetScript("OnClick", ScanOnClick)
 
-    -- The filters stand against the right edge. (Where the price filter and the profile field
+    -- The tick boxes stand against the right edge. (Where each of them and the profile field
     -- go, and how wide the field is, depends on the view: see ApplyView.)
     topCheck = NewFilterCheck(L.TOP:format(ns.Results.TOP_COUNT), "topOnly", L.TOP_TIP:format(ns.Results.TOP_COUNT))
-    topCheck:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + CheckWidth(topCheck)), -BAR_MIDDLE)
     affordCheck = NewFilterCheck(L.AFFORD, "affordableOnly")
 
     local profileLabel = NewText(frame, 9.5, GOLD_DIM)

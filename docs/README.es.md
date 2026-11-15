@@ -26,6 +26,9 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
   puedes usar. Primero, lo más útil para tu personaje. Lo que no te sirve se omite.
 - Marca dos objetos en cada ranura. **Mayor mejora** es el más fuerte. **Más rentable** es el más
   barato por punto de mejora.
+- **Precio neto** muestra lo que un objeto te cuesta al final: la compra inmediata menos lo que un
+  mercader te paga por él cuando ya no lo necesites. Comprado por 4 de plata y vendido por 3, te
+  costó 1.
 - **Mejor conjunto por** elige las mejoras que, juntas, dan más por tu oro o por una suma que
   escribas.
 - Compra también para tus otros personajes. Un botón en el buzón mete el equipo que compraste en
@@ -70,6 +73,8 @@ A mano:
 - Un `~` tras el nombre de un perfil significa que esa rama aún no tiene
   simulación y sus pesos son estimados.
 - Los precios son de compra inmediata. Las subastas que solo admiten pujas se omiten.
+- Con **Precio neto** marcado, la columna de precios y **Más rentable** van por el precio neto. Lo
+  que puedes pagar y **Mejor conjunto por** siguen yendo por la compra inmediata: es lo que pagas.
 - **Top 5 por ranura** mantiene la lista corta. Desactívalo para ver todas las mejoras. El escaneo
   tarda entonces más, hasta unos minutos en una casa de subastas con mucho movimiento.
 - **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **Nuevo**
