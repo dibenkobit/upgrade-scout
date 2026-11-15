@@ -399,6 +399,11 @@ function M:SetHyperlink(link)
     for _, call in ipairs(W.tooltipPostCalls[Enum.TooltipDataType.Item] or {}) do
         call(self, { type = Enum.TooltipDataType.Item, hyperlink = link })
     end
+    -- Pawn, where it is installed, has hooked the game's own tooltips: each time one is given
+    -- an item its hook asks PawnUpdateTooltip, by that name, to write Pawn's lines.
+    if PawnUpdateTooltip and (self == GameTooltip or self == ShoppingTooltip1 or self == ItemRefTooltip) then
+        PawnUpdateTooltip(self:GetName(), "SetHyperlink", link)
+    end
     self._shown = true
 end
 
@@ -1840,6 +1845,12 @@ end
 --   * Asked about a scale there is not, Pawn writes an error line in the chat. Here those
 --     are kept in W.pawn.fails, and a scenario checks that there are none.
 --   * Nothing is returned for an item the client has not loaded, nor for one without stats.
+--   * Pawn writes into the game's own item tooltips, about the character being played, as
+--     its two options say: a line for an upgrade (ShowUpgradesOnTooltips), or the item's
+--     value where values are shown without one (ShowValuesForUpgradesOnly false). It colours
+--     the tooltip's border green beside an upgrade and takes the colour back otherwise
+--     (tooltip._border). Here it writes only where a scenario asks (W.pawn.writes), and
+--     takes every item it reads for an upgrade.
 -- An item's Pawn stats are made the way its game stats are (C_Item.GetItemStats): one named
 -- after each profile it was given a score on ("TEST_S1"), which a scale of the tests weighs
 -- as it likes, and whatever its `pawn` table adds under Pawn's own names.
@@ -1951,6 +1962,19 @@ local function PawnFunctions(P)
 
     -- Called by Pawn itself whenever its scales change (W.PawnChanged).
     function PawnResetTooltips() P.resets = P.resets + 1 end
+
+    -- Called by Pawn's hooks on the game's tooltips (M:SetHyperlink).
+    function PawnUpdateTooltip(name, method, link)
+        if not P.writes or not PawnCanItemHaveStats(link) then return end
+        local tooltip = _G[name]
+        local upgrade = PawnCommon.ShowUpgradesOnTooltips and true or false
+        if upgrade then
+            tooltip:AddLine("Pawn: upgrade")
+        elseif not PawnCommon.ShowValuesForUpgradesOnly then
+            tooltip:AddLine("Pawn: value")
+        end
+        tooltip._border = upgrade and "green" or "white"
+    end
 end
 
 -- Pawn is installed and has read its scales (W.pawn.ready = false: it has not yet). Its
@@ -1958,7 +1982,7 @@ end
 function W.InstallPawn()
     W.pawn = { ready = true, asked = {}, calls = {}, fails = {}, resets = 0 }
     PawnIgnoreStatValue = -1000000
-    PawnCommon = { Scales = {} }
+    PawnCommon = { Scales = {}, ShowUpgradesOnTooltips = true, ShowValuesForUpgradesOnly = true }
     PawnFunctions(W.pawn)
 end
 
@@ -1969,6 +1993,7 @@ function W.RemovePawn()
     PawnIsReady, PawnGetAllScalesEx, PawnGetItemData, PawnGetSingleValueFromItem = nil, nil, nil, nil
     PawnCanItemHaveStats = nil
     PawnGetAllStatValues, PawnGetItemValue, PawnResetTooltips = nil, nil, nil
+    PawnUpdateTooltip = nil
 end
 
 -- def: { name = the internal name, title = the name shown (the internal one if not given),

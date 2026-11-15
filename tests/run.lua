@@ -5641,6 +5641,37 @@ function scenarios.pawn_welcome()
     arrows.Switch:Click()
     eq(Arrow(), true, "and come back")
 
+    -- Another character of the account. Pawn writes of the one being played alone, so the
+    -- lists for the other have our lines, and what the block asks about them is in use
+    -- again: how they are written, and the box of the tabs. The rest of the game is Pawn's.
+    UpgradeScoutDB.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", class = "DRUID", level = 20 }
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_PAWN_OTHERS, "with another character the block says where our lines are left")
+    eq(tabs:IsEnabled(), true, "the box of the tabs is in use"); eq(tabs:GetChecked(), true, "and ticked, as it was left")
+    eq(tabs.Tick:IsShown(), true, "with its tick"); eq(tabs:GetAlpha(), 1, "whole"); eq(tabs.Label:GetAlpha(), 1, "as its words are")
+    eq(elsewhere:IsEnabled(), false, "the box of the rest of the game stays out of use"); eq(elsewhere:GetChecked(), false, "empty")
+    eq(elsewhere:GetAlpha(), 0.4, "and dim")
+    eq(block.All:IsEnabled(), true, "the two buttons are in use"); eq(block.Own:IsEnabled(), true, "both")
+    eq(block.All:GetAlpha(), 1, "and whole")
+    eq(tip.Lines[1].Title:IsShown(), true, "the picture has the score's lines"); eq(tip.Note:IsShown(), true, "and the note under them")
+    block.Own:Click()
+    eq(UpgradeScoutDB.ownTree, true, "a click on a button counts")
+    eq(tip.Lines[2].Title:IsShown(), false, "and the picture follows: one line")
+    block.All:Click()
+    eq(UpgradeScoutDB.ownTree, nil, "both ways")
+    tabs:SetChecked(false)
+    tabs:Click()
+    eq(UpgradeScoutDB.rowTooltip, false, "the box of the tabs unticked: written down")
+    eq(block.All:IsEnabled(), false, "no lines of ours anywhere now: the two buttons go dim"); eq(block.All:GetAlpha(), 0.35, "as without Pawn")
+    eq(tip.Lines[1].Title:IsShown(), false, "and the picture has the note alone")
+    tabs:SetChecked(true)
+    tabs:Click()
+    eq(UpgradeScoutDB.rowTooltip, nil, "ticked again"); eq(block.All:IsEnabled(), true, "the buttons are back")
+    UpgradeScoutDB.chars["Alty-Testrealm"] = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_PAWN, "without the other character the block is as it was")
+    eq(tabs:IsEnabled(), false, "the box of the tabs out of use"); eq(block.All:IsEnabled(), false, "and the two buttons")
+
     -- A scale chosen in the window: written on the character's card, apart from the profile.
     trees[3]:Click()
     eq(ns.Roster.Me().scale, PROT, "a click on a scale chooses it"); eq(ns.Roster.Me().profile, nil, "the addon's own profile is left alone")
@@ -5892,7 +5923,94 @@ function scenarios.pawn_alt()
     eq(doubles[3].text, "Feral", "on the other one"); eq(doubles[3].right, "-33%", "2 against 3")
     eq(ShoppingTooltip1:IsShown(), true, "and the druid's chest beside it")
     jerkin:GetScript("OnLeave")(jerkin)
+
+    -- Pawn writes into the game's tooltips what an item is to the character being played. In
+    -- a list for another character that is kept out, of the row's tooltip and of the one
+    -- beside it, and Pawn's options are afterwards as the player has them.
+    W.pawn.writes = true
+    local function PawnLine(tooltip)
+        for _, line in ipairs(tooltip._lines) do
+            if line.text:find("Pawn:", 1, true) then return line.text end
+        end
+    end
+    local function Row(name)
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            local entry = w._shown and w._kind == "Button" and w.entry or nil
+            if entry and entry.offer and entry.offer.name == name then return w end
+        end
+    end
+    local function ListFor(index)
+        dropdown:Pick(index)
+        W.Run(0.5)
+        if S.state == "idle" then frame.ScanButton:Click() end
+        W.RunUntil(function() return S.state == "idle" end, 300)
+        W.Run(1)
+    end
+    local function Elsewhere()
+        GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        GameTooltip:SetHyperlink(W.Link(310))
+        return PawnLine(GameTooltip)
+    end
+    eq(Elsewhere(), "Pawn: upgrade", "anywhere else Pawn writes its line"); eq(GameTooltip._border, "green", "and colours the border")
+    ShoppingTooltip1._border = "green"
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(PawnLine(GameTooltip), nil, "a row for another character: Pawn's line is kept out")
+    eq(PawnLine(ShoppingTooltip1), nil, "and out of the tooltip of what that character wears")
+    eq(GameTooltip._lines[#GameTooltip._lines].right, "-33%", "our lines are there as before")
+    eq(GameTooltip._border, "white", "Pawn takes back a border it had coloured"); eq(ShoppingTooltip1._border, "white", "on both")
+    eq(PawnCommon.ShowUpgradesOnTooltips, true, "Pawn's options are as they were"); eq(PawnCommon.ShowValuesForUpgradesOnly, true, "both")
+    jerkin:GetScript("OnLeave")(jerkin)
+    -- A player who has Pawn show an item's values, and no upgrades.
+    PawnCommon.ShowUpgradesOnTooltips, PawnCommon.ShowValuesForUpgradesOnly = false, false
+    eq(Elsewhere(), "Pawn: value", "values shown beside every item")
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(PawnLine(GameTooltip), nil, "they are kept out as well"); eq(PawnLine(ShoppingTooltip1), nil, "of both tooltips")
+    eq(PawnCommon.ShowUpgradesOnTooltips, false, "and the options are as that player has them"); eq(PawnCommon.ShowValuesForUpgradesOnly, false, "both")
+    jerkin:GetScript("OnLeave")(jerkin)
+    PawnCommon.ShowUpgradesOnTooltips, PawnCommon.ShowValuesForUpgradesOnly = true, true
+    -- Something goes wrong while the tooltip is filled in: the error passes on, with Pawn's
+    -- options put back.
+    local passed
+    local ok, problem = pcall(ns.Pawn.Hushed, function(what) passed = what error("no such item", 0) end, "a link")
+    eq(ok, false, "an error in filling the tooltip in passes on"); eq(problem, "no such item", "as it was")
+    eq(passed, "a link", "what fills it in is called with what it was given")
+    eq(PawnCommon.ShowUpgradesOnTooltips, true, "and Pawn's options are put back all the same"); eq(PawnCommon.ShowValuesForUpgradesOnly, true, "both")
+
+    -- The warrior's own list: Pawn writes there as everywhere.
+    ListFor(2)
+    eq(ns.Roster.Target(), nil, "the lists are the warrior's own again")
+    local chest = Row("Good Chest")
+    check(chest ~= nil, "a better chest for the warrior is in the list")
+    chest:GetScript("OnEnter")(chest)
+    eq(PawnLine(GameTooltip), "Pawn: upgrade", "a row of the player's own list: Pawn's line, as anywhere")
+    chest:GetScript("OnLeave")(chest)
     CheckPawnAsked("another character")
+
+    -- The addon's own weights chosen, with Pawn still installed: Pawn writes into tooltips
+    -- as before, and is kept out of a list for another character the same way.
+    ns.Score.SetEngine(nil)
+    W.Run(1)
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    ListFor(3)
+    eq(ns.Roster.Target(), card, "the addon scores, and the lists are for the druid")
+    jerkin = Row("Druid Jerkin")
+    check(jerkin ~= nil, "the jerkin is in the druid's list by the addon's own weights")
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(PawnLine(GameTooltip), nil, "the addon scoring: Pawn's line is kept out of a row for another character")
+    eq(PawnLine(ShoppingTooltip1), nil, "and of what that character wears")
+    local ours = false
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right == ALTY then ours = true end
+    end
+    eq(ours, true, "under our header, which says whose list it is")
+    jerkin:GetScript("OnLeave")(jerkin)
+    eq(Elsewhere(), "Pawn: upgrade", "and Pawn writes on everywhere else")
+
+    -- Without Pawn there is nobody to keep out: the tooltip is filled in and no more.
+    W.RemovePawn()
+    local filled
+    ns.Pawn.Hushed(function(what) filled = what end, "a link")
+    eq(filled, "a link", "no Pawn: what fills the tooltip in is called")
 end
 
 local function CheckLocale(locale, language, scan)

@@ -113,7 +113,9 @@ end
 
 -- The game puts the tooltip of the worn item beside an item's by itself, but it knows only
 -- what the character being played wears. For another character the item its card remembers
--- in the slot is put there, in the game's own second tooltip.
+-- in the slot is put there, in the game's own second tooltip. Pawn, where the player has it,
+-- is kept from writing there what the item would be to the character being played
+-- (Pawn.Hushed).
 local wornShown = false
 
 local function HideWorn()
@@ -127,7 +129,7 @@ local function ShowWorn(links)
     tip:SetOwner(GameTooltip, "ANCHOR_NONE")
     tip:ClearAllPoints()
     tip:SetPoint("TOPLEFT", GameTooltip, "TOPRIGHT", 0, -10)
-    tip:SetHyperlink(links[1])
+    ns.Pawn.Hushed(tip.SetHyperlink, tip, links[1])
     tip:Show()
     -- To the right of the item's tooltip where the screen has room, otherwise to its left.
     local right, edge, width = GameTooltip:GetRight(), UIParent:GetRight(), tip:GetWidth()
@@ -260,7 +262,8 @@ end
 -- With Pawn scoring (Score.Engine), the tooltip of a row in the player's own list has
 -- Pawn's lines for the score: how much of an upgrade the item is on each of the player's
 -- scales. Ours would say it twice and are left out, whatever their box says. (A list for
--- another character keeps them: Pawn's lines are about the character being played.)
+-- another character keeps them, and has none of Pawn's: those are about the character being
+-- played. See ShowItemTooltip.)
 -- Notes without the score stand under the addon's name. With nothing to note, nothing is
 -- written at all.
 local function AddOfferLines(entry, who)
@@ -295,7 +298,15 @@ local function ShowItemTooltip(row)
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     -- No vendor price, as on the Buy tab: this is something to buy, not to sell.
     local hideVendorPrice = true
-    GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
+    if who then
+        -- A list for another character. Pawn, where the player has it, would write here how
+        -- much of an upgrade the item is for the character being played, which is no part of
+        -- a tooltip about someone else: it is kept from it (Pawn.Hushed). What the item is
+        -- to that character is in our lines below.
+        ns.Pawn.Hushed(GameTooltip.SetHyperlink, GameTooltip, offer.link, nil, nil, hideVendorPrice)
+    else
+        GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
+    end
     -- Our lines, as far as they are switched on for the rows of the tabs (the welcome
     -- window). With none of them the tooltip is the item's own, with the worn item beside it
     -- as ever.

@@ -8,6 +8,8 @@
   characters too.
 - With Pawn chosen, Pawn's lines say what an item is worth, so the addon leaves its own out of
   the tooltip.
+- A list made for another of your characters is about that character. Pawn knows only the one
+  you are playing, so in such a list the tooltip has the addon's lines and none of Pawn's.
 - The choice is for the whole account. Without Pawn, or with Pawn switched off, the addon
   scores by its own weights as before.
 - If you have Pawn, the window comes up once after the update to show you the choice.

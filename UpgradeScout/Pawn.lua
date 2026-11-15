@@ -362,6 +362,34 @@ function P.ShowsWeapons(scale)
 end
 
 ---------------------------------------------------------------------------
+-- Pawn's own lines in a tooltip
+---------------------------------------------------------------------------
+-- Pawn writes into every item tooltip how much of an upgrade the item is, and means the
+-- character being played: it knows of no other. Under an item picked for another character
+-- of the account (a row of a list made for one, and what that one wears beside it) that
+-- reads as if it were said of that character, which it is not.
+-- P.Hushed fills such a tooltip in with Pawn left nothing to say: for the length of the call
+-- Pawn's own two options for its lines stand at "no upgrades" and "a scale's value only with
+-- an upgrade", and they are put back before anything else runs, whatever happens in the
+-- call. The rest of what Pawn does about a tooltip goes on: it takes back a border it had
+-- coloured, and keeps track of the item under the mouse. This is asked whoever scores: the
+-- lines are Pawn's to write with the addon's own weights chosen as well. Without Pawn the
+-- tooltip is filled in and no more.
+-- fill: what fills the tooltip in; it is called with the arguments that follow it.
+function P.Hushed(fill, ...)
+    local options = PawnCommon
+    if type(options) ~= "table" then
+        fill(...)
+        return
+    end
+    local upgrades, sparing = options.ShowUpgradesOnTooltips, options.ShowValuesForUpgradesOnly
+    options.ShowUpgradesOnTooltips, options.ShowValuesForUpgradesOnly = false, true
+    local ok, problem = pcall(fill, ...)
+    options.ShowUpgradesOnTooltips, options.ShowValuesForUpgradesOnly = upgrades, sparing
+    if not ok then error(problem, 0) end
+end
+
+---------------------------------------------------------------------------
 -- When Pawn's scales change
 ---------------------------------------------------------------------------
 -- A scale switched on or off, made, taken away or given other weights, in Pawn's own

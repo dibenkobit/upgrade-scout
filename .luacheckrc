@@ -41,8 +41,17 @@ read_globals = {
     "GetMinimapShape",
     -- and Pawn, for a player who has it and chose it to score (Pawn.lua)
     "PawnCanItemHaveStats",
-    "PawnCommon", "PawnGetAllScalesEx", "PawnGetItemData", "PawnGetItemValue", "PawnGetSingleValueFromItem", "PawnIsReady",
+    "PawnGetAllScalesEx", "PawnGetItemData", "PawnGetItemValue", "PawnGetSingleValueFromItem", "PawnIsReady",
     "PawnResetTooltips",
+    -- (its two options for what it writes into a tooltip are set for the length of a call
+    -- and put back: Pawn.Hushed)
+    PawnCommon = {
+        other_fields = true,
+        fields = {
+            ShowUpgradesOnTooltips = { read_only = false },
+            ShowValuesForUpgradesOnly = { read_only = false },
+        },
+    },
 }
 
 -- What the addon writes: its saved variables and its slash command.
