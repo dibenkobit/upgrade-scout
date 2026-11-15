@@ -1275,8 +1275,8 @@ if GetLocale() == "koKR" then
         -- The welcome window
         WELCOME_FIRST = "환영합니다! 이 애드온은 지금 착용한 것보다 좋은 장비를 찾아주며, 이미 작동 중입니다.",
         WELCOME_ABOUT = "이 애드온은 지금 착용한 것보다 좋은 장비를 찾아주며, 이미 작동 중입니다.",
-        WELCOME_TREE = "%s의 특성 계열은 무엇인가요?",
-        WELCOME_TREE_WHY = "애드온이 그 계열에 맞춰 장비를 고릅니다.",
+        WELCOME_TREE = "%s의 특성 트리는 무엇인가요?",
+        WELCOME_TREE_WHY = "애드온이 그 트리에 맞춰 장비를 고릅니다.",
         WELCOME_SHOWS = "게임에 이런 것들이 나타납니다.",
         WELCOME_OFF = "필요 없는 것은 끌 수 있습니다.",
         WELCOME_AUCTION = "경매장에서",

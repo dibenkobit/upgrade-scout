@@ -34,8 +34,10 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
   such as Arms, Fury and Protection for a warrior.
 - A green arrow on the icon of an item in your bags or bank means it is an upgrade you can put
   on now. A grey one: an upgrade once you reach its level.
-- Works right after you install it. Nothing to set up: the **Profile** dropdown starts on a profile
-  that suits your class.
+- Works right after you install it. The **Profile** dropdown starts on the talent tree you have
+  the most points in.
+- A window on your first login shows what the addon does. There you can switch off the tooltip
+  lines and the bag arrows. `/upscout` opens it again.
 - Scores gear with its own stat weights for every talent tree, worked out with the
   [wowsims/forever](https://github.com/wowsims/forever) simulator. No other addon is needed.
 
@@ -60,7 +62,7 @@ To install by hand:
 ## Good to know
 
 - An item's score is the sum of its stats, each times its weight in your **Profile**. The profile
-  starts on one that suits your class. Pick the one for your talent tree in the dropdown.
+  starts on the talent tree you have the most points in. You can pick another in the dropdown.
 - The weights are worked out for a level 60 character, so they are an approximation. Below 60,
   hit, crit, haste and expertise count for less, as simulations of leveling characters show.
 - Stamina (except for tanks), and a healer's Intellect, Spirit and mana regeneration, are set by hand: a simulation of damage cannot tell what staying alive or running out of mana costs.
@@ -96,7 +98,8 @@ levels up or changes gear.
 
 ## Commands
 
-- `/upscout` opens the Upgrades tab. The auction house must be open.
+- `/upscout` opens the addon's window: what it does and its settings. At the auction house it
+  opens the Upgrades tab.
 - `/upscout stats` shows how long the last scan took.
 - `/upscout stats` and an item (shift-click it into the chat line) shows each stat of the item,
   its weight in your profile and what they add up to.

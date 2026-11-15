@@ -37,8 +37,10 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
   cada rama de talentos de tu clase, como Armas, Furia y Protección para un guerrero.
 - Una flecha verde en el icono de un objeto de tus bolsas o del banco indica una mejora que
   puedes equiparte ahora mismo. Una gris: una mejora en cuanto alcances su nivel.
-- Funciona en cuanto lo instalas. No hay nada que configurar: la lista **Perfil** empieza en un
-  perfil que va con tu clase.
+- Funciona en cuanto lo instalas. La lista **Perfil** empieza en la rama de talentos donde tienes
+  más puntos.
+- La primera vez que entras, una ventana muestra lo que hace el addon. Ahí puedes desactivar las
+  líneas de la descripción y las flechas de las bolsas. `/upscout` la abre de nuevo.
 - Puntúa el equipo con pesos propios para cada rama de talentos, calculados con el simulador
   [wowsims/forever](https://github.com/wowsims/forever). No hace falta ningún otro addon.
 
@@ -63,8 +65,8 @@ A mano:
 ## Conviene saber
 
 - La puntuación de un objeto es la suma de sus estadísticas, cada una por su peso en el perfil. El
-  perfil se elige en la lista **Perfil**; al principio tiene uno que va con tu clase. Elige el de tu
-  rama de talentos.
+  perfil se elige en la lista **Perfil**; al principio tiene la rama de talentos donde tienes más
+  puntos. Puedes elegir otra.
 - Los pesos están calculados para un personaje de nivel 60, así que son una aproximación. Por
   debajo del nivel 60, el golpe, el crítico, la celeridad y la pericia valen menos, según
   simulaciones de personajes subiendo de nivel.
@@ -105,7 +107,8 @@ con él cuando suba de nivel o cambie de equipo.
 
 ## Comandos
 
-- `/upscout` abre la pestaña «Mejoras». La casa de subastas debe estar abierta.
+- `/upscout` abre la ventana del addon: lo que hace y sus ajustes. En la casa de subastas abre la
+  pestaña «Mejoras».
 - `/upscout stats` muestra cuánto tardó el último escaneo.
 - `/upscout stats` y un objeto (Mayús-clic para ponerlo en la línea de chat) muestra cada
   estadística del objeto, su peso en el perfil y lo que suman.

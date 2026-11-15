@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.0
+
+- A welcome window comes up on your first login. It shows what the addon puts into the game: the
+  tabs at the auction house, the lines in item tooltips and the arrows in your bags.
+- The tooltip lines and the bag arrows can be switched off in that window. `/upscout` opens it
+  again. At the auction house the command still goes to the Upgrades tab.
+- The **Profile** starts on the talent tree you have the most points in, no longer on one fixed
+  for your class. A profile you chose yourself stays.
+
 ## 2.4.1
 
 - Ticking or unticking **Net cost** no longer sends for prices. The list is repriced on the

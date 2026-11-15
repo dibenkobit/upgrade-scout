@@ -37,8 +37,10 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
   talentos da sua classe, como Armas, Fúria e Proteção para um guerreiro.
 - Uma seta verde no ícone de um item nas bolsas ou no banco indica uma melhoria que você pode
   equipar agora. Uma cinza: uma melhoria assim que você chegar ao nível dela.
-- Funciona logo depois de instalado. Não há nada para configurar: a lista **Perfil** já começa num
-  perfil que combina com a sua classe.
+- Funciona logo depois de instalado. A lista **Perfil** já começa na árvore de talentos em que
+  você tem mais pontos.
+- No primeiro login, uma janela mostra o que o addon faz. Nela você pode desligar as linhas na
+  dica de contexto e as setas nas bolsas. `/upscout` abre a janela de novo.
 - Avalia os equipamentos com pesos próprios para cada árvore de talentos, calculados com o
   simulador [wowsims/forever](https://github.com/wowsims/forever). Nenhum outro addon é necessário.
 
@@ -63,8 +65,8 @@ Manualmente:
 ## Bom saber
 
 - A pontuação de um item é a soma dos seus atributos, cada um vezes o seu peso no perfil. O perfil
-  se escolhe na lista **Perfil**; no começo ela traz um que combina com a sua classe. Escolha o da
-  sua árvore de talentos.
+  se escolhe na lista **Perfil**; no começo ela traz a árvore de talentos em que você tem mais
+  pontos. Você pode escolher outra.
 - Os pesos são calculados para um personagem de nível 60, então são uma aproximação. Abaixo do
   nível 60, acerto, crítico, aceleração e especialização valem menos, segundo simulações de
   personagens subindo de nível.
@@ -105,7 +107,8 @@ nele de novo quando ele subir de nível ou trocar de equipamento.
 
 ## Comandos
 
-- `/upscout` abre a aba "Melhorias". A Casa de Leilões precisa estar aberta.
+- `/upscout` abre a janela do addon: o que ele faz e as configurações. Na Casa de Leilões, abre a
+  aba "Melhorias".
 - `/upscout stats` mostra quanto tempo levou o último escaneamento.
 - `/upscout stats` e um item (Shift-clique nele para colocá-lo na linha do chat) mostra cada
   atributo do item, o peso dele no perfil e quanto somam.

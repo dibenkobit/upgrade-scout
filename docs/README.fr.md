@@ -41,8 +41,10 @@ chat.
 - Une flèche verte sur l'icône d'un objet dans vos sacs ou à la banque signale une amélioration
   que vous pouvez équiper tout de suite. Une flèche grise : une amélioration dès que vous aurez
   atteint son niveau.
-- Fonctionne dès l'installation. Rien à régler : la liste **Profil** commence sur un profil qui
-  convient à votre classe.
+- Fonctionne dès l'installation. La liste **Profil** commence sur l'arbre de talents où vous avez
+  le plus de points.
+- À la première connexion, une fenêtre montre ce que fait l'addon. Vous pouvez y désactiver les
+  lignes dans l'infobulle et les flèches dans les sacs. `/upscout` la rouvre.
 - Évalue l'équipement avec ses propres poids pour chaque arbre de talents, calculés avec le
   simulateur [wowsims/forever](https://github.com/wowsims/forever). Aucun autre addon n'est nécessaire.
 
@@ -67,8 +69,8 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 ## Bon à savoir
 
 - Le score d'un objet est la somme de ses caractéristiques, chacune multipliée par son poids dans le
-  profil. Le profil se choisit dans la liste **Profil** ; au départ, elle indique celui qui convient
-  à votre classe. Choisissez celui de votre arbre de talents.
+  profil. Le profil se choisit dans la liste **Profil** ; au départ, elle indique l'arbre de talents
+  où vous avez le plus de points. Vous pouvez en choisir un autre.
 - Les poids sont calculés pour un personnage de niveau 60 : c'est une approximation. Sous le
   niveau 60, le toucher, le critique, la hâte et l'expertise comptent moins, d'après des simulations
   de personnages qui montent de niveau.
@@ -110,7 +112,8 @@ Reconnectez-vous avec lui quand il a pris un niveau ou changé d'équipement.
 
 ## Commandes
 
-- `/upscout` ouvre l'onglet « Améliorations ». L'hôtel des ventes doit être ouvert.
+- `/upscout` ouvre la fenêtre de l'addon : ce qu'il fait et ses réglages. À l'hôtel des ventes, il
+  ouvre l'onglet « Améliorations ».
 - `/upscout stats` montre combien de temps a pris le dernier scan.
 - `/upscout stats` suivi d'un objet (Maj-clic pour l'insérer dans la ligne de discussion) montre
   chaque caractéristique de l'objet, son poids dans le profil et leur total.

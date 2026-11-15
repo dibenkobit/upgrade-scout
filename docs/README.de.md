@@ -40,8 +40,10 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
 - Ein grüner Pfeil auf dem Symbol eines Gegenstands in deinen Taschen oder der Bank heißt: eine
   Verbesserung, die du jetzt anlegen kannst. Ein grauer: eine Verbesserung, sobald du ihre Stufe
   erreichst.
-- Funktioniert gleich nach der Installation. Einzurichten gibt es nichts: In der Liste **Profil**
-  steht anfangs ein Profil, das zu deiner Klasse passt.
+- Funktioniert gleich nach der Installation. In der Liste **Profil** steht anfangs der Talentbaum,
+  in dem du die meisten Punkte hast.
+- Beim ersten Einloggen zeigt ein Fenster, was das Addon macht. Dort kannst du die Zeilen im
+  Tooltip und die Pfeile in den Taschen abschalten. `/upscout` öffnet es wieder.
 - Bewertet Ausrüstung mit eigenen Gewichten für jeden Talentbaum, berechnet mit dem Simulator
   [wowsims/forever](https://github.com/wowsims/forever). Ein anderes Addon ist nicht nötig.
 
@@ -66,8 +68,8 @@ Von Hand:
 ## Gut zu wissen
 
 - Die Wertung eines Gegenstands ist die Summe seiner Werte, jeder mal sein Gewicht im Profil. Das
-  Profil wählst du in der Liste **Profil**; anfangs steht dort eines, das zu deiner Klasse passt.
-  Wähle das für deinen Talentbaum.
+  Profil wählst du in der Liste **Profil**; anfangs steht dort der Talentbaum, in dem du die
+  meisten Punkte hast. Du kannst einen anderen wählen.
 - Die Gewichte sind für einen Charakter der Stufe 60 berechnet, also eine Näherung. Unter Stufe 60
   zählen Treffer, kritische Treffer, Tempo und Waffenkunde weniger, wie Simulationen von Charakteren
   beim Leveln zeigen.
@@ -109,7 +111,8 @@ wieder mit ihm ein, wenn er eine Stufe aufgestiegen ist oder neue Ausrüstung tr
 
 ## Befehle
 
-- `/upscout` öffnet den Tab „Verbesserungen“. Das Auktionshaus muss offen sein.
+- `/upscout` öffnet das Fenster des Addons: was es macht und seine Einstellungen. Im Auktionshaus
+  öffnet es den Tab „Verbesserungen“.
 - `/upscout stats` zeigt, wie lange der letzte Scan gedauert hat.
 - `/upscout stats` und ein Gegenstand (per Umschalt-Klick in die Chatzeile) zeigt jeden Wert des
   Gegenstands, sein Gewicht im Profil und was zusammenkommt.
