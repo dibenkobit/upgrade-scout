@@ -18,10 +18,19 @@ local L = ns.L
 --     (Score.Engine). Two buttons side by side; Pawn's is grey while Pawn is not there
 --   the talent tree the character is played with, a button for each profile of its class
 --     (the one in use is lit: see Score.Current). With Pawn scoring, its Pawn scales
---   what the addon puts into the game, a card for each: the tabs at the auction house, the
---     lines in an item's tooltip, the arrows in the bags. A card has a picture of the thing as
---     it looks in the game, its name and a sentence. The last two can be switched off, by the
---     tick box before the name (ns.Shows).
+--   what the addon puts into the game. Two cards side by side: the tabs at the auction house
+--     and the arrows in the bags, each with a picture of the thing as it looks in the game,
+--     its name and a sentence. The arrows can be switched off, by the tick box before the
+--     name (ns.Shows).
+--   under them, as wide as both, the block of the lines in an item's tooltip, which has more
+--     to ask. On its left the picture of a tooltip; on its right the name, a sentence and two
+--     questions. How: every talent tree or the one in use, a button for each (ns.OwnTree).
+--     Where: on the addon's tabs at the auction house, elsewhere in the game, a tick box for
+--     each (ns.Shows "rowTooltip" and "tooltip"), so both, either or neither. The picture
+--     shows what the answers come to, and fades when the lines show nowhere.
+--     With Pawn scoring, a tooltip has Pawn's lines and not ours: the block says so in place
+--     of its sentence, and the two buttons and the box for the rest of the game are out of
+--     use. The box for the addon's tabs stays: it is what our notes there go by.
 --   how to get the window back, and the button that closes it
 -- Everything is laid out from the height its texts turn out to have (see Layout): a language
 -- with longer words gets a taller window, not a cut sentence.
@@ -35,11 +44,19 @@ local GOLD, GOLD_DIM, CREAM, SOFT, GREEN = Widgets.GOLD, Widgets.GOLD_DIM, Widge
 
 local WIDTH, EDGE = 660, 20
 local GAP = 11                  -- between two cards, and between two buttons of the trees
-local CARD_WIDTH = (WIDTH - 2 * EDGE - 2 * GAP) / 3
+local CARD_WIDTH = (WIDTH - 2 * EDGE - GAP) / 2
 local PICTURE = 112             -- the height of a card's picture
 local TREE_HEIGHT = 28
 local TREES_IN_ROW = 4          -- more buttons than this (Pawn scales can be many) go in rows
 local TREE_ROW_GAP = 7          -- between two such rows
+-- The tooltip's block: its width; the width of the tooltip in its picture and of the room that
+-- picture has on the left; where its words begin and how much room they have; the height of
+-- the two buttons, their least width, and the room between two things in a row.
+local BLOCK_WIDTH = WIDTH - 2 * EDGE
+local TIP_WIDTH, TIP_ROOM = 167, 199
+local BLOCK_TEXT = TIP_ROOM + 6
+local BLOCK_ROOM = BLOCK_WIDTH - BLOCK_TEXT - 16
+local HOW_HEIGHT, HOW_WIDTH, HOW_GAP = 24, 138, 7
 local GREET_AFTER = 4           -- seconds in the world before the window comes up by itself
 local GREET_RETRY = 5           -- and between two looks at whether the character is out of a fight
 
@@ -172,8 +189,12 @@ local function NewListPicture(picture)
 end
 
 -- An item's tooltip: its name, and under the addon's own heading a line for every profile of
--- the class with the gain on it, as Tooltip.lua writes them.
-local TIP_TOP, TIP_STEP = 41, 12.5
+-- the class with the gain on it, as Tooltip.lua writes them. With the tree in use alone
+-- chosen (about.own) it has the one line of that profile, where the heading was, the addon's
+-- icon before the profile's name (Tooltip.AddOwn).
+-- How far down the heading is, the first line under it, and each line under the one before.
+local TIP_HEAD, TIP_TOP, TIP_STEP = 28, 41, 12.5
+local TIP_ICON = "|T" .. ICON .. ".tga:0|t "
 
 local function PaintTip(picture, about)
     local tip = picture.Tip
@@ -184,32 +205,37 @@ local function PaintTip(picture, about)
 
     local r, g, b = (RAID_CLASS_COLORS[about.class or ""] or HIGHLIGHT_FONT_COLOR):GetRGB()
     local count = #about.profiles
+    local own = about.own and about.profiles[about.place] ~= nil
+    tip.Brand:SetShown(not own)
     for i = 1, math.max(count, #tip.Lines) do
         local line = tip.Lines[i]
         if not line then
             line = { Title = NewText(tip, 9.5, CREAM), Gain = NewText(tip, 9.5, GREEN, "RIGHT") }
-            local down = TIP_TOP + (i - 1) * TIP_STEP
-            line.Title:SetPoint("LEFT", tip, "TOPLEFT", 8, -down)
-            line.Gain:SetPoint("RIGHT", tip, "TOPRIGHT", -8, -down)
-            line.Title:SetPoint("RIGHT", line.Gain, "LEFT", -6, 0)
             line.Gain:SetTextColor(GREEN_FONT_COLOR:GetRGB())
             tip.Lines[i] = line
         end
         local profile = about.profiles[i]
-        line.Title:SetShown(profile ~= nil)
-        line.Gain:SetShown(profile ~= nil)
-        if profile then
-            line.Title:SetText(profile.title)
+        local shown = profile ~= nil and (not own or i == about.place)
+        line.Title:SetShown(shown)
+        line.Gain:SetShown(shown)
+        if shown then
+            local down = own and TIP_HEAD or TIP_TOP + (i - 1) * TIP_STEP
+            line.Title:ClearAllPoints()
+            line.Gain:ClearAllPoints()
+            line.Title:SetPoint("LEFT", tip, "TOPLEFT", 8, -down)
+            line.Gain:SetPoint("RIGHT", tip, "TOPRIGHT", -8, -down)
+            line.Title:SetPoint("RIGHT", line.Gain, "LEFT", -6, 0)
+            line.Title:SetText(own and TIP_ICON .. profile.title or profile.title)
             line.Title:SetTextColor(r, g, b)
             line.Gain:SetText(Gain(sample, i))
         end
     end
-    tip:SetHeight(TIP_TOP + math.max(count - 1, 0) * TIP_STEP + 12)
+    tip:SetHeight((own and TIP_HEAD or TIP_TOP + math.max(count - 1, 0) * TIP_STEP) + 12)
 end
 
 local function NewTipPicture(picture)
     local tip = CreateFrame("Frame", nil, picture)
-    tip:SetWidth(CARD_WIDTH - 32)
+    tip:SetWidth(TIP_WIDTH)
     tip:SetPoint("CENTER", picture, "CENTER", 0, 0)
     local ground = tip:CreateTexture(nil, "BACKGROUND")
     ground:SetAllPoints()
@@ -228,10 +254,10 @@ local function NewTipPicture(picture)
     tip.Name:SetPoint("LEFT", tip, "TOPLEFT", 8, -13)
     tip.Name:SetPoint("RIGHT", tip, "TOPRIGHT", -8, -13)
     -- The addon's heading in a tooltip (see T.AddHeader in Tooltip.lua).
-    local brand = NewText(tip, 9.5, CREAM)
-    brand:SetPoint("LEFT", tip, "TOPLEFT", 8, -28)
-    brand:SetText("|T" .. ICON .. ".tga:0|t Upgrade Scout")
-    brand:SetTextColor(0.53, 0.78, 0.96)
+    tip.Brand = NewText(tip, 9.5, CREAM)
+    tip.Brand:SetPoint("LEFT", tip, "TOPLEFT", 8, -TIP_HEAD)
+    tip.Brand:SetText(TIP_ICON .. "Upgrade Scout")
+    tip.Brand:SetTextColor(0.53, 0.78, 0.96)
     tip.Lines = {}
     picture.Tip = tip
     picture.Paint = PaintTip
@@ -274,10 +300,12 @@ end
 ---------------------------------------------------------------------------
 local Paint
 
--- The tick box of a card that can be switched off: `part` is "tooltip" or "arrows" (ns.Shows).
--- What it says is done at once, and written down only when it is "off".
-local function NewSwitch(card, part)
-    local check = CreateFrame("CheckButton", nil, card)
+-- A tick box. `part` is what it switches: "arrows", "tooltip" or "rowTooltip" (ns.Shows), all
+-- on until unticked. What the box says is done at once, and written down only when it is
+-- "off".
+local function NewSwitch(parent, part)
+    local check = CreateFrame("CheckButton", nil, parent)
+    check.part = part
     check:SetSize(15, 15)
     NewSlices(check, "Inset", 0.25, 6, "BACKGROUND")
     local glow = NewTexture(check, "Glow", "HIGHLIGHT")
@@ -295,6 +323,14 @@ local function NewSwitch(card, part)
         ns.Fire("SETTING_CHANGED", part)
     end)
     return check
+end
+
+-- Shows a tick box as its part is: ticked or not.
+local function PaintSwitch(switch)
+    local on = ns.Shows(switch.part)
+    switch:SetChecked(on)
+    switch.Tick:SetShown(on)
+    return on
 end
 
 -- part: what the card's tick box switches, nil for a card that has none (the auction house:
@@ -340,10 +376,11 @@ local function NewCard(part, title, body, NewPicture)
 end
 
 ---------------------------------------------------------------------------
--- The trees
+-- One of several
 ---------------------------------------------------------------------------
--- A button for a profile of the class. The one in use is lit, with a gold diamond before its
--- name; the others are dark.
+-- A button for one answer of several: a profile of the class, or how a tooltip's lines are
+-- written. The answer in force is lit, with a gold diamond before its name; the others are
+-- dark.
 local function PaintTree(button, chosen)
     button.Lit:SetShown(chosen)
     button.Mark:SetShown(chosen)
@@ -361,20 +398,103 @@ local function TreeOnClick(self)
     ns.UI.ChooseProfile(self.profile)
 end
 
-local function NewTree()
-    local button = CreateFrame("Button", nil, frame)
-    button:SetHeight(TREE_HEIGHT)
+-- height: of the button; size: of its words; OnClick: what choosing it does.
+local function NewChoice(parent, height, size, OnClick)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetHeight(height)
     NewSlices(button, "ButtonDark", 0.25, 8, "BACKGROUND", 0, 1)
     button.Lit = NewSlices(button, "ButtonGlow", 0.25, 8, "BORDER", 0, 1)
     button.Lit:SetBlendMode("ADD")
     button.Lit:SetVertexColor(1, 0.70, 0.28, 0.9)
     NewSlices(button, "ButtonGlow", 0.25, 8, "HIGHLIGHT", 0, 1):SetBlendMode("ADD")
-    button.Label = NewText(button, 12, SOFT, "CENTER")
+    button.Label = NewText(button, size, SOFT, "CENTER")
     button.Mark = NewTexture(button, "Diamond", "ARTWORK")
     button.Mark:SetSize(14, 14)
     button.Mark:SetPoint("RIGHT", button.Label, "LEFT", -3, 0)
-    button:SetScript("OnClick", TreeOnClick)
+    button:SetScript("OnClick", OnClick)
     return button
+end
+
+local function NewTree()
+    return NewChoice(frame, TREE_HEIGHT, 12, TreeOnClick)
+end
+
+---------------------------------------------------------------------------
+-- The tooltip's block
+---------------------------------------------------------------------------
+-- How the lines are written: for every profile of the class (self.own false), or one line for
+-- the profile in use (true). Written down only when it is not the usual, every profile.
+local function HowOnClick(self)
+    PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+    if ns.OwnTree() == self.own then return end
+    ns.account.ownTree = self.own or nil
+    ns.Fire("SETTING_CHANGED", "ownTree")
+end
+
+local function NewHow(block, own, text)
+    local button = NewChoice(block, HOW_HEIGHT, 10.5, HowOnClick)
+    button.own = own
+    button.Label:SetText(text)
+    return button
+end
+
+-- A tick box with its words after it, which a click ticks as well: one of the places the
+-- lines can show in. `wide` is how wide its words are on one line.
+local function NewWhere(block, part, text)
+    local switch = NewSwitch(block, part)
+    switch.Label = NewText(block, 10.5, CREAM)
+    switch.Label:SetSpacing(3)
+    switch.Label:SetPoint("TOPLEFT", switch, "TOPLEFT", 21, -2)
+    switch.Label:SetText(text)
+    switch.wide = switch.Label:GetStringWidth()
+    switch:SetHitRectInsets(0, -(6 + switch.wide), -4, -4)
+    return switch
+end
+
+-- How tall such a tick box is where it has a line of the block to itself. Words too long for
+-- the line go on to a second one.
+local function WhereHeight(switch)
+    local room = BLOCK_ROOM - 21
+    if switch.wide <= room then return 15 end
+    switch.Label:SetWordWrap(true)
+    switch.Label:SetWidth(room)
+    local tall = math.max(15, 2 + switch.Label:GetStringHeight())
+    switch:SetHitRectInsets(0, -(6 + room), -4, -(4 + tall - 15))
+    return tall
+end
+
+-- As wide as the two cards. What a card has under one another the block has side by side:
+-- the picture on the left, the name and the sentence on the right, and under the sentence
+-- the two questions (see Layout for where each part goes).
+local function NewBlock()
+    local block = CreateFrame("Frame", nil, frame)
+    block:SetWidth(BLOCK_WIDTH)
+    NewSlices(block, "Inset", 0.25, 8, "BACKGROUND")
+
+    block.Picture = CreateFrame("Frame", nil, block)
+    block.Picture:SetPoint("TOPLEFT", block, "TOPLEFT", 0, 0)
+    block.Picture:SetPoint("BOTTOMLEFT", block, "BOTTOMLEFT", 0, 0)
+    block.Picture:SetWidth(TIP_ROOM)
+    NewTipPicture(block.Picture)
+
+    local diamond = NewTexture(block, "Diamond", "ARTWORK")
+    diamond:SetSize(15, 15)
+    diamond:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -15)
+    block.Title = NewText(block, 10.5, GOLD)
+    block.Title:SetWordWrap(true)
+    block.Title:SetWidth(BLOCK_ROOM - 21)
+    block.Title:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT + 21, -17)
+    block.Title:SetText(ns.Upper(L.WELCOME_TOOLTIP))
+    block.Body = NewText(block, 10.5, CREAM)
+    block.Body:SetWordWrap(true)
+    block.Body:SetSpacing(3)
+    block.Body:SetWidth(BLOCK_ROOM)
+    block.Body:SetText(L.WELCOME_TOOLTIP_TEXT)
+
+    block.All, block.Own = NewHow(block, false, L.WELCOME_HOW_ALL), NewHow(block, true, L.WELCOME_HOW_OWN)
+    block.Tabs = NewWhere(block, "rowTooltip", L.WELCOME_WHERE_TABS)
+    block.Elsewhere = NewWhere(block, "tooltip", L.WELCOME_WHERE_ELSE)
+    return block
 end
 
 ---------------------------------------------------------------------------
@@ -455,22 +575,61 @@ local function Layout()
     frame.Shows:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + 2, -down)
     down = down + frame.Shows:GetStringHeight() + 9
 
-    -- The cards are all as tall as the one with the most to say.
+    -- The two cards are as tall as the one with the more to say.
     local words = 0
-    for i = 1, #frame.Cards do
-        local card = frame.Cards[i]
+    for i = 1, #frame.Pair do
+        local card = frame.Pair[i]
         local title = math.max(card.Title:GetStringHeight(), 15)
         card.Body:ClearAllPoints()
         card.Body:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -(PICTURE + 11 + title + 8))
         words = math.max(words, 11 + title + 8 + card.Body:GetStringHeight() + 12)
     end
-    for i = 1, #frame.Cards do
-        local card = frame.Cards[i]
+    for i = 1, #frame.Pair do
+        local card = frame.Pair[i]
         card:SetHeight(PICTURE + words)
         card:ClearAllPoints()
         card:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + (i - 1) * (CARD_WIDTH + GAP), -down)
     end
-    down = down + PICTURE + words + 12
+    down = down + PICTURE + words + GAP
+
+    -- The tooltip's block. `under` is how far under its top the next part of its words
+    -- begins: the name, the sentence, the two buttons, the two tick boxes.
+    local block = frame.Tips
+    local under = 15 + math.max(block.Title:GetStringHeight(), 15) + 7
+    block.Body:ClearAllPoints()
+    block.Body:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -under)
+    under = under + block.Body:GetStringHeight() + 10
+    -- The buttons are as wide as the longer of their names asks for, and no wider than half
+    -- of the room.
+    local wide = math.max(block.All.Label:GetStringWidth(), block.Own.Label:GetStringWidth()) + 46
+    wide = math.min(math.max(wide, HOW_WIDTH), (BLOCK_ROOM - HOW_GAP) / 2)
+    block.All:SetWidth(wide)
+    block.Own:SetWidth(wide)
+    block.All:ClearAllPoints()
+    block.All:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -under)
+    block.Own:ClearAllPoints()
+    block.Own:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT + wide + HOW_GAP, -under)
+    under = under + HOW_HEIGHT + 11
+    -- The tick boxes stand side by side where their words leave room for that, and one under
+    -- the other where they do not.
+    local first = 21 + block.Tabs.wide
+    block.Tabs:ClearAllPoints()
+    block.Tabs:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -under)
+    block.Elsewhere:ClearAllPoints()
+    if first + 24 + 21 + block.Elsewhere.wide <= BLOCK_ROOM then
+        block.Elsewhere:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT + first + 24, -under)
+        under = under + 15
+    else
+        under = under + WhereHeight(block.Tabs) + 7
+        block.Elsewhere:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -under)
+        under = under + WhereHeight(block.Elsewhere)
+    end
+    under = under + 16
+    -- As tall as its words, or as its picture where a class has many trees.
+    block:SetHeight(math.max(under, block.Picture.Tip:GetHeight() + 32))
+    block:ClearAllPoints()
+    block:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE, -down)
+    down = down + block:GetHeight() + 12
 
     frame.BottomRule:ClearAllPoints()
     frame.BottomRule:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE - 4, -down)
@@ -487,7 +646,7 @@ end
 Paint = function()
     local me = ns.Roster.Me()
     local current, profiles = ns.Score.Current()
-    local about = { profiles = profiles, place = 1, class = me and me.class }
+    local about = { profiles = profiles, place = 1, class = me and me.class, own = ns.OwnTree() }
 
     frame.About:SetText(greeting and L.WELCOME_FIRST or L.WELCOME_ABOUT)
     frame.Shows:SetText(L.WELCOME_SHOWS .. Aside(L.WELCOME_OFF))
@@ -545,35 +704,43 @@ Paint = function()
     -- (The pictures then count places among the addon's own profiles: the first.)
     if pawn then about.place = 1 end
 
-    for i = 1, #frame.Cards do
-        local card = frame.Cards[i]
-        local on = not card.part or ns.Shows(card.part)
-        -- With Pawn scoring the lines in a tooltip are Pawn's to write (Tooltip.lua): the
-        -- card says so in place of its sentence, and its box is empty and out of use until
-        -- the addon scores again. The arrows in the bags stay ours to draw, and to switch.
-        if card.part == "tooltip" then
-            card.Body:SetText(pawn and L.WELCOME_TOOLTIP_PAWN or L.WELCOME_TOOLTIP_TEXT)
-            card.Switch:SetEnabled(not pawn)
-            card.Switch:EnableMouse(not pawn)
-            card.Switch:SetAlpha(pawn and 0.4 or 1)
-            card.Title:SetAlpha(pawn and 0.5 or 1)
-            -- (And so is a further box under the card's sentence, where it has one.)
-            if card.Option then
-                card.Option:SetEnabled(not pawn)
-                card.Option:EnableMouse(not pawn)
-                card.Option:SetAlpha(pawn and 0.4 or 1)
-                if card.OptionText then card.OptionText:SetAlpha(pawn and 0.5 or 1) end
-            end
-            on = on and not pawn
-        end
-        if card.Switch then
-            card.Switch:SetChecked(on)
-            card.Switch.Tick:SetShown(on)
-        end
+    for i = 1, #frame.Pair do
+        local card = frame.Pair[i]
+        local on = not card.Switch or PaintSwitch(card.Switch)
         -- What is switched off is still shown, faded: it is what would come back.
         card.Picture:SetAlpha(on and 1 or 0.3)
         card.Picture:Paint(about)
     end
+
+    -- The tooltip's block: where the lines show, and how they are written. Shown nowhere,
+    -- there is nothing to choose between: the two buttons keep what they say and go dim with
+    -- the picture until one of the boxes is ticked again.
+    -- With Pawn scoring the lines in a tooltip are Pawn's to write (Tooltip.lua): the block
+    -- says so in place of its sentence, the box for the rest of the game is empty and out of
+    -- use, and the buttons and the picture are dim, until the addon scores again. The box
+    -- for our own tabs stays in use: what we still write under their rows goes by it
+    -- (AddOfferLines in UI.lua). The arrows in the bags stay ours to draw, and to switch.
+    local block = frame.Tips
+    local tabs, elsewhere = PaintSwitch(block.Tabs), PaintSwitch(block.Elsewhere)
+    block.Body:SetText(pawn and L.WELCOME_TOOLTIP_PAWN or L.WELCOME_TOOLTIP_TEXT)
+    if pawn then
+        block.Elsewhere:SetChecked(false)
+        block.Elsewhere.Tick:SetShown(false)
+    end
+    -- (Out of the mouse's reach as well, as Pawn's button is while Pawn is not there.)
+    block.Elsewhere:SetEnabled(not pawn)
+    block.Elsewhere:EnableMouse(not pawn)
+    block.Elsewhere:SetAlpha(pawn and 0.4 or 1)
+    block.Elsewhere.Label:SetAlpha(pawn and 0.5 or 1)
+    local shown = (tabs or elsewhere) and not pawn
+    PaintTree(block.All, not about.own)
+    PaintTree(block.Own, about.own)
+    for _, button in ipairs({ block.All, block.Own }) do
+        button:SetEnabled(shown)
+        button:SetAlpha(shown and 1 or 0.35)
+    end
+    block.Picture:SetAlpha(shown and 1 or 0.3)
+    block.Picture:Paint(about)
     Layout()
 end
 
@@ -647,11 +814,12 @@ local function Build()
     frame.Shows:SetSpacing(3)
     frame.Shows:SetWidth(WIDTH - 2 * EDGE - 4)
 
-    frame.Cards = {
+    -- The two cards, and under them the tooltip's block.
+    frame.Pair = {
         NewCard(nil, L.WELCOME_AUCTION, L.WELCOME_AUCTION_TEXT:format(L.SCAN, L.TAB, L.TAB_SUP), NewListPicture),
-        NewCard("tooltip", L.WELCOME_TOOLTIP, L.WELCOME_TOOLTIP_TEXT, NewTipPicture),
         NewCard("arrows", L.WELCOME_ARROWS, L.WELCOME_ARROWS_TEXT, NewBagPicture),
     }
+    frame.Tips = NewBlock()
 
     frame.Done = NewButton(frame, 118, 28, "ButtonRed", 13)
     frame.Done.Label:SetText(L.WELCOME_DONE)

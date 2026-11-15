@@ -73,17 +73,25 @@ end
 ns.db = { affordableOnly = true, topOnly = true, bestOnly = true, collapsed = {} }
 -- For the whole account. chars: the characters of the account as each was last seen, by
 -- name (see Roster.lua). On until switched off in the welcome window (Welcome.lua), and so
--- written down only as false: tooltip (our lines in the tooltip of any item) and arrows (the
--- arrow on an upgrade in the bags). welcomed: that window has been seen. minimap: where the
--- button at the minimap is (Minimap.lua).
+-- written down only as false: where our lines show in an item's tooltip, which is tooltip
+-- (anywhere in the game but our own tabs: the bags, loot, the chat) and rowTooltip (the rows
+-- of our tabs at the auction house), and arrows (the arrow on an upgrade in the bags). Off
+-- until chosen there, and so written down only as true: ownTree (see ns.OwnTree). welcomed:
+-- that window has been seen. minimap: where the button at the minimap is (Minimap.lua).
 ns.account = { chars = {} }
 -- Also for the whole account, and chosen in the same window: engine, "pawn" when gear is to
 -- be scored by the player's Pawn scales and not by the addon's own weights (Score.Engine).
 -- pawnOffered: the window has been seen since that choice could be made in it.
 
--- Is this part of the addon on: "tooltip" or "arrows"?
+-- Is this part of the addon on: "tooltip", "rowTooltip" or "arrows"?
 function ns.Shows(part)
     return ns.account[part] ~= false
+end
+
+-- How our lines in a tooltip are written, wherever they show: true for one line, for the
+-- profile in use (Tooltip.AddOwn), and not a line for every profile of the class.
+function ns.OwnTree()
+    return ns.account.ownTree == true
 end
 
 EventUtil.ContinueOnAddOnLoaded(ADDON, function()

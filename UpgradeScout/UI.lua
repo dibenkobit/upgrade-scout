@@ -142,7 +142,7 @@ end
 -- Rows
 ---------------------------------------------------------------------------
 -- Our lines under a row's tooltip (see Tooltip.lua for how they look).
-local AddHeader, AddGain = ns.Tooltip.AddHeader, ns.Tooltip.AddGain
+local AddHeader, AddGain, AddOwn = ns.Tooltip.AddHeader, ns.Tooltip.AddGain, ns.Tooltip.AddOwn
 
 -- What the offer of a row gains on every profile of the class, as Pawn shows its scales:
 -- { { title, gain }, ... } in the order of the profile menu. The profile the
@@ -180,7 +180,9 @@ local function ProfileGains(entry)
     return gains
 end
 
--- A consumable's own tooltip, and under it how much of it is for sale.
+-- A consumable's own tooltip, and under it how much of it is for sale. With our lines
+-- switched off for the rows of the tabs (the welcome window: ns.Shows "rowTooltip") the
+-- tooltip is the item's own and no more; what the lines say is in the row's columns.
 local function ShowSupplyTooltip(row)
     local entry = row.entry
     local supply = entry.supply
@@ -188,18 +190,20 @@ local function ShowSupplyTooltip(row)
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(supply.link, nil, nil, hideVendorPrice)
-    -- On the right, whose profile the score is on.
-    AddHeader(GameTooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
-    if entry.value then
-        GameTooltip_AddNormalLine(GameTooltip, L.TT_SUP_SCORE:format("+" .. ns.Num(entry.value)))
-    elseif entry.why == "MANA" then
-        GameTooltip_AddNormalLine(GameTooltip, who and L.TT_SUP_NO_MANA_WHO or L.TT_SUP_NO_MANA)
-    elseif entry.why then
-        GameTooltip_AddNormalLine(GameTooltip, who and L.TT_SUP_NO_WEIGHT_WHO or L.TT_SUP_NO_WEIGHT)
-    end
-    GameTooltip_AddHighlightLine(GameTooltip, L.TT_STOCK:format(supply.quantity, ns.Money(supply.price)))
-    if not entry.affordable then
-        GameTooltip_AddErrorLine(GameTooltip, L.TT_CANT_AFFORD:format(ns.Money(supply.price - GetMoney())))
+    if ns.Shows("rowTooltip") then
+        -- On the right, whose profile the score is on.
+        AddHeader(GameTooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
+        if entry.value then
+            GameTooltip_AddNormalLine(GameTooltip, L.TT_SUP_SCORE:format("+" .. ns.Num(entry.value)))
+        elseif entry.why == "MANA" then
+            GameTooltip_AddNormalLine(GameTooltip, who and L.TT_SUP_NO_MANA_WHO or L.TT_SUP_NO_MANA)
+        elseif entry.why then
+            GameTooltip_AddNormalLine(GameTooltip, who and L.TT_SUP_NO_WEIGHT_WHO or L.TT_SUP_NO_WEIGHT)
+        end
+        GameTooltip_AddHighlightLine(GameTooltip, L.TT_STOCK:format(supply.quantity, ns.Money(supply.price)))
+        if not entry.affordable then
+            GameTooltip_AddErrorLine(GameTooltip, L.TT_CANT_AFFORD:format(ns.Money(supply.price - GetMoney())))
+        end
     end
     GameTooltip:Show()
 end
@@ -239,23 +243,36 @@ local function AddNotes(tooltip, entry, who)
     end
 end
 
+-- Our lines under the tooltip of a row of gear: the gain, what the row cannot say for want
+-- of room (the hands, the effects, what the net cost is made of) and what is missing to pay.
 -- With Pawn scoring (Score.Engine), the tooltip of a row in the player's own list has Pawn's
--- lines: what the item is worth on each of the player's scales. Ours would say it twice,
--- so only the notes about buying it are written, under the addon's name, and nothing at all
--- when there are none. (A list for another character keeps our lines: Pawn's are about the
--- character being played.)
-local function ShowNotedTooltip(row)
-    local entry = row.entry
+-- lines: what the item is worth on each of the player's scales. Ours would say it twice, so
+-- the gain is left out, and the rest is written under the addon's name, or nothing at all
+-- where there is no more to say. (A list for another character keeps the gain: Pawn's lines
+-- are about the character being played.)
+local function AddOfferLines(entry, who)
     local offer = entry.offer
-    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-    local hideVendorPrice = true
-    GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
-    if entry.note or offer.effects or ns.db.net or not entry.affordable then
-        ns.Tooltip.AddHeader(GameTooltip)
-        AddNotes(GameTooltip, entry)
+    if ns.Score.Engine() and not who then
+        if entry.note or offer.effects or ns.db.net or not entry.affordable then
+            AddHeader(GameTooltip)
+            AddNotes(GameTooltip, entry)
+        end
+        return
     end
-    GameTooltip:Show()
-    GameTooltip_ShowCompareItem(GameTooltip)
+    if ns.OwnTree() and S.ctx then
+        -- The tree in use alone: one line, for the profile the list is made on, which reads
+        -- as the row does. Whose list it is stands before the profile, as in the field.
+        local title = ns.Score.Title(S.ctx.profile)
+        AddOwn(GameTooltip, who and L.ST_WHO:format(WhoName(who), title) or title, entry, S.ctx.class)
+    else
+        -- On the right, whose list it is when it is not the character's own.
+        AddHeader(GameTooltip, who and WhoName(who) or nil)
+        -- How much better the item is on each profile of the class, in the class's colour.
+        for _, line in ipairs(ProfileGains(entry)) do
+            AddGain(GameTooltip, line.title, line.gain, S.ctx.class)
+        end
+    end
+    AddNotes(GameTooltip, entry, who)
 end
 
 local function ShowItemTooltip(row)
@@ -264,24 +281,15 @@ local function ShowItemTooltip(row)
         ShowSupplyTooltip(row)
         return
     end
-    if ns.Score.Engine() and not ns.Roster.Target() then
-        ShowNotedTooltip(row)
-        return
-    end
     local offer = entry.offer
     local who = ns.Roster.Target()
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     -- No vendor price, as on the Buy tab: this is something to buy, not to sell.
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
-
-    -- On the right, whose list it is when it is not the character's own.
-    AddHeader(GameTooltip, who and WhoName(who) or nil)
-    -- How much better the item is on each profile of the class, in the class's colour.
-    for _, line in ipairs(ProfileGains(entry)) do
-        AddGain(GameTooltip, line.title, line.gain, S.ctx.class)
-    end
-    AddNotes(GameTooltip, entry, who)
+    -- Our lines, unless they are switched off for the rows of the tabs (the welcome window):
+    -- the tooltip is then the item's own, with the worn item beside it as ever.
+    if ns.Shows("rowTooltip") then AddOfferLines(entry, who) end
     GameTooltip:Show()
 
     -- What the item would replace is the point of this list, so the worn item's tooltip is

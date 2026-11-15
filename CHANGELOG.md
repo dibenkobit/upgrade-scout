@@ -6,10 +6,19 @@
   **Pawn**: the lists at the auction house and the bag arrows then go by your Pawn scales, not
   by the addon's own weights. The **Profile** dropdown lists the scales, for your other
   characters too.
-- With Pawn chosen, an item's tooltip has Pawn's lines and none from the addon.
+- With Pawn chosen, Pawn's lines say what an item is worth, so the addon leaves its own out of
+  the tooltip.
 - The choice is for the whole account. Without Pawn, or with Pawn switched off, the addon
   scores by its own weights as before.
 - If you have Pawn, the window comes up once after the update to show you the choice.
+- The addon's window asks two things about item tooltips. How: **All specs** shows a line for
+  every talent tree of your class, as before. **Only my spec** keeps one line: how much better
+  the item is for the tree you play.
+- Where: one box for the addon's tabs at the auction house, one for the rest of the game (bags,
+  loot, chat). Untick both and the addon writes nothing into tooltips. Before, the lines on
+  the addon's tabs could not be switched off.
+- The window has a new layout: the auction house and the bags side by side, and the tooltip in
+  a block of its own under them.
 
 ## 2.5.0
 

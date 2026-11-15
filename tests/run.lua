@@ -15,6 +15,7 @@ local names = {
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
     "pawn_scan", "pawn_absent", "pawn_tooltips", "pawn_welcome", "pawn_supplies", "pawn_alt",
     "talents", "welcome", "minimap",
+    "tooltip_settings",
 }
 
 if not scenario then
@@ -3137,6 +3138,14 @@ function scenarios.supplies_ui()
         return table.concat(lines, " | ")
     end
     check(Tooltip(agility):find("Score of what it adds: +15", 1, true) ~= nil, "an elixir's tooltip has its score: " .. Tooltip(agility))
+    -- With our lines switched off for the rows of the tabs (the welcome window) the tooltip
+    -- is the item's own and no more.
+    UpgradeScoutDB.rowTooltip = false
+    local bare = Tooltip(agility)
+    check(bare:find("Upgrade Scout", 1, true) == nil and bare:find("Score of what it adds", 1, true) == nil and bare:find("for sale", 1, true) == nil,
+        "switched off for the tabs' rows, a consumable's tooltip has nothing of ours: " .. bare)
+    check(bare ~= "", "but it is still the item's own")
+    UpgradeScoutDB.rowTooltip = nil
 
     -- Every consumable instead of the best of each kind.
     Tick(frame.BestCheck, false)
@@ -3647,6 +3656,19 @@ function scenarios.alt()
     eq(ShoppingTooltip1._lines[1].text, "Alt's Jerkin", "in the game's second tooltip")
     jerkin:GetScript("OnLeave")(jerkin)
     eq(ShoppingTooltip1:IsShown(), false, "and goes with the tooltip")
+    -- With "Only my talent tree" ticked the row's tooltip has one line of ours: whose list
+    -- it is and the profile it is made on, then the gain.
+    UpgradeScoutDB.ownTree = true
+    jerkin:GetScript("OnEnter")(jerkin)
+    doubles = {}
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right then doubles[#doubles + 1] = line end
+    end
+    eq(#doubles, 1, "one line of ours with 'Only my talent tree' ticked")
+    eq(doubles[1].text, "|TInterface\\AddOns\\UpgradeScout\\icon.tga:0|t " .. ALTY .. ": Balance", "the druid and the profile in use, after the addon's icon")
+    eq(doubles[1].right, "+67%", "with the gain of the row"); eq(doubles[1].r, RAID_CLASS_COLORS.DRUID.r, "in the colour of the druid's class")
+    jerkin:GetScript("OnLeave")(jerkin)
+    UpgradeScoutDB.ownTree = nil
     -- Where the parts that every row has stand on a row: how far from its left edge the gain
     -- (or the score) and the price end. The list hands its frames from one view to the
     -- other, and the two have their columns in different places.
@@ -4395,6 +4417,190 @@ function scenarios.tooltips()
     eq(Ours(GameTooltip, 212), "Arms -4% | Protection ~ +0 pts | Takes both hands.", "the two-hander against sword and shield, 26 against 27")
 end
 
+-- The tooltip's block of the welcome window and its two questions. How our lines are written:
+-- for every profile of the class, or one line for the profile in use. Where they show: on the
+-- addon's tabs at the auction house, elsewhere in the game, both, or neither.
+function scenarios.tooltip_settings()
+    StandardWorld()
+    W.player.money = 50000
+    -- The two rings of the window's pictures.
+    W.AddItem({ id = 16999, name = "Royal Seal", equipLoc = "INVTYPE_FINGER", quality = 3, level = 54 })
+    W.AddItem({ id = 5000, name = "Coral Band", equipLoc = "INVTYPE_FINGER", level = 21 })
+    -- On the second profile the two chests score 9 (for sale) and 12 (worn).
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    LoadAddon()
+    W.Run(1)
+
+    local ICON = "|TInterface\\AddOns\\UpgradeScout\\icon.tga:0|t "
+    -- What the addon wrote in the tooltip that is up: from its first line on (the one with
+    -- its icon, written "*" here), each as "left right", joined by " | "; nil when it wrote
+    -- nothing.
+    local function Ours(tooltip)
+        local first
+        for i, line in ipairs(tooltip._lines) do
+            if line.text:find(ICON, 1, true) then
+                eq(first, nil, "the addon's icon once only")
+                first = i
+            end
+        end
+        if not first then return nil end
+        eq(tooltip._lines[first - 1].text, " ", "a blank line before our lines")
+        local out = {}
+        for i = first, #tooltip._lines do
+            local line = tooltip._lines[i]
+            out[#out + 1] = (line.text:gsub("|T.-|t ", "*", 1)) .. (line.right and " " .. line.right or "")
+        end
+        return table.concat(out, " | ")
+    end
+    -- The same for an item shown in a tooltip, as the bags or the chat show one.
+    local function Item(tooltip, id)
+        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:SetHyperlink(W.Link(id))
+        return Ours(tooltip)
+    end
+    local function Line(tooltip, text)
+        for _, line in ipairs(tooltip._lines) do
+            if line.text == text then return line end
+        end
+    end
+
+    -- Until anything is chosen: every profile of the class under the addon's name.
+    eq(ns.OwnTree(), false, "every tree to begin with")
+    eq(Item(GameTooltip, 200), "*Upgrade Scout | Arms +80% | Protection ~ -25%", "a line for every profile, as before")
+
+    -- The window: two cards side by side, and under them the tooltip's block.
+    ns.Welcome.Show()
+    local window = UpgradeScoutWelcome
+    local block, tip = window.Tips, window.Tips.Picture.Tip
+    local all, own, tabs, elsewhere = block.All, block.Own, block.Tabs, block.Elsewhere
+    eq(#window.Pair, 2, "two cards: the auction house and the bags")
+    near(window.Pair[1]:GetWidth() * 2 + 11, block:GetWidth(), "which together are as wide as the block under them")
+    eq(block.Title:GetText(), "TOOLTIP SETTINGS", "the block's name, in capitals as a card's")
+    check(block.Body:GetText():find("Point at any item", 1, true) ~= nil, "and its sentence")
+    eq(all.Label:GetText(), "All specs", "how: a button for every tree"); eq(own.Label:GetText(), "Only my spec", "and one for the tree in use")
+    eq(tabs.Label:GetText(), "Show on the addon's auction tabs", "where: a box for the addon's tabs")
+    eq(elsewhere.Label:GetText(), "Show elsewhere: bags, loot, chat", "and one for the rest of the game")
+    eq(elsewhere._points[1].x, tabs._points[1].x, "one box under the other: their words do not fit side by side")
+    eq(tabs._points[1].y - elsewhere._points[1].y, 15 + 7, "lower by a box and the room between two")
+    eq(all.Mark:IsShown(), true, "every tree is lit to begin with"); eq(own.Mark:IsShown(), false, "the other is dark")
+    eq(tabs:GetChecked(), true, "both places ticked to begin with"); eq(elsewhere:GetChecked(), true, "the second as well")
+    eq(tabs.Tick:IsShown(), true, "with their ticks"); eq(elsewhere.Tick:IsShown(), true, "both")
+    eq(tip.Brand:IsShown(), true, "the block's picture: the addon's name over the lines")
+    eq(tip.Lines[1].Title:GetText(), "Arms", "a line for each profile"); eq(tip.Lines[2].Title:IsShown(), true, "both of them")
+    local tall, high = tip:GetHeight(), window:GetHeight()
+
+    -- How: the tree in use alone.
+    local told = 0
+    ns.Listen("SETTING_CHANGED", function() told = told + 1 end)
+    own:Click()
+    eq(UpgradeScoutDB.ownTree, true, "chosen: written down for the account"); eq(ns.OwnTree(), true, "and in force at once")
+    eq(own.Mark:IsShown(), true, "its button lights up"); eq(all.Mark:IsShown(), false, "the other goes dark")
+    own:Click()
+    eq(told, 1, "the answer in force clicked again: nothing changes")
+    eq(tip.Brand:IsShown(), false, "the picture has no heading now")
+    eq(tip.Lines[1].Title:GetText(), ICON .. "Arms", "but one line: the addon's icon and the profile in use")
+    eq(tip.Lines[1].Gain:GetText(), "+31%", "with its gain"); eq(tip.Lines[1].Gain:IsShown(), true, "which shows")
+    eq(tip.Lines[2].Title:IsShown(), false, "the other profile is gone"); eq(tip.Lines[2].Gain:IsShown(), false, "with its gain")
+    check(tip:GetHeight() < tall, "and the tooltip in the picture is shorter")
+    eq(window:GetHeight(), high, "the window stays as tall as it was")
+
+    -- An item's tooltip anywhere in the game: one line, under a blank one.
+    eq(Item(GameTooltip, 200), "*Arms +80%", "the chest in the bags: the profile in use and its gain")
+    eq(Line(GameTooltip, ICON .. "Arms").r, RAID_CLASS_COLORS.WARRIOR.r, "the profile in the colour of the class")
+    eq(Line(GameTooltip, ICON .. "Arms").rightR, GREEN_FONT_COLOR.r, "a gain in green")
+    eq(Item(ItemRefTooltip, 200), "*Arms +80%", "the same for a link clicked in the chat")
+    eq(Item(GameTooltip, 211), "*Arms +12 pts", "a helm for the empty head: in points")
+    eq(Item(GameTooltip, 201), "*Arms +200% | Has effects the score does not count.", "what a score leaves out is still said")
+    eq(Item(GameTooltip, 100), nil, "nothing for the chest the character has on")
+    eq(Item(GameTooltip, 214), nil, "nothing for a potion")
+
+    -- Another tree chosen in the window: the line is that tree's.
+    window.Trees[2]:Click()
+    eq(Item(GameTooltip, 200), "*Protection ~ -25%", "the line follows the profile in use")
+    eq(Line(GameTooltip, ICON .. "Protection ~").rightR, RED_FONT_COLOR.r, "a loss in red")
+    eq(tip.Lines[2].Title:GetText(), ICON .. "Protection ~", "and so does the picture"); eq(tip.Lines[2].Gain:GetText(), "+36%", "with that profile's gain")
+    eq(tip.Lines[1].Title:IsShown(), false, "the first profile's line is gone from it")
+    window.Trees[1]:Click()
+
+    -- The notes of the line in use stay under it.
+    W.equipped[17] = W.Link(213)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    eq(Item(GameTooltip, 212), "*Arms -4% | Takes both hands.", "the two-hander against sword and shield")
+    W.equipped[17] = nil
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+
+    -- Where: not in the rest of the game. An item's tooltip has nothing of ours; the picture
+    -- stays, for the lines still show on the addon's tabs.
+    elsewhere:SetChecked(false)
+    elsewhere:Click()
+    eq(UpgradeScoutDB.tooltip, false, "unticked: written down for the account"); eq(elsewhere.Tick:IsShown(), false, "the tick goes")
+    eq(Item(GameTooltip, 200), nil, "no line in an item's tooltip")
+    eq(block.Picture:GetAlpha(), 1, "the picture stays as it is"); eq(own:IsEnabled(), true, "and the buttons are there to press")
+
+    -- A row of the list at the auction house has the lines of the answer in force.
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    ScanToEnd()
+    W.Run(0.3)
+    local rows
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then rows = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(rows:GetFrames()) do
+            if w._shown and w._kind == "Button" and w.entry and w.entry.offer.name == name then return w end
+        end
+    end
+    local chest = Row("Good Chest")
+    check(chest ~= nil, "the good chest is in the list")
+    chest:GetScript("OnEnter")(chest)
+    eq(Ours(GameTooltip), "*Arms +80%", "a row's tooltip: one line, for the profile the list is made on")
+    local with = #GameTooltip._lines
+    chest:GetScript("OnLeave")(chest)
+
+    -- Where: not on the addon's tabs either. A row's tooltip is the item's own, with the
+    -- worn item beside it as ever. Shown nowhere, the lines leave nothing to choose: the
+    -- picture fades and the two buttons go dim, keeping what they say.
+    tabs:SetChecked(false)
+    tabs:Click()
+    eq(UpgradeScoutDB.rowTooltip, false, "unticked: written down for the account"); eq(tabs.Tick:IsShown(), false, "the tick goes")
+    W.compared = nil
+    chest:GetScript("OnEnter")(chest)
+    eq(Ours(GameTooltip), nil, "a row's tooltip has nothing of ours")
+    eq(GameTooltip._link, chest.entry.offer.link, "it is the item's own")
+    eq(#GameTooltip._lines, with - 2, "shorter by our blank line and our line")
+    eq(W.compared, GameTooltip, "the worn item is still shown beside it")
+    chest:GetScript("OnLeave")(chest)
+    eq(block.Picture:GetAlpha(), 0.3, "shown nowhere: the picture fades")
+    eq(own:IsEnabled(), false, "the buttons cannot be pressed"); eq(all:IsEnabled(), false, "neither of them")
+    eq(own:GetAlpha(), 0.35, "and are dim"); eq(own.Mark:IsShown(), true, "but keep what they say")
+    eq(UpgradeScoutDB.ownTree, true, "as does the account")
+
+    -- The tabs ticked again: the lines are back on a row, as they were left.
+    tabs:SetChecked(true)
+    tabs:Click()
+    eq(UpgradeScoutDB.rowTooltip, nil, "ticked again: nothing is left written")
+    eq(block.Picture:GetAlpha(), 1, "the picture is back"); eq(own:IsEnabled(), true, "and so are the buttons"); eq(own:GetAlpha(), 1, "at full strength")
+    chest:GetScript("OnEnter")(chest)
+    eq(Ours(GameTooltip), "*Arms +80%", "the row's tooltip has its one line again")
+    chest:GetScript("OnLeave")(chest)
+
+    -- How: every tree again, and nothing is left written.
+    all:Click()
+    eq(UpgradeScoutDB.ownTree, nil, "every tree chosen: nothing is left written")
+    eq(all.Mark:IsShown(), true, "its button is lit"); eq(own.Mark:IsShown(), false, "the other is dark")
+    eq(tip.Brand:IsShown(), true, "the picture has its heading back"); eq(tip.Lines[2].Title:IsShown(), true, "and both profiles")
+    eq(tip.Lines[1].Title:GetText(), "Arms", "by their names alone"); eq(tip:GetHeight(), tall, "as tall as it was")
+    chest:GetScript("OnEnter")(chest)
+    eq(Ours(GameTooltip), "*Upgrade Scout | Arms +80% | Protection ~ -25%", "the row's tooltip has every profile again")
+    chest:GetScript("OnLeave")(chest)
+    eq(Item(GameTooltip, 200), nil, "an item's tooltip elsewhere is still without our lines")
+    elsewhere:SetChecked(true)
+    elsewhere:Click()
+    eq(UpgradeScoutDB.tooltip, nil, "the rest of the game ticked again: nothing is left written")
+    eq(Item(GameTooltip, 200), "*Upgrade Scout | Arms +80% | Protection ~ -25%", "and an item's tooltip has every profile again")
+end
+
 function scenarios.arrows()
     StandardWorld()
     W.AddItem({ id = 220, name = "Oak Wand", equipLoc = "INVTYPE_RANGEDRIGHT", classID = 2, subClassID = 19, value = 9, level = 5 })
@@ -4588,7 +4794,7 @@ function scenarios.welcome()
     check(window.Ask:GetText():find(ns.L.WELCOME_TREE_WHY, 1, true) ~= nil, "and says what the answer is for")
 
     -- The pictures: the list, an item's tooltip, the bags.
-    local list, tip, bag = window.Cards[1].Picture, window.Cards[2].Picture.Tip, window.Cards[3].Picture
+    local list, tip, bag = window.Pair[1].Picture, window.Tips.Picture.Tip, window.Pair[2].Picture
     eq(list.Rows[1].Name:GetText(), "Royal Seal", "the list's picture: an item by the name the game has for it")
     eq(list.Rows[2].Name:GetText(), "", "no name for one the game has not loaded")
     eq(list.Rows[1].Gain:GetText(), "+36%", "its gain on the profile in use, the second of the class")
@@ -4601,9 +4807,9 @@ function scenarios.welcome()
     eq(bag.Slots[1].Arrow._grey, false, "green on the first"); eq(bag.Slots[2].Arrow._grey, true, "grey on the second")
     W.Run(1)
     eq(list.Rows[2].Name:GetText(), "Coral Band", "the second ring, once the game has loaded it")
-    check(window.Cards[1].Body:GetText():find("Scan", 1, true) and window.Cards[1].Body:GetText():find("Consumables", 1, true),
+    check(window.Pair[1].Body:GetText():find("Scan", 1, true) and window.Pair[1].Body:GetText():find("Consumables", 1, true),
         "the auction house's card names the button and the tabs")
-    eq(window.Cards[2].Title:GetText(), "IN ITEM TOOLTIPS", "a card's name in capitals")
+    eq(window.Pair[2].Title:GetText(), "IN YOUR BAGS AND BANK", "a card's name in capitals")
 
     -- Another tree chosen: written on the character's card, as in the field on the tab.
     local told = 0
@@ -4616,7 +4822,8 @@ function scenarios.welcome()
     trees[1]:Click()
     eq(told, 1, "the profile in use clicked again: nothing changes")
 
-    -- Our lines in the tooltip of any item, switched off and on.
+    -- Our lines in the tooltip of any item away from the addon's tabs, switched off (the
+    -- tooltip's block and its other answers have a scenario of their own, tooltip_settings).
     local function Ours(id)
         GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
         GameTooltip:SetHyperlink(W.Link(id))
@@ -4625,12 +4832,12 @@ function scenarios.welcome()
         end
         return false
     end
-    local tips = window.Cards[2].Switch
+    local tips = window.Tips.Elsewhere
     eq(tips:GetChecked(), true, "the tooltip's box is ticked to begin with"); eq(Ours(200), true, "and an item's tooltip has our lines")
     tips:SetChecked(false)
     tips:Click()
     eq(UpgradeScoutDB.tooltip, false, "unticked: written down for the account"); eq(Ours(200), false, "and the lines are gone")
-    eq(tips.Tick:IsShown(), false, "the tick goes"); eq(window.Cards[2].Picture:GetAlpha(), 0.3, "and the picture fades")
+    eq(tips.Tick:IsShown(), false, "the tick goes"); eq(window.Tips.Picture:GetAlpha(), 1, "the picture stays: the lines still show on the addon's tabs")
 
     -- The arrows in the bags, the same way: they go and come at once.
     local slot = W.PutInBags(W.Link(200))
@@ -4640,7 +4847,7 @@ function scenarios.welcome()
         return arrow ~= nil and arrow:IsShown()
     end
     eq(Arrow(), true, "an arrow on the better chest")
-    local arrows = window.Cards[3].Switch
+    local arrows = window.Pair[2].Switch
     arrows:SetChecked(false)
     arrows:Click()
     eq(UpgradeScoutDB.arrows, false, "unticked: written down"); eq(Arrow(), false, "and the arrow is gone at once")
@@ -4649,7 +4856,7 @@ function scenarios.welcome()
     arrows:SetChecked(true)
     arrows:Click()
     eq(UpgradeScoutDB.arrows, nil, "ticked again: nothing is left written"); eq(Arrow(), true, "and the arrow is back")
-    eq(window.Cards[1].Switch, nil, "the auction house has no box: its tabs are in nobody's way")
+    eq(window.Pair[1].Switch, nil, "the auction house has no box: its tabs are in nobody's way")
     eq(ns.Tooltip.Upgrade(W.Link(200)), true, "the arrows do not need the tooltip's lines")
 
     -- Closed, it has been seen: it does not come up by itself again.
@@ -5228,6 +5435,22 @@ function scenarios.pawn_tooltips()
     ns.db.net = true
     eq(Under("Good Chest"), "Buyout 40s | Sell Price 1s", "with Net cost ticked: what the cost is made of")
     ns.db.net = nil
+    -- The box for the addon's tabs in the welcome window switches these notes off as well.
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(Under("Great Chest"), nil, "our lines switched off for the tabs: no notes either")
+    eq(W.compared, GameTooltip, "the worn item still beside it")
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    check(Under("Great Chest") ~= nil, "switched on again, they are back")
+    -- One line for the tree in use, chosen before Pawn was: nothing changes with Pawn scoring.
+    UpgradeScoutDB.ownTree = true
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    eq(Shown(GameTooltip, 200), nil, "\"Only my spec\" chosen: still no lines of ours in the bags")
+    eq(Under("Good Chest"), nil, "nor under a row with nothing to add")
+    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short.", "and the notes as they were")
+    UpgradeScoutDB.ownTree = nil
+    ns.Fire("SETTING_CHANGED", "ownTree")
     CheckPawnAsked("tooltips and arrows")
 
     -- The addon's own weights chosen again: its lines are back.
@@ -5240,7 +5463,7 @@ function scenarios.pawn_tooltips()
 end
 
 -- The welcome window with Pawn: who scores, the scales in place of the trees, the tooltip's
--- card out of use, and the window coming up once for a player who has Pawn.
+-- block out of use, and the window coming up once for a player who has Pawn.
 function scenarios.pawn_welcome()
     StandardWorld()
     W.AddItem({ id = 16999, name = "Royal Seal", equipLoc = "INVTYPE_FINGER", quality = 3, level = 54 })
@@ -5304,16 +5527,35 @@ function scenarios.pawn_welcome()
     pawn:Click()
     eq(told, 1, "the one that scores clicked again: nothing changes")
 
-    -- The tooltip's card is out of use: Pawn writes there. The arrows' card is as it was.
-    local tips, arrows = window.Cards[2], window.Cards[3]
-    eq(tips.Body:GetText(), L.WELCOME_TOOLTIP_PAWN, "the tooltip's card says that Pawn writes there")
-    eq(tips.Switch:IsEnabled(), false, "its box is out of use"); eq(tips.Switch:GetChecked(), false, "and empty")
-    eq(tips.Picture:GetAlpha(), 0.3, "its picture fades")
-    eq(tips.Picture.Tip.Lines[1].Title:GetText(), "Arms", "the picture still shows the addon's own lines: what would come back")
-    eq(tips.Picture.Tip.Lines[2].Title:GetText(), "Protection ~", "its profiles, not Pawn's scales")
-    eq(tips.Picture.Tip.Lines[3], nil, "and no more of them")
-    tips.Switch:Click()
-    eq(UpgradeScoutDB.tooltip, nil, "a click on it changes nothing")
+    -- The tooltip's block is out of use where Pawn writes: its sentence says so, the box for
+    -- the rest of the game is empty and cannot be ticked, the two buttons are dim. The box
+    -- for the addon's own tabs is as it was, and so is the arrows' card.
+    local block, arrows = window.Tips, window.Pair[2]
+    local tip, elsewhere = block.Picture.Tip, block.Elsewhere
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_PAWN, "the tooltip's block says that Pawn writes there")
+    eq(elsewhere:IsEnabled(), false, "the box for the rest of the game is out of use"); eq(elsewhere:GetChecked(), false, "and empty")
+    eq(elsewhere.Tick:IsShown(), false, "without its tick"); eq(elsewhere:GetAlpha(), 0.4, "and dim")
+    eq(elsewhere.Label:GetAlpha(), 0.5, "as its words are")
+    eq(block.All:IsEnabled(), false, "the two buttons are out of use"); eq(block.Own:IsEnabled(), false, "both")
+    eq(block.All:GetAlpha(), 0.35, "and dim"); eq(block.All.Mark:IsShown(), true, "the one in force still lit")
+    eq(block.Picture:GetAlpha(), 0.3, "the picture fades")
+    eq(tip.Lines[1].Title:GetText(), "Arms", "it still shows the addon's own lines: what would come back")
+    eq(tip.Lines[2].Title:GetText(), "Protection ~", "its profiles, not Pawn's scales")
+    eq(tip.Lines[3], nil, "and no more of them")
+    elsewhere:SetChecked(false)
+    elsewhere:Click()
+    eq(UpgradeScoutDB.tooltip, nil, "a click on the box changes nothing")
+    block.Own:Click()
+    eq(UpgradeScoutDB.ownTree, nil, "nor does one on a dim button")
+    eq(block.Tabs:IsEnabled(), true, "the box for the addon's tabs is in use: its notes there go by it")
+    eq(block.Tabs:GetChecked(), true, "and ticked"); eq(block.Tabs.Tick:IsShown(), true, "with its tick")
+    block.Tabs:SetChecked(false)
+    block.Tabs:Click()
+    eq(UpgradeScoutDB.rowTooltip, false, "unticked: written down, with Pawn scoring as without")
+    eq(block.Picture:GetAlpha(), 0.3, "the picture is as dim as it was")
+    block.Tabs:SetChecked(true)
+    block.Tabs:Click()
+    eq(UpgradeScoutDB.rowTooltip, nil, "and ticked again")
     eq(arrows.Switch:IsEnabled(), true, "the arrows' box is in use"); eq(arrows.Switch:GetChecked(), true, "and ticked")
     eq(arrows.Body:GetText(), L.WELCOME_ARROWS_TEXT, "with its own sentence"); eq(arrows.Picture:GetAlpha(), 1, "and its picture whole")
     local slot = W.PutInBags(W.Link(200))
@@ -5374,15 +5616,22 @@ function scenarios.pawn_welcome()
     ns.Welcome.Show()
     eq(window.About:GetText(), L.WELCOME_ABOUT, "asked for, it has its usual first words")
 
-    -- The addon chosen again: the trees, and the tooltip's card in use, as they were.
+    -- The addon chosen again: the trees, and the tooltip's block in use, as they were.
     own:Click()
     eq(UpgradeScoutDB.engine, nil, "a click on the addon's button: nothing is left written"); eq(told, 5, "what keeps scores is told")
     eq(own.Mark:IsShown(), true, "the addon's button is lit")
     eq(trees[1].Label:GetText(), "Arms", "the trees are back"); eq(trees[3]:IsShown(), false, "two of them")
     eq(trees[1].Mark:IsShown(), true, "the one for the talents in use")
-    eq(tips.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "the tooltip's card has its sentence")
-    eq(tips.Switch:IsEnabled(), true, "its box in use"); eq(tips.Switch:GetChecked(), true, "and ticked, as it was left")
-    eq(tips.Picture:GetAlpha(), 1, "its picture whole")
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "the tooltip's block has its sentence")
+    eq(elsewhere:IsEnabled(), true, "its box for the rest of the game in use"); eq(elsewhere:GetChecked(), true, "and ticked, as it was left")
+    eq(elsewhere.Tick:IsShown(), true, "with its tick"); eq(elsewhere:GetAlpha(), 1, "and whole")
+    eq(elsewhere.Label:GetAlpha(), 1, "as its words are")
+    eq(block.All:IsEnabled(), true, "the two buttons in use"); eq(block.All:GetAlpha(), 1, "and whole")
+    eq(block.Picture:GetAlpha(), 1, "the picture whole")
+    block.Own:Click()
+    eq(UpgradeScoutDB.ownTree, true, "and a click on a button counts again")
+    block.All:Click()
+    eq(UpgradeScoutDB.ownTree, nil, "both ways")
     CheckPawnAsked("the welcome window")
 
     -- A new player who has Pawn: one window, with the welcome, and it counts for both.
@@ -5558,6 +5807,16 @@ end
 
 function scenarios.locale_ru()
     CheckLocale("ruRU", "Russian", "Скан")
+    -- The welcome window: words too long for a line of the tooltip's block go on to a second
+    -- one, and the box under them stands lower by it. (The stand-in client measures a text by
+    -- its bytes, and a Cyrillic letter is two.)
+    ns.Welcome.Show()
+    local block = UpgradeScoutWelcome.Tips
+    eq(block.All.Label:GetText(), "Все спеки", "how, in Russian"); eq(block.Own.Label:GetText(), "Только мой спек", "both buttons")
+    eq(block.Tabs.Label:GetText(), "Показывать на вкладках аддона на аукционе", "where: the addon's tabs")
+    eq(block.Elsewhere.Label:GetText(), "Показывать в остальной игре: сумки, добыча, чат", "and the rest of the game")
+    eq(block.Tabs.Label:GetWidth(), 378, "words too long for the line are given its width")
+    eq(block.Tabs._points[1].y - block.Elsewhere._points[1].y, 2 + 24 + 7, "and the next box is lower by their two lines")
 end
 
 function scenarios.locale_de()

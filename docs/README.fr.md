@@ -38,6 +38,9 @@ chat.
   l'équipement acheté dans une lettre pour eux.
 - L'infobulle de chaque objet montre de combien il est meilleur que ce que vous portez, pour chaque
   arbre de talents de votre classe, par exemple Armes, Fureur et Protection pour un guerrier.
+  Dans la fenêtre de l'addon, vous pouvez ne garder qu'une ligne, celle de votre arbre, et
+  choisir où ces lignes s'affichent : dans les onglets de l'addon à l'hôtel des ventes, dans le
+  reste du jeu, ou nulle part.
 - Une flèche verte sur l'icône d'un objet dans vos sacs ou à la banque signale une amélioration
   que vous pouvez équiper tout de suite. Une flèche grise : une amélioration dès que vous aurez
   atteint son niveau.
