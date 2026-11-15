@@ -18,6 +18,13 @@ ignore:
   - RELEASE_NOTES.md
   - LICENSE
 
+# Pawn can score gear in place of the addon's own weights (UpgradeScout/Pawn.lua; the .toc names
+# it in "## OptionalDeps"). Listed here by its CurseForge slug, it is set on every file uploaded
+# there as an optional dependency, which CurseForge shows among the relations of both projects.
+# The packager sends relations to CurseForge only.
+optional-dependencies:
+  - pawn
+
 # The notes shown with a release on CurseForge and on GitHub: the section of CHANGELOG.md for the
 # version being released. The release workflow writes this file before the packager runs; it is
 # not kept in the repository.
