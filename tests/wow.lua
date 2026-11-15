@@ -1893,13 +1893,21 @@ local function PawnFunctions(P)
         return out
     end
 
+    -- The kinds of item Pawn never reads: what is not worn, a shirt, a tabard, a bag.
+    function PawnCanItemHaveStats(link)
+        local item = ParseItem(link)
+        local kind = item and item.equipLoc
+        return not (kind == nil or kind == "" or kind == "INVTYPE_BODY" or kind == "INVTYPE_TABARD" or kind == "INVTYPE_BAG")
+    end
+
+    -- (pawnBlind: an item Pawn cannot read, whatever the game says it adds.)
     function PawnGetItemData(link)
         if not link then return end
         P.asked[#P.asked + 1] = link
         local item, id = ParseItem(link)
         if not item or not item.cached then return nil end
         local kind = item.equipLoc
-        if kind == nil or kind == "" or kind == "INVTYPE_BODY" or kind == "INVTYPE_TABARD" or kind == "INVTYPE_BAG" then return nil end
+        if not PawnCanItemHaveStats(link) or item.pawnBlind then return nil end
         local stats = {}
         if not item.noStats then
             if item.value then stats.TEST_S1 = item.value end
@@ -1959,6 +1967,7 @@ function W.RemovePawn()
     W.pawn = nil
     PawnIgnoreStatValue, PawnCommon = nil, nil
     PawnIsReady, PawnGetAllScalesEx, PawnGetItemData, PawnGetSingleValueFromItem = nil, nil, nil, nil
+    PawnCanItemHaveStats = nil
     PawnGetAllStatValues, PawnGetItemValue, PawnResetTooltips = nil, nil, nil
 end
 

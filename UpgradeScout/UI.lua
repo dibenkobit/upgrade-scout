@@ -180,8 +180,9 @@ local function ProfileGains(entry)
     return gains
 end
 
--- A consumable's own tooltip, and under it how much of it is for sale. With our lines
--- switched off for the rows of the tabs (the welcome window: ns.Shows "rowTooltip") the
+-- A consumable's own tooltip, and under it what the row is there for: its score, and how
+-- much of it is for sale. These are notes on a row, as the ones under gear (AddNotes), and
+-- go by the same box of the welcome window (ns.Shows "rowNotes"): with it unticked the
 -- tooltip is the item's own and no more; what the lines say is in the row's columns.
 local function ShowSupplyTooltip(row)
     local entry = row.entry
@@ -190,7 +191,7 @@ local function ShowSupplyTooltip(row)
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(supply.link, nil, nil, hideVendorPrice)
-    if ns.Shows("rowTooltip") then
+    if ns.Shows("rowNotes") then
         -- On the right, whose profile the score is on.
         AddHeader(GameTooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
         if entry.value then
@@ -243,36 +244,44 @@ local function AddNotes(tooltip, entry, who)
     end
 end
 
--- Our lines under the tooltip of a row of gear: the gain, what the row cannot say for want
--- of room (the hands, the effects, what the net cost is made of) and what is missing to pay.
--- With Pawn scoring (Score.Engine), the tooltip of a row in the player's own list has Pawn's
--- lines: what the item is worth on each of the player's scales. Ours would say it twice, so
--- the gain is left out, and the rest is written under the addon's name, or nothing at all
--- where there is no more to say. (A list for another character keeps the gain: Pawn's lines
--- are about the character being played.)
+-- Has AddNotes anything to say of this row?
+local function HasNotes(entry)
+    local note = entry.note
+    return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or entry.offer.effects or ns.db.net
+        or not entry.affordable
+end
+
+-- Our lines under the tooltip of a row of gear. They are of two kinds, and each has a box
+-- of its own in the welcome window:
+--   the score (ns.Shows "rowTooltip"): how much better the item is, as an item's tooltip
+--     says it anywhere in the game (Tooltip.lua);
+--   the notes (ns.Shows "rowNotes"): what the row cannot say for want of room (the hands,
+--     the effects, what the net cost is made of) and what is missing to pay.
+-- With Pawn scoring (Score.Engine), the tooltip of a row in the player's own list has
+-- Pawn's lines for the score: how much of an upgrade the item is on each of the player's
+-- scales. Ours would say it twice and are left out, whatever their box says. (A list for
+-- another character keeps them: Pawn's lines are about the character being played.)
+-- Notes without the score stand under the addon's name. With nothing to note, nothing is
+-- written at all.
 local function AddOfferLines(entry, who)
-    local offer = entry.offer
-    if ns.Score.Engine() and not who then
-        if entry.note or offer.effects or ns.db.net or not entry.affordable then
-            AddHeader(GameTooltip)
-            AddNotes(GameTooltip, entry)
-        end
-        return
-    end
-    if ns.OwnTree() and S.ctx then
+    local score = ns.Shows("rowTooltip") and not (ns.Score.Engine() and not who)
+    local notes = ns.Shows("rowNotes") and HasNotes(entry)
+    if score and ns.OwnTree() and S.ctx then
         -- The tree in use alone: one line, for the profile the list is made on, which reads
         -- as the row does. Whose list it is stands before the profile, as in the field.
         local title = ns.Score.Title(S.ctx.profile)
         AddOwn(GameTooltip, who and L.ST_WHO:format(WhoName(who), title) or title, entry, S.ctx.class)
-    else
+    elseif score or notes then
         -- On the right, whose list it is when it is not the character's own.
         AddHeader(GameTooltip, who and WhoName(who) or nil)
-        -- How much better the item is on each profile of the class, in the class's colour.
-        for _, line in ipairs(ProfileGains(entry)) do
-            AddGain(GameTooltip, line.title, line.gain, S.ctx.class)
+        if score then
+            -- How much better the item is on each profile of the class, in the class's colour.
+            for _, line in ipairs(ProfileGains(entry)) do
+                AddGain(GameTooltip, line.title, line.gain, S.ctx.class)
+            end
         end
     end
-    AddNotes(GameTooltip, entry, who)
+    if notes then AddNotes(GameTooltip, entry, who) end
 end
 
 local function ShowItemTooltip(row)
@@ -287,9 +296,10 @@ local function ShowItemTooltip(row)
     -- No vendor price, as on the Buy tab: this is something to buy, not to sell.
     local hideVendorPrice = true
     GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
-    -- Our lines, unless they are switched off for the rows of the tabs (the welcome window):
-    -- the tooltip is then the item's own, with the worn item beside it as ever.
-    if ns.Shows("rowTooltip") then AddOfferLines(entry, who) end
+    -- Our lines, as far as they are switched on for the rows of the tabs (the welcome
+    -- window). With none of them the tooltip is the item's own, with the worn item beside it
+    -- as ever.
+    AddOfferLines(entry, who)
     GameTooltip:Show()
 
     -- What the item would replace is the point of this list, so the worn item's tooltip is

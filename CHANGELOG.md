@@ -15,8 +15,10 @@
   every talent tree of your class, as before. **Only my spec** keeps one line: how much better
   the item is for the tree you play.
 - Where: one box for the addon's tabs at the auction house, one for the rest of the game (bags,
-  loot, chat). Untick both and the addon writes nothing into tooltips. Before, the lines on
-  the addon's tabs could not be switched off.
+  loot, chat). Before, the lines on the addon's tabs could not be switched off.
+- A third box is for the notes in the tooltip of a row on the addon's tabs: how much gold you
+  are short of, what a net cost is made of, that an item takes both hands. It works with Pawn
+  chosen too.
 - The window has a new layout: the auction house and the bags side by side, and the tooltip in
   a block of its own under them.
 

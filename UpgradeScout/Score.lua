@@ -339,8 +339,9 @@ end
 -- right after login the game knows what is worn but not what it adds (a link to it then has
 -- an empty name). Those items are asked for and named in `pending` (item id -> true), and
 -- until they come their slots score 0. The scanner makes the context again when they do.
--- `unread` counts the items the client has and still gave no stats for (or Pawn nothing at
--- all); the scanner asks again a few times for those.
+-- `unread` counts the items the client has and still gave no stats for (or which Pawn could
+-- not read); the scanner asks again a few times for those, and so do the arrows in the bags
+-- (Tooltip.lua).
 -- With Pawn scoring the context also says what the scale wants no upgrades of: show1H and
 -- show2H, false for the one-handed or the two-handed weapons it is not to be offered.
 local function Finish(ctx)
@@ -364,8 +365,6 @@ function Score.Context(id, who)
             pending = pending or {}
             pending[itemID] = true
             C_Item.RequestLoadItemDataByID(itemID)
-        elseif item.pawn == false then
-            unread = (unread or 0) + 1
         end
         equipped[slot] = {
             link = link,

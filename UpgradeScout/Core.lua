@@ -73,9 +73,11 @@ end
 ns.db = { affordableOnly = true, topOnly = true, bestOnly = true, collapsed = {} }
 -- For the whole account. chars: the characters of the account as each was last seen, by
 -- name (see Roster.lua). On until switched off in the welcome window (Welcome.lua), and so
--- written down only as false: where our lines show in an item's tooltip, which is tooltip
+-- written down only as false: where the score shows in an item's tooltip, which is tooltip
 -- (anywhere in the game but our own tabs: the bags, loot, the chat) and rowTooltip (the rows
--- of our tabs at the auction house), and arrows (the arrow on an upgrade in the bags). Off
+-- of our tabs at the auction house); rowNotes (the notes in the tooltip of such a row: what
+-- the player is short of and the like, see AddNotes in UI.lua); and arrows (the arrow on an
+-- upgrade in the bags). Off
 -- until chosen there, and so written down only as true: ownTree (see ns.OwnTree). welcomed:
 -- that window has been seen. minimap: where the button at the minimap is (Minimap.lua).
 ns.account = { chars = {} }
@@ -83,7 +85,7 @@ ns.account = { chars = {} }
 -- be scored by the player's Pawn scales and not by the addon's own weights (Score.Engine).
 -- pawnOffered: the window has been seen since that choice could be made in it.
 
--- Is this part of the addon on: "tooltip", "rowTooltip" or "arrows"?
+-- Is this part of the addon on: "tooltip", "rowTooltip", "rowNotes" or "arrows"?
 function ns.Shows(part)
     return ns.account[part] ~= false
 end

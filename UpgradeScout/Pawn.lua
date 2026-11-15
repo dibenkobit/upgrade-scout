@@ -165,20 +165,39 @@ end
 ---------------------------------------------------------------------------
 -- Items
 ---------------------------------------------------------------------------
+-- Does the item add anything, by the game's own count: its stats, and what it gives through
+-- a spell it keeps on its wearer (as Score.Item reads it for the addon's own weights)? True
+-- as well while the game has no answer.
+local function AddsAnything(itemID, bare)
+    local stats = ns.Stats.Read(bare)
+    if not stats then return true end
+    return next(stats) ~= nil or ns.GearData.extra[itemID] ~= nil
+end
+
 -- What there is to score about an item link, in the shape Score.Item gives it, with Pawn's
 -- own record of the item in place of the stats: { link, itemID, invType, classID,
 -- subClassID, pawn }. The item is read as it would be for sale, without an enchantment, as
--- Pawn's own upgrade arrows read it. nil while the client has not loaded the item. An item
--- Pawn has nothing for (it has no stats at all) has `pawn` false, and scores nothing.
+-- Pawn's own upgrade arrows read it. nil while there is no answer yet: the client has not
+-- loaded the item, or Pawn could not read it this time.
+-- Pawn keeps no record of an item that adds nothing (a trinket that is only used), nor of a
+-- kind it never reads (a shirt, a tabard). That is its answer, and it stands: `pawn` is
+-- false and the item scores nothing. Such an item is often worn, and taken for one still to
+-- be read it would keep the gear from ever being whole (Score.Context), and with it every
+-- arrow out of the bags.
 function P.Item(link)
     local itemID, _, _, invType, _, classID, subClassID = C_Item.GetItemInfoInstant(link)
     if not itemID then return nil end
     local bare = ns.Stats.Bare(link)
     if not C_Item.GetItemInfo(bare) then return nil end
     local record = PawnGetItemData(bare)
+    if type(record) ~= "table" then
+        local reads = type(PawnCanItemHaveStats) ~= "function" or PawnCanItemHaveStats(bare)
+        if reads and AddsAnything(itemID, bare) then return nil end
+        record = false
+    end
     return {
         link = link, itemID = itemID, invType = invType, classID = classID, subClassID = subClassID,
-        pawn = type(record) == "table" and record or false,
+        pawn = record,
     }
 end
 

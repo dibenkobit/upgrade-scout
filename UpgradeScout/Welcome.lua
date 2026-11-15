@@ -15,7 +15,8 @@ local L = ns.L
 -- Top to bottom:
 --   what the addon is, in a sentence
 --   who scores gear: the addon by its own weights, or Pawn by the player's Pawn scales
---     (Score.Engine). Two buttons side by side; Pawn's is grey while Pawn is not there
+--     (Score.Engine). Two buttons side by side; Pawn's is grey while Pawn is not there, and
+--     says why in a tooltip of its own
 --   the talent tree the character is played with, a button for each profile of its class
 --     (the one in use is lit: see Score.Current). With Pawn scoring, its Pawn scales
 --   what the addon puts into the game. Two cards side by side: the tabs at the auction house
@@ -23,14 +24,19 @@ local L = ns.L
 --     its name and a sentence. The arrows can be switched off, by the tick box before the
 --     name (ns.Shows).
 --   under them, as wide as both, the block of the lines in an item's tooltip, which has more
---     to ask. On its left the picture of a tooltip; on its right the name, a sentence and two
---     questions. How: every talent tree or the one in use, a button for each (ns.OwnTree).
---     Where: on the addon's tabs at the auction house, elsewhere in the game, a tick box for
---     each (ns.Shows "rowTooltip" and "tooltip"), so both, either or neither. The picture
---     shows what the answers come to, and fades when the lines show nowhere.
---     With Pawn scoring, a tooltip has Pawn's lines and not ours: the block says so in place
---     of its sentence, and the two buttons and the box for the rest of the game are out of
---     use. The box for the addon's tabs stays: it is what our notes there go by.
+--     to ask. On its left the picture of a tooltip; on its right the name, a sentence and
+--     what is asked.
+--     Of the score, how much better an item is, two questions. How: every talent tree or the
+--     one in use, a button for each (ns.OwnTree). Where: on the addon's tabs at the auction
+--     house, elsewhere in the game, a tick box for each (ns.Shows "rowTooltip" and
+--     "tooltip"), so both, either or neither.
+--     Of the notes in the tooltip of a row of the addon's tabs (what the player is short of,
+--     what a net cost is made of, both hands: AddNotes in UI.lua), under a fine line, whether
+--     they show: a tick box (ns.Shows "rowNotes").
+--     The picture shows what the answers come to, and fades when nothing shows.
+--     With Pawn scoring, the score in a tooltip is Pawn's to write: the block says so in
+--     place of its sentence, and what is asked of the score is out of use. The notes are
+--     ours whoever scores, and their box stays.
 --   how to get the window back, and the button that closes it
 -- Everything is laid out from the height its texts turn out to have (see Layout): a language
 -- with longer words gets a taller window, not a cut sentence.
@@ -65,9 +71,10 @@ local ICON = "Interface\\AddOns\\" .. ADDON .. "\\icon"
 -- The items the pictures are drawn with: two rings, which every class wears, both in the
 -- game's item table (ItemSparse, build 1.60.1.70938). The game gives their names, in the
 -- player's language, and their icons. The numbers are made up: what such a ring could gain on
--- the first, second, third and fourth profile of a class, and what it could cost.
+-- the first, second, third and fourth profile of a class, what it could cost, and for the
+-- first how much of that a player could be short of (`short`).
 local SAMPLES = {
-    { item = 16999, quality = 3, pick = "UPGRADE", gains = { 0.31, 0.36, 0.28, 0.33 }, price = 16900 },
+    { item = 16999, quality = 3, pick = "UPGRADE", gains = { 0.31, 0.36, 0.28, 0.33 }, price = 16900, short = 1200 },
     { item = 5000, quality = 2, pick = "VALUE", gains = { 0.19, 0.21, 0.17, 0.20 }, price = 2600 },
 }
 
@@ -192,6 +199,10 @@ end
 -- the class with the gain on it, as Tooltip.lua writes them. With the tree in use alone
 -- chosen (about.own) it has the one line of that profile, where the heading was, the addon's
 -- icon before the profile's name (Tooltip.AddOwn).
+-- Under those, a note as a row of the addon's tabs has it: what the player is short of
+-- (AddNotes in UI.lua). `about.score` and `about.notes` say which of the two are in use, and
+-- the picture has those: the note alone stands under the heading. With neither in use it
+-- has the score's lines, for the window to fade (see Paint): what would come back.
 -- How far down the heading is, the first line under it, and each line under the one before.
 local TIP_HEAD, TIP_TOP, TIP_STEP = 28, 41, 12.5
 local TIP_ICON = "|T" .. ICON .. ".tga:0|t "
@@ -204,8 +215,9 @@ local function PaintTip(picture, about)
     tip.Name:SetTextColor(ns.QualityColor(quality))
 
     local r, g, b = (RAID_CLASS_COLORS[about.class or ""] or HIGHLIGHT_FONT_COLOR):GetRGB()
+    local score = about.score or not about.notes
     local count = #about.profiles
-    local own = about.own and about.profiles[about.place] ~= nil
+    local own = score and about.own and about.profiles[about.place] ~= nil
     tip.Brand:SetShown(not own)
     for i = 1, math.max(count, #tip.Lines) do
         local line = tip.Lines[i]
@@ -215,7 +227,7 @@ local function PaintTip(picture, about)
             tip.Lines[i] = line
         end
         local profile = about.profiles[i]
-        local shown = profile ~= nil and (not own or i == about.place)
+        local shown = score and profile ~= nil and (not own or i == about.place)
         line.Title:SetShown(shown)
         line.Gain:SetShown(shown)
         if shown then
@@ -230,7 +242,17 @@ local function PaintTip(picture, about)
             line.Gain:SetText(Gain(sample, i))
         end
     end
-    tip:SetHeight((own and TIP_HEAD or TIP_TOP + math.max(count - 1, 0) * TIP_STEP) + 12)
+    -- How far down the last line is: of the score, or the heading where it has none.
+    local last = TIP_HEAD
+    if score and not own then last = TIP_TOP + math.max(count - 1, 0) * TIP_STEP end
+    tip.Note:SetShown(about.notes == true)
+    if about.notes then
+        last = last == TIP_HEAD and TIP_TOP or last + TIP_STEP
+        tip.Note:ClearAllPoints()
+        tip.Note:SetPoint("LEFT", tip, "TOPLEFT", 8, -last)
+        tip.Note:SetText(L.TT_CANT_AFFORD:format(ns.Money(sample.short)))
+    end
+    tip:SetHeight(last + 12)
 end
 
 local function NewTipPicture(picture)
@@ -259,6 +281,9 @@ local function NewTipPicture(picture)
     tip.Brand:SetText(TIP_ICON .. "Upgrade Scout")
     tip.Brand:SetTextColor(0.53, 0.78, 0.96)
     tip.Lines = {}
+    -- The note, in the red the game writes what the player falls short of.
+    tip.Note = NewText(tip, 9.5, CREAM)
+    tip.Note:SetTextColor(RED_FONT_COLOR:GetRGB())
     picture.Tip = tip
     picture.Paint = PaintTip
 end
@@ -300,9 +325,9 @@ end
 ---------------------------------------------------------------------------
 local Paint
 
--- A tick box. `part` is what it switches: "arrows", "tooltip" or "rowTooltip" (ns.Shows), all
--- on until unticked. What the box says is done at once, and written down only when it is
--- "off".
+-- A tick box. `part` is what it switches: "arrows", "tooltip", "rowTooltip" or "rowNotes"
+-- (ns.Shows), all on until unticked. What the box says is done at once, and written down
+-- only when it is "off".
 local function NewSwitch(parent, part)
     local check = CreateFrame("CheckButton", nil, parent)
     check.part = part
@@ -406,7 +431,8 @@ local function NewChoice(parent, height, size, OnClick)
     button.Lit = NewSlices(button, "ButtonGlow", 0.25, 8, "BORDER", 0, 1)
     button.Lit:SetBlendMode("ADD")
     button.Lit:SetVertexColor(1, 0.70, 0.28, 0.9)
-    NewSlices(button, "ButtonGlow", 0.25, 8, "HIGHLIGHT", 0, 1):SetBlendMode("ADD")
+    button.Glow = NewSlices(button, "ButtonGlow", 0.25, 8, "HIGHLIGHT", 0, 1)
+    button.Glow:SetBlendMode("ADD")
     button.Label = NewText(button, size, SOFT, "CENTER")
     button.Mark = NewTexture(button, "Diamond", "ARTWORK")
     button.Mark:SetSize(14, 14)
@@ -439,7 +465,7 @@ local function NewHow(block, own, text)
 end
 
 -- A tick box with its words after it, which a click ticks as well: one of the places the
--- lines can show in. `wide` is how wide its words are on one line.
+-- score can show in, or the notes. `wide` is how wide its words are on one line.
 local function NewWhere(block, part, text)
     local switch = NewSwitch(block, part)
     switch.Label = NewText(block, 10.5, CREAM)
@@ -494,6 +520,9 @@ local function NewBlock()
     block.All, block.Own = NewHow(block, false, L.WELCOME_HOW_ALL), NewHow(block, true, L.WELCOME_HOW_OWN)
     block.Tabs = NewWhere(block, "rowTooltip", L.WELCOME_WHERE_TABS)
     block.Elsewhere = NewWhere(block, "tooltip", L.WELCOME_WHERE_ELSE)
+    -- The notes are another matter than the score: a fine line stands between.
+    block.Rule = NewRule(block)
+    block.Notes = NewWhere(block, "rowNotes", L.WELCOME_NOTES)
     return block
 end
 
@@ -502,11 +531,22 @@ end
 ---------------------------------------------------------------------------
 -- The two answers are buttons of the same make as the trees', side by side: the addon
 -- itself, and Pawn. `engine` is what a click on one makes of Score.Engine: nil or "pawn".
+-- Pawn's cannot be chosen while Pawn is not there (`off`, see Paint): it is grey, a click
+-- does nothing, and with the mouse on it a tooltip says why. (The button is not switched off
+-- the game's way: one that is hears nothing of the mouse.)
 local function EngineOnClick(self)
+    if self.off then return end
     PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
     -- The window is drawn again when the choice is made (SETTING_CHANGED below), and what
     -- keeps scores makes them again (SCORING_CHANGED).
     ns.Score.SetEngine(self.engine)
+end
+
+local function EngineOnEnter(self)
+    if not self.off then return end
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip_AddNormalLine(GameTooltip, L.WELCOME_NO_PAWN)
+    GameTooltip:Show()
 end
 
 local function NewEngine(name, engine)
@@ -514,6 +554,8 @@ local function NewEngine(name, engine)
     button.engine = engine
     button.Label:SetText(name)
     button:SetScript("OnClick", EngineOnClick)
+    button:SetScript("OnEnter", EngineOnEnter)
+    button:SetScript("OnLeave", GameTooltip_Hide)
     return button
 end
 
@@ -593,7 +635,8 @@ local function Layout()
     down = down + PICTURE + words + GAP
 
     -- The tooltip's block. `under` is how far under its top the next part of its words
-    -- begins: the name, the sentence, the two buttons, the two tick boxes.
+    -- begins: the name, the sentence, the two buttons, the two tick boxes of the score, and
+    -- under a fine line the tick box of the notes.
     local block = frame.Tips
     local under = 15 + math.max(block.Title:GetStringHeight(), 15) + 7
     block.Body:ClearAllPoints()
@@ -624,6 +667,14 @@ local function Layout()
         block.Elsewhere:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -under)
         under = under + WhereHeight(block.Elsewhere)
     end
+    under = under + 10
+    block.Rule:ClearAllPoints()
+    block.Rule:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -under)
+    block.Rule:SetPoint("TOPRIGHT", block, "TOPRIGHT", -16, -under)
+    under = under + 10
+    block.Notes:ClearAllPoints()
+    block.Notes:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -under)
+    under = under + WhereHeight(block.Notes)
     under = under + 16
     -- As tall as its words, or as its picture where a class has many trees.
     block:SetHeight(math.max(under, block.Picture.Tip:GetHeight() + 32))
@@ -654,19 +705,18 @@ Paint = function()
     if offering then frame.About:SetText(L.WELCOME_PAWN_NEW) end
 
     -- Who scores: the one that does is lit. The question stands alone: the two names on the
-    -- buttons are the answer. Pawn cannot be chosen while it is not there, and only then the
-    -- line goes on, to say why its button is grey.
+    -- buttons are the answer. Pawn cannot be chosen while it is not there: its button is
+    -- grey then and does not light up under the mouse, a click on it does nothing, and its
+    -- tooltip says why (EngineOnEnter).
     local pawn = ns.Score.Engine() == "pawn"
     local usable = ns.Pawn.Usable()
-    frame.Who:SetText(usable and L.WELCOME_ENGINE or L.WELCOME_ENGINE .. Aside(L.WELCOME_NO_PAWN))
+    frame.Who:SetText(L.WELCOME_ENGINE)
     for i = 1, #frame.Engines do
         local button = frame.Engines[i]
         local there = button.engine == nil or usable
         PaintTree(button, (button.engine == "pawn") == pawn)
-        -- (Out of the mouse's reach as well: a button that is switched off would still light
-        -- up under it.)
-        button:SetEnabled(there)
-        button:EnableMouse(there)
+        button.off = not there
+        button.Glow:SetShown(there)
         button:SetAlpha(there and 1 or 0.45)
     end
     -- The pictures show the addon's own lines, whoever scores: its profiles, not Pawn's scales.
@@ -713,34 +763,42 @@ Paint = function()
         card.Picture:Paint(about)
     end
 
-    -- The tooltip's block: where the lines show, and how they are written. Shown nowhere,
-    -- there is nothing to choose between: the two buttons keep what they say and go dim with
-    -- the picture until one of the boxes is ticked again.
-    -- With Pawn scoring the lines in a tooltip are Pawn's to write (Tooltip.lua): the block
-    -- says so in place of its sentence, the box for the rest of the game is empty and out of
-    -- use, and the buttons and the picture are dim, until the addon scores again. The box
-    -- for our own tabs stays in use: what we still write under their rows goes by it
-    -- (AddOfferLines in UI.lua). The arrows in the bags stay ours to draw, and to switch.
+    -- The tooltip's block. Of the score it asks how its lines are written, and where they
+    -- show. Shown nowhere, there is nothing to choose between: the two buttons keep what
+    -- they say and go dim until one of the boxes is ticked again.
+    -- With Pawn scoring the score in a tooltip is Pawn's to write (Tooltip.lua, AddOfferLines
+    -- in UI.lua): the block says so in place of its sentence, and what it asks of the score
+    -- is out of use until the addon scores again, the buttons dim, the two boxes empty and
+    -- dim. (Out of the mouse's reach as well: what is switched off would still light up
+    -- under it.) What the boxes were left at is kept, and a list for another character,
+    -- whose score Pawn does not write, still goes by it.
+    -- The notes under a row of our tabs are ours whoever scores: their box is always in use.
+    -- So are the arrows in the bags, on their card.
     local block = frame.Tips
-    local tabs, elsewhere = PaintSwitch(block.Tabs), PaintSwitch(block.Elsewhere)
+    local tabs, elsewhere, notes = PaintSwitch(block.Tabs), PaintSwitch(block.Elsewhere), PaintSwitch(block.Notes)
     block.Body:SetText(pawn and L.WELCOME_TOOLTIP_PAWN or L.WELCOME_TOOLTIP_TEXT)
-    if pawn then
-        block.Elsewhere:SetChecked(false)
-        block.Elsewhere.Tick:SetShown(false)
+    for _, switch in ipairs({ block.Tabs, block.Elsewhere }) do
+        if pawn then
+            switch:SetChecked(false)
+            switch.Tick:SetShown(false)
+        end
+        switch:SetEnabled(not pawn)
+        switch:EnableMouse(not pawn)
+        switch:SetAlpha(pawn and 0.4 or 1)
+        switch.Label:SetAlpha(pawn and 0.5 or 1)
     end
-    -- (Out of the mouse's reach as well, as Pawn's button is while Pawn is not there.)
-    block.Elsewhere:SetEnabled(not pawn)
-    block.Elsewhere:EnableMouse(not pawn)
-    block.Elsewhere:SetAlpha(pawn and 0.4 or 1)
-    block.Elsewhere.Label:SetAlpha(pawn and 0.5 or 1)
-    local shown = (tabs or elsewhere) and not pawn
+    local score = (tabs or elsewhere) and not pawn
     PaintTree(block.All, not about.own)
     PaintTree(block.Own, about.own)
     for _, button in ipairs({ block.All, block.Own }) do
-        button:SetEnabled(shown)
-        button:SetAlpha(shown and 1 or 0.35)
+        button:SetEnabled(score)
+        button:EnableMouse(score)
+        button:SetAlpha(score and 1 or 0.35)
     end
-    block.Picture:SetAlpha(shown and 1 or 0.3)
+    -- The picture has what is in use: the score's lines, the note, or both. With neither it
+    -- fades: it then has the score's lines, which would come back.
+    about.score, about.notes = score, notes
+    block.Picture:SetAlpha((score or notes) and 1 or 0.3)
     block.Picture:Paint(about)
     Layout()
 end

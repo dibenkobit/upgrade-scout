@@ -13,7 +13,7 @@ local names = {
     "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "fonts", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
-    "pawn_scan", "pawn_absent", "pawn_tooltips", "pawn_welcome", "pawn_supplies", "pawn_alt",
+    "pawn_scan", "pawn_absent", "pawn_tooltips", "pawn_welcome", "pawn_supplies", "pawn_alt", "pawn_unread",
     "talents", "welcome", "minimap",
     "tooltip_settings",
 }
@@ -3138,14 +3138,18 @@ function scenarios.supplies_ui()
         return table.concat(lines, " | ")
     end
     check(Tooltip(agility):find("Score of what it adds: +15", 1, true) ~= nil, "an elixir's tooltip has its score: " .. Tooltip(agility))
-    -- With our lines switched off for the rows of the tabs (the welcome window) the tooltip
-    -- is the item's own and no more.
+    -- These lines are notes on a row: the box of the score's lines (the welcome window)
+    -- leaves them be, and with the box of the notes unticked the tooltip is the item's own
+    -- and no more.
     UpgradeScoutDB.rowTooltip = false
+    check(Tooltip(agility):find("Score of what it adds: +15", 1, true) ~= nil, "the score's lines switched off for the tabs: a consumable keeps its own")
+    UpgradeScoutDB.rowTooltip = nil
+    UpgradeScoutDB.rowNotes = false
     local bare = Tooltip(agility)
     check(bare:find("Upgrade Scout", 1, true) == nil and bare:find("Score of what it adds", 1, true) == nil and bare:find("for sale", 1, true) == nil,
-        "switched off for the tabs' rows, a consumable's tooltip has nothing of ours: " .. bare)
+        "the notes switched off, a consumable's tooltip has nothing of ours: " .. bare)
     check(bare ~= "", "but it is still the item's own")
-    UpgradeScoutDB.rowTooltip = nil
+    UpgradeScoutDB.rowNotes = nil
 
     -- Every consumable instead of the best of each kind.
     Tick(frame.BestCheck, false)
@@ -4571,7 +4575,21 @@ function scenarios.tooltip_settings()
     eq(#GameTooltip._lines, with - 2, "shorter by our blank line and our line")
     eq(W.compared, GameTooltip, "the worn item is still shown beside it")
     chest:GetScript("OnLeave")(chest)
-    eq(block.Picture:GetAlpha(), 0.3, "shown nowhere: the picture fades")
+    eq(block.Picture:GetAlpha(), 1, "the score shown nowhere: the picture stays for the note")
+    eq(tip.Note:IsShown(), true, "which it has"); eq(tip.Note:GetText(), "You are 12s short.", "in the row's own words")
+    eq(tip.Brand:IsShown(), true, "under the addon's name"); eq(tip.Lines[1].Title:IsShown(), false, "and no line of the score")
+    local notes = block.Notes
+    eq(notes.Label:GetText(), "Notes on the addon's auction tabs: what you are short of, both hands", "the box of the notes says what they are")
+    eq(notes:GetChecked(), true, "ticked to begin with"); check(notes._points[1].y < elsewhere._points[1].y, "under the two boxes of the score")
+    check(block.Rule._points[1].y < elsewhere._points[1].y and block.Rule._points[1].y > notes._points[1].y, "a fine line between them")
+    notes:SetChecked(false)
+    notes:Click()
+    eq(UpgradeScoutDB.rowNotes, false, "unticked: written down for the account"); eq(notes.Tick:IsShown(), false, "the tick goes")
+    eq(block.Picture:GetAlpha(), 0.3, "nothing of ours shows anywhere now: the picture fades")
+    eq(tip.Note:IsShown(), false, "without the note"); eq(tip.Lines[1].Title:IsShown(), true, "and with the score's line, which would come back")
+    notes:SetChecked(true)
+    notes:Click()
+    eq(UpgradeScoutDB.rowNotes, nil, "ticked again: nothing is left written"); eq(block.Picture:GetAlpha(), 1, "and the picture is back")
     eq(own:IsEnabled(), false, "the buttons cannot be pressed"); eq(all:IsEnabled(), false, "neither of them")
     eq(own:GetAlpha(), 0.35, "and are dim"); eq(own.Mark:IsShown(), true, "but keep what they say")
     eq(UpgradeScoutDB.ownTree, true, "as does the account")
@@ -5325,12 +5343,20 @@ function scenarios.pawn_tooltips()
     W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
     W.items["212:0"].value2 = 40
     W.player.talents = { { name = "Arms", points = 7 }, { name = "Fury", points = 0 }, { name = "Protection", points = 1 } }
+    -- A shirt and a trinket that is only used, as most characters wear: Pawn keeps nothing
+    -- of either, and that is not to be taken for gear still to be read.
+    W.AddItem({ id = 230, name = "Lucky Charm", equipLoc = "INVTYPE_TRINKET", value = 0, level = 1, noStats = true })
+    W.equipped[4] = W.Link(207)
+    W.equipped[13] = W.Link(230)
     PawnWorld()
     -- Pawn was chosen in an earlier session.
     UpgradeScoutDB = { engine = "pawn" }
     LoadAddon()
     W.Fire("PLAYER_ENTERING_WORLD")
     W.Run(1.5)
+    eq(ns.Pawn.Item(W.Link(207)).pawn, false, "a shirt: Pawn has nothing, and that is its answer")
+    eq(ns.Pawn.Item(W.Link(230)).pawn, false, "the same for a trinket that adds nothing")
+    eq(ns.Score.Context(ARMS).unread, nil, "wearing them, the gear is whole")
     eq(ns.Score.Engine(), "pawn", "Pawn scores, as chosen before"); eq(ns.Score.Current().name, ARMS, "on the scale for the talents")
 
     -- Does the tooltip have lines of ours? Our header, then what is under it, joined by " | ".
@@ -5435,14 +5461,19 @@ function scenarios.pawn_tooltips()
     ns.db.net = true
     eq(Under("Good Chest"), "Buyout 40s | Sell Price 1s", "with Net cost ticked: what the cost is made of")
     ns.db.net = nil
-    -- The box for the addon's tabs in the welcome window switches these notes off as well.
+    -- The notes have a box of their own in the welcome window; the one of the score's lines
+    -- on the tabs has nothing to say here.
     UpgradeScoutDB.rowTooltip = false
     ns.Fire("SETTING_CHANGED", "rowTooltip")
-    eq(Under("Great Chest"), nil, "our lines switched off for the tabs: no notes either")
-    eq(W.compared, GameTooltip, "the worn item still beside it")
+    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short.", "the score's box unticked: the notes stay")
     UpgradeScoutDB.rowTooltip = nil
-    ns.Fire("SETTING_CHANGED", "rowTooltip")
-    check(Under("Great Chest") ~= nil, "switched on again, they are back")
+    UpgradeScoutDB.rowNotes = false
+    ns.Fire("SETTING_CHANGED", "rowNotes")
+    eq(Under("Great Chest"), nil, "the notes' box unticked: no notes")
+    eq(W.compared, GameTooltip, "the worn item still beside it")
+    UpgradeScoutDB.rowNotes = nil
+    ns.Fire("SETTING_CHANGED", "rowNotes")
+    check(Under("Great Chest") ~= nil, "ticked again, they are back")
     -- One line for the tree in use, chosen before Pawn was: nothing changes with Pawn scoring.
     UpgradeScoutDB.ownTree = true
     ns.Fire("SETTING_CHANGED", "ownTree")
@@ -5460,6 +5491,23 @@ function scenarios.pawn_tooltips()
     eq(Bag(slot[200]), true, "and the arrows by its own profile")
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 600)
     check(Under("Good Chest"):find("Arms +80%", 1, true) ~= nil, "a row's tooltip has the gains again")
+
+    -- With the addon scoring, the two kinds of lines under a row each go by their own box.
+    W.Run(1)
+    local both = Under("Great Chest")
+    check(both:find("Arms +200%", 1, true) ~= nil and both:find("Has effects the score does not count. | You are 4g short.", 1, true) ~= nil,
+        "the score and the notes: " .. both)
+    UpgradeScoutDB.rowNotes = false
+    local scoreOnly = Under("Great Chest")
+    check(scoreOnly:find("Arms +200%", 1, true) ~= nil, "the notes unticked: the score stays")
+    check(scoreOnly:find("Has effects", 1, true) == nil and scoreOnly:find("short", 1, true) == nil, "without the notes: " .. scoreOnly)
+    UpgradeScoutDB.rowNotes = nil
+    UpgradeScoutDB.rowTooltip = false
+    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short.", "the score unticked: the notes alone, under the addon's name")
+    eq(Under("Good Chest"), nil, "and nothing where there is nothing to note")
+    UpgradeScoutDB.rowNotes = false
+    eq(Under("Great Chest"), nil, "both unticked: nothing of ours")
+    UpgradeScoutDB.rowTooltip, UpgradeScoutDB.rowNotes = nil, nil
 end
 
 -- The welcome window with Pawn: who scores, the scales in place of the trees, the tooltip's
@@ -5482,9 +5530,21 @@ function scenarios.pawn_welcome()
     local own, pawn = window.Engines[1], window.Engines[2]
     eq(own.Label:GetText(), "Upgrade Scout", "who scores: the addon"); eq(pawn.Label:GetText(), "Pawn", "or Pawn, each by its name")
     eq(own.Mark:IsShown(), true, "the addon is the one that does"); eq(pawn.Mark:IsShown(), false, "Pawn is not")
-    eq(pawn:IsEnabled(), false, "Pawn cannot be chosen while it is not there"); eq(pawn:GetAlpha(), 0.45, "and its button is grey")
-    check(window.Who:GetText():find(L.WELCOME_ENGINE, 1, true) ~= nil, "the question")
-    check(window.Who:GetText():find(L.WELCOME_NO_PAWN, 1, true) ~= nil, "and why Pawn is grey")
+    eq(pawn:GetAlpha(), 0.45, "Pawn cannot be chosen while it is not there: its button is grey")
+    eq(pawn.Glow.parts[1]:IsShown(), false, "and does not light up under the mouse"); eq(own.Glow.parts[1]:IsShown(), true, "as the other does")
+    eq(window.Who:GetText(), L.WELCOME_ENGINE, "the question stands alone")
+    -- Why it is grey is said in a tooltip of the button.
+    local function Hint(button)
+        GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        button:GetScript("OnEnter")(button)
+        local said = GameTooltip._lines[1] and GameTooltip._lines[1].text or nil
+        local owner = GameTooltip:GetOwner()
+        button:GetScript("OnLeave")(button)
+        return said, owner
+    end
+    local said, owner = Hint(pawn)
+    eq(said, L.WELCOME_NO_PAWN, "the mouse on the grey button: a tooltip says why"); eq(owner, pawn, "at the button")
+    eq(Hint(own), nil, "the addon's own button has nothing to explain")
     pawn:Click()
     eq(UpgradeScoutDB.engine, nil, "a click on the grey button does nothing")
     check(own._points[1].x < pawn._points[1].x and own._points[1].y == pawn._points[1].y, "the two side by side")
@@ -5506,7 +5566,10 @@ function scenarios.pawn_welcome()
     window = UpgradeScoutWelcome
     eq(window.About:GetText(), L.WELCOME_PAWN_NEW, "Pawn is there now: the window comes up to say that it can be chosen")
     own, pawn = window.Engines[1], window.Engines[2]
-    eq(pawn:IsEnabled(), true, "Pawn can be chosen"); eq(pawn:GetAlpha(), 1, "its button is no longer grey")
+    eq(pawn:GetAlpha(), 1, "Pawn can be chosen: its button is no longer grey"); eq(pawn.Glow.parts[1]:IsShown(), true, "and lights up under the mouse")
+    GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    pawn:GetScript("OnEnter")(pawn)
+    eq(#GameTooltip._lines, 0, "with nothing left to explain in a tooltip")
     eq(window.Who:GetText(), L.WELCOME_ENGINE, "the question stands alone: nothing more to say of a button that can be clicked")
     eq(own.Mark:IsShown(), true, "the addon scores until Pawn is chosen")
     eq(window:GetHeight(), height, "the window is as tall as without Pawn")
@@ -5527,35 +5590,41 @@ function scenarios.pawn_welcome()
     pawn:Click()
     eq(told, 1, "the one that scores clicked again: nothing changes")
 
-    -- The tooltip's block is out of use where Pawn writes: its sentence says so, the box for
-    -- the rest of the game is empty and cannot be ticked, the two buttons are dim. The box
-    -- for the addon's own tabs is as it was, and so is the arrows' card.
+    -- The score in a tooltip is Pawn's to write now: the block says so, and what it asks of
+    -- the score is out of use, the two buttons dim, the two boxes empty and dim. The notes
+    -- are still ours: their box is as it was, and so is the arrows' card.
     local block, arrows = window.Tips, window.Pair[2]
-    local tip, elsewhere = block.Picture.Tip, block.Elsewhere
+    local tip, tabs, elsewhere, notes = block.Picture.Tip, block.Tabs, block.Elsewhere, block.Notes
     eq(block.Body:GetText(), L.WELCOME_TOOLTIP_PAWN, "the tooltip's block says that Pawn writes there")
-    eq(elsewhere:IsEnabled(), false, "the box for the rest of the game is out of use"); eq(elsewhere:GetChecked(), false, "and empty")
-    eq(elsewhere.Tick:IsShown(), false, "without its tick"); eq(elsewhere:GetAlpha(), 0.4, "and dim")
-    eq(elsewhere.Label:GetAlpha(), 0.5, "as its words are")
+    for name, box in pairs({ ["the addon's tabs"] = tabs, ["the rest of the game"] = elsewhere }) do
+        eq(box:IsEnabled(), false, "the score's box for " .. name .. " is out of use"); eq(box:GetChecked(), false, "and empty: " .. name)
+        eq(box.Tick:IsShown(), false, "without its tick: " .. name); eq(box:GetAlpha(), 0.4, "and dim: " .. name)
+        eq(box.Label:GetAlpha(), 0.5, "as its words are: " .. name)
+        box:SetChecked(false)
+        box:Click()
+    end
+    eq(UpgradeScoutDB.tooltip, nil, "a click on such a box changes nothing"); eq(UpgradeScoutDB.rowTooltip, nil, "on either")
     eq(block.All:IsEnabled(), false, "the two buttons are out of use"); eq(block.Own:IsEnabled(), false, "both")
     eq(block.All:GetAlpha(), 0.35, "and dim"); eq(block.All.Mark:IsShown(), true, "the one in force still lit")
-    eq(block.Picture:GetAlpha(), 0.3, "the picture fades")
-    eq(tip.Lines[1].Title:GetText(), "Arms", "it still shows the addon's own lines: what would come back")
+    block.Own:Click()
+    eq(UpgradeScoutDB.ownTree, nil, "a click on a dim button changes nothing")
+    -- The notes: the one box in use, and the picture shows what it is for.
+    eq(notes:IsEnabled(), true, "the box of the notes is in use"); eq(notes:GetChecked(), true, "and ticked")
+    eq(notes.Tick:IsShown(), true, "with its tick"); eq(notes:GetAlpha(), 1, "at full strength")
+    eq(block.Picture:GetAlpha(), 1, "the picture is whole: it has the note")
+    eq(tip.Note:IsShown(), true, "what the player is short of"); eq(tip.Brand:IsShown(), true, "under the addon's name")
+    eq(tip.Lines[1].Title:IsShown(), false, "and no line of the score: that is Pawn's"); eq(tip.Lines[2].Title:IsShown(), false, "none")
+    notes:SetChecked(false)
+    notes:Click()
+    eq(UpgradeScoutDB.rowNotes, false, "unticked: written down, with Pawn scoring as without")
+    eq(block.Picture:GetAlpha(), 0.3, "nothing of ours in a tooltip now: the picture fades")
+    eq(tip.Note:IsShown(), false, "without the note")
+    eq(tip.Lines[1].Title:GetText(), "Arms", "it has the addon's own lines: what would come back")
     eq(tip.Lines[2].Title:GetText(), "Protection ~", "its profiles, not Pawn's scales")
     eq(tip.Lines[3], nil, "and no more of them")
-    elsewhere:SetChecked(false)
-    elsewhere:Click()
-    eq(UpgradeScoutDB.tooltip, nil, "a click on the box changes nothing")
-    block.Own:Click()
-    eq(UpgradeScoutDB.ownTree, nil, "nor does one on a dim button")
-    eq(block.Tabs:IsEnabled(), true, "the box for the addon's tabs is in use: its notes there go by it")
-    eq(block.Tabs:GetChecked(), true, "and ticked"); eq(block.Tabs.Tick:IsShown(), true, "with its tick")
-    block.Tabs:SetChecked(false)
-    block.Tabs:Click()
-    eq(UpgradeScoutDB.rowTooltip, false, "unticked: written down, with Pawn scoring as without")
-    eq(block.Picture:GetAlpha(), 0.3, "the picture is as dim as it was")
-    block.Tabs:SetChecked(true)
-    block.Tabs:Click()
-    eq(UpgradeScoutDB.rowTooltip, nil, "and ticked again")
+    notes:SetChecked(true)
+    notes:Click()
+    eq(UpgradeScoutDB.rowNotes, nil, "and ticked again"); eq(block.Picture:GetAlpha(), 1, "the picture is back")
     eq(arrows.Switch:IsEnabled(), true, "the arrows' box is in use"); eq(arrows.Switch:GetChecked(), true, "and ticked")
     eq(arrows.Body:GetText(), L.WELCOME_ARROWS_TEXT, "with its own sentence"); eq(arrows.Picture:GetAlpha(), 1, "and its picture whole")
     local slot = W.PutInBags(W.Link(200))
@@ -5623,11 +5692,14 @@ function scenarios.pawn_welcome()
     eq(trees[1].Label:GetText(), "Arms", "the trees are back"); eq(trees[3]:IsShown(), false, "two of them")
     eq(trees[1].Mark:IsShown(), true, "the one for the talents in use")
     eq(block.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "the tooltip's block has its sentence")
-    eq(elsewhere:IsEnabled(), true, "its box for the rest of the game in use"); eq(elsewhere:GetChecked(), true, "and ticked, as it was left")
-    eq(elsewhere.Tick:IsShown(), true, "with its tick"); eq(elsewhere:GetAlpha(), 1, "and whole")
-    eq(elsewhere.Label:GetAlpha(), 1, "as its words are")
+    for name, box in pairs({ ["the addon's tabs"] = tabs, ["the rest of the game"] = elsewhere }) do
+        eq(box:IsEnabled(), true, "the score's box for " .. name .. " is in use"); eq(box:GetChecked(), true, "and ticked, as it was left: " .. name)
+        eq(box.Tick:IsShown(), true, "with its tick: " .. name); eq(box:GetAlpha(), 1, "and whole: " .. name)
+        eq(box.Label:GetAlpha(), 1, "as its words are: " .. name)
+    end
     eq(block.All:IsEnabled(), true, "the two buttons in use"); eq(block.All:GetAlpha(), 1, "and whole")
     eq(block.Picture:GetAlpha(), 1, "the picture whole")
+    eq(tip.Lines[1].Title:IsShown(), true, "with the score's lines"); eq(tip.Note:IsShown(), true, "and the note under them")
     block.Own:Click()
     eq(UpgradeScoutDB.ownTree, true, "and a click on a button counts again")
     block.All:Click()
@@ -5647,6 +5719,46 @@ function scenarios.pawn_welcome()
     W.Fire("PLAYER_ENTERING_WORLD")
     W.Run(12)
     eq(UpgradeScoutWelcome:IsShown(), false, "it comes up once, not twice")
+end
+
+-- A worn item that Pawn cannot read, though the game says it adds something: waited for a
+-- few seconds, then the arrows are drawn without it.
+function scenarios.pawn_unread()
+    StandardWorld()
+    PawnWorld()
+    W.items["101:0"].pawnBlind = true
+    UpgradeScoutDB = { engine = "pawn" }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    eq(ns.Pawn.Item(W.Link(101)), nil, "a ring with stats that Pawn gave nothing for: no answer yet")
+    eq(ns.Score.Context(ARMS).unread, 1, "worn, it is gear still to be read")
+    local slot = W.PutInBags(W.Link(200))
+    W.OpenBags()
+    local function Arrow()
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    eq(Arrow(), false, "no arrow on the better chest while the ring is waited for")
+    W.Run(2)
+    eq(Arrow(), false, "nor two seconds later")
+    W.Run(5)
+    eq(Arrow(), true, "the wait is over: the arrows are drawn without the ring")
+    -- Read at last (the gear is looked at again when it changes): nothing to wait for.
+    W.items["101:0"].pawnBlind = nil
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    eq(ns.Score.Context(ARMS).unread, nil, "the ring read, the gear is whole")
+    eq(Arrow(), true, "and the arrow stays")
+    -- An item in the bags that Pawn cannot read gets no arrow, and keeps none from the rest.
+    W.items["203:0"].pawnBlind = true
+    local blind = W.PutInBags(W.Link(203))
+    W.DrawBags()
+    W.Run(12)
+    local arrow = ContainerFrameCombinedBags.Items[blind].UpgradeScoutArrow
+    eq(arrow ~= nil and arrow:IsShown(), false, "no arrow on an item Pawn cannot read")
+    eq(Arrow(), true, "the others keep theirs")
+    CheckPawnAsked("gear that Pawn cannot read")
 end
 
 -- What a consumable adds, scored on a Pawn scale: the game's names for stats put into

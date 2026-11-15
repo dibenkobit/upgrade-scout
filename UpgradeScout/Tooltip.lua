@@ -70,9 +70,14 @@ end
 -- is up several times a second. Both are kept until the gear, the level or the spells (dual
 -- wield) change. A snapshot that still waits for an item is not kept.
 local contexts, answers = {}, {}
+-- An item that is worn and cannot be read (ctx.unread) is waited for this many seconds,
+-- counted from when it was first found so (unreadSince), and no longer.
+local UNREAD_WAIT = 5
+local unreadSince
 
 local function Forget()
     contexts, answers = {}, {}
+    unreadSince = nil
 end
 ns.On("PLAYER_EQUIPMENT_CHANGED", Forget)
 ns.On("SPELLS_CHANGED", Forget)
@@ -90,11 +95,19 @@ ns.Listen("PROFILE_CHANGED", function()
 end)
 
 -- Returns the snapshot, and whether it is whole.
+-- A worn item the game has loaded and that still cannot be read is waited for, as the
+-- arrows look again every second (Bags.lua), but not for ever: after UNREAD_WAIT seconds the
+-- snapshot is taken as it is, that item scoring nothing, the way the scanner takes it
+-- (Scanner.lua). One such item is not to keep every arrow out of the bags.
 local function Context(id)
     local ctx = contexts[id]
     if ctx then return ctx, true end
     ctx = ns.Score.Context(id)
     local whole = not ctx.pending and not ctx.unread
+    if ctx.unread and not ctx.pending then
+        unreadSince = unreadSince or GetTime()
+        whole = GetTime() - unreadSince >= UNREAD_WAIT
+    end
     if whole then contexts[id] = ctx end
     return ctx, whole
 end

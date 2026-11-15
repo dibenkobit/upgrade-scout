@@ -40,6 +40,7 @@ read_globals = {
     -- what other addons define, where they are installed: the shape one gave the minimap
     "GetMinimapShape",
     -- and Pawn, for a player who has it and chose it to score (Pawn.lua)
+    "PawnCanItemHaveStats",
     "PawnCommon", "PawnGetAllScalesEx", "PawnGetItemData", "PawnGetItemValue", "PawnGetSingleValueFromItem", "PawnIsReady",
     "PawnResetTooltips",
 }
