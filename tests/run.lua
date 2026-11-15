@@ -4579,7 +4579,7 @@ function scenarios.tooltip_settings()
     eq(tip.Note:IsShown(), true, "which it has"); eq(tip.Note:GetText(), "You are 12s short.", "in the row's own words")
     eq(tip.Brand:IsShown(), true, "under the addon's name"); eq(tip.Lines[1].Title:IsShown(), false, "and no line of the score")
     local notes = block.Notes
-    eq(notes.Label:GetText(), "Notes on the addon's auction tabs: what you are short of, both hands", "the box of the notes says what they are")
+    eq(notes.Label:GetText(), 'Show lines such as "You are 12s short" and "Takes both hands"', "the box of the notes names two of them, word for word")
     eq(notes:GetChecked(), true, "ticked to begin with"); check(notes._points[1].y < elsewhere._points[1].y, "under the two boxes of the score")
     check(block.Rule._points[1].y < elsewhere._points[1].y and block.Rule._points[1].y > notes._points[1].y, "a fine line between them")
     notes:SetChecked(false)

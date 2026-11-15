@@ -489,6 +489,11 @@ local function WhereHeight(switch)
     return tall
 end
 
+-- A sentence as it stands inside another: without the full stop at its end.
+local function Quoted(text)
+    return (text:gsub("%.$", ""):gsub("。$", ""))
+end
+
 -- As wide as the two cards. What a card has under one another the block has side by side:
 -- the picture on the left, the name and the sentence on the right, and under the sentence
 -- the two questions (see Layout for where each part goes).
@@ -520,9 +525,12 @@ local function NewBlock()
     block.All, block.Own = NewHow(block, false, L.WELCOME_HOW_ALL), NewHow(block, true, L.WELCOME_HOW_OWN)
     block.Tabs = NewWhere(block, "rowTooltip", L.WELCOME_WHERE_TABS)
     block.Elsewhere = NewWhere(block, "tooltip", L.WELCOME_WHERE_ELSE)
-    -- The notes are another matter than the score: a fine line stands between.
+    -- The notes are another matter than the score: a fine line stands between. Their box
+    -- names two of them word for word, as a row's tooltip has them (AddNotes in UI.lua):
+    -- that tells a player more than a name for the kind would.
     block.Rule = NewRule(block)
-    block.Notes = NewWhere(block, "rowNotes", L.WELCOME_NOTES)
+    block.Notes = NewWhere(block, "rowNotes", L.WELCOME_NOTES:format(
+        Quoted(L.TT_CANT_AFFORD:format(ns.Money(SAMPLES[1].short))), Quoted(L.TT_BOTH_HANDS)))
     return block
 end
 
