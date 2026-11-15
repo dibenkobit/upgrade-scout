@@ -44,6 +44,9 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
   abre de nuevo.
 - Puntúa el equipo con pesos propios para cada rama de talentos, calculados con el simulador
   [wowsims/forever](https://github.com/wowsims/forever). No hace falta ningún otro addon.
+- ¿Usas Pawn? Elige **Pawn** en la ventana del addon y el equipo se puntúa con tus escalas de Pawn,
+  no con los pesos del addon. Las listas y las flechas de las bolsas se guían por ellas, y las líneas
+  de la descripción son las de Pawn.
 
 Cualquier clase, cualquier nivel. Inglés, chino (simplificado y tradicional), alemán, ruso,
 francés, español, portugués de Brasil y coreano.

@@ -20,6 +20,7 @@ local _, ns = ...
 --               believed: see Roster.Update), and then its class decides
 --   skills      { [profession, as the game names it] = rank }
 --   profile     the profile chosen for it (see Score.lua)
+--   scale       the Pawn scale chosen for it, for when Pawn scores (see Pawn.lua)
 --   talents     the profile for the talent tree it has the most points in; what it is
 --               scored on while none is chosen
 --   seen        when it was last written down (time())

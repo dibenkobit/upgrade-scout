@@ -77,6 +77,9 @@ ns.db = { affordableOnly = true, topOnly = true, bestOnly = true, collapsed = {}
 -- arrow on an upgrade in the bags). welcomed: that window has been seen. minimap: where the
 -- button at the minimap is (Minimap.lua).
 ns.account = { chars = {} }
+-- Also for the whole account, and chosen in the same window: engine, "pawn" when gear is to
+-- be scored by the player's Pawn scales and not by the addon's own weights (Score.Engine).
+-- pawnOffered: the window has been seen since that choice could be made in it.
 
 -- Is this part of the addon on: "tooltip" or "arrows"?
 function ns.Shows(part)

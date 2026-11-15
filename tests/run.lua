@@ -13,6 +13,7 @@ local names = {
     "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "fonts", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
+    "pawn_scan", "pawn_absent", "pawn_tooltips", "pawn_welcome", "pawn_supplies", "pawn_alt",
     "talents", "welcome", "minimap",
 }
 
@@ -4869,6 +4870,668 @@ function scenarios.minimap()
     end)
     check(UpgradeScoutMinimapButton ~= nil, "LibDataBroker without LibDBIcon: our own button")
     check(launchers.UpgradeScout ~= nil, "and a launcher")
+end
+
+---------------------------------------------------------------------------
+-- Pawn in place of the addon's own weights (Pawn.lua), for a player who chose it
+---------------------------------------------------------------------------
+-- Pawn's names for the scales it makes for the talent trees of a warrior and of a druid: two
+-- each here, as the tests' classes have two profiles.
+local ARMS, PROT, BALANCE, FERAL = '"Classic":WARRIOR1', '"Classic":WARRIOR2', '"Classic":DRUID1', '"Classic":DRUID2'
+
+-- Pawn is installed, with those four scales and one the player made by hand. The character
+-- being played (call this while it is the warrior) has its class's two and the hand-made
+-- one switched on. Arms weighs an item's first score, as the addon's own first profile does,
+-- Protection the second, and "Leveling" the first twice over; the druid's weigh the scores
+-- the tests give an item for a druid. Protection is told to show no two-handed weapons.
+local function PawnWorld()
+    W.InstallPawn()
+    W.AddPawnScale({ name = ARMS, title = "Warrior: Arms", class = 1, spec = 1, shown = true,
+        values = { TEST_S1 = 1, Strength = 1.5, Agility = 1, Stamina = 0.5, Ap = 0.4, CritRating = 8 } })
+    W.AddPawnScale({ name = PROT, title = "Warrior: Protection", class = 1, spec = 2, shown = true, no2H = true,
+        values = { TEST_S2 = 1, Stamina = 1 } })
+    W.AddPawnScale({ name = "Leveling", shown = true, values = { TEST_S1 = 2 } })
+    W.AddPawnScale({ name = BALANCE, title = "Druid: Balance", class = 11, spec = 1,
+        values = { TEST_D1 = 1, Intellect = 1, SpellDamage = 1, CritRating = 6 } })
+    W.AddPawnScale({ name = FERAL, title = "Druid: Feral", class = 11, spec = 2, values = { TEST_D2 = 1, Agility = 1 } })
+end
+
+-- Pawn was asked nothing it answers with an error line in the chat, and about no item with
+-- its enchantment on.
+local function CheckPawnAsked(label)
+    eq(#W.pawn.fails, 0, label .. ": Pawn is asked about no scale it has not" .. (W.pawn.fails[1] and (": " .. W.pawn.fails[1]) or ""))
+    for _, link in ipairs(W.pawn.asked) do
+        check(not link:match("item:%d+:%d"), label .. ": Pawn is asked about an item without its enchantment")
+    end
+end
+
+-- The road of a player who has Pawn: the addon scores by itself until Pawn is chosen, then
+-- on the Pawn scale in use, and the lists are made the same way from Pawn's numbers.
+function scenarios.pawn_scan()
+    StandardWorld()
+    -- The worn chest is enchanted. On the second score: the two chests 9 (for sale) and 12
+    -- (worn), a helm, a two-hander and a shield.
+    W.equipped[5] = (W.Link(100):gsub("item:100:", "item:100:66", 1))
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.items["211:0"].value2, W.items["212:0"].value2, W.items["213:0"].value2 = 5, 40, 8
+    W.player.talents = { { name = "Arms", points = 7 }, { name = "Fury", points = 0 }, { name = "Protection", points = 1 } }
+    PawnWorld()
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score, S, me = ns.Score, ns.Scanner, ns.Roster.Me()
+
+    -- Pawn is there and not chosen: the addon scores by itself and asks Pawn nothing.
+    eq(ns.Pawn.Usable(), true, "Pawn is there to be asked"); eq(Score.Engine(), nil, "and is not, until chosen")
+    eq(Score.Current().name, "S1", "the profiles are the addon's own")
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local frame = UpgradeScoutFrame
+    local dropdown = frame.ProfileDropdown
+    ScanToEnd()
+    CheckStandardOffers("the addon's own weights, with Pawn installed")
+    eq(#W.pawn.asked, 0, "Pawn is asked about no item")
+    eq(#dropdown.radios, 2, "the field lists the addon's profiles"); eq(dropdown:GetText(), "Arms", "the one in use")
+
+    -- Pawn chosen, as the welcome window does it: for the whole account, and at once.
+    local told = 0
+    ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
+    Score.SetEngine("pawn")
+    eq(UpgradeScoutDB.engine, "pawn", "the choice is written down for the account"); eq(Score.Engine(), "pawn", "and Pawn scores")
+    eq(told, 1, "what keeps scores is told")
+    local current, list = Score.Current()
+    eq(#list, 3, "the profiles are the Pawn scales the character has switched on")
+    eq(list[1].name, "Leveling", "in Pawn's order: one made by hand first"); eq(list[1].title, "Leveling", "by its name")
+    eq(list[2].name, ARMS, "then Pawn's own, by Pawn's name for it"); eq(list[2].title, "Arms", "shown without the class it begins with")
+    eq(list[3].title, "Protection", "each of them")
+    eq(current.name, ARMS, "the one in use: Pawn's scale for the tree the talents are in")
+    eq(Score.Title(ARMS), "Arms", "a scale's title by its name"); eq(Score.IsApprox(ARMS), false, "no scale is marked as an estimate")
+    eq(#Score.Trees(), 2, "the addon's own profiles are still there to be asked for")
+
+    -- The list that was there is made again, on the scale.
+    check(S.state ~= "idle", "a list that was made on the addon's weights is made again")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(S.ctx.profile, ARMS, "on the scale in use")
+    CheckStandardOffers("Pawn's scale for Arms")
+    near(S.ctx.equipped[5].value, 10, "what is worn is scored by Pawn, without its enchantment")
+    near(S.ctx.equipped[16].value, 20, "every piece of it")
+    eq(S.ctx.show1H, true, "the scale shows one-handed weapons"); eq(S.ctx.show2H, true, "and two-handed ones")
+    CheckPawnAsked("a scan")
+    eq(#dropdown.radios, 3, "the field lists the scales"); eq(dropdown.radios[1].text, "Leveling", "by their names")
+    eq(dropdown:GetText(), "Arms", "and shows the one in use")
+    dropdown._tooltip(GameTooltip)
+    local tip = {}
+    for _, line in ipairs(GameTooltip._lines) do tip[#tip + 1] = line.text end
+    check(table.concat(tip, " | "):find(ns.L.PROFILE_TIP_PAWN, 1, true) ~= nil, "its tooltip is about Pawn's scales")
+
+    -- Another scale chosen in the field: kept apart from the addon's own profile, and the
+    -- list is made again. This one is told to show no two-handers.
+    dropdown:Pick(3)
+    eq(me.scale, PROT, "the scale chosen is written on the character's card"); eq(me.profile, nil, "the addon's own profile is left alone")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(S.ctx.profile, PROT, "the list is on the scale chosen"); eq(S.ctx.show2H, false, "which shows no two-handed weapons")
+    check(Offer("Helm") ~= nil, "a helm for the empty head, by its score on that scale")
+    check(Offer("Shield") ~= nil, "a shield for the empty off hand")
+    eq(Offer("Big Axe"), nil, "no two-hander, though it scores 40 against the sword's nothing")
+    eq(Offer("Good Chest"), nil, "the chest is no upgrade on it: 9 against 12")
+    eq(OfferCount(), 2, "and nothing else")
+
+    -- The scale made by hand weighs the first score twice.
+    dropdown:Pick(1)
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(me.scale, "Leveling", "a scale made by hand chosen"); near(Offer("Good Chest").value, 36, "its own weights: 18 twice over")
+    near(S.ctx.equipped[5].value, 20, "for what is worn as well")
+
+    -- /upscout stats: Pawn's stats of the item and the scale's weights, with Pawn's total.
+    W.items["200:0"].pawn = { Strength = 5, IsMail = 1 }
+    local at = #W.printed + 1
+    SlashCmdList.UPGRADESCOUT("stats " .. W.Link(200))
+    local said = Said(at)
+    check(said:find('on the profile "Leveling": score 36', 1, true) ~= nil, "the scale in use and Pawn's score: " .. said)
+    check(said:find("TEST_S1: 18 × 2 = 36", 1, true) ~= nil, "a stat by Pawn's name for it, with the scale's weight")
+    check(said:find("Strength", 1, true) == nil, "a stat the scale does not weigh is left out")
+    W.items["200:0"].pawn = nil
+
+    -- The scale's weights are changed in Pawn's own window: the addon hears of it, and the
+    -- list is made again.
+    PawnCommon.Scales["Leveling"].Values.TEST_S1 = 3
+    W.PawnChanged()
+    W.Run(0.5)
+    eq(told, 2, "Pawn's scales changed: what keeps scores is told")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    near(Offer("Good Chest").value, 54, "the list is on the new weights")
+    -- Pawn resets its tooltips for other reasons too (how they look): no scale changed.
+    W.PawnChanged()
+    W.Run(0.5)
+    eq(told, 2, "Pawn's tooltips reset with its scales as they were: nothing is told"); eq(S.state, "idle", "and the list stays")
+    PawnCommon.Scales["Leveling"].Values.TEST_S1 = 4
+    W.PawnChanged()
+    PawnCommon.Scales["Leveling"].Values.TEST_S1 = 3
+    PawnCommon.Scales[PROT].DoNotShow1HUpgrades = true
+    W.PawnChanged()
+    W.Run(0.5)
+    eq(told, 3, "a burst of changes is one telling")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    PawnCommon.Scales[PROT].DoNotShow1HUpgrades = false
+    W.PawnChanged()
+    W.Run(0.5)
+    eq(told, 4, "a scale's say on weapons is a change as well")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+
+    -- The scale in use is switched off in Pawn: the one for the talents takes its place.
+    PawnCommon.Scales["Leveling"].PerCharacterOptions[W.PawnName()].Visible = false
+    W.PawnChanged()
+    W.Run(0.5)
+    eq(Score.Current().name, ARMS, "a scale that is gone gives way to the one for the talents")
+    eq(#dropdown.radios, 2, "and is no longer in the field"); eq(dropdown:GetText(), "Arms", "which shows the one in use")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(S.ctx.profile, ARMS, "the list follows")
+
+    -- No scale switched on: no scan, and the reason.
+    PawnCommon.Scales[ARMS].PerCharacterOptions[W.PawnName()].Visible = false
+    PawnCommon.Scales[PROT].PerCharacterOptions[W.PawnName()].Visible = false
+    W.PawnChanged()
+    W.Run(0.5)
+    eq(Score.Current(), nil, "no scale switched on: none in use")
+    eq(S.Start(), false, "and no scan"); eq(S.message, ns.L.ERR_NO_SCALE, "which says why")
+    PawnCommon.Scales[ARMS].PerCharacterOptions[W.PawnName()].Visible = true
+    W.PawnChanged()
+    W.Run(0.5)
+    CheckPawnAsked("scales coming and going")
+
+    -- Back to the addon's own weights: its profile is where it was left, and so is the scale.
+    Score.SetEngine(nil)
+    eq(UpgradeScoutDB.engine, nil, "the addon's own weights chosen again: nothing is left written")
+    eq(Score.Current().name, "S1", "the addon's profile as it was"); eq(me.scale, "Leveling", "the scale chosen is kept for another time")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(#dropdown.radios, 2, "the field lists the addon's profiles again")
+    local asked = #W.pawn.asked
+    ScanToEnd()
+    CheckStandardOffers("the addon's own weights again")
+    eq(#W.pawn.asked, asked, "and Pawn is asked nothing")
+
+    -- Which scale is for a character's talents: the place of the tree among its class's, as
+    -- Pawn numbers them. A priest has three trees there and two profiles here.
+    ns.Weights.classes.PRIEST = { "PRIEST_HEALER", "PRIEST_SHADOW" }
+    for spec, title in ipairs({ "Discipline", "Holy", "Shadow" }) do
+        W.AddPawnScale({ name = '"Classic":PRIEST' .. spec, title = "Priest: " .. title, class = 5, spec = spec })
+    end
+    Score.SetEngine("pawn")
+    eq(Score.Current({ key = "P", class = "PRIEST", talents = "PRIEST_SHADOW" }).title, "Shadow", "a priest's Shadow is Pawn's third")
+    eq(Score.Current({ key = "P", class = "PRIEST", talents = "PRIEST_HEALER" }).title, "Holy", "its healer is Pawn's Holy")
+    eq(Score.Current({ key = "P", class = "PRIEST" }).title, "Discipline", "without talents known: the first")
+    eq(Score.Current({ key = "P", class = "DRUID", talents = "D2" }).title, "Feral", "another class by the place of its tree")
+    eq(Score.Current({ key = "P", class = "DRUID", talents = "D2", scale = BALANCE }).title, "Balance", "under the scale chosen for it")
+    CheckPawnAsked("another character's scales")
+end
+
+-- Pawn chosen and not there: the addon scores by itself, and the choice stands.
+function scenarios.pawn_absent()
+    StandardWorld()
+    UpgradeScoutDB = { engine = "pawn" }
+    LoadAddon()
+    local Score = ns.Score
+    eq(ns.Pawn.Usable(), false, "Pawn is not installed"); eq(Score.Engine(), nil, "so the addon scores, though Pawn was chosen")
+    eq(Score.Current().name, "S1", "on its own profiles")
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    CheckStandardOffers("Pawn chosen and not installed")
+    eq(UpgradeScoutDB.engine, "pawn", "the choice stands for when Pawn is back")
+
+    -- Pawn is there but still reading its scales, as in the first moments of logging in.
+    PawnWorld()
+    W.pawn.ready = false
+    eq(ns.Pawn.Usable(), false, "Pawn that has not read its scales yet cannot be asked"); eq(Score.Engine(), nil, "and is not")
+    eq(Score.Current().name, "S1", "the addon's profiles meanwhile")
+    eq(#W.pawn.fails, 0, "nothing is asked of it")
+    W.pawn.ready = true
+    eq(Score.Engine(), "pawn", "once it has, it scores, as chosen")
+    eq(Score.Current().name, "Leveling", "on the first of its scales, with no talents to go by")
+
+    -- A Pawn without one of the functions the addon calls is a Pawn that cannot be asked.
+    local kept = PawnGetItemValue
+    PawnGetItemValue = nil
+    eq(ns.Pawn.Usable(), false, "a Pawn that lacks a function the addon calls"); eq(Score.Engine(), nil, "leaves the scoring to the addon")
+    PawnGetItemValue = kept
+    local scales = PawnCommon
+    PawnCommon = nil
+    eq(ns.Pawn.Usable(), false, "and so does one without its scales")
+    PawnCommon = scales
+    eq(Score.Engine(), "pawn", "with everything in place it scores")
+
+    -- Switched off for the next session: the addon's weights again, without a word.
+    Relog(W.player, W.equipped)
+    W.RemovePawn()
+    eq(ns.Score.Engine(), nil, "Pawn switched off: the addon scores")
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    CheckStandardOffers("Pawn switched off")
+    eq(UpgradeScoutDB.engine, "pawn", "and the choice still stands")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- With Pawn scoring: no lines of ours in a tooltip, the arrows in the bags by the scale in
+-- use, and under a row of the list only what there is to say about buying the item.
+function scenarios.pawn_tooltips()
+    StandardWorld()
+    W.AddItem({ id = 220, name = "Oak Wand", equipLoc = "INVTYPE_RANGEDRIGHT", classID = 2, subClassID = 19, value = 9, level = 5 })
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.items["212:0"].value2 = 40
+    W.player.talents = { { name = "Arms", points = 7 }, { name = "Fury", points = 0 }, { name = "Protection", points = 1 } }
+    PawnWorld()
+    -- Pawn was chosen in an earlier session.
+    UpgradeScoutDB = { engine = "pawn" }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    eq(ns.Score.Engine(), "pawn", "Pawn scores, as chosen before"); eq(ns.Score.Current().name, ARMS, "on the scale for the talents")
+
+    -- Does the tooltip have lines of ours? Our header, then what is under it, joined by " | ".
+    local function Ours(tooltip)
+        local header
+        for i, line in ipairs(tooltip._lines) do
+            if line.text:find("Upgrade Scout", 1, true) then header = i end
+        end
+        if not header then return nil end
+        local out = {}
+        for i = header + 1, #tooltip._lines do
+            local line = tooltip._lines[i]
+            out[#out + 1] = line.text .. (line.right and " " .. line.right or "")
+        end
+        return table.concat(out, " | ")
+    end
+    local function Shown(tooltip, id)
+        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:SetHyperlink(W.Link(id))
+        return Ours(tooltip)
+    end
+    eq(Shown(GameTooltip, 200), nil, "no lines of ours for an item in the bags: Pawn writes its own")
+    eq(Shown(ItemRefTooltip, 200), nil, "nor for a link in the chat")
+
+    -- The arrows stay, and go by the scale in use.
+    local function Bag(slot)
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    local function Grey(slot) return ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow._grey end
+    local slot = {}
+    for _, id in ipairs({ 200, 202, 203, 204, 208, 212, 214, 220 }) do slot[id] = W.PutInBags(W.Link(id)) end
+    W.OpenBags()
+    eq(Bag(slot[200]), true, "a better chest: 18 against 10 on Pawn's scale"); eq(Grey(slot[200]), false, "green: it can be put on now")
+    eq(Bag(slot[203]), true, "a better chest of a higher level"); eq(Grey(slot[203]), true, "grey")
+    eq(Bag(slot[212]), true, "a two-hander against the sword")
+    eq(Bag(slot[202]), false, "not a weaker chest"); eq(Bag(slot[204]), false, "not mail the character has not learned")
+    eq(Bag(slot[208]), false, "not a chest Pawn has nothing for"); eq(Bag(slot[220]), false, "not a wand: a warrior never uses one")
+    eq(Bag(slot[214]), false, "not a potion")
+    W.Run(12)
+    local asked = #W.pawn.asked
+    W.DrawBags()
+    eq(#W.pawn.asked, asked, "what was worked out is kept: Pawn is not asked again when the bags are drawn")
+
+    -- Another scale chosen, as in the welcome window: the arrows follow.
+    ns.UI.ChooseProfile(PROT)
+    W.Run(1)
+    eq(Bag(slot[200]), false, "on Protection the chest is no upgrade: 9 against 12")
+    eq(Bag(slot[212]), false, "and that scale shows no two-handers")
+    ns.UI.ChooseProfile(ARMS)
+    W.Run(1)
+    eq(Bag(slot[200]), true, "back on Arms the chest has its arrow"); eq(Bag(slot[212]), true, "and so has the two-hander")
+
+    -- The scale's weights change in Pawn's own window.
+    PawnCommon.Scales[ARMS].Values.TEST_S1 = 0
+    W.PawnChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), false, "a scale that weighs nothing: no arrows")
+    PawnCommon.Scales[ARMS].Values.TEST_S1 = 1
+    W.PawnChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), true, "the weights back, the arrow back")
+
+    -- They can be switched off and on as ever.
+    UpgradeScoutDB.arrows = false
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(Bag(slot[200]), false, "the arrows switched off with Pawn scoring")
+    UpgradeScoutDB.arrows = nil
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(Bag(slot[200]), true, "and on again")
+
+    -- A row of the list at the auction house.
+    W.player.money = 50000
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    SetView(false, false)
+    ScanToEnd()
+    W.Run(1)
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            local entry = w._shown and w._kind == "Button" and w.entry or nil
+            if entry and entry.offer and entry.offer.name == name then return w end
+        end
+    end
+    local function Under(name)
+        local row = Row(name)
+        check(row ~= nil, name .. " is in the list")
+        W.compared = nil
+        row:GetScript("OnEnter")(row)
+        local ours = Ours(GameTooltip)
+        row:GetScript("OnLeave")(row)
+        return ours
+    end
+    eq(Under("Good Chest"), nil, "a row with nothing to add: no lines of ours, not even the addon's name")
+    eq(W.compared, GameTooltip, "the worn item is shown beside it as ever")
+    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short.",
+        "a row with something to say about buying: that, under the addon's name, and no gains")
+    ns.db.net = true
+    eq(Under("Good Chest"), "Buyout 40s | Sell Price 1s", "with Net cost ticked: what the cost is made of")
+    ns.db.net = nil
+    CheckPawnAsked("tooltips and arrows")
+
+    -- The addon's own weights chosen again: its lines are back.
+    ns.Score.SetEngine(nil)
+    W.Run(1)
+    eq(Shown(GameTooltip, 200), "Arms +80% | Protection ~ -25%", "the addon scores again: its lines in the tooltip")
+    eq(Bag(slot[200]), true, "and the arrows by its own profile")
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 600)
+    check(Under("Good Chest"):find("Arms +80%", 1, true) ~= nil, "a row's tooltip has the gains again")
+end
+
+-- The welcome window with Pawn: who scores, the scales in place of the trees, the tooltip's
+-- card out of use, and the window coming up once for a player who has Pawn.
+function scenarios.pawn_welcome()
+    StandardWorld()
+    W.AddItem({ id = 16999, name = "Royal Seal", equipLoc = "INVTYPE_FINGER", quality = 3, level = 54 })
+    W.AddItem({ id = 5000, name = "Coral Band", equipLoc = "INVTYPE_FINGER", level = 21 })
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.player.talents = { { name = "Arms", points = 7 }, { name = "Fury", points = 0 }, { name = "Protection", points = 1 } }
+    local L
+
+    -- Without Pawn: the choice is there, and Pawn's answer is out of reach.
+    LoadAddon()
+    L = ns.L
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome ~= nil end, 10)
+    local window = UpgradeScoutWelcome
+    eq(window.About:GetText(), L.WELCOME_FIRST, "the first time: a welcome")
+    local own, pawn = window.Engines[1], window.Engines[2]
+    eq(own.Label:GetText(), "Upgrade Scout", "who scores: the addon"); eq(pawn.Label:GetText(), "Pawn", "or Pawn, each by its name")
+    eq(own.Mark:IsShown(), true, "the addon is the one that does"); eq(pawn.Mark:IsShown(), false, "Pawn is not")
+    eq(pawn:IsEnabled(), false, "Pawn cannot be chosen while it is not there"); eq(pawn:GetAlpha(), 0.45, "and its button is grey")
+    check(window.Who:GetText():find(L.WELCOME_ENGINE, 1, true) ~= nil, "the question")
+    check(window.Who:GetText():find(L.WELCOME_NO_PAWN, 1, true) ~= nil, "and why Pawn is grey")
+    pawn:Click()
+    eq(UpgradeScoutDB.engine, nil, "a click on the grey button does nothing")
+    check(own._points[1].x < pawn._points[1].x and own._points[1].y == pawn._points[1].y, "the two side by side")
+    check(window.Trees[1]._points[1].y < own._points[1].y, "above the trees")
+    eq(#window.Trees, 2, "the trees as ever"); eq(window.Trees[1].Label:GetText(), "Arms", "by their names")
+    local height = window:GetHeight()
+    window.Done:Click()
+    eq(UpgradeScoutDB.welcomed, true, "seen"); eq(UpgradeScoutDB.pawnOffered, nil, "but not with Pawn there to choose")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(window:IsShown(), false, "no Pawn: the window does not come up by itself again")
+
+    -- The player installs Pawn. The window comes up once more by itself, and says why.
+    PawnWorld()
+    Relog(W.player, W.equipped)
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome:IsShown() end, 10)
+    L = ns.L
+    window = UpgradeScoutWelcome
+    eq(window.About:GetText(), L.WELCOME_PAWN_NEW, "Pawn is there now: the window comes up to say that it can be chosen")
+    own, pawn = window.Engines[1], window.Engines[2]
+    eq(pawn:IsEnabled(), true, "Pawn can be chosen"); eq(pawn:GetAlpha(), 1, "its button is no longer grey")
+    check(window.Who:GetText():find(L.WELCOME_ENGINE_WHY, 1, true) ~= nil, "the line says what each one goes by")
+    eq(own.Mark:IsShown(), true, "the addon scores until Pawn is chosen")
+    eq(window:GetHeight(), height, "the window is as tall as without Pawn")
+
+    -- Pawn chosen.
+    local told = 0
+    ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
+    pawn:Click()
+    eq(UpgradeScoutDB.engine, "pawn", "a click chooses Pawn, for the account"); eq(told, 1, "and what keeps scores is told")
+    eq(pawn.Mark:IsShown(), true, "Pawn's button is lit"); eq(own.Mark:IsShown(), false, "the addon's goes dark")
+    local trees = window.Trees
+    eq(trees[1].Label:GetText(), "Leveling", "the buttons are the character's Pawn scales now")
+    eq(trees[2].Label:GetText(), "Arms", "by their names, without the class"); eq(trees[3].Label:GetText(), "Protection", "each of them")
+    eq(trees[3]:IsShown(), true, "three of them"); eq(trees[2].Mark:IsShown(), true, "the one in use is lit")
+    check(window.Ask:GetText():find(L.WELCOME_SCALE:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")), 1, true) ~= nil,
+        "the question is about the scale, and names the character")
+    check(window.Ask:GetText():find(L.WELCOME_SCALE_WHY, 1, true) ~= nil, "and says what the answer is for")
+    pawn:Click()
+    eq(told, 1, "the one that scores clicked again: nothing changes")
+
+    -- The tooltip's card is out of use: Pawn writes there. The arrows' card is as it was.
+    local tips, arrows = window.Cards[2], window.Cards[3]
+    eq(tips.Body:GetText(), L.WELCOME_TOOLTIP_PAWN, "the tooltip's card says that Pawn writes there")
+    eq(tips.Switch:IsEnabled(), false, "its box is out of use"); eq(tips.Switch:GetChecked(), false, "and empty")
+    eq(tips.Picture:GetAlpha(), 0.3, "its picture fades")
+    eq(tips.Picture.Tip.Lines[1].Title:GetText(), "Arms", "the picture still shows the addon's own lines: what would come back")
+    eq(tips.Picture.Tip.Lines[2].Title:GetText(), "Protection ~", "its profiles, not Pawn's scales")
+    eq(tips.Picture.Tip.Lines[3], nil, "and no more of them")
+    tips.Switch:Click()
+    eq(UpgradeScoutDB.tooltip, nil, "a click on it changes nothing")
+    eq(arrows.Switch:IsEnabled(), true, "the arrows' box is in use"); eq(arrows.Switch:GetChecked(), true, "and ticked")
+    eq(arrows.Body:GetText(), L.WELCOME_ARROWS_TEXT, "with its own sentence"); eq(arrows.Picture:GetAlpha(), 1, "and its picture whole")
+    local slot = W.PutInBags(W.Link(200))
+    W.OpenBags()
+    local function Arrow()
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    eq(Arrow(), true, "an arrow on the better chest, by Pawn's scale")
+    arrows.Switch:SetChecked(false)
+    arrows.Switch:Click()
+    eq(UpgradeScoutDB.arrows, false, "the arrows switched off with Pawn scoring"); eq(Arrow(), false, "go at once")
+    arrows.Switch:SetChecked(true)
+    arrows.Switch:Click()
+    eq(Arrow(), true, "and come back")
+
+    -- A scale chosen in the window: written on the character's card, apart from the profile.
+    trees[3]:Click()
+    eq(ns.Roster.Me().scale, PROT, "a click on a scale chooses it"); eq(ns.Roster.Me().profile, nil, "the addon's own profile is left alone")
+    eq(trees[3].Mark:IsShown(), true, "its button lights up"); eq(trees[2].Mark:IsShown(), false, "the other goes dark")
+    W.Run(0.5)
+    eq(Arrow(), false, "and the arrows go by it: on Protection the chest is no upgrade")
+
+    -- Many scales stand in rows; a long name is cut short on its button.
+    for i = 1, 4 do
+        W.AddPawnScale({ name = "Extra " .. i, shown = true, values = { TEST_S1 = 1 } })
+    end
+    W.AddPawnScale({ name = "A scale with a name far too long for any button to hold in one piece", shown = true })
+    W.PawnChanged()
+    W.Run(0.5)
+    eq(trees[8]:IsShown(), true, "eight scales: a button for each")
+    eq(trees[1]._points[1].y, trees[4]._points[1].y, "four in the first row"); check(trees[5]._points[1].y < trees[4]._points[1].y, "the rest in a second")
+    eq(trees[5]._points[1].x, trees[1]._points[1].x, "which starts at the left again")
+    check(trees[1].Label:GetWidth() <= trees[1]:GetWidth() - 40, "a name too long for its button is cut short")
+    check(window:GetHeight() > height, "and the window is taller for the second row")
+    for name in pairs(PawnCommon.Scales) do
+        if name:find("Extra", 1, true) or name:find("far too long", 1, true) then PawnCommon.Scales[name] = nil end
+    end
+
+    -- No scale switched on in Pawn: the window says so where the buttons were.
+    for _, name in ipairs({ ARMS, PROT, "Leveling" }) do PawnCommon.Scales[name].PerCharacterOptions[W.PawnName()].Visible = false end
+    W.PawnChanged()
+    W.Run(0.5)
+    eq(trees[1]:IsShown(), false, "no scale switched on: no buttons")
+    eq(window.Ask:IsShown(), true, "and a sentence in their place")
+    check(window.Ask:GetText():find("Pawn shows no scale for", 1, true) ~= nil, "that says what to do: " .. window.Ask:GetText())
+    for _, name in ipairs({ ARMS, PROT, "Leveling" }) do PawnCommon.Scales[name].PerCharacterOptions[W.PawnName()].Visible = true end
+    W.PawnChanged()
+    W.Run(0.5)
+    eq(trees[3]:IsShown(), true, "switched on again, they are back")
+
+    -- Closed: seen with Pawn there, so it does not come up by itself again.
+    window.Done:Click()
+    eq(UpgradeScoutDB.pawnOffered, true, "the choice has been seen")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(window:IsShown(), false, "it does not come up by itself again")
+    ns.Welcome.Show()
+    eq(window.About:GetText(), L.WELCOME_ABOUT, "asked for, it has its usual first words")
+
+    -- The addon chosen again: the trees, and the tooltip's card in use, as they were.
+    own:Click()
+    eq(UpgradeScoutDB.engine, nil, "a click on the addon's button: nothing is left written"); eq(told, 5, "what keeps scores is told")
+    eq(own.Mark:IsShown(), true, "the addon's button is lit")
+    eq(trees[1].Label:GetText(), "Arms", "the trees are back"); eq(trees[3]:IsShown(), false, "two of them")
+    eq(trees[1].Mark:IsShown(), true, "the one for the talents in use")
+    eq(tips.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "the tooltip's card has its sentence")
+    eq(tips.Switch:IsEnabled(), true, "its box in use"); eq(tips.Switch:GetChecked(), true, "and ticked, as it was left")
+    eq(tips.Picture:GetAlpha(), 1, "its picture whole")
+    CheckPawnAsked("the welcome window")
+
+    -- A new player who has Pawn: one window, with the welcome, and it counts for both.
+    window.Done:Click()
+    UpgradeScoutDB = nil
+    Relog(W.player, W.equipped)
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome ~= window and UpgradeScoutWelcome:IsShown() end, 10)
+    eq(UpgradeScoutWelcome.About:GetText(), ns.L.WELCOME_FIRST, "a new player with Pawn: the welcome")
+    eq(UpgradeScoutWelcome.Engines[2]:IsEnabled(), true, "with Pawn there to choose")
+    UpgradeScoutWelcome.Done:Click()
+    eq(UpgradeScoutDB.welcomed, true, "seen"); eq(UpgradeScoutDB.pawnOffered, true, "and seen with Pawn")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(UpgradeScoutWelcome:IsShown(), false, "it comes up once, not twice")
+end
+
+-- What a consumable adds, scored on a Pawn scale: the game's names for stats put into
+-- Pawn's, and a chance into the percentage Pawn reads.
+function scenarios.pawn_supplies()
+    StandardWorld()
+    SuppliesWorld()
+    PawnWorld()
+    UpgradeScoutDB = { engine = "pawn" }
+    LoadAddon()
+    SupplyFacts()
+    local Score = ns.Score
+    eq(Score.Engine(), "pawn", "Pawn scores")
+
+    near(Score.StatsValue({ ITEM_MOD_STRENGTH_SHORT = 8, ITEM_MOD_AGILITY_SHORT = 4 }, ARMS), 8 * 1.5 + 4, "stats under Pawn's names, by the scale's weights")
+    local call = W.pawn.calls[#W.pawn.calls]
+    eq(call.scale, ARMS, "Pawn makes the sum itself, on the scale"); eq(call.stats.Strength, 8, "of the stats by its own names")
+    eq(call.level, nil, "for no item level"); eq(call.socketBonus, nil, "and no sockets")
+    eq(call.debug, false, "without its debug lines"); eq(call.noNormalization, false, "as it sums an item")
+    eq(call.noReforging, true, "and nothing to reforge")
+
+    near(Score.StatsValue({ ITEM_MOD_CRIT_RATING_SHORT = 28 }, ARMS), 2 * 8, "a chance: 28 points of rating are the 2% Pawn reads")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_MELEE_RATING_SHORT = 28 }, ARMS), 2 * 8, "a chance with weapons counts on a fighter's scale")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_MELEE_RATING_SHORT = 28 }, BALANCE), 0, "and not on a caster's")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, BALANCE), 6, "a chance with spells counts on a caster's scale")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, ARMS), 0, "and not on a fighter's")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_RATING_SHORT = 14, ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, BALANCE), 12, "both kinds add up for the one who uses both")
+    near(Score.StatsValue({ ITEM_MOD_ATTACK_POWER_SHORT = 10 }, ARMS), 4, "attack power under the name gear's has in Pawn")
+    near(Score.StatsValue({ ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 36 }, BALANCE), 36, "spell damage")
+    near(Score.StatsValue({ ITEM_MOD_HEALTH_SHORT = 25 }, ARMS), 2 * 0.5, "health as the Stamina that gives it: Pawn has no weight for it")
+    near(Score.StatsValue({ ITEM_MOD_MANA_SHORT = 30 }, BALANCE), 2, "mana as Intellect")
+    near(Score.StatsValue({ ITEM_MOD_UNHEARD_OF_SHORT = 99 }, ARMS), 0, "a stat Pawn has no name for counts for nothing")
+    near(Score.StatsValue({ ITEM_MOD_SPIRIT_SHORT = 8 }, ARMS), 0, "nor does one the scale does not weigh")
+    eq(Score.StatsValue({ ITEM_MOD_STRENGTH_SHORT = 8 }, "Gone"), nil, "no answer for a scale there is not")
+    eq(Score.StatsValue({ ITEM_MOD_STRENGTH_SHORT = 8 }, "S1"), nil, "nor for one of the addon's own profiles")
+
+    -- The list of consumables is scored on the scale.
+    W.OpenAuctionHouse()
+    ScanSupplies()
+    local rows = ns.Supplies.Build(ns.Scanner.supplies, SupplyOpts(ARMS, { mana = false }))
+    local function Value(name)
+        for _, row in ipairs(rows) do
+            if row.kind == "supply" and row.entry.supply.name == name then return row.entry.value end
+        end
+    end
+    near(Value("Elixir of Giants"), 25 * 1.5, "an elixir of Strength on Arms"); near(Value("Elixir of Agility"), 15, "one of Agility")
+    eq(Value("Elixir of Wisdom"), nil, "Intellect is of no use on that scale")
+    rows = ns.Supplies.Build(ns.Scanner.supplies, SupplyOpts(BALANCE, { mana = true }))
+    near(Value("Elixir of Wisdom"), 6, "and worth its weight on a caster's")
+    CheckPawnAsked("consumables")
+end
+
+-- Another character of the account: the Pawn scales it has switched on, as Pawn's own notes
+-- say, or those of its class where Pawn has no notes about it.
+function scenarios.pawn_alt()
+    StandardWorld()
+    local warrior, warriorGear = W.player, W.equipped
+    W.AddItem({ id = 300, name = "Alt's Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, values = { D1 = 12, D2 = 3 }, level = 15 })
+    W.AddItem({ id = 310, name = "Druid Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, values = { D1 = 20, D2 = 2 }, level = 18 })
+    W.AddAuction(310, 2000)
+    PawnWorld()
+    UpgradeScoutDB = { engine = "pawn" }
+
+    -- The druid is played once.
+    W.Login(Druid())
+    W.equipped = { [5] = W.Link(300) }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    eq(ns.Score.Current(), nil, "the druid has no scale switched on in Pawn: none in use")
+    Relog(warrior, warriorGear)
+    local Score, S = ns.Score, ns.Scanner
+    local card = UpgradeScoutDB.chars["Alty-Testrealm"]
+    check(card ~= nil, "the druid is remembered")
+
+    -- Pawn has no notes about the druid: the scales of its class.
+    local _, theirs = Score.Current(card)
+    eq(#theirs, 2, "a character Pawn has no notes about: the scales of its class")
+    eq(theirs[1].name, BALANCE, "by Pawn's names"); eq(theirs[1].title, "Balance", "shown without the class")
+    eq(theirs[2].title, "Feral", "each of them")
+    -- Pawn has notes: what the druid has switched on.
+    PawnCommon.Scales[FERAL].PerCharacterOptions["Alty-Testrealm"] = { Visible = true }
+    PawnCommon.Scales["Leveling"].PerCharacterOptions["Alty-Testrealm"] = { Visible = true }
+    PawnCommon.Scales[BALANCE].PerCharacterOptions["Alty-Testrealm"] = { Visible = false }
+    _, theirs = Score.Current(card)
+    eq(#theirs, 2, "a character Pawn has notes about: the scales it has switched on")
+    eq(theirs[1].name, "Leveling", "one made by hand among them"); eq(theirs[2].name, FERAL, "and not the ones it has switched off")
+    PawnCommon.Scales[BALANCE].PerCharacterOptions["Alty-Testrealm"] = { Visible = true }
+    PawnCommon.Scales["Leveling"].PerCharacterOptions["Alty-Testrealm"] = nil
+    eq(#Score.Profiles(ns.Roster.Me()), 3, "the card of the character being played is that character")
+
+    -- At the auction house the field lists them under the warrior's own.
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local frame = UpgradeScoutFrame
+    local dropdown = frame.ProfileDropdown
+    local ALTY = "|cffff7c0aAlty|r"
+    eq(#dropdown.radios, 5, "three scales of the warrior and two of the druid")
+    eq(dropdown.radios[4].text, ALTY .. ": Balance", "the druid's by its name and the scale's")
+    eq(dropdown.radios[5].text, ALTY .. ": Feral", "each of them")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    dropdown:Pick(4)
+    eq(ns.Roster.Target(), card, "the lists are for the druid"); eq(card.scale, BALANCE, "on the scale chosen, written on its card")
+    eq(card.profile, nil, "apart from the addon's own profile")
+    frame.ScanButton:Click()
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    W.Run(1)
+    eq(S.ctx.who, card, "the scan was for the druid"); eq(S.ctx.profile, BALANCE, "on its scale")
+    near(S.ctx.equipped[5].value, 12, "its chest by Pawn's number on that scale")
+    check(Offer("Druid Jerkin") ~= nil, "a jerkin better than the druid's"); near(Offer("Druid Jerkin").value, 20, "by Pawn's number")
+    eq(Offer("Good Chest"), nil, "the warrior's upgrades are not the druid's")
+
+    -- A row's tooltip keeps our lines here: Pawn's are about the character being played.
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    local jerkin
+    for _, w in ipairs(scrollBox:GetFrames()) do
+        local entry = w._shown and w._kind == "Button" and w.entry or nil
+        if entry and entry.offer and entry.offer.name == "Druid Jerkin" then jerkin = w end
+    end
+    check(jerkin ~= nil, "the jerkin is in the list")
+    jerkin:GetScript("OnEnter")(jerkin)
+    local doubles = {}
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right then doubles[#doubles + 1] = line end
+    end
+    eq(doubles[1].right, ALTY, "a list for another character: our header, which says whose")
+    eq(doubles[2].text, "Balance", "then the druid's scales"); eq(doubles[2].right, "+67%", "with the gain on each: 20 against 12")
+    eq(doubles[3].text, "Feral", "on the other one"); eq(doubles[3].right, "-33%", "2 against 3")
+    eq(ShoppingTooltip1:IsShown(), true, "and the druid's chest beside it")
+    jerkin:GetScript("OnLeave")(jerkin)
+    CheckPawnAsked("another character")
 end
 
 local function CheckLocale(locale, language, scan)

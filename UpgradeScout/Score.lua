@@ -8,10 +8,43 @@ local _, ns = ...
 -- are in Weights.lua, which also says where they come from. The player chooses a profile and
 -- nothing else: there are no weights to edit.
 --
+-- A player who would sooner go by Pawn can say so in the welcome window (Welcome.lua). Then
+-- Pawn scores (Pawn.lua), and the rest of the addon notices nothing: it asks this file the
+-- same questions, and a "profile" is one of the character's Pawn scales. See Score.Engine.
+--
 -- Throughout this file `who` is the character the question is about: a card from Roster for
 -- one that is not being played, nil for the one that is.
 local Score = {}
 ns.Score = Score
+
+---------------------------------------------------------------------------
+-- Who scores
+---------------------------------------------------------------------------
+-- nil: this addon, by its own weights. "pawn": Pawn, by the player's Pawn scales. Pawn does
+-- only while it was chosen (ns.account.engine, for the whole account) and is there to be
+-- asked: switched off or taken away, it leaves the addon scoring by itself, and the choice
+-- stands for when it is back.
+function Score.Engine()
+    if ns.account.engine == "pawn" and ns.Pawn.Usable() then return "pawn" end
+    return nil
+end
+
+-- The choice made in the welcome window: "pawn", or nil for the addon's own weights. Every
+-- score there is was made by the other one, so everything that keeps scores hears
+-- SCORING_CHANGED and makes them again. (The same is said when Pawn's scales change while
+-- Pawn scores: see Pawn.lua.)
+function Score.SetEngine(engine)
+    local before = Score.Engine()
+    ns.account.engine = engine == "pawn" and "pawn" or nil
+    if Score.Engine() ~= before then ns.Fire("SCORING_CHANGED") end
+    ns.Fire("SETTING_CHANGED", "engine")
+end
+
+-- Writes down the profile chosen for a character (its card): each of the two that score
+-- remembers a choice of its own, so going over to Pawn and back loses neither.
+function Score.Choose(card, id)
+    if Score.Engine() then card.scale = id else card.profile = id end
+end
 
 local WEAPON_CLASS = Enum.ItemClass.Weapon
 -- A weapon's damage per second is a stat like the others to the game, but what it is worth
@@ -55,7 +88,7 @@ end
 -- names it, or its role for one that stands for more than one tree ("Healer"); a druid's
 -- shape after the tree where it has two ways of playing it ("Feral Combat (Cat)"). A
 -- profile whose weights are an estimate and not the outcome of a simulation says so.
-function Score.Title(id)
+local function OwnTitle(id)
     local data = ns.Weights
     local profile = data.profiles[id]
     if not profile then return id end
@@ -68,22 +101,37 @@ function Score.Title(id)
     return title
 end
 
--- The profiles to choose from for a character, those of its class:
+-- The name a profile is shown by, whoever scores: with Pawn, the name Pawn shows the scale by.
+function Score.Title(id)
+    if Score.Engine() then return ns.Pawn.Title(id) end
+    return OwnTitle(id)
+end
+
+-- The addon's own profiles for a character, those of its class, whoever scores:
 -- { { name = the profile's id, title = the name it is shown by }, ... }
-function Score.Profiles(who)
+function Score.Trees(who)
     local owner = who or ns.Roster.Me()
     local ids = owner and ns.Weights.classes[owner.class or ""] or nil
     local out = {}
     if ids then
-        for i = 1, #ids do out[i] = { name = ids[i], title = Score.Title(ids[i]) } end
+        for i = 1, #ids do out[i] = { name = ids[i], title = OwnTitle(ids[i]) } end
     end
     return out
 end
 
+-- The profiles to choose from for a character, in the same form: those the addon has for
+-- its class or, with Pawn scoring, the Pawn scales the character has.
+function Score.Profiles(who)
+    if Score.Engine() then return ns.Pawn.Scales(who) end
+    return Score.Trees(who)
+end
+
 -- The profile to score with for a character: the one chosen for it; otherwise the one for
 -- the talent tree it had the most points in when it was last played (its card's `talents`,
--- see Roster.Update); otherwise the one its class starts with.
+-- see Roster.Update); otherwise the one its class starts with. Returns it, and the profiles
+-- it was chosen from.
 function Score.Current(who)
+    if Score.Engine() then return ns.Pawn.Current(who) end
     local list = Score.Profiles(who)
     local owner = who or ns.Roster.Me()
     local chosen = owner and owner.profile
@@ -139,7 +187,10 @@ end
 -- stats = { [the game's name for a stat] = amount } }. The stats are those of the item as
 -- it would be for sale, without an enchantment, so that an enchanted piece that is worn is
 -- not unfairly hard to beat. nil when the game has no answer yet.
+-- With Pawn scoring, the same with Pawn's record of the item (`pawn`) in place of `stats`:
+-- the functions below tell by it whose item they were given.
 function Score.Item(link)
+    if Score.Engine() then return ns.Pawn.Item(link) end
     local itemID, _, _, invType, _, classID, subClassID = C_Item.GetItemInfoInstant(link)
     if not itemID then return nil end
     local stats = ns.Stats.Read(ns.Stats.Bare(link))
@@ -196,6 +247,7 @@ end
 
 -- An item's score on a profile, for a character of the level. 0 for a profile there is not.
 function Score.Value(item, id, level)
+    if item.pawn ~= nil then return ns.Pawn.Value(item, id) end
     local profile = ns.Weights.profiles[id]
     if not profile then return 0 end
     local total = 0
@@ -208,6 +260,7 @@ end
 -- The same sum, stat by stat, for /upscout stats: { { name, amount, weight, points }, ... }
 -- with the heaviest first, and the total.
 function Score.Parts(item, id, level)
+    if item.pawn ~= nil then return ns.Pawn.Parts(item, id) end
     local profile = ns.Weights.profiles[id]
     local parts, total = {}, 0
     for name, amount in pairs(item.stats) do
@@ -226,6 +279,7 @@ end
 -- has them under the game's names). The same sum as for an item, so the number is in the
 -- points gear is scored in. nil for a profile there is not.
 function Score.StatsValue(stats, id, level)
+    if Score.Engine() then return ns.Pawn.StatsValue(stats, id) end
     local profile = ns.Weights.profiles[id]
     if not profile then return nil end
     local total = 0
@@ -245,6 +299,8 @@ end
 local LINE = Enum.TooltipDataLineType
 local USE, EQUIP, PROC = LINE.ItemSpellTriggerOnUse or -1, LINE.ItemSpellTriggerOnEquip or -2, LINE.ItemSpellTriggerOnProc or -3
 function Score.HasUnscoredEffects(item)
+    -- For Pawn, the lines of the tooltip it could not turn into a number.
+    if item.pawn ~= nil then return ns.Pawn.HasUnscoredEffects(item) end
     local data = ns.GearData
     local lines = TooltipLines(item.link)
     if not lines then return item.itemID <= data.newest and data.effects[item.itemID] == true end
@@ -283,8 +339,17 @@ end
 -- right after login the game knows what is worn but not what it adds (a link to it then has
 -- an empty name). Those items are asked for and named in `pending` (item id -> true), and
 -- until they come their slots score 0. The scanner makes the context again when they do.
--- `unread` counts the items the client has and still gave no stats for; the scanner asks
--- again a few times for those.
+-- `unread` counts the items the client has and still gave no stats for (or Pawn nothing at
+-- all); the scanner asks again a few times for those.
+-- With Pawn scoring the context also says what the scale wants no upgrades of: show1H and
+-- show2H, false for the one-handed or the two-handed weapons it is not to be offered.
+local function Finish(ctx)
+    if Score.Engine() then
+        ctx.show1H, ctx.show2H = ns.Pawn.ShowsWeapons(ctx.profile)
+    end
+    return ctx
+end
+
 function Score.Context(id, who)
     local equipped, pending, unread = {}, nil, nil
     local level = who and (who.level or 1) or UnitLevel("player")
@@ -299,6 +364,8 @@ function Score.Context(id, who)
             pending = pending or {}
             pending[itemID] = true
             C_Item.RequestLoadItemDataByID(itemID)
+        elseif item.pawn == false then
+            unread = (unread or 0) + 1
         end
         equipped[slot] = {
             link = link,
@@ -313,7 +380,7 @@ function Score.Context(id, who)
             -- (A card comes out of a saved file: what is not a slot and a link is passed over.)
             if type(slot) == "number" and type(link) == "string" then Wear(slot, link) end
         end
-        return {
+        return Finish({
             profile = id,
             who = who,
             class = who.class,
@@ -322,7 +389,7 @@ function Score.Context(id, who)
             pending = pending,
             unread = unread,
             dualWield = who.dualWield and true or false,
-        }
+        })
     end
 
     for slot = 1, ns.Roster.LAST_SLOT do
@@ -330,7 +397,7 @@ function Score.Context(id, who)
         if link then Wear(slot, link) end
     end
     local _, class = UnitClass("player")
-    return {
+    return Finish({
         profile = id,
         class = class,
         level = level,
@@ -338,7 +405,7 @@ function Score.Context(id, who)
         pending = pending,
         unread = unread,
         dualWield = CanDualWield() and true or false,
-    }
+    })
 end
 
 -- The same gear scored on another profile: a context of its own, `ctx` left as it is. What
@@ -357,5 +424,5 @@ function Score.Rescore(ctx, id)
             value = item and Score.Value(item, id, ctx.level) or 0,
         }
     end
-    return out
+    return Finish(out)
 end

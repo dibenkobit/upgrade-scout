@@ -220,10 +220,52 @@ local function AddNetLines(tooltip, offer)
     end
 end
 
+-- What a row's tooltip says about buying the item, after how much better it is: how it
+-- would be worn, what the score leaves out, what it costs in the end, what the player is
+-- short of.
+local function AddNotes(tooltip, entry, who)
+    local offer = entry.offer
+    if entry.note == "OFFHAND_EMPTY" then
+        GameTooltip_AddNormalLine(tooltip, who and L.TT_OFFHAND_EMPTY_WHO or L.TT_OFFHAND_EMPTY)
+    elseif entry.note == "BOTH_HANDS" then
+        GameTooltip_AddNormalLine(tooltip, L.TT_BOTH_HANDS)
+    end
+    if offer.effects then
+        GameTooltip_AddNormalLine(tooltip, L.TT_EFFECTS)
+    end
+    if ns.db.net then AddNetLines(tooltip, offer) end
+    if not entry.affordable then
+        GameTooltip_AddErrorLine(tooltip, L.TT_CANT_AFFORD:format(ns.Money(offer.buyout - GetMoney())))
+    end
+end
+
+-- With Pawn scoring (Score.Engine), the tooltip of a row in the player's own list has Pawn's
+-- lines: what the item is worth on each of the player's scales. Ours would say it twice,
+-- so only the notes about buying it are written, under the addon's name, and nothing at all
+-- when there are none. (A list for another character keeps our lines: Pawn's are about the
+-- character being played.)
+local function ShowNotedTooltip(row)
+    local entry = row.entry
+    local offer = entry.offer
+    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+    local hideVendorPrice = true
+    GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
+    if entry.note or offer.effects or ns.db.net or not entry.affordable then
+        ns.Tooltip.AddHeader(GameTooltip)
+        AddNotes(GameTooltip, entry)
+    end
+    GameTooltip:Show()
+    GameTooltip_ShowCompareItem(GameTooltip)
+end
+
 local function ShowItemTooltip(row)
     local entry = row.entry
     if entry.supply then
         ShowSupplyTooltip(row)
+        return
+    end
+    if ns.Score.Engine() and not ns.Roster.Target() then
+        ShowNotedTooltip(row)
         return
     end
     local offer = entry.offer
@@ -239,18 +281,7 @@ local function ShowItemTooltip(row)
     for _, line in ipairs(ProfileGains(entry)) do
         AddGain(GameTooltip, line.title, line.gain, S.ctx.class)
     end
-    if entry.note == "OFFHAND_EMPTY" then
-        GameTooltip_AddNormalLine(GameTooltip, who and L.TT_OFFHAND_EMPTY_WHO or L.TT_OFFHAND_EMPTY)
-    elseif entry.note == "BOTH_HANDS" then
-        GameTooltip_AddNormalLine(GameTooltip, L.TT_BOTH_HANDS)
-    end
-    if offer.effects then
-        GameTooltip_AddNormalLine(GameTooltip, L.TT_EFFECTS)
-    end
-    if ns.db.net then AddNetLines(GameTooltip, offer) end
-    if not entry.affordable then
-        GameTooltip_AddErrorLine(GameTooltip, L.TT_CANT_AFFORD:format(ns.Money(offer.buyout - GetMoney())))
-    end
+    AddNotes(GameTooltip, entry, who)
     GameTooltip:Show()
 
     -- What the item would replace is the point of this list, so the worn item's tooltip is
@@ -854,7 +885,8 @@ local function ProfileKey()
     local current, profiles = ns.Score.Current(who)
     local names = {}
     for i = 1, #profiles do names[i] = profiles[i].name end
-    return (who and who.key or "") .. "\n" .. #ns.Roster.List() .. "\n"
+    -- (And who scores: with Pawn the profiles are Pawn's scales.)
+    return (ns.Score.Engine() or "") .. "\n" .. (who and who.key or "") .. "\n" .. #ns.Roster.List() .. "\n"
         .. (current and current.name or "") .. "=" .. table.concat(names, "\n")
 end
 
@@ -1121,7 +1153,7 @@ local function Choose(choice)
     if not owner then return end
     local sameWho = card == ns.Roster.Target()
     -- A character's profile is remembered with the character, whoever chose it.
-    owner.profile = choice.profile
+    ns.Score.Choose(owner, choice.profile)
     ns.Fire("PROFILE_CHANGED", owner)
 
     if sameWho then
@@ -1170,9 +1202,24 @@ function UI.ChooseProfile(id)
     end
     local current = ns.Score.Current()
     if current and current.name == id then return end
-    me.profile = id
+    ns.Score.Choose(me, id)
     ns.Fire("PROFILE_CHANGED", me)
 end
+
+-- Another one scores (the addon or Pawn: the choice in the welcome window), or Pawn's
+-- scales changed while Pawn scores. As when another profile is chosen: what a scan for gear
+-- found means nothing now, and a view that had a list of gear, or was making one, gets it
+-- made again. Consumables are scored as their list is drawn.
+ns.Listen("SCORING_CHANGED", function()
+    local listed = frame ~= nil and frame:IsShown() and view == "gear" and (S.finishedAt ~= nil or S.state ~= "idle")
+    -- A purchase of gear that was being asked about is about a list that is gone.
+    if buyBox and buyBox:IsShown() and buyBox.offer then buyBox:Hide() end
+    S.Reset()
+    if listed and S.IsOpen() then S.Start() end
+    toTop = true
+    ns.Fire("OFFERS_CHANGED")
+    UI.Refresh()
+end)
 
 -- Does the menu have lines for other characters (see ProfileMenu)? The field then has to
 -- show a name with a profile.
@@ -1748,7 +1795,7 @@ local function Build()
         local who = ns.Roster.Target()
         GameTooltip_SetTitle(tooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
         -- Only what helps to choose. Where the weights come from is in the README.
-        GameTooltip_AddNormalLine(tooltip, L.PROFILE_TIP)
+        GameTooltip_AddNormalLine(tooltip, ns.Score.Engine() and L.PROFILE_TIP_PAWN or L.PROFILE_TIP)
         local _, profiles = ns.Score.Current(who)
         for i = 1, #profiles do
             if ns.Score.IsApprox(profiles[i].name) then

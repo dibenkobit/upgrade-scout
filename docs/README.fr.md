@@ -48,6 +48,9 @@ chat.
   la rouvre.
 - Évalue l'équipement avec ses propres poids pour chaque arbre de talents, calculés avec le
   simulateur [wowsims/forever](https://github.com/wowsims/forever). Aucun autre addon n'est nécessaire.
+- Vous utilisez Pawn ? Choisissez **Pawn** dans la fenêtre de l'addon : l'équipement est alors évalué
+  selon vos échelles Pawn, et non selon les poids de l'addon. Les listes et les flèches des sacs les
+  suivent, et les lignes de l'infobulle sont celles de Pawn.
 
 Toutes les classes, tous les niveaux. Anglais, chinois (simplifié et traditionnel), allemand,
 russe, français, espagnol, portugais du Brésil et coréen.

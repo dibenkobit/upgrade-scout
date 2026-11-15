@@ -6,6 +6,8 @@ local _, ns = ...
 -- character can put it on now, and grey when the one red line is the level it asks for: an
 -- upgrade to keep for later. Anything else in red (a class, a skill, a reputation, armor not
 -- learned) and there is no arrow.
+-- With Pawn scoring (Score.Engine) the arrows stay, and go by the Pawn scale in use: Pawn's
+-- own arrow does not reach the bags of this game.
 -- The arrow is the game's own, the one its bag slots have a place for and Forever leaves
 -- unused. It is drawn on a texture of our own in that place: another addon that shows or
 -- hides the game's does not take ours with it.
@@ -178,6 +180,13 @@ end)
 -- Another profile chosen for the character being played.
 ns.Listen("PROFILE_CHANGED", function(card)
     if card ~= ns.Roster.Me() then return end
+    retries = 0
+    MarkAllSoon()
+end)
+
+-- Another one scores (the addon or Pawn), or Pawn's scales changed: an upgrade to the one
+-- may be none to the other.
+ns.Listen("SCORING_CHANGED", function()
     retries = 0
     MarkAllSoon()
 end)

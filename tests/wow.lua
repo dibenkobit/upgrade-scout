@@ -25,6 +25,7 @@ W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dua
 --               vendor buys,
 --        values = { [profile] = score } for profiles other than the two the tests began with,
 --        game = { ITEM_MOD_STRENGTH_SHORT = 5, ... }: stats as the game itself counts them,
+--        pawn = { Strength = 5, ... }: stats as Pawn reads them, where it is installed,
 --        classes = "Druid, Shaman" (the classes it is for), races = "Orc, Troll",
 --        skill = { "Engineering", 150 } (the profession it asks for), reputation = true }
 function W.AddItem(def)
@@ -1145,6 +1146,7 @@ function W.Logout()
     AuctionHouseFrame, LibStub = nil, nil
     W.equipped = {}
     W.ResetBags()
+    W.ResetPawn()
 end
 
 -- Another character of the account comes into the world: `player` as W.player, `equipped`
@@ -1824,6 +1826,171 @@ function W.ResetBags()
     ContainerFrameCombinedBags:Hide()
     BankPanelItemButtonMixin.Refresh = BankRefresh
     BankPanel:Hide()
+end
+
+---------------------------------------------------------------------------
+-- Pawn, for the scenarios that have it installed (W.InstallPawn). Written after Pawn 2.14.3:
+-- the functions the addon calls, each with what matters of how it behaves there.
+--   * A scale has an internal name ("\"Classic\":WARRIOR1" for one Pawn made for a talent
+--     tree, the name the player gave it for one made by hand) and a name it is shown by
+--     ("Warrior: Arms"). PawnCommon.Scales keeps them for the whole account, and for each
+--     the characters that have it switched on, by their full names.
+--   * An item's value on a scale is the sum of its stats times the scale's weights. A weight
+--     of PawnIgnoreStatValue rules the item out: it is worth nothing.
+--   * Asked about a scale there is not, Pawn writes an error line in the chat. Here those
+--     are kept in W.pawn.fails, and a scenario checks that there are none.
+--   * Nothing is returned for an item the client has not loaded, nor for one without stats.
+-- An item's Pawn stats are made the way its game stats are (C_Item.GetItemStats): one named
+-- after each profile it was given a score on ("TEST_S1"), which a scale of the tests weighs
+-- as it likes, and whatever its `pawn` table adds under Pawn's own names.
+---------------------------------------------------------------------------
+PawnIgnoreStatValue = nil
+
+-- The full name Pawn files a character's choices under: as the addon's cards are filed.
+function W.PawnName(player)
+    player = player or W.player
+    return player.last and (player.name .. " " .. player.last) or (player.name .. "-" .. GetRealmName())
+end
+
+local function PawnFunctions(P)
+    local function Fail(message) P.fails[#P.fails + 1] = message end
+
+    local function Visible(name)
+        local scale = PawnCommon.Scales[name]
+        if not scale then Fail("ScaleName must be the name of an existing scale: " .. tostring(name)) return nil end
+        local notes = scale.PerCharacterOptions[W.PawnName()]
+        return notes and notes.Visible
+    end
+
+    local function Sum(stats, name)
+        local scale = PawnCommon.Scales[name]
+        if not stats or not scale then return nil end
+        local total = 0
+        for stat, amount in pairs(stats) do
+            local weight = scale.Values[stat]
+            if weight and weight <= PawnIgnoreStatValue then return 0 end
+            total = total + amount * (weight or 0)
+        end
+        return total
+    end
+
+    function PawnIsReady() return P.ready or nil end
+
+    -- Every scale, those the character being played has switched on first, among those the
+    -- ones made by hand before a provider's, and then by the name shown.
+    function PawnGetAllScalesEx()
+        if not P.ready then Fail("Can't get scale list until Pawn is initialized") return end
+        local out = {}
+        for name, scale in pairs(PawnCommon.Scales) do
+            out[#out + 1] = { Name = name, LocalizedName = scale.LocalizedName or name, IsVisible = Visible(name), IsProvider = scale.Provider ~= nil }
+        end
+        table.sort(out, function(a, b)
+            local aShown, bShown = a.IsVisible and true or false, b.IsVisible and true or false
+            if aShown ~= bShown then return aShown end
+            if a.IsProvider ~= b.IsProvider then return b.IsProvider end
+            return a.LocalizedName:lower() < b.LocalizedName:lower()
+        end)
+        return out
+    end
+
+    function PawnGetItemData(link)
+        if not link then return end
+        P.asked[#P.asked + 1] = link
+        local item, id = ParseItem(link)
+        if not item or not item.cached then return nil end
+        local kind = item.equipLoc
+        if kind == nil or kind == "" or kind == "INVTYPE_BODY" or kind == "INVTYPE_TABARD" or kind == "INVTYPE_BAG" then return nil end
+        local stats = {}
+        if not item.noStats then
+            if item.value then stats.TEST_S1 = item.value end
+            if item.value2 then stats.TEST_S2 = item.value2 end
+            for profile, value in pairs(item.values or {}) do stats["TEST_" .. profile] = value end
+            for name, amount in pairs(item.pawn or {}) do stats[name] = amount end
+        end
+        if next(stats) == nil then return nil end
+        return {
+            Link = link, ID = id, InvType = kind, Name = item.name, Level = item.level + 5,
+            Stats = stats, UnenchantedStats = stats,
+            UnknownLines = item.effects and { ["Use: Does something."] = 1 } or {},
+        }
+    end
+
+    -- Pawn returns (with enchantments, base item). The first is made wrong on purpose, so
+    -- that the tests notice if the addon reads the enchanted number.
+    function PawnGetSingleValueFromItem(record, name)
+        if not PawnCommon.Scales[name] then
+            Fail("ScaleName must be the name of an existing scale: " .. tostring(name))
+            return nil
+        end
+        local base = Sum(record.UnenchantedStats, name)
+        return base + 1000, base
+    end
+
+    function PawnGetAllStatValues(name)
+        local scale = PawnCommon.Scales[name]
+        if not scale then Fail("ScaleName must be the name of an existing scale: " .. tostring(name)) return nil end
+        return scale.Values
+    end
+
+    -- The arguments after the stats are kept, for the tests to see how it was asked.
+    function PawnGetItemValue(stats, level, socketBonus, name, debug, noNormalization, noReforging)
+        P.calls[#P.calls + 1] = { stats = stats, level = level, socketBonus = socketBonus, scale = name,
+            debug = debug, noNormalization = noNormalization, noReforging = noReforging }
+        local total = Sum(stats, name)
+        if total == nil then return nil end
+        return total, 0, 0
+    end
+
+    -- Called by Pawn itself whenever its scales change (W.PawnChanged).
+    function PawnResetTooltips() P.resets = P.resets + 1 end
+end
+
+-- Pawn is installed and has read its scales (W.pawn.ready = false: it has not yet). Its
+-- scales are added with W.AddPawnScale.
+function W.InstallPawn()
+    W.pawn = { ready = true, asked = {}, calls = {}, fails = {}, resets = 0 }
+    PawnIgnoreStatValue = -1000000
+    PawnCommon = { Scales = {} }
+    PawnFunctions(W.pawn)
+end
+
+-- Pawn is taken away, or switched off: the next session has none of it.
+function W.RemovePawn()
+    W.pawn = nil
+    PawnIgnoreStatValue, PawnCommon = nil, nil
+    PawnIsReady, PawnGetAllScalesEx, PawnGetItemData, PawnGetSingleValueFromItem = nil, nil, nil, nil
+    PawnGetAllStatValues, PawnGetItemValue, PawnResetTooltips = nil, nil, nil
+end
+
+-- def: { name = the internal name, title = the name shown (the internal one if not given),
+--        class = the class's number and spec = the talent tree's, for a scale Pawn made from
+--          a class's template: it is then a provider's,
+--        values = { [stat] = weight },
+--        shown = { the full names of the characters that have it switched on } or true for
+--          the character being played,
+--        no1H, no2H = it is not to show upgrades for one-handed or two-handed weapons }
+function W.AddPawnScale(def)
+    local scale = {
+        Values = def.values or {}, LocalizedName = def.title, ClassID = def.class, SpecID = def.spec,
+        Provider = def.class and "Classic" or nil, ProviderActive = def.class and true or nil,
+        DoNotShow1HUpgrades = def.no1H or false, DoNotShow2HUpgrades = def.no2H or false,
+        PerCharacterOptions = {},
+    }
+    local shown = def.shown == true and { W.PawnName() } or def.shown or {}
+    for _, who in ipairs(shown) do scale.PerCharacterOptions[who] = { Visible = true } end
+    PawnCommon.Scales[def.name] = scale
+    return scale
+end
+
+-- The player changed something about the scales in Pawn's own window: Pawn then resets its
+-- tooltips, which is how an addon can tell.
+function W.PawnChanged()
+    PawnResetTooltips()
+end
+
+-- A new session has Pawn's own functions, with nothing hooked into them (see W.Logout).
+function W.ResetPawn()
+    if W.pawn then PawnFunctions(W.pawn) end
 end
 
 return W

@@ -70,7 +70,8 @@ function Stats.Report(text)
         ns.Print(L.ITEM_STATS:format(link or name, profile and profile.title or NONE, ns.Num(total)))
         for i = 1, #parts do
             local part = parts[i]
-            local line = Stats.Label(part.name) .. ": " .. ns.Num(part.amount) .. " × " .. ns.Num(part.weight)
+            -- (With Pawn scoring a stat goes by Pawn's name for it, which is its label.)
+            local line = (part.label or Stats.Label(part.name)) .. ": " .. ns.Num(part.amount) .. " × " .. ns.Num(part.weight)
             if part.weight ~= 0 then line = line .. " = " .. ns.Num(part.points) end
             print("   " .. line)
         end

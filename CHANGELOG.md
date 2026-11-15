@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.6.0
+
+- **Pawn** can score your gear. In the addon's window, under **Who scores your gear?**, choose
+  **Pawn**: the lists at the auction house and the bag arrows then go by your Pawn scales, not
+  by the addon's own weights. The **Profile** dropdown lists the scales, for your other
+  characters too.
+- With Pawn chosen, an item's tooltip has Pawn's lines and none from the addon.
+- The choice is for the whole account. Without Pawn, or with Pawn switched off, the addon
+  scores by its own weights as before.
+- If you have Pawn, the window comes up once after the update to show you the choice.
+
 ## 2.5.0
 
 - A welcome window comes up on your first login. It shows what the addon puts into the game: the

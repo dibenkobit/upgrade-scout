@@ -58,6 +58,8 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
   lines and the bag arrows. The addon's button at the minimap opens it again.
 - Scores gear with its own stat weights for every talent tree, worked out with the
   [wowsims/forever](https://github.com/wowsims/forever) simulator. No other addon is needed.
+- Use Pawn? Choose **Pawn** in the addon's window, and gear is scored on your Pawn scales, not on
+  the addon's weights. The lists and the bag arrows go by them, and the tooltip lines are Pawn's own.
 
 Any class, any level. English, Chinese (Simplified and Traditional), German, Russian, French,
 Spanish, Brazilian Portuguese and Korean.

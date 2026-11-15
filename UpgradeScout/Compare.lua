@@ -184,7 +184,11 @@ local function Places(item, ctx, beats)
     local offValue = off and off.value or 0
     local holdingTwoHander = main ~= nil and main.invType == "INVTYPE_2HWEAPON"
 
+    -- A Pawn scale can be told to offer no two-handed weapons, or no one-handed ones and
+    -- what goes with them (ctx.show2H, ctx.show1H: see Score.Context). Such a weapon then
+    -- has no place on that scale.
     if invType == "INVTYPE_2HWEAPON" then
+        if ctx.show2H == false then return out end
         -- A two-hander replaces both hands, so it has to beat both together.
         local base = mainValue + offValue
         if beats(value, base) then
@@ -195,6 +199,7 @@ local function Places(item, ctx, beats)
         end
         return out
     end
+    if ctx.show1H == false then return out end
 
     if invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND" then
         -- Against a two-hander the comparison is honest only if the off hand is counted as empty.
@@ -221,7 +226,7 @@ local function Anywhere()
 end
 
 -- item: { invType, value, itemID, unique }
--- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield }
+-- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield, show1H, show2H }
 -- Returns a list of placements; empty when the item is not an upgrade anywhere.
 -- A one-hand weapon can appear twice (main hand and off hand) for a dual wielder.
 function C.Place(item, ctx)

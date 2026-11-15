@@ -9,10 +9,15 @@ local L = ns.L
 -- tab there, the addon's page in the game's own list of addons. However it is closed, it has
 -- been seen.
 --
+-- It comes up by itself once more for a player who has Pawn, the first time since Pawn could
+-- be chosen in it (see Due).
+--
 -- Top to bottom:
 --   what the addon is, in a sentence
---   the one thing to choose: the talent tree the character is played with, a button for each
---     profile of its class (the one in use is lit: see Score.Current)
+--   who scores gear: the addon by its own weights, or Pawn by the player's Pawn scales
+--     (Score.Engine). Two buttons side by side; Pawn's is grey while Pawn is not there
+--   the talent tree the character is played with, a button for each profile of its class
+--     (the one in use is lit: see Score.Current). With Pawn scoring, its Pawn scales
 --   what the addon puts into the game, a card for each: the tabs at the auction house, the
 --     lines in an item's tooltip, the arrows in the bags. A card has a picture of the thing as
 --     it looks in the game, its name and a sentence. The last two can be switched off, by the
@@ -33,6 +38,8 @@ local GAP = 11                  -- between two cards, and between two buttons of
 local CARD_WIDTH = (WIDTH - 2 * EDGE - 2 * GAP) / 3
 local PICTURE = 112             -- the height of a card's picture
 local TREE_HEIGHT = 28
+local TREES_IN_ROW = 4          -- more buttons than this (Pawn scales can be many) go in rows
+local TREE_ROW_GAP = 7          -- between two such rows
 local GREET_AFTER = 4           -- seconds in the world before the window comes up by itself
 local GREET_RETRY = 5           -- and between two looks at whether the character is out of a fight
 
@@ -55,6 +62,8 @@ local PICKS = {
 
 local frame                     -- the window, made when it is first shown
 local greeting = false          -- it is up for the first time: its first words are a welcome
+local offering = false          -- it is up for the first time since Pawn could be chosen in it,
+                                -- for a player who has Pawn: its first words say so
 
 -- A part of a line in the softer colour: what is said in passing after what is asked.
 local SOFT_CODE = string.format("|cff%02x%02x%02x", SOFT[1] * 255, SOFT[2] * 255, SOFT[3] * 255)
@@ -369,6 +378,26 @@ local function NewTree()
 end
 
 ---------------------------------------------------------------------------
+-- Who scores
+---------------------------------------------------------------------------
+-- The two answers are buttons of the same make as the trees', side by side: the addon
+-- itself, and Pawn. `engine` is what a click on one makes of Score.Engine: nil or "pawn".
+local function EngineOnClick(self)
+    PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+    -- The window is drawn again when the choice is made (SETTING_CHANGED below), and what
+    -- keeps scores makes them again (SCORING_CHANGED).
+    ns.Score.SetEngine(self.engine)
+end
+
+local function NewEngine(name, engine)
+    local button = NewTree()
+    button.engine = engine
+    button.Label:SetText(name)
+    button:SetScript("OnClick", EngineOnClick)
+    return button
+end
+
+---------------------------------------------------------------------------
 -- The window
 ---------------------------------------------------------------------------
 -- Puts everything where the heights of the texts say. Top to bottom, `down` is how far from
@@ -380,21 +409,46 @@ local function Layout()
     frame.TopRule:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -(EDGE - 4), -down)
     down = down + 13
 
-    -- The trees: the question, and the buttons in a row as wide as the three cards.
+    -- Who scores: the question, and its two answers side by side.
+    frame.Who:ClearAllPoints()
+    frame.Who:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + 2, -down)
+    down = down + frame.Who:GetStringHeight() + 9
+    local half = (WIDTH - 2 * EDGE - GAP) / 2
+    for i = 1, #frame.Engines do
+        local button = frame.Engines[i]
+        button:SetWidth(half)
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + (i - 1) * (half + GAP), -down)
+    end
+    down = down + TREE_HEIGHT + 15
+
+    -- The trees: the question, and the buttons in a row as wide as the three cards. More of
+    -- them than a row holds (a player may have many Pawn scales) stand in rows of equal
+    -- number, a last row of fewer filling the width as well. With nothing to choose from
+    -- the question's place has a sentence that says why (see Paint), and no buttons.
     local count = frame.treeCount
-    frame.Ask:SetShown(count > 0)
-    if count > 0 then
+    frame.Ask:SetShown(frame.asks)
+    if frame.asks then
         frame.Ask:ClearAllPoints()
         frame.Ask:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + 2, -down)
-        down = down + frame.Ask:GetStringHeight() + 9
-        local width = (WIDTH - 2 * EDGE - (count - 1) * GAP) / count
+        down = down + frame.Ask:GetStringHeight() + (count > 0 and 9 or 15)
+    end
+    if count > 0 then
+        local rows = math.ceil(count / TREES_IN_ROW)
+        local inRow = math.ceil(count / rows)
         for i = 1, count do
+            local row, place = math.floor((i - 1) / inRow), (i - 1) % inRow
+            local here = math.min(inRow, count - row * inRow)
+            local width = (WIDTH - 2 * EDGE - (here - 1) * GAP) / here
             local button = frame.Trees[i]
             button:SetWidth(width)
+            -- A name too long for its button is cut short, not written over the next one.
+            button.Label:SetWidth(math.min(button.Label:GetUnboundedStringWidth() + 2, width - 40))
             button:ClearAllPoints()
-            button:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + (i - 1) * (width + GAP), -down)
+            button:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + place * (width + GAP),
+                -(down + row * (TREE_HEIGHT + TREE_ROW_GAP)))
         end
-        down = down + TREE_HEIGHT + 15
+        down = down + rows * TREE_HEIGHT + (rows - 1) * TREE_ROW_GAP + 15
     end
 
     frame.Shows:ClearAllPoints()
@@ -437,11 +491,40 @@ Paint = function()
 
     frame.About:SetText(greeting and L.WELCOME_FIRST or L.WELCOME_ABOUT)
     frame.Shows:SetText(L.WELCOME_SHOWS .. Aside(L.WELCOME_OFF))
+    -- Up to say that Pawn can be chosen now: that comes first.
+    if offering then frame.About:SetText(L.WELCOME_PAWN_NEW) end
 
-    -- A button for each profile of the class, the one in use lit.
+    -- Who scores: the one that does is lit. Pawn cannot be chosen while it is not there,
+    -- and the line says why its button is grey.
+    local pawn = ns.Score.Engine() == "pawn"
+    local usable = ns.Pawn.Usable()
+    frame.Who:SetText(L.WELCOME_ENGINE .. Aside(usable and L.WELCOME_ENGINE_WHY or L.WELCOME_NO_PAWN))
+    for i = 1, #frame.Engines do
+        local button = frame.Engines[i]
+        local there = button.engine == nil or usable
+        PaintTree(button, (button.engine == "pawn") == pawn)
+        -- (Out of the mouse's reach as well: a button that is switched off would still light
+        -- up under it.)
+        button:SetEnabled(there)
+        button:EnableMouse(there)
+        button:SetAlpha(there and 1 or 0.45)
+    end
+    -- The pictures show the addon's own lines, whoever scores: its profiles, not Pawn's scales.
+    if pawn then about.profiles = ns.Score.Trees() end
+
+    -- A button for each profile of the class, the one in use lit. With Pawn scoring they are
+    -- the character's Pawn scales; a character that has none switched on is told so.
     frame.treeCount = #profiles
-    if me and #profiles > 0 then
-        frame.Ask:SetText(L.WELCOME_TREE:format(ns.Roster.Colored(me, me.name or "")) .. Aside(L.WELCOME_TREE_WHY))
+    frame.asks = me ~= nil and (pawn or #profiles > 0)
+    if frame.asks then
+        local name = ns.Roster.Colored(me, me.name or "")
+        if not pawn then
+            frame.Ask:SetText(L.WELCOME_TREE:format(name) .. Aside(L.WELCOME_TREE_WHY))
+        elseif #profiles > 0 then
+            frame.Ask:SetText(L.WELCOME_SCALE:format(name) .. Aside(L.WELCOME_SCALE_WHY))
+        else
+            frame.Ask:SetText(L.WELCOME_NO_SCALE:format(name))
+        end
     end
     for i = 1, math.max(#profiles, #frame.Trees) do
         local button = frame.Trees[i]
@@ -459,10 +542,30 @@ Paint = function()
             PaintTree(button, chosen)
         end
     end
+    -- (The pictures then count places among the addon's own profiles: the first.)
+    if pawn then about.place = 1 end
 
     for i = 1, #frame.Cards do
         local card = frame.Cards[i]
         local on = not card.part or ns.Shows(card.part)
+        -- With Pawn scoring the lines in a tooltip are Pawn's to write (Tooltip.lua): the
+        -- card says so in place of its sentence, and its box is empty and out of use until
+        -- the addon scores again. The arrows in the bags stay ours to draw, and to switch.
+        if card.part == "tooltip" then
+            card.Body:SetText(pawn and L.WELCOME_TOOLTIP_PAWN or L.WELCOME_TOOLTIP_TEXT)
+            card.Switch:SetEnabled(not pawn)
+            card.Switch:EnableMouse(not pawn)
+            card.Switch:SetAlpha(pawn and 0.4 or 1)
+            card.Title:SetAlpha(pawn and 0.5 or 1)
+            -- (And so is a further box under the card's sentence, where it has one.)
+            if card.Option then
+                card.Option:SetEnabled(not pawn)
+                card.Option:EnableMouse(not pawn)
+                card.Option:SetAlpha(pawn and 0.4 or 1)
+                if card.OptionText then card.OptionText:SetAlpha(pawn and 0.5 or 1) end
+            end
+            on = on and not pawn
+        end
         if card.Switch then
             card.Switch:SetChecked(on)
             card.Switch.Tick:SetShown(on)
@@ -494,6 +597,9 @@ local function Build()
     frame:SetScript("OnHide", function()
         ns.account.welcomed = true
         greeting = false
+        -- And, with Pawn there, the choice of who scores has been seen with it.
+        if ns.Pawn.Usable() then ns.account.pawnOffered = true end
+        offering = false
     end)
 
     local logo = frame:CreateTexture(nil, "ARTWORK")
@@ -522,6 +628,13 @@ local function Build()
     frame.Close = close
 
     frame.TopRule, frame.BottomRule = NewRule(frame), NewRule(frame)
+
+    -- Who scores: the question and its two answers, each by its own name.
+    frame.Who = NewText(frame, 12, CREAM)
+    frame.Who:SetWordWrap(true)
+    frame.Who:SetSpacing(3)
+    frame.Who:SetWidth(WIDTH - 2 * EDGE - 4)
+    frame.Engines = { NewEngine("Upgrade Scout", nil), NewEngine("Pawn", "pawn") }
 
     frame.Ask = NewText(frame, 12, CREAM)
     frame.Ask:SetWordWrap(true)
@@ -556,6 +669,9 @@ function Welcome.Show()
     if not frame then Build() end
     -- The first words are a welcome until the window has been seen once.
     greeting = not ns.account.welcomed
+    -- Seen before, but not since Pawn could be chosen in it, by a player who has Pawn: the
+    -- first words are about that.
+    offering = not greeting and not ns.account.pawnOffered and ns.Pawn.Usable()
     Paint()
     frame:Show()
 end
@@ -575,6 +691,8 @@ local function Repaint()
 end
 ns.Listen("PROFILE_CHANGED", Repaint)
 ns.Listen("SETTING_CHANGED", Repaint)
+-- Pawn's scales changed, in Pawn's own window, while Pawn scores.
+ns.Listen("SCORING_CHANGED", Repaint)
 
 local function OnItemLoaded(itemID)
     for i = 1, #SAMPLES do
@@ -590,11 +708,19 @@ ns.On("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
 -- A few seconds after the character is in the world: by then the game knows who it is and
 -- what it wears, and the card is written (Roster.Update), its talent tree with it. Not in the
 -- middle of a fight: the window waits for the end of it.
+-- The same once more for a player who has Pawn and saw the window before Pawn could be
+-- chosen in it (2.6.0): nothing else would tell them of the choice.
 local waiting = false
+
+-- Has the window a reason to come up by itself?
+local function Due()
+    if not ns.account.welcomed then return true end
+    return not ns.account.pawnOffered and ns.Pawn.Usable()
+end
 
 local function Greet()
     waiting = false
-    if ns.account.welcomed or Welcome.IsShown() then return end
+    if not Due() or Welcome.IsShown() then return end
     if InCombatLockdown() or not ns.Roster.Me() then
         waiting = true
         C_Timer.After(GREET_RETRY, Greet)
@@ -604,7 +730,9 @@ local function Greet()
 end
 
 ns.On("PLAYER_ENTERING_WORLD", function()
-    if ns.account.welcomed or waiting then return end
+    -- (Whether Pawn is there is asked when the wait is over: it reads its scales as the
+    -- character logs in.)
+    if waiting or (ns.account.welcomed and ns.account.pawnOffered) then return end
     waiting = true
     C_Timer.After(GREET_AFTER, Greet)
 end)

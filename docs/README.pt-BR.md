@@ -44,6 +44,9 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
   novo.
 - Avalia os equipamentos com pesos próprios para cada árvore de talentos, calculados com o
   simulador [wowsims/forever](https://github.com/wowsims/forever). Nenhum outro addon é necessário.
+- Usa o Pawn? Escolha **Pawn** na janela do addon e os equipamentos passam a ser avaliados pelas suas
+  escalas do Pawn, e não pelos pesos do addon. As listas e as setas nas bolsas seguem essas escalas,
+  e as linhas na dica de contexto são as do próprio Pawn.
 
 Qualquer classe, qualquer nível. Inglês, chinês (simplificado e tradicional), alemão, russo,
 francês, espanhol, português do Brasil e coreano.

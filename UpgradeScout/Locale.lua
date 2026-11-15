@@ -159,6 +159,19 @@ local L = {
     MINIMAP_CLICK = "Click to open the settings.",
     MINIMAP_DRAG = "Drag to move the button.",
 
+    -- Pawn in place of the addon's own weights (Pawn.lua): the choice in the welcome window, and
+    -- what the tab says of Pawn's scales. WELCOME_SCALE and WELCOME_NO_SCALE take the character's name.
+    WELCOME_ENGINE = "Who scores your gear?",
+    WELCOME_ENGINE_WHY = "Upgrade Scout: by its own weights. Pawn: by your Pawn scales.",
+    WELCOME_NO_PAWN = "Pawn is not installed or is switched off.",
+    WELCOME_SCALE = "Which Pawn scale does %s use?",
+    WELCOME_SCALE_WHY = "The addon picks gear by it.",
+    WELCOME_NO_SCALE = "Pawn shows no scale for %s. Switch one on in Pawn, and it will be here.",
+    WELCOME_TOOLTIP_PAWN = "Here Pawn writes its own lines.",
+    WELCOME_PAWN_NEW = "New: the addon can score gear by your Pawn scales. Choose below who scores.",
+    ERR_NO_SCALE = "Pawn shows no scale for this character. Switch one on in Pawn.",
+    PROFILE_TIP_PAWN = "Choose the Pawn scale to score by.",
+
     HEAD = "Head", NECK = "Neck", SHOULDER = "Shoulders", BACK = "Back", CHEST = "Chest",
     WRIST = "Wrist", HANDS = "Hands", WAIST = "Waist", LEGS = "Legs", FEET = "Feet",
     FINGER = "Finger", TRINKET = "Trinket", MAINHAND = "Main Hand", OFFHAND = "Off Hand", RANGED = "Ranged",
@@ -322,6 +335,18 @@ if GetLocale() == "ruRU" then
         -- The button at the minimap
         MINIMAP_CLICK = "Нажми, чтобы открыть настройки.",
         MINIMAP_DRAG = "Потяни, чтобы передвинуть кнопку.",
+
+        -- Pawn in place of the addon's own weights
+        WELCOME_ENGINE = "Кто оценивает вещи?",
+        WELCOME_ENGINE_WHY = "Upgrade Scout: по своим весам. Pawn: по твоим шкалам Pawn.",
+        WELCOME_NO_PAWN = "Pawn не установлен или выключен.",
+        WELCOME_SCALE = "Какую шкалу Pawn использует %s?",
+        WELCOME_SCALE_WHY = "По ней аддон подбирает вещи.",
+        WELCOME_NO_SCALE = "%s: в Pawn не включена ни одна шкала. Включи шкалу там, и она появится здесь.",
+        WELCOME_TOOLTIP_PAWN = "Здесь свои строки пишет Pawn.",
+        WELCOME_PAWN_NEW = "Новое: аддон умеет оценивать вещи по твоим шкалам Pawn. Ниже выбери, кто оценивает.",
+        ERR_NO_SCALE = "У этого персонажа в Pawn не включена ни одна шкала. Включи шкалу в Pawn.",
+        PROFILE_TIP_PAWN = "Выбери шкалу Pawn, по которой оценивать вещи.",
 
         HEAD = "Голова", NECK = "Шея", SHOULDER = "Плечи", BACK = "Спина", CHEST = "Грудь",
         WRIST = "Запястья", HANDS = "Кисти рук", WAIST = "Пояс", LEGS = "Ноги", FEET = "Ступни",
@@ -487,6 +512,18 @@ if GetLocale() == "deDE" then
         -- The button at the minimap
         MINIMAP_CLICK = "Klicke, um die Einstellungen zu öffnen.",
         MINIMAP_DRAG = "Ziehe, um die Schaltfläche zu verschieben.",
+
+        -- Pawn in place of the addon's own weights
+        WELCOME_ENGINE = "Wer bewertet deine Ausrüstung?",
+        WELCOME_ENGINE_WHY = "Upgrade Scout: nach eigenen Gewichten. Pawn: nach deinen Bewertungsprofilen in Pawn.",
+        WELCOME_NO_PAWN = "Pawn ist nicht installiert oder deaktiviert.",
+        WELCOME_SCALE = "Welches Bewertungsprofil von Pawn nutzt %s?",
+        WELCOME_SCALE_WHY = "Danach sucht das Addon die Ausrüstung aus.",
+        WELCOME_NO_SCALE = "Pawn zeigt für %s kein Bewertungsprofil an. Aktiviere eines in Pawn, dann erscheint es hier.",
+        WELCOME_TOOLTIP_PAWN = "Hier schreibt Pawn seine eigenen Zeilen.",
+        WELCOME_PAWN_NEW = "Neu: Das Addon kann Ausrüstung nach deinen Bewertungsprofilen in Pawn bewerten. Wähle unten, wer bewertet.",
+        ERR_NO_SCALE = "Pawn zeigt für diesen Charakter kein Bewertungsprofil an. Aktiviere eines in Pawn.",
+        PROFILE_TIP_PAWN = "Wähle das Bewertungsprofil von Pawn, nach dem bewertet wird.",
 
         HEAD = "Kopf", NECK = "Hals", SHOULDER = "Schultern", BACK = "Rücken", CHEST = "Brust",
         WRIST = "Handgelenke", HANDS = "Hände", WAIST = "Taille", LEGS = "Beine", FEET = "Füße",
@@ -654,6 +691,18 @@ if GetLocale() == "frFR" then
         MINIMAP_CLICK = "Cliquez pour ouvrir les réglages.",
         MINIMAP_DRAG = "Faites glisser pour déplacer le bouton.",
 
+        -- Pawn in place of the addon's own weights
+        WELCOME_ENGINE = "Qui évalue votre équipement ?",
+        WELCOME_ENGINE_WHY = "Upgrade Scout : selon ses propres poids. Pawn : selon vos échelles Pawn.",
+        WELCOME_NO_PAWN = "Pawn n'est pas installé ou est désactivé.",
+        WELCOME_SCALE = "Quelle échelle Pawn utilise %s ?",
+        WELCOME_SCALE_WHY = "L'addon choisit l'équipement selon cette échelle.",
+        WELCOME_NO_SCALE = "Pawn n'affiche aucune échelle pour %s. Activez-en une dans Pawn et elle apparaîtra ici.",
+        WELCOME_TOOLTIP_PAWN = "Ici, Pawn écrit ses propres lignes.",
+        WELCOME_PAWN_NEW = "Nouveau : l'addon peut évaluer l'équipement selon vos échelles Pawn. Choisissez ci-dessous qui évalue.",
+        ERR_NO_SCALE = "Pawn n'affiche aucune échelle pour ce personnage. Activez-en une dans Pawn.",
+        PROFILE_TIP_PAWN = "Choisissez l'échelle Pawn qui sert à évaluer.",
+
         HEAD = "Tête", NECK = "Cou", SHOULDER = "Épaules", BACK = "Dos", CHEST = "Torse",
         WRIST = "Poignets", HANDS = "Mains", WAIST = "Taille", LEGS = "Jambes", FEET = "Pieds",
         FINGER = "Doigt", TRINKET = "Bijou", MAINHAND = "Main droite", OFFHAND = "Main gauche", RANGED = "À distance",
@@ -819,6 +868,18 @@ if GetLocale() == "zhCN" then
         -- The button at the minimap
         MINIMAP_CLICK = "点击打开设置。",
         MINIMAP_DRAG = "拖动可移动按钮。",
+
+        -- Pawn in place of the addon's own weights
+        WELCOME_ENGINE = "由谁给装备评分？",
+        WELCOME_ENGINE_WHY = "Upgrade Scout：按自带的权重。Pawn：按你的 Pawn 属性权重。",
+        WELCOME_NO_PAWN = "Pawn 未安装或未启用。",
+        WELCOME_SCALE = "%s 用哪个 Pawn 属性权重？",
+        WELCOME_SCALE_WHY = "插件按它来挑装备。",
+        WELCOME_NO_SCALE = "Pawn 没有为 %s 显示任何属性权重。在 Pawn 里启用一个，它就会出现在这里。",
+        WELCOME_TOOLTIP_PAWN = "这里由 Pawn 写它自己的内容。",
+        WELCOME_PAWN_NEW = "新功能：插件可以按你的 Pawn 属性权重给装备评分。在下面选择由谁评分。",
+        ERR_NO_SCALE = "Pawn 没有为这个角色显示任何属性权重。请在 Pawn 里启用一个。",
+        PROFILE_TIP_PAWN = "选择用来评分的 Pawn 属性权重。",
 
         HEAD = "头部", NECK = "颈部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
         WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "脚",
@@ -987,6 +1048,18 @@ if GetLocale() == "ptBR" then
         MINIMAP_CLICK = "Clique para abrir as configurações.",
         MINIMAP_DRAG = "Arraste para mover o botão.",
 
+        -- Pawn in place of the addon's own weights
+        WELCOME_ENGINE = "Quem avalia o seu equipamento?",
+        WELCOME_ENGINE_WHY = "Upgrade Scout: pelos próprios pesos. Pawn: pelas suas escalas do Pawn.",
+        WELCOME_NO_PAWN = "O Pawn não está instalado ou está desativado.",
+        WELCOME_SCALE = "Qual escala do Pawn %s usa?",
+        WELCOME_SCALE_WHY = "O addon escolhe o equipamento por ela.",
+        WELCOME_NO_SCALE = "O Pawn não mostra nenhuma escala para %s. Ative uma no Pawn e ela aparecerá aqui.",
+        WELCOME_TOOLTIP_PAWN = "Aqui o Pawn escreve as próprias linhas.",
+        WELCOME_PAWN_NEW = "Novidade: o addon pode avaliar o equipamento pelas suas escalas do Pawn. Escolha abaixo quem avalia.",
+        ERR_NO_SCALE = "O Pawn não mostra nenhuma escala para este personagem. Ative uma no Pawn.",
+        PROFILE_TIP_PAWN = "Escolha a escala do Pawn usada na avaliação.",
+
         HEAD = "Cabeça", NECK = "Pescoço", SHOULDER = "Ombros", BACK = "Costas", CHEST = "Torso",
         WRIST = "Pulsos", HANDS = "Mãos", WAIST = "Cintura", LEGS = "Pernas", FEET = "Pés",
         FINGER = "Dedo", TRINKET = "Berloque", MAINHAND = "Mão Principal", OFFHAND = "Mão Secundária", RANGED = "Longo Alcance",
@@ -1152,6 +1225,18 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         -- The button at the minimap
         MINIMAP_CLICK = "Haz clic para abrir los ajustes.",
         MINIMAP_DRAG = "Arrastra para mover el botón.",
+
+        -- Pawn in place of the addon's own weights
+        WELCOME_ENGINE = "¿Quién puntúa tu equipo?",
+        WELCOME_ENGINE_WHY = "Upgrade Scout: con sus propios pesos. Pawn: con tus escalas de Pawn.",
+        WELCOME_NO_PAWN = "Pawn no está instalado o está desactivado.",
+        WELCOME_SCALE = "¿Qué escala de Pawn usa %s?",
+        WELCOME_SCALE_WHY = "El addon elige el equipo según ella.",
+        WELCOME_NO_SCALE = "Pawn no muestra ninguna escala para %s. Activa una en Pawn y aparecerá aquí.",
+        WELCOME_TOOLTIP_PAWN = "Aquí Pawn escribe sus propias líneas.",
+        WELCOME_PAWN_NEW = "Novedad: el addon puede puntuar el equipo con tus escalas de Pawn. Elige abajo quién puntúa.",
+        ERR_NO_SCALE = "Pawn no muestra ninguna escala para este personaje. Activa una en Pawn.",
+        PROFILE_TIP_PAWN = "Elige la escala de Pawn con la que se puntúa.",
 
         HEAD = "Cabeza", NECK = "Cuello", SHOULDER = "Hombros", BACK = "Espalda", CHEST = "Pecho",
         WRIST = "Muñecas", HANDS = "Manos", WAIST = "Cintura", LEGS = "Piernas", FEET = "Pies",
@@ -1321,6 +1406,18 @@ if GetLocale() == "koKR" then
         MINIMAP_CLICK = "클릭하면 설정이 열립니다.",
         MINIMAP_DRAG = "끌어서 버튼을 옮길 수 있습니다.",
 
+        -- Pawn in place of the addon's own weights
+        WELCOME_ENGINE = "장비 점수는 누가 매기나요?",
+        WELCOME_ENGINE_WHY = "Upgrade Scout: 자체 가중치로. Pawn: 내 Pawn 능력치 비율로.",
+        WELCOME_NO_PAWN = "Pawn이 설치되어 있지 않거나 꺼져 있습니다.",
+        WELCOME_SCALE = "%s의 Pawn 능력치 비율은 무엇인가요?",
+        WELCOME_SCALE_WHY = "애드온이 그 비율에 맞춰 장비를 고릅니다.",
+        WELCOME_NO_SCALE = "Pawn에 %s의 능력치 비율이 켜져 있지 않습니다. Pawn에서 하나를 켜면 여기에 나타납니다.",
+        WELCOME_TOOLTIP_PAWN = "여기에는 Pawn이 자체 내용을 씁니다.",
+        WELCOME_PAWN_NEW = "새 기능: 애드온이 내 Pawn 능력치 비율로 장비 점수를 매길 수 있습니다. 누가 매길지 아래에서 고르세요.",
+        ERR_NO_SCALE = "Pawn에 이 캐릭터의 능력치 비율이 켜져 있지 않습니다. Pawn에서 하나를 켜세요.",
+        PROFILE_TIP_PAWN = "점수를 매길 Pawn 능력치 비율을 고르세요.",
+
         HEAD = "머리", NECK = "목", SHOULDER = "어깨", BACK = "등", CHEST = "가슴",
         WRIST = "손목", HANDS = "손", WAIST = "허리", LEGS = "다리", FEET = "발",
         FINGER = "손가락", TRINKET = "장신구", MAINHAND = "주장비", OFFHAND = "보조장비", RANGED = "원거리 장비",
@@ -1487,6 +1584,18 @@ if GetLocale() == "zhTW" then
         -- The button at the minimap
         MINIMAP_CLICK = "點擊打開設定。",
         MINIMAP_DRAG = "拖曳可移動按鈕。",
+
+        -- Pawn in place of the addon's own weights
+        WELCOME_ENGINE = "由誰給裝備評分？",
+        WELCOME_ENGINE_WHY = "Upgrade Scout：依內建的權重。Pawn：依你的 Pawn 權重。",
+        WELCOME_NO_PAWN = "Pawn 未安裝或未啟用。",
+        WELCOME_SCALE = "%s 用哪個 Pawn 權重？",
+        WELCOME_SCALE_WHY = "插件依它來挑裝備。",
+        WELCOME_NO_SCALE = "Pawn 沒有為 %s 顯示任何權重。在 Pawn 裡啟用一個，它就會出現在這裡。",
+        WELCOME_TOOLTIP_PAWN = "這裡由 Pawn 寫它自己的內容。",
+        WELCOME_PAWN_NEW = "新功能：插件可以依你的 Pawn 權重給裝備評分。在下面選擇由誰評分。",
+        ERR_NO_SCALE = "Pawn 沒有為這個角色顯示任何權重。請在 Pawn 裡啟用一個。",
+        PROFILE_TIP_PAWN = "選擇用來評分的 Pawn 權重。",
 
         HEAD = "頭部", NECK = "頸部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
         WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "腳",
