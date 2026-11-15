@@ -33,21 +33,22 @@ local ROW_HEIGHT = 30
 local REFRESH_INTERVAL = 0.1                -- seconds between redraws while a scan reports progress
 
 -- Across a row, from its left edge. Numbers sit against the right edge of their column, and
--- so do the titles above them.
+-- so do the titles above them. Each view has columns of its own:
+--   gear           item, pick, gain, buyout
+--   a consumable   item, effect, score, price of a piece, pieces for sale
+-- `name` is the room for the item's name, `second` where the pick or the effect begins,
+-- `upgrade` and `price` where the gain (or the score) and the price end. The price of gear
+-- ends right before the Buy button; that of a consumable leaves room for the pieces.
 local PAD = 8                               -- between neighbours
 local ICON_LEFT, ICON_SIZE = 6, 22
-local NAME_LEFT, NAME_WIDTH, NAME_MIN_WIDTH = 36, 228, 110
-local PICK_LEFT, PICK_WIDTH = 276, 140
-local UPGRADE_RIGHT, METER_WIDTH = 492, 72
-local SCORE_LEFT = UPGRADE_RIGHT - METER_WIDTH  -- where a consumable's score begins: its meter's left end
-local PRICE_RIGHT, PER_RIGHT = 596, 684
-local TITLES = {
-    { text = L.COL_ITEM, at = 10 },
-    { text = L.COL_PICK, at = PICK_LEFT },
-    { text = L.COL_UPGRADE, at = UPGRADE_RIGHT, numeric = true },
-    { text = L.COL_PRICE, at = PRICE_RIGHT, numeric = true },
-    { text = L.COL_PER, at = PER_RIGHT, numeric = true },
+local NAME_LEFT, NAME_MIN_WIDTH = 36, 110
+local PICK_WIDTH, METER_WIDTH = 140, 72
+local STOCK_RIGHT = 684                     -- where the count of a consumable's pieces ends
+local COLUMNS = {
+    gear = { name = 276, second = 324, upgrade = 564, price = 684 },
+    supplies = { name = 228, second = 276, upgrade = 492, price = 596 },
 }
+local TITLE_LEFT, TITLE_TOP = 10, 16        -- the first title, and how far down the titles are
 local SCAN_WIDTH, STATUS_BAR_WIDTH = 118, 140
 local DROPDOWN_MIN, DROPDOWN_MAX = 110, 200
 local CHECK_SIZE, CHECK_GAP = 16, 6         -- a tick box and the room before its label
@@ -300,13 +301,6 @@ local function HeaderOnClick(toggle)
     UI.Refresh()
 end
 
--- A coin display against a line `right` from the row's left edge.
-local function NewMoney(row, right)
-    local money = CreateFrame("Frame", nil, row, "MoneyDisplayFrameTemplate")
-    money:SetPoint("RIGHT", row, "LEFT", right, 0)
-    return money
-end
-
 -- Shows an amount in a coin display, the coins standing close together.
 -- The game lays a price out for a table: silver and copper each get a slot wide enough for two
 -- digits, so that the coins of all rows stand in columns. A price with one digit of silver or
@@ -337,7 +331,7 @@ end
 local function NewPick(row)
     local pick = CreateFrame("Frame", nil, row)
     pick:SetHeight(17)
-    pick:SetPoint("LEFT", row, "LEFT", PICK_LEFT, 0)
+    pick:SetPoint("LEFT", row, "LEFT", COLUMNS.gear.second, 0)
     pick.Fill = NewSlices(pick, "Chip", 0.3125, 5, "BACKGROUND")
     pick.Edge = NewSlices(pick, "ChipEdge", 0.3125, 5, "BORDER")
     pick.Text = NewText(pick, 10.5, CREAM)
@@ -362,6 +356,21 @@ local function SetPick(pick, kind)
     pick:SetWidth(width + 14)
     pick.Fill:SetVertexColor(look.fill[1], look.fill[2], look.fill[3], look.fill[4])
     pick.Edge:SetVertexColor(look.edge[1], look.edge[2], look.edge[3], look.edge[4])
+end
+
+-- Puts the parts that both kinds of row have (the gain or the score with its meter, and the
+-- price) over the columns of one kind, "gear" or "supplies". The list hands a frame from one
+-- view to the other, so a row may have to move them.
+local function Arrange(row, kind)
+    if row.columns == kind then return end
+    row.columns = kind
+    local at = COLUMNS[kind]
+    row.Upgrade:ClearAllPoints()
+    row.Upgrade:SetPoint("RIGHT", row, "LEFT", at.upgrade, 3)
+    row.Trough:ClearAllPoints()
+    row.Trough:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT", at.upgrade, 5)
+    row.Price:ClearAllPoints()
+    row.Price:SetPoint("RIGHT", row, "LEFT", at.price, 0)
 end
 
 -- The scroll box hands out bare frames; each gets its parts here the first time it is used.
@@ -394,40 +403,36 @@ local function BuildItemRow(row)
 
     -- "One-Hand", "Two-Hand"...: at the right end of the name column, on weapon rows only.
     row.Hand = NewText(row, 11, MUTED, "RIGHT", true)
-    row.Hand:SetPoint("RIGHT", row, "LEFT", NAME_LEFT + NAME_WIDTH, 0)
+    row.Hand:SetPoint("RIGHT", row, "LEFT", NAME_LEFT + COLUMNS.gear.name, 0)
 
     row.Pick = NewPick(row)
 
     -- "+80%" over a meter: how much better the item is than what it takes the place of, and
-    -- how its gain compares with the best one in the slot.
+    -- how its gain compares with the best one in the slot. Where these and the price stand
+    -- is for Arrange to say.
     row.Upgrade = NewText(row, 14, GREEN, "RIGHT", true)
-    row.Upgrade:SetPoint("RIGHT", row, "LEFT", UPGRADE_RIGHT, 3)
     row.Trough = row:CreateTexture(nil, "BACKGROUND", nil, 1)
     row.Trough:SetColorTexture(0, 0, 0, 0.6)
     row.Trough:SetSize(METER_WIDTH, 4)
-    row.Trough:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT", UPGRADE_RIGHT, 5)
     row.Meter = NewTexture(row, "Bar", "ARTWORK")
     row.Meter:SetHeight(3)
     row.Meter:SetPoint("LEFT", row.Trough, "LEFT", 0.5, 0)
 
-    row.Price = NewMoney(row, PRICE_RIGHT)
+    row.Price = CreateFrame("Frame", nil, row, "MoneyDisplayFrameTemplate")
     -- An auction house that deals in whole silver shows no copper in its prices.
     if not C_AuctionHouse.SupportsCopperValues() then
         row.Price.CopperDisplay:SetForcedHidden(true)
     end
-    row.PerPoint = NewMoney(row, PER_RIGHT)
-    row.PerPoint:SetFontObject(PriceFontWhite)
-    row.PerPoint:SetAlpha(0.8)
 
-    -- A consumable's row says what the item does where a gear row has its pick, and how many
-    -- pieces are for sale where a gear row has its price per point. Its score stands where a
-    -- gear row has its gain, over the same meter; a row without a score gives that room to
-    -- the words. The list hands a frame from one view to the other, so every row has both
-    -- sets of parts and shows the one its entry calls for (see InitItemRow).
+    -- A consumable's row says what the item does where a gear row has its pick, and after
+    -- the price how many pieces are for sale. Its score stands where a gear row has its
+    -- gain, over the same meter; a row without a score gives that room to the words. The
+    -- list hands a frame from one view to the other, so every row has both sets of parts and
+    -- shows the one its entry calls for (see InitItemRow).
     row.Effect = NewText(row, 11.5, SOFT, "LEFT", true)
-    row.Effect:SetPoint("LEFT", row, "LEFT", PICK_LEFT, 0)
+    row.Effect:SetPoint("LEFT", row, "LEFT", COLUMNS.supplies.second, 0)
     row.Stock = NewText(row, 12, SOFT, "RIGHT", true)
-    row.Stock:SetPoint("RIGHT", row, "LEFT", PER_RIGHT, 0)
+    row.Stock:SetPoint("RIGHT", row, "LEFT", STOCK_RIGHT, 0)
 
     row.Buy = NewButton(row, 58, 20, "ButtonDark", 9.5)
     row.Buy:SetPoint("RIGHT", row, "RIGHT", -4, 0)
@@ -496,12 +501,13 @@ end
 -- tables say), the price of one piece and how many are for sale.
 local function InitSupplyRow(row, entry, share)
     local supply = entry.supply
+    local at = COLUMNS.supplies
     row.Icon:SetTexture(supply.icon)
     -- What is of no use to the character is listed in grey (and only when everything is).
     row.Icon:SetDesaturated(entry.useless)
     row.Rim:SetVertexColor(ns.QualityColor(supply.quality))
     row.Name:SetText(ns.QualityText(supply.name, supply.quality))
-    row.Name:SetWidth(NAME_WIDTH)
+    row.Name:SetWidth(at.name)
     row.Hand:Hide()
     SetPick(row.Pick, nil)
 
@@ -515,7 +521,8 @@ local function InitSupplyRow(row, entry, share)
     row.Upgrade:SetShown(scored)
     row.Trough:SetShown(scored)
     row.Meter:SetShown(scored)
-    row.Effect:SetWidth(scored and SCORE_LEFT - PAD - PICK_LEFT or UPGRADE_RIGHT - PICK_LEFT)
+    -- The words end before the meter of the score, or where the score would.
+    row.Effect:SetWidth(at.upgrade - at.second - (scored and METER_WIDTH + PAD or 0))
     if scored then
         -- Its score in points, where a gear row has its gain in percent: a consumable takes
         -- the place of nothing.
@@ -525,7 +532,7 @@ local function InitSupplyRow(row, entry, share)
     end
 
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
-    SetMoney(row.Price, ns.Copper(supply.price))
+    SetMoney(row.Price, supply.price)
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
 end
@@ -539,7 +546,7 @@ local function InitItemRow(row, element)
 
     -- The frame may have been a row of the other view a moment ago.
     local gear = entry.supply == nil
-    row.PerPoint:SetShown(gear)
+    Arrange(row, gear and "gear" or "supplies")
     row.Effect:SetShown(not gear)
     row.Stock:SetShown(not gear)
     if not gear then
@@ -561,12 +568,13 @@ local function InitItemRow(row, element)
     -- "Main Hand" lists one-hand and two-hand weapons together, so each row says which it is.
     -- The name gives up the room the label takes.
     local hand = ns.Compare.HandLabel(offer.invType)
+    local nameWidth = COLUMNS.gear.name
     row.Hand:SetShown(hand ~= nil)
     if hand then
         row.Hand:SetText(hand)
-        row.Name:SetWidth(math.max(NAME_WIDTH - row.Hand:GetStringWidth() - PAD, NAME_MIN_WIDTH))
+        row.Name:SetWidth(math.max(nameWidth - row.Hand:GetStringWidth() - PAD, NAME_MIN_WIDTH))
     else
-        row.Name:SetWidth(NAME_WIDTH)
+        row.Name:SetWidth(nameWidth)
     end
 
     SetPick(row.Pick, entry.pick)
@@ -577,7 +585,6 @@ local function InitItemRow(row, element)
 
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
     SetMoney(row.Price, offer.buyout)
-    SetMoney(row.PerPoint, ns.Copper(entry.costPer))
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
 end
@@ -1266,7 +1273,7 @@ local function PaintBox()
     buyBox.Total:SetShown(cost ~= nil)
     if cost then
         buyBox.Total:SetFontObject(affordable and PriceFontWhite or PriceFontRed)
-        SetMoney(buyBox.Total, ns.Copper(cost))
+        SetMoney(buyBox.Total, cost)
     end
     buyBox.Buy.Label:SetText(ns.Upper(step == "confirm" and L.QTY_CONFIRM or L.BUY))
     buyBox.Buy:SetEnabled((step == "choose" or step == "confirm") and affordable and S.Ready())
@@ -1511,11 +1518,18 @@ local function ApplyView()
     local gear = view == "gear"
     local list = frame.List
 
-    -- Item, pick, gain, buyout, price per point; or item, effect, score, price of a piece, pieces.
-    list.Titles[2]:SetText(ns.Upper(gear and L.COL_PICK or L.COL_EFFECT))
-    list.Titles[3]:SetText(ns.Upper(gear and L.COL_UPGRADE or L.COL_SCORE))
-    list.Titles[4]:SetText(ns.Upper(gear and L.COL_PRICE or L.COL_UNIT))
-    list.Titles[5]:SetText(ns.Upper(gear and L.COL_PER or L.COL_STOCK))
+    -- Item, pick, gain, buyout; or item, effect, score, price of a piece, pieces for sale.
+    -- Each title over its column, where this view has it (see COLUMNS).
+    local at, titles = COLUMNS[view], list.Titles
+    local function Title(title, text, point, x)
+        title:SetText(ns.Upper(text))
+        title:ClearAllPoints()
+        title:SetPoint(point, list, "TOPLEFT", LIST_LEFT + x, -TITLE_TOP)
+    end
+    Title(titles[2], gear and L.COL_PICK or L.COL_EFFECT, "LEFT", at.second)
+    Title(titles[3], gear and L.COL_UPGRADE or L.COL_SCORE, "RIGHT", at.upgrade)
+    Title(titles[4], gear and L.COL_PRICE or L.COL_UNIT, "RIGHT", at.price)
+    titles[5]:SetShown(not gear)
     intro.Heading:SetText(ns.Upper(gear and L.TITLE or L.TITLE_SUP))
 
     -- Both views score on the profile; their second filter is another one.
@@ -1631,16 +1645,18 @@ local function Build()
     list:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -PANEL_RIGHT, PANEL_BOTTOM)
     NewSlices(list, "Panel", 0.375, 12, "BACKGROUND", 0, 1.5)
 
+    -- The titles of the columns. The list has one order, best upgrade first in every slot: a
+    -- title is not a button. The first is "Item" in both views, and the fifth, how many pieces
+    -- are for sale, is there for consumables only. What the three between them say, and
+    -- where they stand, is the view's (see ApplyView).
     list.Titles = {}
-    for i = 1, #TITLES do
-        local column = TITLES[i]
-        local point = column.numeric and "RIGHT" or "LEFT"
-        local title = NewText(list, 9.5, GOLD_DIM, point)
-        title:SetPoint(point, list, "TOPLEFT", LIST_LEFT + column.at, -16)
-        -- The list has one order, best upgrade first in every slot: a title is not a button.
-        title:SetText(ns.Upper(column.text))
-        list.Titles[i] = title
+    for i = 1, 5 do
+        list.Titles[i] = NewText(list, 9.5, GOLD_DIM, i > 2 and "RIGHT" or "LEFT")
     end
+    list.Titles[1]:SetPoint("LEFT", list, "TOPLEFT", LIST_LEFT + TITLE_LEFT, -TITLE_TOP)
+    list.Titles[1]:SetText(ns.Upper(L.COL_ITEM))
+    list.Titles[5]:SetPoint("RIGHT", list, "TOPLEFT", LIST_LEFT + STOCK_RIGHT, -TITLE_TOP)
+    list.Titles[5]:SetText(ns.Upper(L.COL_STOCK))
     local rule = NewRule(list)
     rule:SetPoint("TOPLEFT", list, "TOPLEFT", LIST_LEFT, -(LIST_TOP - 3))
     rule:SetPoint("TOPRIGHT", list, "TOPRIGHT", -LIST_LEFT, -(LIST_TOP - 3))

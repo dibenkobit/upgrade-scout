@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.0
+
+- The list of upgrades no longer shows the price per point. The buyout stands next to the
+  **Buy** button, and item names have more room. **Best value** is picked as before.
+
 ## 2.3.1
 
 - The profile menu no longer lists your characters of the other faction: nothing bought at

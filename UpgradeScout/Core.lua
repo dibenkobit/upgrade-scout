@@ -95,23 +95,13 @@ end)
 -- Text helpers
 ---------------------------------------------------------------------------
 -- An amount of money as the game writes it in text: coin icons (letters in colourblind mode),
--- thousands of gold separated, zero parts left out. A price per point can be a fraction of a
--- copper; that reads "<1c".
+-- thousands of gold separated, zero parts left out.
 function ns.Money(copper)
-    copper = copper or 0
-    if copper > 0 and copper < 1 then return "<" .. GetMoneyString(1) end
-    return GetMoneyString(math.floor(copper + 0.5), MoneyStringConstants.SeparateThousands)
-end
-
--- The same amount as a whole number of copper, for the game's coin displays. Anything that
--- costs something shows as at least one copper.
-function ns.Copper(copper)
-    if copper > 0 and copper < 1 then return 1 end
-    return math.floor(copper + 0.5)
+    return GetMoneyString(copper or 0, MoneyStringConstants.SeparateThousands)
 end
 
 -- Decimals that keep about two digits of a number: 12.4, 4.7, 0.55, 0.048. With one decimal
--- everywhere a +0.048 upgrade reads as "+0" and its price per point looks like a mistake.
+-- everywhere a +0.048 upgrade reads as "+0".
 function ns.Decimals(value)
     value = math.abs(value)
     if value >= 1 or value == 0 then return 1 end

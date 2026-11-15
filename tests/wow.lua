@@ -81,7 +81,7 @@ W.Widget = Widget
 
 local function noop() end
 for _, name in ipairs({
-    "SetPoint", "ClearAllPoints", "SetAllPoints", "SetJustifyH", "SetWordWrap", "SetSpacing",
+    "SetAllPoints", "SetJustifyH", "SetWordWrap", "SetSpacing",
     "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetDrawLayer",
     "SetFontObject", "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks",
@@ -90,6 +90,28 @@ for _, name in ipairs({
     "SetAutoFocus", "SetNumeric", "SetMaxLetters", "SetFocus", "ClearFocus", "HighlightText",
 }) do
     M[name] = noop
+end
+
+-- Where a part is anchored: widget._points is { { point, to, toPoint, x, y }, ... }, so that a
+-- test can see what stands where. As in the game, a part has one anchor for each of its
+-- points: setting a point again moves it.
+function M:ClearAllPoints() self._points = {} end
+function M:SetPoint(point, to, toPoint, x, y)
+    assert(type(point) == "string", "the name of a point")
+    -- The short forms: SetPoint("RIGHT") and SetPoint("RIGHT", x, y) are against the parent,
+    -- SetPoint("RIGHT", to, x, y) against the same point of `to`.
+    if to == nil or type(to) == "number" then
+        to, toPoint, x, y = self._parent, point, to, toPoint
+    elseif toPoint == nil or type(toPoint) == "number" then
+        toPoint, x, y = point, toPoint, x
+    end
+    local points = self._points or {}
+    self._points = points
+    local at = #points + 1
+    for i = 1, #points do
+        if points[i].point == point then at = i end
+    end
+    points[at] = { point = point, to = to, toPoint = toPoint, x = x or 0, y = y or 0 }
 end
 
 -- Edit boxes. What the addon writes into one and what the player types (W.Type) both reach the

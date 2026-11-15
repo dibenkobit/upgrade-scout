@@ -25,7 +25,6 @@ local L = {
     COL_PICK = "Pick",
     COL_UPGRADE = "Upgrade",
     COL_PRICE = "Buyout",
-    COL_PER = "Per point",
 
     PICK_UPGRADE = "Best upgrade",
     PICK_VALUE = "Best value",
@@ -165,7 +164,6 @@ if GetLocale() == "ruRU" then
         COL_PICK = "Выбор",
         COL_UPGRADE = "Улучшение",
         COL_PRICE = "Выкуп",
-        COL_PER = "За очко",
 
         PICK_UPGRADE = "Лучшее улучшение",
         PICK_VALUE = "Самое выгодное",
@@ -304,7 +302,6 @@ if GetLocale() == "deDE" then
         COL_PICK = "Empfehlung",
         COL_UPGRADE = "Verbesserung",
         COL_PRICE = "Sofortkauf",
-        COL_PER = "Pro Punkt",
 
         PICK_UPGRADE = "Beste Verbesserung",
         PICK_VALUE = "Beste Preis-Leistung",
@@ -444,7 +441,6 @@ if GetLocale() == "frFR" then
         COL_PICK = "Choix",
         COL_UPGRADE = "Amélioration",
         COL_PRICE = "Achat immédiat",
-        COL_PER = "Par point",
 
         PICK_UPGRADE = "Meilleure amélioration",
         PICK_VALUE = "Meilleure affaire",
@@ -584,7 +580,6 @@ if GetLocale() == "zhCN" then
         COL_PICK = "推荐",
         COL_UPGRADE = "提升",
         COL_PRICE = "一口价",
-        COL_PER = "每点花费",
 
         PICK_UPGRADE = "最大提升",
         PICK_VALUE = "最高性价比",
@@ -725,7 +720,6 @@ if GetLocale() == "ptBR" then
         COL_PICK = "Destaque",
         COL_UPGRADE = "Melhoria",
         COL_PRICE = "Arremate",
-        COL_PER = "Por ponto",
 
         PICK_UPGRADE = "Maior melhoria",
         PICK_VALUE = "Melhor custo-benefício",
@@ -865,7 +859,6 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         COL_PICK = "Recomendación",
         COL_UPGRADE = "Mejora",
         COL_PRICE = "Compra",
-        COL_PER = "Por punto",
 
         PICK_UPGRADE = "Mayor mejora",
         PICK_VALUE = "Más rentable",
@@ -1007,7 +1000,6 @@ if GetLocale() == "koKR" then
         COL_PICK = "추천",
         COL_UPGRADE = "향상",
         COL_PRICE = "즉시 구입가",
-        COL_PER = "점수당 가격",
 
         PICK_UPGRADE = "최고 향상",
         PICK_VALUE = "최고 가성비",
@@ -1148,7 +1140,6 @@ if GetLocale() == "zhTW" then
         COL_PICK = "推薦",
         COL_UPGRADE = "提升",
         COL_PRICE = "直購價",
-        COL_PER = "每點花費",
 
         PICK_UPGRADE = "最大提升",
         PICK_VALUE = "最划算",

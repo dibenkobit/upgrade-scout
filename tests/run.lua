@@ -1081,8 +1081,15 @@ function scenarios.ui()
     eq(list.Hint:GetText(), "", "nothing is written over a list with rows")
 
     -- Column titles: words in capitals, nothing to click, the list having one order.
-    eq(#list.Titles, 5, "a title for every column")
-    eq(list.Titles[1]:GetText(), "ITEM", "first column"); eq(list.Titles[4]:GetText(), "BUYOUT", "price column")
+    eq(list.Titles[1]:GetText(), "ITEM", "first column"); eq(list.Titles[2]:GetText(), "PICK", "second")
+    eq(list.Titles[3]:GetText(), "UPGRADE", "third"); eq(list.Titles[4]:GetText(), "BUYOUT", "price column")
+    -- Gear has four columns, the buyout the last of them. What a point of the gain costs is
+    -- not shown: not in a column of its own, nor anywhere else on the tab.
+    eq(list.Titles[5]:IsShown(), false, "no title after the buyout")
+    for _, text in ipairs(W.texts) do
+        local said = text:IsVisible() and text:GetText() or ""
+        check(said:lower():find("per point", 1, true) == nil, "nothing on the tab is priced per point: " .. said)
+    end
 
     -- Read the list as the player would.
     local box = Made("WowScrollBoxList")[1]
@@ -1109,7 +1116,12 @@ function scenarios.ui()
     eq(rows[2].Price._template, "MoneyDisplayFrameTemplate", "the price is the game's coin display")
     eq(rows[2].Price:GetAmount(), 2500, "25 silver")
     eq(rows[2].Price._font, PriceFontWhite, "in white: the player can pay")
-    eq(rows[2].PerPoint:GetAmount(), 208, "price per point, in whole copper")
+    eq(rows[2].PerPoint, nil, "one price on a row: the buyout")
+    local coins = 0
+    for _, w in ipairs(Made("MoneyDisplayFrameTemplate")) do
+        if w:GetParent() == rows[2] then coins = coins + 1 end
+    end
+    eq(coins, 1, "and no other coin display on it")
     -- The coins of a price stand close together: each part of it a fixed step to the left of
     -- the part after it, not in the game's slots, which leave a hole before a single digit.
     local function Laid(money)
@@ -1126,8 +1138,24 @@ function scenarios.ui()
         return table.concat(out, ", ")
     end
     eq(Laid(rows[2].Price), "S25 RIGHT to copper LEFT -9, C0 RIGHT to frame RIGHT 0", "25 silver: the copper at the right edge, the silver close before it")
-    eq(Laid(rows[2].PerPoint), "S2 RIGHT to copper LEFT -9, C8 RIGHT to frame RIGHT 0", "the same for a price per point")
     eq(rows[2].Buy:IsEnabled(), true, "can buy")
+
+    -- The columns of gear. How far along a part is anchored: a row's part from the row's left
+    -- edge, a title from that of the plate, which the rows lie INSET inside.
+    local INSET = 8
+    local function At(part)
+        eq(#part._points, 1, "one anchor")
+        return part._points[1].x
+    end
+    local helm = rows[2]
+    eq(At(helm.Price), 684, "the buyout ends close before the Buy button, with no column between them")
+    eq(At(list.Titles[4]) - INSET, At(helm.Price), "its title ends where the prices do")
+    eq(At(list.Titles[3]) - INSET, At(helm.Upgrade), "the title of the gain ends where the gains do")
+    eq(At(helm.Trough), At(helm.Upgrade), "and so does the meter under a gain")
+    eq(At(list.Titles[2]) - INSET, At(helm.Pick), "the title of the pick begins where the picks do")
+    check(At(helm.Pick) >= At(helm.Name) + helm.Name:GetWidth() + 8, "a pick begins clear of the longest name")
+    check(At(helm.Upgrade) - 72 >= At(helm.Pick) + 140 + 8, "the meter of a gain begins clear of the longest pick")
+    check(At(helm.Price) - At(helm.Upgrade) >= 120, "and a price has room for thousands of gold")
     eq(rows[3].Title:GetText(), "CHEST", "chest block")
     eq(rows[4].Name:GetText(), "|cff1eff00Good Chest|r", "the robe is hidden: too expensive")
     eq(rows[4].Upgrade:GetText(), "+80%", "the gain, in percent of what is worn: 18 against 10")
@@ -1391,7 +1419,7 @@ function scenarios.ui()
     eq(rows[legs + 4].Name:GetText(), "|cff1eff00Legs 10|r", "best value")
     eq(rows[legs + 4].Pick.Text:GetText(), "Best value", "marked as best value")
     eq(rows[legs + 3].Pick:IsShown(), false, "no plate on a row that is neither pick")
-    eq(rows[legs + 4].PerPoint:GetAmount(), 10, "ten copper a point")
+    eq(rows[legs + 4].Price:GetAmount(), 100, "for a silver: ten copper a point, the least of them all")
     eq(rows[legs + 5].Name:GetText(), "|cff1eff00Legs 9|r", "one step below the best value")
     check(rows[legs + 6] == nil or Data(rows[legs + 6]).kind == "header", "no sixth legs row")
     topBox:GetScript("OnEnter")(topBox)
@@ -2411,8 +2439,17 @@ function scenarios.supplies_ui()
 
     -- The Upgrades tab has its own titles and controls.
     lib:SetSelected("UpgradeScout")
+    -- How far along a part is anchored: a row's part from the row's left edge, a title from
+    -- that of the plate, which the rows lie INSET inside.
+    local INSET = 8
+    local function At(part)
+        eq(#part._points, 1, "one anchor")
+        return part._points[1].x
+    end
     eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab names its second column")
     eq(list.Titles[3]:IsShown(), true, "and has a column for the gain")
+    eq(list.Titles[5]:IsShown(), false, "four columns: nothing after the buyout")
+    local gearPrice = At(list.Titles[4])
     eq(frame.TopCheck:IsShown(), true, "its own second filter"); eq(frame.BestCheck:IsShown(), false, "not the other view's")
     eq(frame.ProfileDropdown:IsShown(), true, "and the profile")
 
@@ -2421,7 +2458,10 @@ function scenarios.supplies_ui()
     eq(frame:IsShown(), true, "the same frame is up")
     eq(list.Titles[2]:GetText(), "EFFECT", "the second column is what the item does")
     eq(list.Titles[3]:IsShown(), true, "the third column stays"); eq(list.Titles[3]:GetText(), "SCORE", "for what the item is worth")
-    eq(list.Titles[4]:GetText(), "EACH", "the price is that of one piece"); eq(list.Titles[5]:GetText(), "FOR SALE", "then how many there are")
+    eq(list.Titles[4]:GetText(), "EACH", "the price is that of one piece")
+    eq(list.Titles[5]:IsShown(), true, "a fifth column here"); eq(list.Titles[5]:GetText(), "FOR SALE", "how many there are")
+    check(At(list.Titles[4]) < gearPrice, "the price stands further left than gear's, to make room for it")
+    eq(At(list.Titles[5]), gearPrice, "which ends where the price of gear does: close before the Buy button")
     eq(frame.ProfileDropdown:IsShown(), true, "the profile stays: consumables are scored on it")
     eq(frame.TopCheck:IsShown(), false, "the top-N filter is gone"); eq(frame.BestCheck:IsShown(), true, "another one is in its place")
     eq(frame.BestCheck.Text:GetText(), "Best for me", "with its label"); eq(frame.BestCheck:GetChecked(), true, "ticked by default")
@@ -2452,9 +2492,15 @@ function scenarios.supplies_ui()
     eq(potion.Stock:IsShown(), true, "and how many are for sale"); eq(potion.Stock:GetText(), "18", "all of them")
     eq(potion.Price:GetAmount(), 800, "the price of one piece"); eq(potion.Price._font, PriceFontWhite, "in white: the character can pay")
     eq(potion.Pick:IsShown(), false, "no pick"); eq(potion.Upgrade:IsShown(), false, "no gain")
-    eq(potion.Meter:IsShown(), false, "no meter"); eq(potion.PerPoint:IsShown(), false, "no price per point")
+    eq(potion.Meter:IsShown(), false, "no meter")
     eq(potion.Buy:IsEnabled(), true, "it can be bought")
     eq(potion.Effect:GetWidth(), 216, "the words have the room of the score it does not have")
+    -- Every title over its column.
+    eq(At(list.Titles[2]) - INSET, At(potion.Effect), "the title of the effect begins where the words do")
+    eq(At(list.Titles[3]) - INSET, At(potion.Upgrade), "the title of the score ends where a score does")
+    eq(At(list.Titles[4]) - INSET, At(potion.Price), "that of the price where the prices do")
+    eq(At(list.Titles[5]) - INSET, At(potion.Stock), "and that of the pieces where their numbers do")
+    eq(At(potion.Effect) + 216, At(potion.Upgrade), "the words may run to where a score would end")
 
     -- An elixir is scored on the profile, in the points of gear, with a meter like a gain's.
     local agility, strength = Row("Elixir of Agility"), Row("Elixir of Ogre Strength")
@@ -2615,7 +2661,8 @@ function scenarios.supplies_ui()
     W.RunUntil(function() return box:IsShown() end, 30)
     lib:SetSelected("UpgradeScout")
     eq(box:IsShown(), false, "the box does not follow to the other tab")
-    eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab has its titles back"); eq(list.Titles[3]:IsShown(), true, "all five of them")
+    eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab has its titles back"); eq(list.Titles[5]:IsShown(), false, "all four of them")
+    eq(At(list.Titles[4]), gearPrice, "each where it was")
     eq(frame.ProfileDropdown:IsShown(), true, "its profile"); eq(frame.TopCheck:IsShown(), true, "and its filter")
     eq(Listed(), "", "and its own, empty list")
     eq(list.Intro:IsShown(), true, "with the emblem: gear was never scanned"); eq(list.Intro.Heading:GetText(), "GEAR UPGRADES FOR SALE", "under its own title")
@@ -2985,6 +3032,29 @@ function scenarios.alt()
     eq(ShoppingTooltip1._lines[1].text, "Alt's Jerkin", "in the game's second tooltip")
     jerkin:GetScript("OnLeave")(jerkin)
     eq(ShoppingTooltip1:IsShown(), false, "and goes with the tooltip")
+    -- Where the parts that every row has stand on a row: how far from its left edge the gain
+    -- (or the score) and the price end. The list hands its frames from one view to the
+    -- other, and the two have their columns in different places.
+    local function Columns(row)
+        return row.Upgrade._points[1].x .. " " .. row.Trough._points[1].x .. " " .. row.Price._points[1].x
+    end
+    -- The frames that are rows of items now, by what they list: "offer" or "supply".
+    local function ItemRows(what)
+        local out = {}
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            if w._shown and w._kind == "Button" and w.entry[what] then out[#out + 1] = w end
+        end
+        return out
+    end
+    -- One of `frames` that was a row of the other kind before: is in `before`.
+    local function HandedOver(frames, before)
+        for _, w in ipairs(frames) do
+            for _, old in ipairs(before) do
+                if w == old then return w end
+            end
+        end
+    end
+    local gearColumns, gearRows = Columns(jerkin), ItemRows("offer")
 
     -- Consumables for the druid: its level, its mana, its profession.
     lib:SetSelected("UpgradeScoutSupplies")
@@ -3000,6 +3070,16 @@ function scenarios.alt()
     eq(Supply("Elder Potion"), nil, "what is above its level")
     check(Row("Mana Draught") ~= nil, "mana is of use to a druid: the potion is in the list")
     check(Said(ALTY .. ": 3 consumables in ") ~= nil, "and the status line names the druid: " .. tostring(Said("consumables in")))
+    -- A frame that was a row of gear is a consumable's now, with its parts moved over.
+    local supplyRows = ItemRows("supply")
+    local handed = HandedOver(supplyRows, gearRows)
+    check(handed ~= nil, "a frame that was a row of gear is the row of a consumable now")
+    local supplyColumns = Columns(handed)
+    check(supplyColumns ~= gearColumns, "with its score and price over this view's columns: " .. supplyColumns .. " (gear " .. gearColumns .. ")")
+    for _, row in ipairs(supplyRows) do
+        eq(Columns(row), supplyColumns, "as on every row of the view")
+    end
+    check(handed.Price._points[1].x < handed.Stock._points[1].x, "the price before the pieces for sale")
 
     -- Back to the warrior: both lists were the druid's and go; the view that had one scans.
     W.RunUntil(function() return W.AH.ready end, 5)
@@ -3018,6 +3098,12 @@ function scenarios.alt()
     W.RunUntil(function() return S.state == "idle" end, 300)
     W.Run(0.3)
     CheckStandardOffers("the warrior's own scan")
+    -- The frames that listed the druid's consumables list gear again.
+    gearRows = ItemRows("offer")
+    check(HandedOver(gearRows, supplyRows) ~= nil, "a frame that was a consumable's is a row of gear now")
+    for _, row in ipairs(gearRows) do
+        eq(Columns(row), gearColumns, "with its gain and price over the columns of gear")
+    end
 
     -- The druid's other profile: chosen from here, remembered with the druid, scanned at once.
     W.RunUntil(function() return W.AH.ready end, 5)
