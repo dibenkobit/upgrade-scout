@@ -17,7 +17,7 @@ local names = {
     "talents", "welcome", "minimap",
     "tooltip_settings",
     "wants", "wants_ui", "gain_ui",
-    "buy_refused",
+    "buy_refused", "prices",
 }
 
 if not scenario then
@@ -1375,6 +1375,169 @@ function scenarios.buy_refused()
     check(Offer("New Ring") ~= nil, "the item stays in the list")
 end
 
+-- A row of gear has two prices, and each has 94 to stand in. Whatever the sum, a price takes no
+-- more: one too wide gives up its copper, and then its silver. The coins stand close, as in
+-- the game's bags, and so do those of the game's own gold display while a tab of ours is up.
+function scenarios.prices()
+    local function Gear(id, name, slot, value, buyout)
+        W.AddItem({ id = id, name = name, equipLoc = slot, subClassID = 3, value = value, level = 5 })
+        W.AddAuction(id, buyout)
+    end
+    Gear(301, "Cheap Helm", "INVTYPE_HEAD", 12, 9999)               -- 99s 99c
+    Gear(302, "Poor Helm", "INVTYPE_HEAD", 6, 20000)                -- weaker and dearer: no pick
+    Gear(303, "Costly Legs", "INVTYPE_LEGS", 5, 999999)             -- 99g 99s 99c
+    Gear(304, "Dear Boots", "INVTYPE_FEET", 5, 9999999)             -- 999g 99s 99c
+    Gear(305, "Rich Gloves", "INVTYPE_HAND", 5, 99999999)           -- 9,999g 99s 99c
+    Gear(306, "Royal Belt", "INVTYPE_WAIST", 5, 9999999999)         -- 999,999g 99s 99c
+    Gear(307, "Crown Bracers", "INVTYPE_WRIST", 5, 99999999999)     -- 9,999,999g 99s 99c: all the gold there can be
+    W.player.money = 99999999999
+    LoadAddon()
+    W.OpenAuctionHouse()
+    local lib = LibStub("LibAHTab-1-0")
+    local purse = AuctionHouseFrame.MoneyFrameBorder.MoneyFrame
+
+    -- How a coin display is laid out: its parts from the left, each with what it is anchored
+    -- to; and how wide the amount is, coins and all.
+    local function Laid(money)
+        local anchors = { [money] = "frame", [money.CopperDisplay] = "copper", [money.SilverDisplay] = "silver" }
+        local out = {}
+        for _, key in ipairs({ "GoldDisplay", "SilverDisplay", "CopperDisplay" }) do
+            local part = money[key]
+            if part:IsShown() then
+                local at = part._points[1]
+                out[#out + 1] = key:sub(1, 1) .. " " .. at.point .. " to " .. tostring(anchors[at.to]) .. " " .. at.toPoint .. " " .. at.x
+            end
+        end
+        return table.concat(out, ", ")
+    end
+    local function Width(money)
+        local width, parts = 0, 0
+        for _, key in ipairs({ "GoldDisplay", "SilverDisplay", "CopperDisplay" }) do
+            local part = money[key]
+            if part:IsShown() then
+                width, parts = width + part:GetWidth(), parts + 1
+                eq(part._points[1].point, "RIGHT", "a part is anchored by its right edge")
+            end
+        end
+        return width + 4 * (parts - 1)
+    end
+    -- Which parts of an amount are shown, and the numbers in them: "9,999g 99s".
+    local function Reads(money)
+        local out = {}
+        for _, key in ipairs({ "GoldDisplay", "SilverDisplay", "CopperDisplay" }) do
+            local part = money[key]
+            if part:IsShown() then out[#out + 1] = part.Text:GetText() .. (W.colorblind and "" or key:sub(1, 1):lower()) end
+        end
+        return table.concat(out, " ")
+    end
+
+    -- The game's gold display at the foot of the window, as the game lays it out: silver and
+    -- gold each in a slot of 36, a number two pixels before its coin.
+    eq(Laid(purse), "G RIGHT to silver RIGHT -36, S RIGHT to frame RIGHT -36, C RIGHT to frame RIGHT 0", "the game's own layout before a tab of ours is up")
+    eq(purse.SilverDisplay.Text._points[1].x, -14, "and its own air between a number and its coin")
+
+    lib:SetSelected("UpgradeScout")
+    SetView(false, false)
+    ScanToEnd()
+    W.Run(0.3)
+    local box
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then box = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(box:GetFrames()) do
+            if w._shown and w._kind == "Button" and w.entry and w.entry.offer.name == name then return w end
+        end
+    end
+    local NAMES = { "Cheap Helm", "Poor Helm", "Costly Legs", "Dear Boots", "Rich Gloves", "Royal Belt", "Crown Bracers" }
+    -- Every price of every row, in the room it has: it ends where its column ends, and begins
+    -- clear of the column before it.
+    local function AllFit(label)
+        for _, name in ipairs(NAMES) do
+            local row = Row(name)
+            check(row ~= nil, name .. " is listed")
+            local gain, buyout, net = row.Upgrade._points[1].x, row.Price._points[1].x, row.Net._points[1].x
+            check(Width(row.Price) <= 94, label .. ": the buyout of " .. name .. " in its room: " .. Width(row.Price))
+            check(Width(row.Net) <= 94, label .. ": the net cost of " .. name .. " in its room: " .. Width(row.Net))
+            check(buyout - Width(row.Price) >= gain + 8, label .. ": the buyout of " .. name .. " clear of the gain")
+            check(net - Width(row.Net) >= buyout + 8, label .. ": the net cost of " .. name .. " clear of the buyout")
+        end
+    end
+    AllFit("coins")
+
+    -- What fits is shown in full. What does not gives up its copper, and then its silver.
+    eq(Reads(Row("Cheap Helm").Price), "99s 99c", "silver and copper"); eq(Width(Row("Cheap Helm").Price), 54, "two parts of 25 and the step between them")
+    eq(Reads(Row("Cheap Helm").Net), "98s 99c", "its net cost: a silver less")
+    eq(Reads(Row("Costly Legs").Price), "99g 99s 99c", "tens of gold: to the copper"); eq(Width(Row("Costly Legs").Price), 83, "three parts")
+    eq(Reads(Row("Dear Boots").Price), "999g 99s 99c", "hundreds of gold: to the copper still"); eq(Width(Row("Dear Boots").Price), 89, "in 89 of the 94")
+    eq(Reads(Row("Dear Boots").Net), "999g 98s 99c", "and so the net cost")
+    eq(Reads(Row("Rich Gloves").Price), "9,999g 99s", "thousands of gold: no copper"); eq(Width(Row("Rich Gloves").Price), 72, "which would have made it 101")
+    eq(Reads(Row("Rich Gloves").Net), "9,999g 98s", "nor in the net cost")
+    eq(Reads(Row("Royal Belt").Price), "999,999g 99s", "hundreds of thousands: gold and silver"); eq(Width(Row("Royal Belt").Price), 84, "in their room")
+    eq(Reads(Row("Crown Bracers").Price), "9,999,999g", "all the gold there can be: gold alone"); eq(Width(Row("Crown Bracers").Price), 67, "with room to spare")
+    eq(Reads(Row("Crown Bracers").Net), "9,999,999g", "and its net cost")
+    -- A cheaper item in the frame of a dear one has its coins back.
+    eq(Row("Cheap Helm").Price.CopperDisplay:IsShown(), true, "copper where it fits"); eq(Row("Cheap Helm").Price.SilverDisplay:IsShown(), true, "and silver")
+
+    -- The coins stand close: a part a small step after the one before it, a number a pixel
+    -- before its coin.
+    local legs = Row("Costly Legs")
+    eq(Laid(legs.Price), "G RIGHT to silver LEFT -4, S RIGHT to copper LEFT -4, C RIGHT to frame RIGHT 0", "the three parts of a buyout")
+    eq(Laid(legs.Net), "G RIGHT to silver LEFT -4, S RIGHT to copper LEFT -4, C RIGHT to frame RIGHT 0", "and of a net cost")
+    eq(legs.Price.GoldDisplay.Text._points[1].x, -13, "the number before its coin"); eq(legs.Price.GoldDisplay:GetWidth(), 2 * 6 + 13, "the part as wide as the two")
+
+    -- The name has the room up to the pick. A row without a pick has nothing there: its
+    -- name may run on to where the gain begins.
+    local cheap, poor = Row("Cheap Helm"), Row("Poor Helm")
+    eq(cheap.Pick:IsShown(), true, "the better helm has a pick"); eq(poor.Pick:IsShown(), false, "the other has none")
+    eq(cheap.Name:GetWidth(), 204, "a name before a pick"); eq(cheap.Name._points[1].x + 204 + 12, cheap.Pick._points[1].x, "ends a step before it")
+    eq(poor.Name:GetWidth(), 356, "a name with no pick after it runs on")
+    eq(poor.Name._points[1].x + 356 + 8, poor.Upgrade._points[1].x - 72, "to a step before the meter of the gain")
+
+    -- The box that asks before a purchase has the price in full, whatever the row had room for.
+    ns.Scanner.Buy(Offer("Rich Gloves"))
+    W.RunUntil(Asking, 30)
+    local ask = Asking()
+    eq(Reads(ask.Total), "9,999g 99s 99c", "the buyout to the copper"); eq(Reads(ask.Net), "9,999g 98s 99c", "and the net cost")
+    eq(Laid(ask.Total), "G RIGHT to silver LEFT -4, S RIGHT to copper LEFT -4, C RIGHT to frame RIGHT 0", "its coins as close as a row's")
+    ask.Cancel:Click()
+
+    -- A player who has letters in place of the coins: the numbers are wider by a letter and
+    -- have no coin after them. The prices keep to their room all the same.
+    W.colorblind = true
+    ns.UI.Refresh()
+    AllFit("letters")
+    eq(Reads(Row("Costly Legs").Price), "99g 99s 99c", "tens of gold in letters")
+    eq(Row("Costly Legs").Price.GoldDisplay.Text._points[1].x, 0, "a number with no coin ends where its part does")
+    eq(Reads(Row("Crown Bracers").Price), "9,999,999g 99s", "and here the silver fits: there are no coins to make room for")
+    W.colorblind = nil
+    ns.UI.Refresh()
+    AllFit("coins again")
+    eq(Reads(Row("Crown Bracers").Price), "9,999,999g", "back to gold alone")
+
+    -- The game's gold display, while a tab of ours is up: its coins as close as ours.
+    eq(Laid(purse), "G RIGHT to silver LEFT -4, S RIGHT to copper LEFT -4, C RIGHT to frame RIGHT 0", "the gold display on our tab")
+    eq(purse.SilverDisplay.Text._points[1].x, -13, "a number a pixel before its coin there too")
+    -- The game writes the amount again whenever the gold changes, in its own layout.
+    W.player.money = 1234567
+    W.Fire("PLAYER_MONEY")
+    eq(purse:GetAmount(), 1234567, "the game wrote the new amount")
+    eq(Laid(purse), "G RIGHT to silver LEFT -4, S RIGHT to copper LEFT -4, C RIGHT to frame RIGHT 0", "and its coins stand close again")
+    -- The Consumables tab is ours as well.
+    lib:SetSelected("UpgradeScoutSupplies")
+    eq(Laid(purse), "G RIGHT to silver LEFT -4, S RIGHT to copper LEFT -4, C RIGHT to frame RIGHT 0", "the same on the Consumables tab")
+    -- On a tab of the game's the display is the game's again.
+    AuctionHouseFrame:SetDisplayMode({ "buy" })
+    eq(UpgradeScoutFrame:IsShown(), false, "the game's Buy tab is up")
+    eq(Laid(purse), "G RIGHT to silver RIGHT -36, S RIGHT to frame RIGHT -36, C RIGHT to frame RIGHT 0", "the game's layout is back")
+    eq(purse.SilverDisplay.Text._points[1].x, -14, "with its air"); eq(purse:GetAmount(), 1234567, "and the same amount")
+    W.player.money = 7654321
+    W.Fire("PLAYER_MONEY")
+    eq(Laid(purse), "G RIGHT to silver RIGHT -36, S RIGHT to frame RIGHT -36, C RIGHT to frame RIGHT 0", "left alone while the game's tab is up")
+    lib:SetSelected("UpgradeScout")
+    eq(Laid(purse), "G RIGHT to silver LEFT -4, S RIGHT to copper LEFT -4, C RIGHT to frame RIGHT 0", "and close again on ours")
+end
+
 function scenarios.buy_gone()
     StandardWorld()
     LoadAddon()
@@ -1563,10 +1726,10 @@ function scenarios.ui()
 
     -- Column titles: words in capitals, nothing to click, the list having one order.
     eq(list.Titles[1]:GetText(), "ITEM", "first column"); eq(list.Titles[2]:GetText(), "PICK", "second")
-    eq(list.Titles[3]:GetText(), "UPGRADE", "third"); eq(list.Titles[4]:GetText(), "BUYOUT", "price column")
-    -- Gear has four columns, the buyout the last of them. What a point of the gain costs is
-    -- not shown: not in a column of its own, nor anywhere else on the tab.
-    eq(list.Titles[5]:IsShown(), false, "no title after the buyout")
+    eq(list.Titles[3]:GetText(), "UPGRADE", "third"); eq(list.Titles[4]:GetText(), "BUYOUT", "what is paid")
+    -- Gear has five columns, the last of them what the item costs in the end. What a point
+    -- of the gain costs is not shown: not in a column of its own, nor anywhere else on the tab.
+    eq(list.Titles[5]:IsShown(), true, "a title after the buyout"); eq(list.Titles[5]:GetText(), "NET COST", "the net cost")
     for _, text in ipairs(W.texts) do
         local said = text:IsVisible() and text:GetText() or ""
         check(said:lower():find("per point", 1, true) == nil, "nothing on the tab is priced per point: " .. said)
@@ -1597,13 +1760,18 @@ function scenarios.ui()
     eq(rows[2].Price._template, "MoneyDisplayFrameTemplate", "the price is the game's coin display")
     eq(rows[2].Price:GetAmount(), 2500, "25 silver")
     eq(rows[2].Price._font, PriceFontWhite, "in white: the player can pay")
-    eq(rows[2].PerPoint, nil, "one price on a row: the buyout")
+    -- After the buyout, what the item costs in the end: always, and in grey while the best
+    -- value is judged by the buyout.
+    eq(rows[2].Net._template, "MoneyDisplayFrameTemplate", "the net cost is a coin display too"); eq(rows[2].Net:IsShown(), true, "in view")
+    eq(rows[2].Net:GetAmount(), 2500 - Offer("Helm").sell, "the buyout less what a vendor pays"); check(Offer("Helm").sell > 0, "which is something")
+    eq(rows[2].Net._font, PriceFontGray, "in grey: the list goes by the buyout")
+    eq(rows[2].PerPoint, nil, "two prices on a row, and neither is per point")
     local coins = 0
     for _, w in ipairs(Made("MoneyDisplayFrameTemplate")) do
         if w:GetParent() == rows[2] then coins = coins + 1 end
     end
-    eq(coins, 1, "and no other coin display on it")
-    -- The coins of a price stand close together: each part of it a fixed step to the left of
+    eq(coins, 2, "and no other coin display on it")
+    -- The coins of a price stand close together: each part of it a small step to the left of
     -- the part after it, not in the game's slots, which leave a hole before a single digit.
     local function Laid(money)
         local anchors = { [money] = "frame", [money.CopperDisplay] = "copper", [money.SilverDisplay] = "silver" }
@@ -1618,7 +1786,11 @@ function scenarios.ui()
         end
         return table.concat(out, ", ")
     end
-    eq(Laid(rows[2].Price), "S25 RIGHT to copper LEFT -9, C0 RIGHT to frame RIGHT 0", "25 silver: the copper at the right edge, the silver close before it")
+    eq(Laid(rows[2].Price), "S25 RIGHT to copper LEFT -4, C0 RIGHT to frame RIGHT 0", "25 silver: the copper at the right edge, the silver close before it")
+    -- And a number right before its coin, as in the game's bags: the game leaves more air.
+    local silver = rows[2].Price.SilverDisplay
+    eq(silver.Text._points[1].x, -13, "the number ends a pixel before the coin, which is 12 wide")
+    eq(silver:GetWidth(), 2 * 6 + 13, "and the part is as wide as the two: two digits, the pixel and the coin")
     eq(rows[2].Buy:IsEnabled(), true, "can buy")
 
     -- The columns of gear. How far along a part is anchored: a row's part from the row's left
@@ -1629,14 +1801,17 @@ function scenarios.ui()
         return part._points[1].x
     end
     local helm = rows[2]
-    eq(At(helm.Price), 684, "the buyout ends close before the Buy button, with no column between them")
-    eq(At(list.Titles[4]) - INSET, At(helm.Price), "its title ends where the prices do")
+    eq(At(helm.Net), 684, "the net cost ends close before the Buy button, with no column between them")
+    eq(At(list.Titles[5]) - INSET, At(helm.Net), "its title ends where the net costs do")
+    eq(At(list.Titles[4]) - INSET, At(helm.Price), "the title of the buyout ends where the buyouts do")
     eq(At(list.Titles[3]) - INSET, At(helm.Upgrade), "the title of the gain ends where the gains do")
     eq(At(helm.Trough), At(helm.Upgrade), "and so does the meter under a gain")
     eq(At(list.Titles[2]) - INSET, At(helm.Pick), "the title of the pick begins where the picks do")
     check(At(helm.Pick) >= At(helm.Name) + helm.Name:GetWidth() + 8, "a pick begins clear of the longest name")
     check(At(helm.Upgrade) - 72 >= At(helm.Pick) + 140 + 8, "the meter of a gain begins clear of the longest pick")
-    check(At(helm.Price) - At(helm.Upgrade) >= 120, "and a price has room for thousands of gold")
+    -- A price has 94 to stand in and never takes more (scenarios.prices): the two columns
+    -- are that wide, with air between them and before them.
+    eq(At(helm.Net) - At(helm.Price), 106, "the net cost a step after the buyout"); eq(At(helm.Price) - At(helm.Upgrade), 106, "the buyout a step after the gain")
     eq(rows[3].Title:GetText(), "CHEST", "chest block")
     eq(rows[4].Name:GetText(), "|cff1eff00Good Chest|r", "the robe is hidden: too expensive")
     eq(rows[4].Upgrade:GetText(), "+80%", "the gain, in percent of what is worn: 18 against 10")
@@ -1654,7 +1829,12 @@ function scenarios.ui()
     eq(rows[2].Hand:IsShown(), false, "and has no label")
     eq(axe.Hand:IsShown(), true, "a weapon row has a label")
     eq(axe.Hand:GetText(), "Two-Hand (game)", "in the game's own words")
-    eq(axe.Name:GetWidth(), nameWidth - #"Two-Hand (game)" * 6 - 8, "and its name makes room for it")
+    -- The name makes room for the label, down to the least a name is given (110). A label
+    -- that asks for more than that leaves, as this one does, is cut short itself.
+    eq(axe.Name:GetWidth() + 8 + axe.Hand:GetWidth(), nameWidth, "and its name makes room for it: the two share the room")
+    eq(axe.Name:GetWidth(), 110, "the name at its least"); eq(axe.Hand:GetWidth(), nameWidth - 110 - 8, "the label in what is left")
+    check(axe.Hand:GetWidth() < #"Two-Hand (game)" * 6, "which is less than its words take")
+    eq(axe.Hand._points[1].x, axe.Name._points[1].x + nameWidth, "at the end of the name's room")
     eq(shield.Hand:GetText(), "Off Hand", "the addon's words where the game has none")
     eq(ns.Compare.HandLabel("INVTYPE_WEAPON"), "One-Hand", "one-hand weapons are named too")
     eq(ns.Compare.HandLabel("INVTYPE_CHEST"), nil, "nothing for armor")
@@ -1691,7 +1871,7 @@ function scenarios.ui()
         "and hangs from the field's right end: the field stands at the window's edge")
     eq(frame.AffordCheck, nil, "no filter's tick box in the strip"); eq(frame.TopCheck, nil, "not one")
     -- A warrior of level 10 wears mail, and plate from 40: the line that is its own names mail.
-    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Only mail | Upgrade at least | / | Net cost",
+    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Only mail | Upgrade at least | / | Value by net cost",
         "the lines of the menu, the one that is no filter under a rule")
     local checkbox, topBox = FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
     eq(topBox:GetChecked(), true, "top five on by default")
@@ -1762,7 +1942,7 @@ function scenarios.ui()
     eq(rows[4].Name:GetText(), "|cff1eff00Great Chest|r |cffffd100*|r", "robe listed first, with the effects mark")
     eq(rows[4].Price:GetAmount(), 90000, "its price")
     eq(rows[4].Price._font, PriceFontRed, "in red")
-    eq(Laid(rows[4].Price), "G9 RIGHT to silver LEFT -9, S0 RIGHT to copper LEFT -9, C0 RIGHT to frame RIGHT 0",
+    eq(Laid(rows[4].Price), "G9 RIGHT to silver LEFT -4, S0 RIGHT to copper LEFT -4, C0 RIGHT to frame RIGHT 0",
         "with gold in a price its three parts still stand a step apart")
     eq(rows[4].Buy:IsEnabled(), false, "cannot buy it")
     eq(rows[4].Pick.Text:GetText(), "Best upgrade", "robe is the best upgrade")
@@ -2382,13 +2562,13 @@ function scenarios.plan_ui()
     -- Ten gold: the robe (+20, 9 gold), the helm (+12), the ring (+6) and the shield (+7,
     -- which leaves the sword where it is; the two-hander would add +6).
     eq(Listed(), "[HEAD] Helm [CHEST] Great Chest [FINGER] New Ring [OFF HAND] Shield", "the set for ten gold: " .. Listed())
-    eq(bar.Summary:GetText(), "4 items, +45 points, 9g 40s", "what it comes to")
+    eq(bar.Summary:GetText(), "4 items, +45 points, 9g 40s, net cost 9g 36s", "what it comes to: what is paid, and what it costs in the end")
     local afford, top = FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
     eq(afford:IsEnabled(), false, "the price filter has no say in a set: its line of the menu is grey")
     eq(top:IsEnabled(), false, "and so is top five's")
     afford:Click()
     eq(ns.db.affordableOnly, true, "a grey line takes no click")
-    eq(FilterBox("Net cost"):IsEnabled(), true, "the net cost keeps its say")
+    eq(FilterBox("Value by net cost"):IsEnabled(), true, "the net cost keeps its say")
     eq(frame.FilterNames:GetText(), "", "neither is named beside the field while the list is a set")
     local heading = box:GetFrames()[1]
     eq(heading.Toggle:IsShown(), false, "a heading of the set does not fold"); eq(heading.Count:GetText(), "", "and counts nothing")
@@ -2418,7 +2598,7 @@ function scenarios.plan_ui()
     -- Helm, ring and shield come to 40 silver; the 20 left buy the plain chest (+3), which
     -- the good chest (+8, 40 silver) had hidden from the list.
     eq(Listed(), "[HEAD] Helm [CHEST] Plain Chest [FINGER] New Ring [OFF HAND] Shield", "the set for sixty silver: " .. Listed())
-    eq(bar.Summary:GetText(), "4 items, +28 points, 60s", "what it comes to")
+    eq(bar.Summary:GetText(), "4 items, +28 points, 60s, net cost 56s", "what it comes to")
     W.Type(bar.Silver, "45")
     W.Run(0.3)
     eq(Listed(), "[HEAD] Helm [FINGER] New Ring [OFF HAND] Shield", "forty-five silver: without a chest")
@@ -2435,7 +2615,7 @@ function scenarios.plan_ui()
     eq(S.budget, 3500, "the helm's 25 silver are spent")
     eq(bar.Gold:GetText(), "0", "the sum in the strip"); eq(bar.Silver:GetText(), "35", "follows")
     eq(Listed(), "[CHEST] Plain Chest [FINGER] New Ring [OFF HAND] Shield", "the rest of the set stays as it was: " .. Listed())
-    eq(bar.Summary:GetText(), "3 items, +16 points, 35s", "and comes to the rest of the sum")
+    eq(bar.Summary:GetText(), "3 items, +16 points, 35s, net cost 32s", "and comes to the rest of the sum")
     -- The helm arrives and is put on: nothing changes for the set.
     W.equipped[1] = W.Link(211)
     W.Fire("PLAYER_EQUIPMENT_CHANGED")
@@ -2643,7 +2823,9 @@ function scenarios.net()
     realPrint(string.format("      item searches: %d with both filters off, %d with them on", all, used))
 end
 
--- The "Net cost" box of the Upgrades tab, and what it changes there.
+-- The net cost on the Upgrades tab: a column of its own beside the buyout, always; and the
+-- line "Value by net cost" of the Filters menu, which says which of the two the best value
+-- is judged by.
 function scenarios.net_ui()
     StandardWorld()
     -- What a vendor pays. The robe sells back for nearly all of its nine gold, the good chest
@@ -2665,7 +2847,7 @@ function scenarios.net_ui()
     local tabs = LibStub("LibAHTab-1-0")
     tabs:SetSelected("UpgradeScout")
     local list, filters = frame.List, frame.FilterField
-    local net, afford, top = FilterBox("Net cost"), FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
+    local net, afford, top = FilterBox("Value by net cost"), FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
     local box
     for _, w in ipairs(W.frames) do
         if w._template == "WowScrollBoxList" then box = w end
@@ -2704,15 +2886,17 @@ function scenarios.net_ui()
 
     -- The box: the last line of the Filters menu, under a rule, off until it is ticked.
     eq(frame.NetCheck, nil, "no tick box of its own above the list")
-    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Only mail | Upgrade at least | / | Net cost",
-        "the last line of the menu, under a rule: a way to read the prices, not a filter")
+    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Only mail | Upgrade at least | / | Value by net cost",
+        "the last line of the menu, under a rule: what the best value goes by, not a filter")
     eq(net:IsShown(), true, "in the menu of the Upgrades tab")
     eq(net:GetChecked(), false, "not ticked")
     eq(ns.db.net, nil, "off until the player says otherwise")
     net:Tooltip()
-    eq(GameTooltip._lines[1].text, "Net cost", "its tooltip is titled with its label")
-    check(GameTooltip._lines[2].text:find("less what a vendor pays for it", 1, true) ~= nil, "and says what a net cost is")
+    eq(GameTooltip._lines[1].text, "Value by net cost", "its tooltip is titled with its label")
+    check(GameTooltip._lines[2].text:find("The best value is judged by", 1, true) ~= nil, "says what the line is for")
+    check(GameTooltip._lines[2].text:find("less what a vendor pays for it", 1, true) ~= nil, "and what a net cost is")
     check(GameTooltip._lines[2].text:find("Bought for 4 silver and sold for 3, it cost you 1.", 1, true) ~= nil, "with an example")
+    check(GameTooltip._lines[2].text:find("Unticked, it is judged by the buyout.", 1, true) ~= nil, "and what it goes by otherwise")
     GameTooltip:Hide()
     -- Where the parts of the strip stand, in a window 800 wide: the Filters field ends 14 short
     -- of the right edge, the names of the filters that are on end 8 before it, and the profile
@@ -2733,38 +2917,44 @@ function scenarios.net_ui()
     check(72 + scan:GetWidth() + dropdown._points[1].x + dropdown:GetWidth() + 16 <= namesLeft,
         "and ends clear of the names beside the Filters field")
 
-    -- By buyout, as ever.
+    -- By buyout, as ever: the picks go by it. A row has both prices all the same, the buyout
+    -- in white and after it, in grey, what the item costs in the end.
     ScanToEnd()
     W.Run(0.3)
-    eq(list.Titles[4]:GetText(), "BUYOUT", "the price column is headed by what it shows")
-    eq(Row("Great Chest").Price:GetAmount(), 90000, "the robe at its nine gold"); eq(Row("Great Chest").Pick.Text:GetText(), "Best upgrade", "the best upgrade")
-    eq(Row("Good Chest").Price:GetAmount(), 4000, "the good chest at its 40 silver"); eq(Row("Good Chest").Pick.Text:GetText(), "Best value", "the best value")
-    eq(Row("Slight Chest").Price:GetAmount(), 1800, "the slight chest under them")
+    eq(list.Titles[4]:GetText(), "BUYOUT", "the first price column"); eq(list.Titles[5]:GetText(), "NET COST", "and the second")
     local robe = Row("Great Chest")
+    eq(robe.Price:GetAmount(), 90000, "the robe at its nine gold"); eq(robe.Pick.Text:GetText(), "Best upgrade", "the best upgrade")
+    eq(robe.Net:GetAmount(), 2000, "which is 20 silver in the end: nine gold less the 8 gold 80 a vendor pays")
+    eq(robe.Price._font, PriceFontWhite, "the buyout in white: the picks go by it"); eq(robe.Net._font, PriceFontGray, "the net cost in grey")
+    eq(Row("Good Chest").Price:GetAmount(), 4000, "the good chest at its 40 silver"); eq(Row("Good Chest").Pick.Text:GetText(), "Best value", "the best value")
+    eq(Row("Good Chest").Net:GetAmount(), 3000, "30 silver in the end")
+    eq(Row("Slight Chest").Price:GetAmount(), 1800, "the slight chest under them"); eq(Row("Slight Chest").Net:GetAmount(), 1700, "with its own")
+    eq(Row("Helm").Net:GetAmount(), 2500, "no vendor buys the helm: its whole buyout")
+    eq(Row("New Ring").Net:GetAmount(), 0, "the ring is for sale below its vendor price: it costs nothing in the end")
+    eq(Row("Big Axe").Net:GetAmount(), 2900, "the axe less its silver"); eq(Row("Shield").Net:GetAmount(), 600, "and the shield")
     robe:GetScript("OnEnter")(robe)
     eq(Lines().Buyout, nil, "a row's tooltip says nothing of the price: the row does"); eq(Lines()["Sell Price"], nil, "nor of what a vendor pays")
     robe:GetScript("OnLeave")(robe)
 
-    -- Ticked: the column shows what each item costs in the end, and the picks go by that.
+    -- Ticked: the picks go by what each item costs in the end. The numbers stay where they
+    -- are, and change their ink: the net cost is the white one now.
     local searches = W.AH.calls.search
     local sounds = #W.sounds
     Tick(net, true)
     eq(#W.sounds, sounds + 1, "the box clicks")
     eq(ns.db.net, true, "the setting is kept"); eq(UpgradeScoutCharDB.net, true, "with the character's saved ones")
     eq(net:GetChecked(), true, "the tick shows")
-    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 per slot", "not named among the filters that are on: the column's title says it")
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 per slot", "not named among the filters that are on: the white column says it")
     eq(W.AH.calls.search, searches, "nothing to look up: every price here was known")
-    eq(list.Titles[4]:GetText(), "NET COST", "the column is headed anew")
+    eq(list.Titles[4]:GetText(), "BUYOUT", "the columns are headed as they were"); eq(list.Titles[5]:GetText(), "NET COST", "both of them")
     robe = Row("Great Chest")
-    eq(robe.Price:GetAmount(), 2000, "the robe: nine gold less the 8 gold 80 a vendor pays")
-    eq(robe.Price._font, PriceFontWhite, "in white: its buyout can be paid")
+    eq(robe.Price:GetAmount(), 90000, "the robe's buyout, where it was"); eq(robe.Net:GetAmount(), 2000, "and its net cost")
+    eq(robe.Net._font, PriceFontWhite, "the net cost in white: the picks go by it"); eq(robe.Price._font, PriceFontGray, "the buyout in grey")
     eq(robe.Pick.Text:GetText(), "Best of both", "the strongest chest is the cheapest per point too: 20 silver for +20")
     eq(Row("Good Chest"), nil, "top five has no use for the good chest now: weaker, and 30 silver for +8")
     eq(Row("Slight Chest"), nil, "nor for the slight one: 17 silver for +4")
     eq(Heading("CHEST").Count:GetText(), "1 of 3", "the heading counts them")
-    eq(Row("Helm").Price:GetAmount(), 2500, "no vendor buys the helm: its whole buyout")
-    eq(Row("New Ring").Price:GetAmount(), 0, "the ring is for sale below its vendor price: it costs nothing in the end")
-    eq(Row("Big Axe").Price:GetAmount(), 2900, "the axe less its silver"); eq(Row("Shield").Price:GetAmount(), 600, "and the shield")
+    eq(Row("Helm").Price:GetAmount(), 2500, "the helm's buyout"); eq(Row("Helm").Net:GetAmount(), 2500, "and all of it again")
     eq(Row("Helm").Upgrade:GetText(), "New", "the gains are what they were")
 
     -- A row's tooltip then has the two halves of its price, the second under the game's own name for it.
@@ -2803,17 +2993,16 @@ function scenarios.net_ui()
     eq(W.AH.calls.search - searches, 9, "ticked again: no search")
     eq(Row("Slight Chest"), nil, "and it is out of the list once more")
 
-    -- The best set for a budget is chosen by buyouts, as ever. Its rows are priced as the list's,
-    -- and the strip says both sums.
+    -- The best set for a budget is chosen by buyouts, as ever. Its rows have both prices as
+    -- the list's do, and the strip says both sums, with the line ticked or not.
     local bar = frame.PlanBar
     Tick(bar.Check, true)
     eq(bar.Summary:GetText(), "4 items, +45 points, 9g 40s, net cost 51s", "the set for ten gold: what is paid, and what it costs in the end")
-    eq(Row("Great Chest").Price:GetAmount(), 2000, "a row of the set at its net cost")
-    eq(list.Titles[4]:GetText(), "NET COST", "under the same heading")
-    eq(net:IsEnabled(), true, "the box keeps its say in a set"); eq(top:IsEnabled(), false, "where the filters have none")
+    eq(Row("Great Chest").Price:GetAmount(), 90000, "a row of the set: its buyout"); eq(Row("Great Chest").Net:GetAmount(), 2000, "and its net cost")
+    eq(net:IsEnabled(), true, "the line keeps its say in a set"); eq(top:IsEnabled(), false, "where the filters have none")
     Tick(net, false)
-    eq(bar.Summary:GetText(), "4 items, +45 points, 9g 40s", "unticked: the set and its buyouts")
-    eq(Row("Great Chest").Price:GetAmount(), 90000, "row by row")
+    eq(bar.Summary:GetText(), "4 items, +45 points, 9g 40s, net cost 51s", "unticked: the same two sums")
+    eq(Row("Great Chest").Price:GetAmount(), 90000, "row by row"); eq(Row("Great Chest").Net:GetAmount(), 2000, "the same two prices")
     Tick(net, true)
     Tick(bar.Check, false)
 
@@ -2826,7 +3015,8 @@ function scenarios.net_ui()
     eq(Row("Good Chest").Pick.Text:GetText(), "Best of both", "and the good chest is the pick of the slot")
     Tick(afford, false)
     robe = Row("Great Chest")
-    eq(robe.Price:GetAmount(), 2000, "listed again, at its net cost"); eq(robe.Price._font, PriceFontRed, "in red: its buyout cannot be paid")
+    eq(robe.Net:GetAmount(), 2000, "listed again, with its net cost"); eq(robe.Net._font, PriceFontWhite, "in white: the picks go by it")
+    eq(robe.Price:GetAmount(), 90000, "and its buyout"); eq(robe.Price._font, PriceFontRed, "in red, not grey: it cannot be paid")
     eq(robe.Buy:IsEnabled(), false, "and it cannot be bought")
     robe:GetScript("OnEnter")(robe)
     check(Lines()["You are 4g short"] ~= nil, "the tooltip counts what is missing from the buyout")
@@ -2863,23 +3053,35 @@ function scenarios.net_ui()
     eq(net:IsShown(), false, "no such line over consumables")
     eq(FilterMenu(), "Only what I can afford | Best for me", "whose menu has their own two filters, and no rule")
     eq(list.Titles[4]:GetText(), "EACH", "whose price column is the price of a piece")
+    eq(list.Titles[5]:GetText(), "FOR SALE", "and whose last one counts the pieces")
     eq(Right(filters), -14, "the field stands where it stood")
     tabs:SetSelected("UpgradeScout")
     W.Run(0.3)
     eq(net:IsShown(), true, "back on the Upgrades tab"); eq(net:GetChecked(), true, "still ticked")
-    eq(list.Titles[4]:GetText(), "NET COST", "and the column still by net cost")
+    eq(list.Titles[4]:GetText(), "BUYOUT", "and the two price columns as they were"); eq(list.Titles[5]:GetText(), "NET COST", "both")
+    eq(Row("Shield").Net._font, PriceFontWhite, "the net cost still the white one")
+
+    -- Ticking the line leaves the list where the player has it: a row or two come or go, and
+    -- the ones in view are the ones being read. A filter starts the list from its top.
+    Tick(top, false)
+    box:SetScrollPercentage(0.5)
+    Tick(net, false)
+    eq(box:GetScrollPercentage(), 0.5, "unticked: the list stays where it was")
+    Tick(net, true)
+    eq(box:GetScrollPercentage(), 0.5, "ticked: the same")
+    Tick(top, true)
+    eq(box:GetScrollPercentage(), 0, "a filter: back to the top")
 
     -- An auction house that deals in whole silver shows no copper in a buyout. A net cost has
     -- copper all the same: a vendor pays to the copper.
     W.AH.copper = false
     ns.UI.Refresh()
     local shield = Row("Shield")
-    eq(shield.Price:GetAmount(), 600, "the shield at its net cost")
-    eq(shield.Price.CopperDisplay:IsShown(), true, "to the copper")
+    eq(shield.Net:GetAmount(), 600, "the shield's net cost"); eq(shield.Net.CopperDisplay:IsShown(), true, "to the copper")
+    eq(shield.Price:GetAmount(), 700, "its buyout"); eq(shield.Price.CopperDisplay:IsShown(), false, "in whole silver")
     Tick(net, false)
     shield = Row("Shield")
-    eq(shield.Price:GetAmount(), 700, "at its buyout"); eq(shield.Price.CopperDisplay:IsShown(), false, "in whole silver")
-    eq(list.Titles[4]:GetText(), "BUYOUT", "under the old heading")
+    eq(shield.Net.CopperDisplay:IsShown(), true, "unticked: the net cost to the copper still"); eq(shield.Price.CopperDisplay:IsShown(), false, "and the buyout in whole silver")
     eq(ns.db.net, false, "the setting is kept")
 
     -- Price checks that were stopped stay stopped when the box is ticked: it changes how the
@@ -3387,8 +3589,8 @@ function scenarios.supplies_ui()
     end
     eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab names its second column")
     eq(list.Titles[3]:IsShown(), true, "and has a column for the gain")
-    eq(list.Titles[5]:IsShown(), false, "four columns: nothing after the buyout")
-    local gearPrice = At(list.Titles[4])
+    eq(list.Titles[5]:IsShown(), true, "five columns"); eq(list.Titles[5]:GetText(), "NET COST", "after the buyout, the net cost")
+    local gearPrice, gearLast = At(list.Titles[4]), At(list.Titles[5])
     eq(topBox:IsShown(), true, "its own second filter in the Filters menu"); eq(bestBox:IsShown(), false, "not the other view's")
     eq(frame.ProfileDropdown:IsShown(), true, "and the profile")
 
@@ -3398,9 +3600,9 @@ function scenarios.supplies_ui()
     eq(list.Titles[2]:GetText(), "EFFECT", "the second column is what the item does")
     eq(list.Titles[3]:IsShown(), true, "the third column stays"); eq(list.Titles[3]:GetText(), "SCORE", "for what the item is worth")
     eq(list.Titles[4]:GetText(), "EACH", "the price is that of one piece")
-    eq(list.Titles[5]:IsShown(), true, "a fifth column here"); eq(list.Titles[5]:GetText(), "FOR SALE", "how many there are")
-    check(At(list.Titles[4]) < gearPrice, "the price stands further left than gear's, to make room for it")
-    eq(At(list.Titles[5]), gearPrice, "which ends where the price of gear does: close before the Buy button")
+    eq(list.Titles[5]:IsShown(), true, "a fifth column here too"); eq(list.Titles[5]:GetText(), "FOR SALE", "how many there are")
+    check(At(list.Titles[4]) < gearLast, "the price stands before it")
+    eq(At(list.Titles[5]), gearLast, "which ends where the net cost of gear does: close before the Buy button")
     eq(frame.ProfileDropdown:IsShown(), true, "the profile stays: consumables are scored on it")
     eq(frame.FilterField:IsShown(), true, "the Filters field stays, with the menu of this view")
     eq(topBox:IsShown(), false, "the top-N filter is gone"); eq(bestBox:IsShown(), true, "another one is in its place")
@@ -3626,8 +3828,8 @@ function scenarios.supplies_ui()
     W.RunUntil(function() return box:IsShown() end, 30)
     lib:SetSelected("UpgradeScout")
     eq(box:IsShown(), false, "the box does not follow to the other tab")
-    eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab has its titles back"); eq(list.Titles[5]:IsShown(), false, "all four of them")
-    eq(At(list.Titles[4]), gearPrice, "each where it was")
+    eq(list.Titles[2]:GetText(), "PICK", "the Upgrades tab has its titles back"); eq(list.Titles[5]:GetText(), "NET COST", "all five of them")
+    eq(At(list.Titles[4]), gearPrice, "each where it was"); eq(At(list.Titles[5]), gearLast, "the last one too")
     eq(frame.ProfileDropdown:IsShown(), true, "its profile"); eq(topBox:IsShown(), true, "and its filter")
     eq(Listed(), "", "and its own, empty list")
     eq(list.Intro:IsShown(), true, "with the emblem: gear was never scanned"); eq(list.Intro.Heading:GetText(), "GEAR UPGRADES FOR SALE", "under its own title")
@@ -6640,7 +6842,7 @@ function scenarios.wants_ui()
     W.AddItem({ id = 311, name = "Druid Robe", equipLoc = "INVTYPE_ROBE", subClassID = 1, value = 0, values = { D1 = 25 }, level = 18 })
     W.AddAuction(310, 2000)
     W.AddAuction(311, 1000)
-    local MENU = "Only what I can afford | Top 5 per slot | %s | Upgrade at least | / | Net cost"
+    local MENU = "Only what I can afford | Top 5 per slot | %s | Upgrade at least | / | Value by net cost"
 
     -- The druid is played, and ticks its box.
     W.Login(Druid())
@@ -6787,7 +6989,7 @@ function scenarios.wants_ui()
     frame.ProfileDropdown:Pick(5)
     W.Run(0.5)
     eq(ns.Roster.Target(), UpgradeScoutDB.chars["Magey-Testrealm"], "the lists are for the mage")
-    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Upgrade at least | / | Net cost", "a mage's menu has no line about armor")
+    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Upgrade at least | / | Value by net cost", "a mage's menu has no line about armor")
 
     -- Back to the warrior: its box is as it was.
     frame.ProfileDropdown:Pick(1)

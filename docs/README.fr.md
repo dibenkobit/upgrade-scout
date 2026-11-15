@@ -29,9 +29,9 @@ chat.
   vous sert à rien est écarté.
 - Marque deux objets par emplacement. **Meilleure amélioration** est le plus fort.
   **Meilleure affaire** est le moins cher par point d'amélioration.
-- **Coût net** affiche ce qu'un objet vous coûte au final : son achat immédiat moins ce qu'un
-  marchand vous en donne quand vous n'en avez plus besoin. Acheté 4 pièces d'argent et revendu 3,
-  il vous en a coûté 1.
+- Chaque ligne a deux prix : l'**Achat immédiat** et le **Coût net**, ce qu'un objet vous coûte au
+  final : son achat immédiat moins ce qu'un marchand vous en donne quand vous n'en avez plus
+  besoin. Acheté 4 pièces d'argent et revendu 3, il vous en a coûté 1.
 - **Meilleur ensemble pour** choisit les améliorations qui, ensemble, apportent le plus pour votre
   or, ou pour une somme que vous saisissez.
 - Le menu **Filtres** resserre la liste. **Cuir uniquement**, **Mailles uniquement** ou
@@ -90,9 +90,9 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 - Un `~` après le nom d'un profil signifie qu'aucune simulation ne couvre encore cet
   arbre et que ses poids sont estimés.
 - Les prix sont des prix d'achat immédiat. Les enchères sans achat immédiat sont ignorées.
-- Avec **Coût net** coché, la colonne des prix et la **Meilleure affaire** suivent le coût net. Ce
-  que vous pouvez payer et **Meilleur ensemble pour** suivent toujours l'achat immédiat : c'est ce
-  que vous payez.
+- Avec **Meilleure affaire selon le coût net** coché, la **Meilleure affaire** suit le coût net et
+  non l'achat immédiat. Ce que vous pouvez payer et **Meilleur ensemble pour** suivent toujours
+  l'achat immédiat : c'est ce que vous payez.
 - **Top 5 par emplacement** garde la liste courte. Désactivez-le pour voir toutes les améliorations.
   Le scan dure alors plus longtemps, jusqu'à quelques minutes dans un hôtel des ventes bien rempli.
 - **Amélioration** dit de combien l'objet est meilleur que celui qu'il remplace, en pour cent.

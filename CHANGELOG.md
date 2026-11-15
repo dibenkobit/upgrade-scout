@@ -30,7 +30,17 @@
 - If someone else buys the item while the box is up, the box stays. It looks the item up again
   and shows the next price, or says that the item is **no longer for sale**. Before, the box
   closed and you went back to the list.
-- The box always shows the **net cost** of gear, with the Net cost filter on or off.
+- The box always shows the **net cost** of gear.
+- A row on the Upgrades tab has two prices side by side: the **Buyout** and the **Net cost**.
+  Before, **Net cost** was a tick box that swapped one for the other.
+- That tick box is now **Value by net cost**. It only says which of the two prices **Best
+  value** and **Top 5 per slot** go by: that one is white, the other grey. Ticking it no longer
+  sends the list back to its top.
+- A price always fits its column. A very large one drops its copper, then its silver; the box
+  before a purchase has it in full.
+- Coins stand closer together, as in your bags: in the lists, in the box before a purchase and
+  in the gold display under the addon's tabs.
+- **Best set for** always says what the set costs in the end, beside what you pay for it.
 - The tick boxes above the lists are now in one menu, **Filters**, at the right end of the strip.
   It stays open while you tick. The filters that are on are named beside it.
 - **Only leather**, **Only mail** or **Only plate**, a new filter on the Upgrades tab. It leaves

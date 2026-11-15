@@ -704,10 +704,16 @@ end
 -- (36: room for two digits) to the left of the part after it.
 --   part._amount   the number it shows
 --   part._points   where it is anchored: { { point, to, toPoint, x, y }, ... }
-local MONEY_SLOT = 36
+--   part._width    how wide it is: its number, the room the game leaves after it (2), its coin (12)
+--   part.Text      the number: Text._points says where it ends, from the part's right edge
+--   part.Icon      the coin. W.colorblind: the player has letters in place of the coins (the
+--                  game's setting for the colour blind), "12g" for 12 and a gold coin.
+-- A number is as wide as any text here: six pixels a character. Gold is written with its
+-- thousands apart ("1,234"), as the game writes it.
+local MONEY_SLOT, MONEY_COIN, MONEY_AIR = 36, 12, 2
 local function MoneyDisplayModel(money)
     local function Part(key)
-        local part = { _amount = 0, _points = {}, _shown = false }
+        local part = { _amount = 0, _points = {}, _shown = false, _width = 0 }
         function part:ClearAllPoints() self._points = {} end
         function part:SetPoint(point, to, toPoint, x, y)
             -- The short forms: SetPoint("RIGHT") and SetPoint("RIGHT", x, y).
@@ -723,28 +729,62 @@ local function MoneyDisplayModel(money)
             self._shown = self:ShouldBeShown()
             if key == "CopperDisplay" then money._copperHidden = hidden end
         end
+        function part:SetWidth(width) self._width = width end
+        function part:GetWidth() return self._width end
+        local text = { _points = {} }
+        function text:GetText()
+            local written = tostring(part._amount)
+            if key == "GoldDisplay" then
+                written = written:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+            end
+            if W.colorblind then written = written .. key:sub(1, 1):lower() end
+            return written
+        end
+        function text:GetStringWidth() return #self:GetText() * 6 end
+        function text:SetPoint(point, to, toPoint, x, y)
+            if to == nil or type(to) == "number" then to, toPoint, x, y = part, point, to, toPoint end
+            assert(point == "RIGHT" and to == part and toPoint == "RIGHT", "a number ends before its coin")
+            self._points = { { point = point, to = to, toPoint = toPoint, x = x or 0, y = y or 0 } }
+        end
+        local icon = {}
+        function icon:IsShown() return not W.colorblind end
+        function icon:GetWidth() return MONEY_COIN end
+        part.Text, part.Icon = text, icon
+        -- The game's own: the number before its coin, and the part as wide as the two.
+        function part:UpdateWidth()
+            local coin = icon:IsShown() and MONEY_COIN or 0
+            text:SetPoint("RIGHT", -(coin + MONEY_AIR), 0)
+            self._width = text:GetStringWidth() + coin + MONEY_AIR
+        end
         money[key] = part
         return part
     end
     local gold, silver, copper = Part("GoldDisplay"), Part("SilverDisplay"), Part("CopperDisplay")
+    function money:UpdateAnchoring()
+        for _, part in ipairs({ gold, silver, copper }) do part:ClearAllPoints() end
+        copper:SetPoint("RIGHT")
+        if copper:ShouldBeShown() then silver:SetPoint("RIGHT", -MONEY_SLOT, 0) else silver:SetPoint("RIGHT", copper, "RIGHT") end
+        if silver:ShouldBeShown() then gold:SetPoint("RIGHT", silver, "RIGHT", -MONEY_SLOT, 0) else gold:SetPoint("RIGHT", silver, "RIGHT") end
+    end
     function money:SetAmount(amount)
         assert(type(amount) == "number" and amount >= 0 and amount == math.floor(amount), "a whole number of copper")
         self._amount = amount
         gold._amount, silver._amount, copper._amount = math.floor(amount / 10000), math.floor(amount / 100) % 100, amount % 100
         for _, part in ipairs({ gold, silver, copper }) do
             part._shown = part:ShouldBeShown()
-            part:ClearAllPoints()
+            if part._shown then part:UpdateWidth() end
         end
-        copper:SetPoint("RIGHT")
-        if copper:ShouldBeShown() then silver:SetPoint("RIGHT", -MONEY_SLOT, 0) else silver:SetPoint("RIGHT", copper, "RIGHT") end
-        if silver:ShouldBeShown() then gold:SetPoint("RIGHT", silver, "RIGHT", -MONEY_SLOT, 0) else gold:SetPoint("RIGHT", silver, "RIGHT") end
+        self:UpdateAnchoring()
     end
     function money:GetAmount() return self._amount end
+    -- A new font is a new width for every number: the game measures the parts again.
     function money:SetFontObject(font)
         assert(font ~= nil, "a font object")
         self._font = font
+        for _, part in ipairs({ gold, silver, copper }) do part:UpdateWidth() end
     end
 end
+W.MoneyDisplayModel = MoneyDisplayModel
 
 -- Where a menu hangs from its dropdown (AnchorUtil.CreateAnchor).
 AnchorUtil = {}
@@ -1902,8 +1942,16 @@ function W.OpenAuctionHouse()
         frame:SetSize(800, 538)
         frame.Tabs = { Widget("Button", nil, frame), Widget("Button", nil, frame), Widget("Button", nil, frame) }
         frame.SetDisplayMode = function(self, mode) self.displayMode = mode end
+        -- The gold display at the foot of the window, the same on every tab: the game writes
+        -- the character's gold into it when the window opens and whenever the gold changes.
+        local purse = Widget("Frame", nil, frame)
+        MoneyDisplayModel(purse)
+        purse:RegisterEvent("PLAYER_MONEY")
+        purse:SetScript("OnEvent", function(self) self:SetAmount(W.player.money) end)
+        frame.MoneyFrameBorder = { MoneyFrame = purse }
         W.AddOnLoaded("Blizzard_AuctionHouseUI")
     end
+    AuctionHouseFrame.MoneyFrameBorder.MoneyFrame:SetAmount(W.player.money)
     W.Fire("AUCTION_HOUSE_SHOW")
 end
 function W.CloseAuctionHouse()

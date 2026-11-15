@@ -5,8 +5,8 @@ local L = ns.L
 -- field, whose menu has a tick box for every filter of the list in view. (The tick boxes once
 -- stood in a row above the list, and three of them filled it.)
 --   Upgrades      Only what I can afford, Top N per slot, Only leather (or mail, or plate),
---                 Upgrade at least N %; and under a rule Net cost, which leaves nothing out:
---                 it is a way to read the prices
+--                 Upgrade at least N %; and under a rule Value by net cost, which is no
+--                 filter: it says which of a row's two prices the best value is judged by
 --   Consumables   Only what I can afford, Best for me
 -- The menu stays open while its boxes are ticked, as the game's own menu of auction filters
 -- does. Beside the field stand the names of the filters that are on, so that it is plain
@@ -40,8 +40,9 @@ end
 -- What is on
 ---------------------------------------------------------------------------
 -- The filters of the view that are on, in the order of the menu: { { short, full }, ... },
--- `short` as it is named beside the field and `full` as the menu has it. Net cost is not one
--- of them: the title of the price column says when the prices are net.
+-- `short` as it is named beside the field and `full` as the menu has it. "Value by net cost"
+-- is not one of them: the list says it itself, the price the best value goes by standing in
+-- white and the other in grey.
 local function Active()
     local out = {}
     local function Add(short, full)
@@ -118,7 +119,7 @@ end
 
 local function Flip(key)
     ns.db[key] = not ns.db[key]
-    -- "Net cost" changes how the prices are read, not what is listed.
+    -- "Value by net cost" changes how the offers are judged, not which offers there are.
     tab.Changed(key == "net")
 end
 
@@ -251,7 +252,7 @@ local function Menu(_, root)
     if armor then AddCheck(root, L["ARMOR_ONLY_" .. armor], ArmorOnly, FlipArmor, nil, L.ARMOR_ONLY_TIP) end
     AddCheck(root, L.GAIN_MIN, GainOn, FlipGain, nil, L.GAIN_MIN_TIP):AddInitializer(AddNumber)
     root:CreateDivider():AddInitializer(Widgets.SkinMenuDivider)
-    AddCheck(root, L.NET, IsSet, Flip, "net", L.NET_TIP)
+    AddCheck(root, L.NET_VALUE, IsSet, Flip, "net", L.NET_TIP)
 end
 
 ---------------------------------------------------------------------------
@@ -262,7 +263,8 @@ end
 --             View()       "gear" or "supplies": the view the frame shows
 --             Planned()    the list of gear shows the best set for a budget
 --             Changed(sameOffers)   a box was ticked or a number typed. `sameOffers`: what
---                          changed is how prices are read (Net cost), not what is listed
+--                          changed is how the offers are judged (Value by net cost), not
+--                          which of them the filters let through
 function Filters.Build(frame, hooks)
     tab = hooks
     field = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")

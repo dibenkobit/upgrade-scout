@@ -26,9 +26,9 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
   usar. Primeiro, os mais úteis para o seu personagem. O que não serve para você fica de fora.
 - Marca dois itens em cada espaço. **Maior melhoria** é o mais forte. **Melhor custo-benefício** é
   o mais barato por ponto de melhoria.
-- **Custo líquido** mostra quanto um item custa no fim das contas: o arremate menos o que um
-  mercador paga por ele quando você não precisar mais dele. Comprado por 4 de prata e vendido por
-  3, custou 1.
+- Cada linha tem dois preços: o **Arremate** e o **Custo líquido**, quanto um item custa no fim das
+  contas: o arremate menos o que um mercador paga por ele quando você não precisar mais dele.
+  Comprado por 4 de prata e vendido por 3, custou 1.
 - **Melhor conjunto por** escolhe as melhorias que, juntas, rendem mais pelo seu ouro ou por um
   valor que você digitar.
 - O menu **Filtros** enxuga a lista. **Só couro**, **Só malha** ou **Só placas** deixa de fora as
@@ -84,9 +84,9 @@ Manualmente:
 - Um `~` depois do nome de um perfil quer dizer que essa árvore ainda não tem
   simulação e os pesos dela são estimados.
 - Os preços são de arremate. Leilões que só aceitam lances são ignorados.
-- Com **Custo líquido** marcado, a coluna de preços e o **Melhor custo-benefício** seguem o custo
-  líquido. O que você pode pagar e o **Melhor conjunto por** continuam seguindo o arremate: é o
-  que você paga.
+- Com **Custo-benefício pelo custo líquido** marcado, o **Melhor custo-benefício** segue o custo
+  líquido, não o arremate. O que você pode pagar e o **Melhor conjunto por** continuam seguindo o
+  arremate: é o que você paga.
 - **Top 5 por espaço** deixa a lista curta. Desative para ver todas as melhorias. O escaneamento
   então demora mais, até alguns minutos em uma Casa de Leilões movimentada.
 - **Melhoria** diz quanto um item é melhor do que o que ele substitui, em porcentagem. **Novo**

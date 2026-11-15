@@ -43,8 +43,9 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
   most useful for your character first. What is of no use to you is left out.
 - Marks two items in every slot: the **Best upgrade** is the strongest, the **Best value** is the
   cheapest per point of improvement.
-- **Net cost** prices gear at what it costs you in the end: the buyout less what a vendor pays
-  for it when you are done with it. Bought for 4 silver and sold for 3, it cost you 1.
+- Every row has two prices: the **Buyout** and the **Net cost**, what the item costs you in the
+  end. That is the buyout less what a vendor pays for it when you are done with it. Bought for 4
+  silver and sold for 3, it cost you 1.
 - **Best set for** picks the upgrades that give the most together for your gold, or for a sum you type.
 - The **Filters** menu narrows the list. **Only leather**, **Only mail** or **Only plate** leaves
   out armor lighter than the heaviest your character wears. **Upgrade at least** leaves out
@@ -95,8 +96,8 @@ To install by hand:
 - A `~` after a profile's name means no simulation covers that tree yet and its weights are
   estimated.
 - Prices are buyouts. Auctions that only take bids are skipped.
-- With **Net cost** ticked, the price column and **Best value** go by the net cost. What you can
-  afford, and **Best set for**, still go by the buyout: that is what you pay.
+- With **Value by net cost** ticked, **Best value** goes by the net cost, not the buyout. What you
+  can afford, and **Best set for**, still go by the buyout: that is what you pay.
 - **Top 5 per slot** keeps the list short. Turn it off to see every upgrade. The scan then takes
   longer, up to a few minutes on a busy auction house.
 - **Upgrade** is how much better an item is than the one it replaces, in percent. **New** means

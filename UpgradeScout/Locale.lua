@@ -124,14 +124,17 @@ local L = {
     -- The best set for a budget
     PLAN = "Best set for",
     PLAN_TIP = "The upgrades that, bought together, add the most for this much gold: no more of them than can be worn at once. Leave the sum as it is to spend all you have, or type a smaller one. Ticking the box looks up the prices the set needs and the list did not.",
-    PLAN_SUM = "%d items, +%s points, %s",
     PLAN_NONE = "No upgrade fits this sum.",
 
-    -- Gear priced at what it costs in the end: the buyout less what a vendor pays for it
-    -- afterwards. NET is the tick box and, with it ticked, the title of the price column.
+    -- What gear costs in the end: the buyout less what a vendor pays for it afterwards. NET
+    -- is the title of that column, which stands beside the buyout's, and the line for it in
+    -- the box that asks before a purchase. NET_VALUE is the line of the Filters menu that has
+    -- the best value judged by it, NET_TIP that line's tooltip. PLAN_SUM is what a set for a
+    -- budget comes to: how many items, the points they add, their buyouts and their net cost.
     NET = "Net cost",
-    NET_TIP = "What an item costs you in the end: its buyout less what a vendor pays for it when you are done with it. Bought for 4 silver and sold for 3, it cost you 1. Best value goes by this cost too.",
-    PLAN_SUM_NET = "%d items, +%s points, %s, net cost %s",
+    NET_VALUE = "Value by net cost",
+    NET_TIP = "The best value is judged by what an item costs you in the end: its buyout less what a vendor pays for it when you are done with it. Bought for 4 silver and sold for 3, it cost you 1. Unticked, it is judged by the buyout.",
+    PLAN_SUM = "%d items, +%s points, %s, net cost %s",
 
     -- Gear bought for another character, on its way by mail
     MAIL_TITLE = "Upgrade Scout: bought for your other characters",
@@ -336,13 +339,13 @@ if GetLocale() == "ruRU" then
         -- The best set for a budget
         PLAN = "Лучший набор на",
         PLAN_TIP = "Улучшения, которые вместе дают больше всего за эту сумму: не больше, чем можно надеть сразу. Оставь сумму как есть, чтобы потратить всё золото, или впиши меньше. Когда ставишь галочку, проверяются цены, которые нужны набору и не были нужны списку.",
-        PLAN_SUM = "Вещей: %d, очков: +%s, цена: %s",
         PLAN_NONE = "На эту сумму нет ни одного улучшения.",
 
         -- Net cost
         NET = "Чистая цена",
-        NET_TIP = "Во что вещь обойдётся в итоге: выкуп минус то, что даст за неё торговец, когда она станет не нужна. Куплена за 4 серебра и продана за 3: стоила 1. «Самое выгодное» тоже выбирается по этой цене.",
-        PLAN_SUM_NET = "Вещей: %d, очков: +%s, цена: %s, чистая: %s",
+        NET_VALUE = "Выгода по чистой цене",
+        NET_TIP = "«Самое выгодное» выбирается по тому, во что вещь обойдётся в итоге: выкуп минус то, что даст за неё торговец, когда она станет не нужна. Куплена за 4 серебра и продана за 3: стоила 1. Без галочки выбирается по выкупу.",
+        PLAN_SUM = "Вещей: %d, очков: +%s, цена: %s, чистая: %s",
 
         -- Gear bought for another character, on its way by mail
         MAIL_TITLE = "Upgrade Scout: куплено для других персонажей",
@@ -535,13 +538,13 @@ if GetLocale() == "deDE" then
         -- The best set for a budget
         PLAN = "Bestes Set für",
         PLAN_TIP = "Die Verbesserungen, die zusammen gekauft für diese Summe am meisten bringen: nicht mehr davon, als sich gleichzeitig tragen lässt. Lass die Summe stehen, um alles auszugeben, was du hast, oder gib eine kleinere ein. Mit dem Häkchen werden die Preise nachgeschlagen, die das Set braucht und die Liste nicht brauchte.",
-        PLAN_SUM = "%d Gegenstände, +%s Punkte, %s",
         PLAN_NONE = "Für diese Summe gibt es keine Verbesserung.",
 
         -- Net cost
         NET = "Nettokosten",
-        NET_TIP = "Was dich ein Gegenstand am Ende kostet: der Sofortkauf abzüglich dessen, was ein Händler dafür zahlt, wenn du ihn nicht mehr brauchst. Für 4 Silber gekauft und für 3 verkauft, hat er dich 1 gekostet. Auch die beste Preis-Leistung richtet sich danach.",
-        PLAN_SUM_NET = "%d Gegenstände, +%s Punkte, %s, netto %s",
+        NET_VALUE = "Preis-Leistung nach Nettokosten",
+        NET_TIP = "Die beste Preis-Leistung richtet sich danach, was dich ein Gegenstand am Ende kostet: der Sofortkauf abzüglich dessen, was ein Händler dafür zahlt, wenn du ihn nicht mehr brauchst. Für 4 Silber gekauft und für 3 verkauft, hat er dich 1 gekostet. Ohne Häkchen richtet sie sich nach dem Sofortkauf.",
+        PLAN_SUM = "%d Gegenstände, +%s Punkte, %s, netto %s",
 
         -- Gear bought for another character, on its way by mail
         MAIL_TITLE = "Upgrade Scout: für deine anderen Charaktere gekauft",
@@ -735,13 +738,13 @@ if GetLocale() == "frFR" then
         -- The best set for a budget
         PLAN = "Meilleur ensemble pour",
         PLAN_TIP = "Les améliorations qui, achetées ensemble, apportent le plus pour cette somme : pas plus qu'on ne peut en porter à la fois. Laissez la somme telle quelle pour dépenser tout votre or, ou saisissez-en une plus petite. Cocher la case fait rechercher les prix dont l'ensemble a besoin et dont la liste n'avait pas besoin.",
-        PLAN_SUM = "%d objets, +%s points, %s",
         PLAN_NONE = "Aucune amélioration ne tient dans cette somme.",
 
         -- Net cost
         NET = "Coût net",
-        NET_TIP = "Ce qu'un objet vous coûte au final : son achat immédiat moins ce qu'un marchand vous en donne quand vous n'en avez plus besoin. Acheté 4 pièces d'argent et revendu 3, il vous en a coûté 1. La meilleure affaire en tient compte aussi.",
-        PLAN_SUM_NET = "%d objets, +%s points, %s, coût net %s",
+        NET_VALUE = "Meilleure affaire selon le coût net",
+        NET_TIP = "La meilleure affaire est choisie selon ce qu'un objet vous coûte au final : son achat immédiat moins ce qu'un marchand vous en donne quand vous n'en avez plus besoin. Acheté 4 pièces d'argent et revendu 3, il vous en a coûté 1. Case décochée, elle est choisie selon l'achat immédiat.",
+        PLAN_SUM = "%d objets, +%s points, %s, coût net %s",
 
         -- Gear bought for another character, on its way by mail
         MAIL_TITLE = "Upgrade Scout : acheté pour vos autres personnages",
@@ -935,13 +938,13 @@ if GetLocale() == "zhCN" then
         -- The best set for a budget
         PLAN = "预算内的最佳组合",
         PLAN_TIP = "一起买下后，用这笔钱提升最多的装备：数量不超过能同时穿戴的件数。金额保持不变即花光所有金币，也可以输入更小的数目。勾选后会查询组合需要而列表不需要的价格。",
-        PLAN_SUM = "%d 件，+%s 分，%s",
         PLAN_NONE = "这笔钱买不到任何提升。",
 
         -- Net cost
         NET = "净花费",
-        NET_TIP = "一件物品最终花掉你多少：一口价减去用完后卖给商人的价钱。4银币买入，3银币卖出，实际花了1银币。“最高性价比”也按这个花费来选。",
-        PLAN_SUM_NET = "%d 件，+%s 分，%s，净花费 %s",
+        NET_VALUE = "按净花费选最高性价比",
+        NET_TIP = "“最高性价比”按一件物品最终花掉你多少来选：一口价减去用完后卖给商人的价钱。4银币买入，3银币卖出，实际花了1银币。不勾选时按一口价来选。",
+        PLAN_SUM = "%d 件，+%s 分，%s，净花费 %s",
 
         -- Gear bought for another character, on its way by mail
         MAIL_TITLE = "Upgrade Scout：为你的其他角色购买的物品",
@@ -1136,13 +1139,13 @@ if GetLocale() == "ptBR" then
         -- The best set for a budget
         PLAN = "Melhor conjunto por",
         PLAN_TIP = "As melhorias que, compradas juntas, mais acrescentam por esta quantia: não mais do que se pode usar ao mesmo tempo. Deixe a quantia como está para gastar tudo o que você tem, ou digite uma menor. Ao marcar a caixa, são consultados os preços de que o conjunto precisa e de que a lista não precisava.",
-        PLAN_SUM = "%d itens, +%s pontos, %s",
         PLAN_NONE = "Nenhuma melhoria cabe nesta quantia.",
 
         -- Net cost
         NET = "Custo líquido",
-        NET_TIP = "Quanto um item custa no fim das contas: o arremate menos o que um mercador paga por ele quando você não precisar mais dele. Comprado por 4 de prata e vendido por 3, custou 1. O melhor custo-benefício também segue esse custo.",
-        PLAN_SUM_NET = "%d itens, +%s pontos, %s, custo líquido %s",
+        NET_VALUE = "Custo-benefício pelo custo líquido",
+        NET_TIP = "O melhor custo-benefício é escolhido pelo que um item custa no fim das contas: o arremate menos o que um mercador paga por ele quando você não precisar mais dele. Comprado por 4 de prata e vendido por 3, custou 1. Desmarcada, a escolha é pelo arremate.",
+        PLAN_SUM = "%d itens, +%s pontos, %s, custo líquido %s",
 
         -- Gear bought for another character, on its way by mail
         MAIL_TITLE = "Upgrade Scout: comprado para seus outros personagens",
@@ -1336,13 +1339,13 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         -- The best set for a budget
         PLAN = "Mejor conjunto por",
         PLAN_TIP = "Las mejoras que, compradas juntas, más aportan por esta suma: no más de las que se pueden llevar a la vez. Deja la suma como está para gastar todo lo que tienes, o escribe una menor. Al marcar la casilla se consultan los precios que el conjunto necesita y la lista no necesitaba.",
-        PLAN_SUM = "%d objetos, +%s puntos, %s",
         PLAN_NONE = "Ninguna mejora cabe en esta suma.",
 
         -- Net cost
         NET = "Precio neto",
-        NET_TIP = "Lo que un objeto te cuesta al final: la compra menos lo que un mercader te paga por él cuando ya no lo necesites. Comprado por 4 de plata y vendido por 3, te costó 1. El más rentable también se elige por este precio.",
-        PLAN_SUM_NET = "%d objetos, +%s puntos, %s, precio neto %s",
+        NET_VALUE = "Rentabilidad por precio neto",
+        NET_TIP = "El más rentable se elige por lo que un objeto te cuesta al final: la compra menos lo que un mercader te paga por él cuando ya no lo necesites. Comprado por 4 de plata y vendido por 3, te costó 1. Sin marcar, se elige por la compra.",
+        PLAN_SUM = "%d objetos, +%s puntos, %s, precio neto %s",
 
         -- Gear bought for another character, on its way by mail
         MAIL_TITLE = "Upgrade Scout: comprado para tus otros personajes",
@@ -1539,13 +1542,13 @@ if GetLocale() == "koKR" then
         -- The best set for a budget
         PLAN = "예산 내 최고 세트",
         PLAN_TIP = "함께 샀을 때 이 금액으로 가장 많이 향상되는 장비들입니다. 한 번에 착용할 수 있는 수를 넘지 않습니다. 금액을 그대로 두면 가진 골드를 모두 쓰고, 더 적은 금액을 입력할 수도 있습니다. 체크하면 세트에는 필요하지만 목록에는 필요 없던 가격을 조회합니다.",
-        PLAN_SUM = "%d개, +%s점, %s",
         PLAN_NONE = "이 금액으로 살 수 있는 향상이 없습니다.",
 
         -- Net cost
         NET = "순비용",
-        NET_TIP = "아이템에 결국 드는 비용입니다. 즉시 구입가에서, 다 쓴 뒤 상인에게 팔아 받는 값을 뺍니다. 4실버에 사서 3실버에 팔면 1실버가 든 셈입니다. 최고 가성비도 이 비용으로 고릅니다.",
-        PLAN_SUM_NET = "%d개, +%s점, %s, 순비용 %s",
+        NET_VALUE = "순비용 기준 가성비",
+        NET_TIP = "최고 가성비를 아이템에 결국 드는 비용으로 고릅니다. 즉시 구입가에서, 다 쓴 뒤 상인에게 팔아 받는 값을 뺀 비용입니다. 4실버에 사서 3실버에 팔면 1실버가 든 셈입니다. 체크하지 않으면 즉시 구입가로 고릅니다.",
+        PLAN_SUM = "%d개, +%s점, %s, 순비용 %s",
 
         -- Gear bought for another character, on its way by mail
         MAIL_TITLE = "Upgrade Scout: 다른 캐릭터를 위해 산 물건",
@@ -1740,13 +1743,13 @@ if GetLocale() == "zhTW" then
         -- The best set for a budget
         PLAN = "預算內的最佳組合",
         PLAN_TIP = "一起買下後，用這筆錢提升最多的裝備：數量不超過能同時穿戴的件數。金額保持不變即花光所有金幣，也可以輸入更小的數目。勾選後會查詢組合需要而列表不需要的價格。",
-        PLAN_SUM = "%d 件，+%s 分，%s",
         PLAN_NONE = "這筆錢買不到任何提升。",
 
         -- Net cost
         NET = "淨花費",
-        NET_TIP = "一件物品最終花掉你多少：直購價減去用完後賣給商人的價錢。4銀幣買入，3銀幣賣出，實際花了1銀幣。「最划算」也按這個花費來選。",
-        PLAN_SUM_NET = "%d 件，+%s 分，%s，淨花費 %s",
+        NET_VALUE = "按淨花費選最划算",
+        NET_TIP = "「最划算」按一件物品最終花掉你多少來選：直購價減去用完後賣給商人的價錢。4銀幣買入，3銀幣賣出，實際花了1銀幣。不勾選時按直購價來選。",
+        PLAN_SUM = "%d 件，+%s 分，%s，淨花費 %s",
 
         -- Gear bought for another character, on its way by mail
         MAIL_TITLE = "Upgrade Scout：為你的其他角色購買的物品",

@@ -35,19 +35,24 @@ local REFRESH_INTERVAL = 0.1                -- seconds between redraws while a s
 
 -- Across a row, from its left edge. Numbers sit against the right edge of their column, and
 -- so do the titles above them. Each view has columns of its own:
---   gear           item, pick, gain, buyout
+--   gear           item, pick, gain, buyout, net cost
 --   a consumable   item, effect, score, price of a piece, pieces for sale
 -- `name` is the room for the item's name, `second` where the pick or the effect begins,
--- `upgrade` and `price` where the gain (or the score) and the price end. The price of gear
--- ends right before the Buy button; that of a consumable leaves room for the pieces.
+-- `upgrade` and `price` where the gain (or the score) and the price end, `last` where the
+-- last column does, right before the Buy button: the net cost of gear, the pieces of a
+-- consumable.
+-- A price has PRICE_ROOM to stand in, and never takes more (see SetMoney): with the coins
+-- as close as they stand, that is 999 gold to the copper in the game's own font. The two
+-- prices of gear are each that wide, and a step (PRICE_STEP) apart.
 local PAD = 8                               -- between neighbours
 local ICON_LEFT, ICON_SIZE = 6, 22
 local NAME_LEFT, NAME_MIN_WIDTH = 36, 110
 local PICK_WIDTH, METER_WIDTH = 140, 72
-local STOCK_RIGHT = 684                     -- where the count of a consumable's pieces ends
+local PRICE_ROOM, PRICE_STEP = 94, 106
+local LAST_RIGHT = 684                      -- where the last column ends
 local COLUMNS = {
-    gear = { name = 276, second = 324, upgrade = 564, price = 684 },
-    supplies = { name = 228, second = 276, upgrade = 492, price = 596 },
+    gear = { name = 204, second = 252, upgrade = LAST_RIGHT - 2 * PRICE_STEP, price = LAST_RIGHT - PRICE_STEP, last = LAST_RIGHT },
+    supplies = { name = 228, second = 276, upgrade = 492, price = 596, last = LAST_RIGHT },
 }
 local TITLE_LEFT, TITLE_TOP = 10, 16        -- the first title, and how far down the titles are
 local SCAN_WIDTH, STATUS_BAR_WIDTH = 118, 140
@@ -218,10 +223,10 @@ local function ShowSupplyTooltip(row)
     GameTooltip:Show()
 end
 
--- With "Net cost" on, a row is priced at what the item costs in the end. Its tooltip then says
--- what that is made of: what is paid now, and what a vendor gives back, under the game's own
--- name for it ("Sell Price"; the French one ends in a space, for the colon the game writes
--- after it).
+-- With "Value by net cost" on, a row is judged by what the item costs in the end. Its tooltip
+-- then says what that is made of: what is paid now, and what a vendor gives back, under the
+-- game's own name for it ("Sell Price"; the French one ends in a space, for the colon the
+-- game writes after it).
 local function AddNetLines(tooltip, offer)
     local r, g, b = NORMAL_FONT_COLOR:GetRGB()
     local wr, wg, wb = HIGHLIGHT_FONT_COLOR:GetRGB()
@@ -390,18 +395,21 @@ local function HeaderOnClick(toggle)
     UI.Refresh()
 end
 
--- Shows an amount in a coin display, the coins standing close together.
+-- Puts the coins of a coin display close together, as they stand in the game's bags, and
+-- returns how wide the amount then is.
 -- The game lays a price out for a table: silver and copper each get a slot wide enough for two
 -- digits, so that the coins of all rows stand in columns. A price with one digit of silver or
 -- copper then has a hole in it ("2g 90s    0c") that money has nowhere else in the game. So
--- after the game has set the amount, its three parts (each as wide as its number and its
--- coin) are put side by side from the right, every number the same step after the coin
--- before it: the step a two-digit number has in the game's own layout.
-local COIN_GAP = 9
+-- after the game has set the amount, each of its three parts is drawn in on itself, its
+-- number right before its coin, and the parts are put side by side from the right, a small
+-- step apart. (A part is the game's: `Text` its number, `Icon` its coin, which is not there
+-- for a player who has the letters g, s and c instead.)
+local COIN_GAP = 4          -- from a coin to the next number
+local COIN_AIR = 1          -- from a number to its coin; the game leaves 2
 local COINS = { "CopperDisplay", "SilverDisplay", "GoldDisplay" }
-local function SetMoney(money, copper)
-    money:SetAmount(copper)
+local function LayCoins(money)
     local after         -- the nearest part to the right that is shown
+    local width = 0
     for i = 1, #COINS do
         local coin = money[COINS[i]]
         if coin then
@@ -411,18 +419,47 @@ local function SetMoney(money, copper)
             else
                 coin:SetPoint("RIGHT", money, "RIGHT", 0, 0)
             end
-            if coin:IsShown() then after = coin end
+            if coin:IsShown() then
+                local icon = coin.Icon:IsShown() and coin.Icon:GetWidth() + COIN_AIR or 0
+                coin.Text:SetPoint("RIGHT", coin, "RIGHT", -icon, 0)
+                coin:SetWidth(coin.Text:GetStringWidth() + icon)
+                width = width + coin:GetWidth() + (after and COIN_GAP or 0)
+                after = coin
+            end
         end
     end
+    return width
 end
 
--- The price in a row. An auction house that deals in whole silver shows no copper in its
--- prices. A net cost has copper all the same (`toCopper`): a vendor pays to the copper.
-local function SetPrice(money, copper, toCopper)
-    if not C_AuctionHouse.SupportsCopperValues() then
-        money.CopperDisplay:SetForcedHidden(not toCopper)
+-- Shows an amount in a coin display of ours. `room` is how wide it may be: an amount that
+-- would take more gives up its copper, and if that is not enough its silver. Thousands of
+-- gold are not a matter of copper, and the box that asks before a purchase has the price
+-- in full. So a price never reaches into the column beside it, whatever the sum, the
+-- language or the font. (How wide a number is, the game says: nothing is guessed.)
+-- A display marked `noCopper` never has copper: the prices of an auction house that deals
+-- in whole silver.
+local function SetMoney(money, copper, room)
+    local small, middle = money.CopperDisplay, money.SilverDisplay
+    small:SetForcedHidden(money.noCopper == true)
+    middle:SetForcedHidden(false)
+    money:SetAmount(copper)
+    local width = LayCoins(money)
+    if room and width > room and small:IsShown() then
+        small:SetForcedHidden(true)
+        width = LayCoins(money)
     end
-    SetMoney(money, copper)
+    if room and width > room and money.GoldDisplay:IsShown() then
+        middle:SetForcedHidden(true)
+        width = LayCoins(money)
+    end
+    return width
+end
+
+-- What is paid, in a row: a buyout, or the price of a consumable's piece. An auction house
+-- that deals in whole silver has no copper in its prices.
+local function SetPrice(money, copper, room)
+    money.noCopper = not C_AuctionHouse.SupportsCopperValues()
+    return SetMoney(money, copper, room)
 end
 
 -- The plate a pick is named on.
@@ -469,6 +506,9 @@ local function Arrange(row, kind)
     row.Trough:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT", at.upgrade, 5)
     row.Price:ClearAllPoints()
     row.Price:SetPoint("RIGHT", row, "LEFT", at.price, 0)
+    -- The last column: the net cost of gear, or the pieces of a consumable.
+    row.Net:SetShown(kind == "gear")
+    row.Stock:SetShown(kind ~= "gear")
 end
 
 -- The scroll box hands out bare frames; each gets its parts here the first time it is used.
@@ -499,9 +539,9 @@ local function BuildItemRow(row)
     row.Name = NewText(row, 13, CREAM, "LEFT", true)
     row.Name:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
 
-    -- "One-Hand", "Two-Hand"...: at the right end of the name column, on weapon rows only.
+    -- "One-Hand", "Two-Hand"...: at the right end of the name's room, on weapon rows only
+    -- (InitItemRow says where that is).
     row.Hand = NewText(row, 11, MUTED, "RIGHT", true)
-    row.Hand:SetPoint("RIGHT", row, "LEFT", NAME_LEFT + COLUMNS.gear.name, 0)
 
     row.Pick = NewPick(row)
 
@@ -516,17 +556,22 @@ local function BuildItemRow(row)
     row.Meter:SetHeight(3)
     row.Meter:SetPoint("LEFT", row.Trough, "LEFT", 0.5, 0)
 
+    -- What is paid: the buyout of gear, the price of a consumable's piece (SetPrice).
     row.Price = CreateFrame("Frame", nil, row, "MoneyDisplayFrameTemplate")
+    -- After it, what gear costs in the end: to the copper wherever the auction house is,
+    -- for a vendor pays to the copper.
+    row.Net = CreateFrame("Frame", nil, row, "MoneyDisplayFrameTemplate")
+    row.Net:SetPoint("RIGHT", row, "LEFT", LAST_RIGHT, 0)
 
     -- A consumable's row says what the item does where a gear row has its pick, and after
-    -- the price how many pieces are for sale. Its score stands where a gear row has its
-    -- gain, over the same meter; a row without a score gives that room to the words. The
-    -- list hands a frame from one view to the other, so every row has both sets of parts and
-    -- shows the one its entry calls for (see InitItemRow).
+    -- the price how many pieces are for sale, where a gear row has its net cost. Its score
+    -- stands where a gear row has its gain, over the same meter; a row without a score gives
+    -- that room to the words. The list hands a frame from one view to the other, so every
+    -- row has both sets of parts and shows the one its entry calls for (see InitItemRow).
     row.Effect = NewText(row, 11.5, SOFT, "LEFT", true)
     row.Effect:SetPoint("LEFT", row, "LEFT", COLUMNS.supplies.second, 0)
     row.Stock = NewText(row, 12, SOFT, "RIGHT", true)
-    row.Stock:SetPoint("RIGHT", row, "LEFT", STOCK_RIGHT, 0)
+    row.Stock:SetPoint("RIGHT", row, "LEFT", LAST_RIGHT, 0)
 
     row.Buy = NewButton(row, 58, 20, "ButtonDark", 9.5)
     row.Buy:SetPoint("RIGHT", row, "RIGHT", -4, 0)
@@ -626,7 +671,7 @@ local function InitSupplyRow(row, entry, share)
     end
 
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
-    SetPrice(row.Price, supply.price)
+    SetPrice(row.Price, supply.price, at.price - at.upgrade - PAD)
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
 end
@@ -642,7 +687,6 @@ local function InitItemRow(row, element)
     local gear = entry.supply == nil
     Arrange(row, gear and "gear" or "supplies")
     row.Effect:SetShown(not gear)
-    row.Stock:SetShown(not gear)
     if not gear then
         InitSupplyRow(row, entry, data.share or 1)
         return
@@ -659,28 +703,42 @@ local function InitItemRow(row, element)
     if offer.effects then name = name .. " " .. NORMAL_FONT_COLOR:WrapTextInColorCode("*") end
     row.Name:SetText(name)
 
-    -- "Main Hand" lists one-hand and two-hand weapons together, so each row says which it is.
-    -- The name gives up the room the label takes.
+    SetPick(row.Pick, entry.pick)
+
+    -- The name has the room up to the pick. A row without a pick has nothing there, and its
+    -- name may run on to where the gain begins.
+    local at = COLUMNS.gear
+    local nameWidth = at.name
+    if not entry.pick then nameWidth = at.upgrade - METER_WIDTH - PAD - NAME_LEFT end
+    -- "Main Hand" lists one-hand and two-hand weapons together, so each row says which it is,
+    -- at the end of that room. The name gives up what the label takes, down to the least a
+    -- name is given; a label that would take more is cut short itself.
     local hand = ns.Compare.HandLabel(offer.invType)
-    local nameWidth = COLUMNS.gear.name
     row.Hand:SetShown(hand ~= nil)
     if hand then
         row.Hand:SetText(hand)
-        row.Name:SetWidth(math.max(nameWidth - row.Hand:GetStringWidth() - PAD, NAME_MIN_WIDTH))
+        local handWidth = math.min(row.Hand:GetUnboundedStringWidth(), nameWidth - NAME_MIN_WIDTH - PAD)
+        row.Hand:SetWidth(handWidth)
+        row.Hand:ClearAllPoints()
+        row.Hand:SetPoint("RIGHT", row, "LEFT", NAME_LEFT + nameWidth, 0)
+        row.Name:SetWidth(nameWidth - handWidth - PAD)
     else
         row.Name:SetWidth(nameWidth)
     end
-
-    SetPick(row.Pick, entry.pick)
 
     row.Upgrade:SetText(GainText(entry))
     row.Meter:SetWidth(math.max((METER_WIDTH - 1) * data.share, 2))
     row.Meter:SetTexCoord(0, math.max(data.share, 0.03), 0, 1)
 
-    -- The buyout, or with "Net cost" on what is left of it once a vendor has the item
-    -- (Results.Cost). Red is about the buyout either way: that is what has to be paid.
-    row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
-    SetPrice(row.Price, entry.cost, ns.db.net)
+    -- Two prices, always: the buyout, which is what is paid, and what is left of it once a
+    -- vendor has the item (Results.Net). The one the best value is judged by stands in
+    -- white and the other in grey: the buyout, unless "Value by net cost" is ticked. A
+    -- buyout the player cannot pay is red whichever it is.
+    local byNet = ns.db.net and true or false
+    row.Price:SetFontObject(not entry.affordable and PriceFontRed or byNet and PriceFontGray or PriceFontWhite)
+    SetPrice(row.Price, offer.buyout, PRICE_ROOM)
+    row.Net:SetFontObject(byNet and PriceFontWhite or PriceFontGray)
+    SetMoney(row.Net, ns.Results.Net(offer.buyout, offer.sell), PRICE_ROOM)
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
 end
@@ -1073,20 +1131,13 @@ local function PaintPlan()
     SetCheck(planBar.Check, ns.db.plan)
     PaintBudget()
     local text = ""
-    if planned and summary.upgrades > 0 and ns.db.net then
-        -- What is paid for the set now, and what it costs in the end.
-        text = L.PLAN_SUM_NET:format(summary.upgrades, ns.Num(summary.gain), ns.Money(summary.cost), ns.Money(summary.net))
-    elseif planned and summary.upgrades > 0 then
-        text = L.PLAN_SUM:format(summary.upgrades, ns.Num(summary.gain), ns.Money(summary.cost))
+    if planned and summary.upgrades > 0 then
+        -- What is paid for the set now, and what it costs in the end: as its rows have both.
+        text = L.PLAN_SUM:format(summary.upgrades, ns.Num(summary.gain), ns.Money(summary.cost), ns.Money(summary.net))
     elseif planned then
         text = L.PLAN_NONE
     end
     planBar.Summary:SetText(text)
-end
-
--- What the price column of gear is headed: the buyout, or the net cost with its box ticked.
-local function PriceTitle()
-    return ns.db.net and L.NET or L.COL_PRICE
 end
 
 function UI.Refresh()
@@ -1123,8 +1174,6 @@ function UI.Refresh()
     rows = summary.cost and all or Fold(all)
     SyncList()
     PaintPlan()
-    -- The price column says what its numbers are.
-    if view == "gear" then frame.List.Titles[4]:SetText(ns.Upper(PriceTitle())) end
 
     local idle = S.state == "idle"
     ShowStatus()
@@ -1580,10 +1629,9 @@ local function BuildBuyBox()
 
     buyBox.TotalLabel = NewText(buyBox, 9.5, GOLD_DIM)
     buyBox.Total = CreateFrame("Frame", nil, buyBox, "MoneyDisplayFrameTemplate")
-    if not C_AuctionHouse.SupportsCopperValues() then
-        buyBox.Was.CopperDisplay:SetForcedHidden(true)
-        buyBox.Total.CopperDisplay:SetForcedHidden(true)
-    end
+    -- An auction house that deals in whole silver has no copper in its prices (see SetMoney).
+    local noCopper = not C_AuctionHouse.SupportsCopperValues()
+    buyBox.Was.noCopper, buyBox.Total.noCopper = noCopper, noCopper
 
     -- The net cost of gear. To the copper wherever the auction house is: a vendor pays to
     -- the copper.
@@ -1734,18 +1782,22 @@ local function ApplyView()
     local gear = view == "gear"
     local list = frame.List
 
-    -- Item, pick, gain, buyout; or item, effect, score, price of a piece, pieces for sale.
-    -- Each title over its column, where this view has it (see COLUMNS).
+    -- Item, pick, gain, buyout, net cost; or item, effect, score, price of a piece, pieces
+    -- for sale. Each title over its column, where this view has it (see COLUMNS). A title
+    -- has `room`: a long word in some language is cut short before it reaches the title
+    -- beside it.
     local at, titles = COLUMNS[view], list.Titles
-    local function Title(title, text, point, x)
+    local function Title(title, text, point, x, room)
         title:SetText(ns.Upper(text))
+        title:SetWidth(title:GetUnboundedStringWidth() > room and room or 0)
         title:ClearAllPoints()
         title:SetPoint(point, list, "TOPLEFT", LIST_LEFT + x, -TITLE_TOP)
     end
-    Title(titles[2], gear and L.COL_PICK or L.COL_EFFECT, "LEFT", at.second)
-    Title(titles[3], gear and L.COL_UPGRADE or L.COL_SCORE, "RIGHT", at.upgrade)
-    Title(titles[4], gear and PriceTitle() or L.COL_UNIT, "RIGHT", at.price)
-    titles[5]:SetShown(not gear)
+    local third = 100           -- for the title of the gain, which is wider than its meter in some languages
+    Title(titles[2], gear and L.COL_PICK or L.COL_EFFECT, "LEFT", at.second, at.upgrade - third - PAD - at.second)
+    Title(titles[3], gear and L.COL_UPGRADE or L.COL_SCORE, "RIGHT", at.upgrade, third)
+    Title(titles[4], gear and L.COL_PRICE or L.COL_UNIT, "RIGHT", at.price, at.price - at.upgrade - PAD)
+    Title(titles[5], gear and L.NET or L.COL_STOCK, "RIGHT", at.last, at.last - at.price - PAD)
     intro.Heading:SetText(ns.Upper(gear and L.TITLE or L.TITLE_SUP))
 
     -- The Filters field stands against the right edge in both views; its menu is the view's
@@ -1782,19 +1834,26 @@ local function BuildViews(auction)
     frame.BuyBox = buyBox
 
     -- The filters of the list in view, in the menu of a field at the right end of the strip
-    -- above it (Filters.lua). One line of that menu is no filter: "Net cost", gear priced at
-    -- what it costs in the end, the buyout less what a vendor pays for it afterwards. The
-    -- price column, the best value and "Top N per slot" go by it (Results.Cost); what the
-    -- player can pay for, and the best set for a budget, stay a matter of the buyout.
+    -- above it (Filters.lua). One line of that menu is no filter: "Value by net cost". A row
+    -- of gear has both its prices, the buyout and what it costs in the end (the buyout less
+    -- what a vendor pays for it afterwards); the line says which of them the best value and
+    -- "Top N per slot" go by (Results.Cost). What the player can pay for, and the best set
+    -- for a budget, stay a matter of the buyout.
     -- Ticking it sends for no prices: a scan looks up what the list needs either way (see
-    -- SkipReason in Scanner.lua), and price checks that were stopped stay stopped.
+    -- SkipReason in Scanner.lua), and price checks that were stopped stay stopped. Nor does
+    -- it send the list back to its top, as a filter does: a row or two may come or go, and
+    -- the player is looking at the ones in view.
     local field, names = ns.Filters.Build(frame, {
         View = function() return view end,
         Planned = Planned,
         Changed = function(sameOffers)
-            toTop = true
-            -- The player changed what the list shows: price checks that were stopped may go on.
-            if not sameOffers then S.Resume() end
+            if sameOffers then
+                keepPlace = true
+            else
+                toTop = true
+                -- The player changed what the list shows: price checks that were stopped may go on.
+                S.Resume()
+            end
             UI.Refresh()
         end,
     })
@@ -1809,16 +1868,34 @@ local function BuildViews(auction)
     holder:SetScript("OnShow", function() frame:Show() end)
     holder:SetScript("OnHide", function() frame:Hide() end)
 
+    -- The gold display at the foot of the window is the game's own, the same on every tab.
+    -- While one of our tabs is up its coins stand as close as those of our prices do
+    -- (LayCoins); on the game's tabs it is as the game lays it out. The game writes the
+    -- amount into it again whenever the gold changes, which undoes the closing up: hence
+    -- the hook, and hence writing the amount again is how it is given back.
+    local purse = auction.MoneyFrameBorder and auction.MoneyFrameBorder.MoneyFrame
+    if purse and purse.SetAmount and purse.CopperDisplay and purse.CopperDisplay.Text then
+        hooksecurefunc(purse, "SetAmount", function(self)
+            if frame:IsShown() then LayCoins(self) end
+        end)
+    else
+        purse = nil
+    end
+
     frame:SetScript("OnShow", function()
         local shown = holder:IsShown() and "supplies" or "gear"
         if shown ~= view then
             view = shown
             ApplyView()
         end
+        if purse then LayCoins(purse) end
         UI.Refresh()
     end)
     -- Another tab, or the window closed: a question about buying must not stay up.
-    frame:SetScript("OnHide", function() buyBox:Hide() end)
+    frame:SetScript("OnHide", function()
+        buyBox:Hide()
+        if purse then purse:SetAmount(GetMoney()) end
+    end)
     ApplyView()
 end
 
@@ -1874,18 +1951,15 @@ local function Build()
     list:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -PANEL_RIGHT, PANEL_BOTTOM)
     NewSlices(list, "Panel", 0.375, 12, "BACKGROUND", 0, 1.5)
 
-    -- The titles of the columns. The list has one order, best upgrade first in every slot: a
-    -- title is not a button. The first is "Item" in both views, and the fifth, how many pieces
-    -- are for sale, is there for consumables only. What the three between them say, and
-    -- where they stand, is the view's (see ApplyView).
+    -- The titles of the columns, five in either view. The list has one order, best upgrade
+    -- first in every slot: a title is not a button. The first is "Item" in both views. What
+    -- the four after it say, and where they stand, is the view's (see ApplyView).
     list.Titles = {}
     for i = 1, 5 do
         list.Titles[i] = NewText(list, 9.5, GOLD_DIM, i > 2 and "RIGHT" or "LEFT")
     end
     list.Titles[1]:SetPoint("LEFT", list, "TOPLEFT", LIST_LEFT + TITLE_LEFT, -TITLE_TOP)
     list.Titles[1]:SetText(ns.Upper(L.COL_ITEM))
-    list.Titles[5]:SetPoint("RIGHT", list, "TOPLEFT", LIST_LEFT + STOCK_RIGHT, -TITLE_TOP)
-    list.Titles[5]:SetText(ns.Upper(L.COL_STOCK))
     local rule = NewRule(list)
     rule:SetPoint("TOPLEFT", list, "TOPLEFT", LIST_LEFT, -(LIST_TOP - 3))
     rule:SetPoint("TOPRIGHT", list, "TOPRIGHT", -LIST_LEFT, -(LIST_TOP - 3))
