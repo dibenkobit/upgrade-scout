@@ -122,7 +122,7 @@ Reconnectez-vous avec lui quand il a pris un niveau ou changé d'équipement.
 
 ## Développement
 
-Les tests et la publication des versions sont décrits dans la [version anglaise](../README.md#development).
+Les tests et la publication des versions sont décrits dans la [version anglaise](DEVELOPMENT.md).
 
 ## Licence
 

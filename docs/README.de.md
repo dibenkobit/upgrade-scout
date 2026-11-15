@@ -121,7 +121,7 @@ wieder mit ihm ein, wenn er eine Stufe aufgestiegen ist oder neue Ausrüstung tr
 
 ## Entwicklung
 
-Tests und Releases sind in der [englischen Version](../README.md#development) beschrieben.
+Tests und Releases sind in der [englischen Version](DEVELOPMENT.md) beschrieben.
 
 ## Lizenz
 

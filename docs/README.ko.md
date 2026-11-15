@@ -79,7 +79,7 @@ CurseForge 앱이나 Wago 앱이 알아서 설치해 줍니다.
 
 ## 개발
 
-테스트와 릴리스 방법은 [영어판](../README.md#development)에 있습니다.
+테스트와 릴리스 방법은 [영어판](DEVELOPMENT.md)에 있습니다.
 
 ## 라이선스
 

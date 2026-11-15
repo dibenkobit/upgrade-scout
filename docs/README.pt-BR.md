@@ -117,7 +117,7 @@ nele de novo quando ele subir de nível ou trocar de equipamento.
 
 ## Desenvolvimento
 
-Os testes e a publicação de versões estão descritos na [versão em inglês](../README.md#development).
+Os testes e a publicação de versões estão descritos na [versão em inglês](DEVELOPMENT.md).
 
 ## Licença
 

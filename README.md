@@ -1,12 +1,14 @@
 # Upgrade Scout
 
-<img src="docs/logo/logo.png" alt="Upgrade Scout logo" width="128" align="right">
+<img src="https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/logo/logo.png" alt="Upgrade Scout logo" width="128" align="right">
 
 **Finds the gear upgrades and consumables on the auction house that you can use and afford.** An addon for World of Warcraft Forever.
 
+![Upgrade Scout: gear and consumables worth buying. One scan of the auction house shows what you can use and afford.](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/cover.png)
+
 **Download on [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) or [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
-English · [简体中文](docs/README.zh-CN.md) · [繁體中文](docs/README.zh-TW.md) · [Deutsch](docs/README.de.md) · [Русский](docs/README.ru.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md) · [Português](docs/README.pt-BR.md) · [한국어](docs/README.ko.md)
+English · [简体中文](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.zh-CN.md) · [繁體中文](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.zh-TW.md) · [Deutsch](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.de.md) · [Русский](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.ru.md) · [Français](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.fr.md) · [Español](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.es.md) · [Português](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.pt-BR.md) · [한국어](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.ko.md)
 
 Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list of gear that is
 better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
@@ -17,6 +19,22 @@ each kind: the one that gives you the most, at its lowest price.
 
 Away from the auction house, the tooltip of any item shows how much better it is than what you
 wear: in your bags, in loot, in a quest reward and in a chat link.
+
+![One scan shows what to buy: the Upgrades tab at the auction house](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/1-scan.png)
+
+![Every talent tree in the tooltip](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/2-tooltip.png)
+
+![A green arrow in your bags](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/3-bags.png)
+
+![Consumables too: the Consumables tab at the auction house](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/4-consumables.png)
+
+![Shop for your other characters: the Profile dropdown](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/5-characters.png)
+
+![Mail your purchases in two clicks](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/6-mail.png)
+
+![What gear costs you in the end: the Net cost box](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/7-netcost.png)
+
+![One window to set it up: the welcome window](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/8-welcome.png)
 
 ## What it does
 
@@ -105,31 +123,11 @@ levels up or changes gear.
   its weight in your profile and what they add up to.
 - `/upscout forget Name` removes a deleted character from the dropdown.
 
-## Development
-
-The tests run outside the game and need Lua 5.1:
-
-```
-lua5.1 tests/run.lua
-```
-
-[luacheck](https://github.com/lunarmodules/luacheck) checks the code for misspelled names and
-unused variables:
-
-```
-luacheck UpgradeScout tests
-```
-
-GitHub Actions runs both on every push.
-
-Each script in `scripts/` says at the top what it does and how to run it.
-
-To release, push a tag with the version from `UpgradeScout.toc`, for example `1.2.0`. GitHub Actions
-runs the tests and uploads the zip to CurseForge, Wago Addons and GitHub.
-
 ## License
 
-All rights reserved, see [LICENSE](LICENSE). The stat weights were worked out with
+All rights reserved, see [LICENSE](https://github.com/dibenkobit/upgrade-scout/blob/main/LICENSE). The stat weights were worked out with
 [wowsims/forever](https://github.com/wowsims/forever), and their share below level 60 with
 [MythicSim's forever engine](https://github.com/sage3648/mythicsim-forever-engine). Both are under
 the MIT license.
+
+For developers: how to run the tests and make a release is in [DEVELOPMENT.md](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/DEVELOPMENT.md).

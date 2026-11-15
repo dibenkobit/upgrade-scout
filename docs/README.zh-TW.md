@@ -79,7 +79,7 @@ CurseForge 或 Wago 應用程式會幫你裝好一切。
 
 ## 開發
 
-測試和發布方法見[英文版](../README.md#development)。
+測試和發布方法見[英文版](DEVELOPMENT.md)。
 
 ## 授權
 

@@ -117,7 +117,7 @@ con él cuando suba de nivel o cambie de equipo.
 
 ## Desarrollo
 
-Las pruebas y la publicación de versiones se explican en la [versión en inglés](../README.md#development).
+Las pruebas y la publicación de versiones se explican en la [versión en inglés](DEVELOPMENT.md).
 
 ## Licencia
 
