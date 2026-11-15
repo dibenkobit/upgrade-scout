@@ -492,11 +492,6 @@ local function WhereHeight(switch)
     return tall
 end
 
--- A sentence as it stands inside another: without the full stop at its end.
-local function Quoted(text)
-    return (text:gsub("%.$", ""):gsub("。$", ""))
-end
-
 -- As wide as the two cards. What a card has under one another the block has side by side:
 -- the picture on the left, the name and the sentence on the right, and under the sentence
 -- the two questions (see Layout for where each part goes).
@@ -533,7 +528,7 @@ local function NewBlock()
     -- that tells a player more than a name for the kind would.
     block.Rule = NewRule(block)
     block.Notes = NewWhere(block, "rowNotes", L.WELCOME_NOTES:format(
-        Quoted(L.TT_CANT_AFFORD:format(ns.Money(SAMPLES[1].short))), Quoted(L.TT_BOTH_HANDS)))
+        L.TT_CANT_AFFORD:format(ns.Money(SAMPLES[1].short)), L.TT_BOTH_HANDS))
     -- The sum in those words has a coin, a picture among letters. The room between lines that
     -- the words of the other boxes have lifts such a picture out of its line, so these have
     -- none: they stand on one line (their translations are kept that short), set level with
