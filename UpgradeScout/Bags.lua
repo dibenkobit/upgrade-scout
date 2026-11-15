@@ -48,6 +48,17 @@ local function Wearable(link)
     return known
 end
 
+-- Is the item armor of a lighter kind than the character has asked to be offered ("Only
+-- leather" in the Filters menu of the Upgrades tab: see Wants.lua)? What the list at the
+-- auction house leaves out for that gets no arrow either.
+local function TooLight(link)
+    local wants = ns.Wants.Of(ns.Roster.Me())
+    if not wants or not wants.armor then return false end
+    local _, _, _, invType, _, classID, subClassID = C_Item.GetItemInfoInstant(link)
+    local armor = ns.Wants.ArmorOf(invType, classID, subClassID)
+    return armor ~= nil and armor ~= wants.armor
+end
+
 -- "now" when the item gets the green arrow, "later" when it gets the grey one, false when it
 -- gets none, nil while that cannot be told yet.
 function B.Arrow(link)
@@ -55,6 +66,7 @@ function B.Arrow(link)
     if not ns.Shows("arrows") then return false end
     local upgrade = ns.Tooltip.Upgrade(link)
     if not upgrade then return upgrade end
+    if TooLight(link) then return false end
     return Wearable(link)
 end
 
@@ -187,6 +199,13 @@ end)
 -- Another one scores (the addon or Pawn), or Pawn's scales changed: an upgrade to the one
 -- may be none to the other.
 ns.Listen("SCORING_CHANGED", function()
+    retries = 0
+    MarkAllSoon()
+end)
+
+-- The character being played asks for another kind of armor, or for any again (Wants.lua).
+ns.Listen("WANTS_CHANGED", function(card)
+    if card ~= ns.Roster.Me() then return end
     retries = 0
     MarkAllSoon()
 end)

@@ -42,6 +42,7 @@ GearData.lua
 Score.lua
 Pawn.lua
 Compare.lua
+Wants.lua
 Results.lua
 Plan.lua
 Tooltip.lua
@@ -51,6 +52,7 @@ Supplies.lua
 Scanner.lua
 Mail.lua
 Widgets.lua
+Filters.lua
 UI.lua
 Welcome.lua
 Minimap.lua

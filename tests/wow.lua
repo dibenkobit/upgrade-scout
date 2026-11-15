@@ -235,6 +235,12 @@ function M:SetText(text)
     self._text = text
 end
 function M:GetText() return self._text end
+-- Writes a text and makes the font string as wide as the text is.
+function M:SetTextToFit(text)
+    assert(self._kind == "FontString", "a font string")
+    self:SetText(text)
+    self._width = self:GetStringWidth()
+end
 -- As in the game, a button is told when it is switched on or off, and only when that changes.
 function M:SetEnabled(enabled)
     enabled = enabled and true or false
@@ -724,34 +730,69 @@ local function MoneyDisplayModel(money)
     end
 end
 
--- WowStyle1DropdownTemplate: shows the ticked line of its menu, or the default text. The menu
--- is described by a generator function, which runs again every time the menu opens.
+-- Where a menu hangs from its dropdown (AnchorUtil.CreateAnchor).
+AnchorUtil = {}
+function AnchorUtil.CreateAnchor(point, relativeTo, relativePoint, x, y)
+    assert(type(point) == "string" and relativeTo ~= nil and type(relativePoint) == "string", "a point, a frame and its point")
+    return { point = point, relativeTo = relativeTo, relativePoint = relativePoint, x = x or 0, y = y or 0 }
+end
+
+-- WowStyle1DropdownTemplate: shows the ticked line of its menu, or the default text, or the
+-- text it was told to show whatever is ticked (OverrideText). The menu is described by a
+-- generator function, which runs again every time the menu opens.
+--   dropdown.radios   the lines of which one is chosen (root:CreateRadio), as the generator
+--                     last described them
+--   dropdown.checks   the lines with a tick box (root:CreateCheckbox)
+--   dropdown.lines    while the menu is open (dropdown:Open), the frames the game made for
+--                     the lines with a tick box, in their order: see MenuLine
 local function DropdownModel(dropdown)
-    dropdown.radios = {}
-    -- The template's own plate and arrow.
+    dropdown.radios, dropdown.checks = {}, {}
+    -- The template's own plate and arrow, and its text.
     dropdown.Background, dropdown.Arrow = dropdown:CreateTexture(), dropdown:CreateTexture()
+    dropdown.Text = dropdown:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     local function ShowSelection(self)
-        local text
-        for _, radio in ipairs(self.radios) do
-            if radio.isSelected(radio.data) then text = radio.text end
+        local text = self._override
+        if not text then
+            for _, radio in ipairs(self.radios) do
+                if radio.isSelected(radio.data) then text = radio.text end
+            end
         end
         self._text = text or self._default
+        self.Text:SetText(self._text or "")
     end
     function dropdown:SetDefaultText(text)
         self._default = text
         ShowSelection(self)
     end
+    function dropdown:OverrideText(text)
+        assert(type(text) == "string", "a text")
+        self._override = text
+        ShowSelection(self)
+    end
     function dropdown:SetTooltip(tooltipFunc) self._tooltip = tooltipFunc end
+    function dropdown:SetMenuAnchor(anchor)
+        assert(type(anchor) == "table" and anchor.point, "an anchor made by AnchorUtil.CreateAnchor")
+        self._anchor = anchor
+    end
     function dropdown:GenerateMenu()
         assert(not self._open, "the menu is not rebuilt while it is open")
-        local root = { radios = {}, dividers = 0, rules = {} }
+        local root = { radios = {}, checks = {}, dividers = 0, rules = {} }
         -- What the game hands back for a line of the menu: it takes functions that dress the
-        -- line's frame once the game has drawn it (the addon's Widgets.SkinMenuLine).
+        -- line's frame once the game has drawn it (the addon's Widgets.SkinMenuLine), a
+        -- tooltip, and whether the line can be clicked.
         local function Description(entry)
             entry.initializers = {}
             function entry:AddInitializer(fn)
                 assert(type(fn) == "function", "an initializer is a function")
                 self.initializers[#self.initializers + 1] = fn
+            end
+            function entry:SetTooltip(fn)
+                assert(type(fn) == "function", "a tooltip is filled in by a function")
+                self.tooltip = fn
+            end
+            function entry:SetEnabled(enabled)
+                assert(type(enabled) == "boolean", "enabled or not")
+                self.enabled = enabled
             end
             return entry
         end
@@ -760,12 +801,20 @@ local function DropdownModel(dropdown)
             self.radios[#self.radios + 1] = radio
             return radio
         end
-        -- A line across the menu; `after` says which radio each one follows.
+        function root:CreateCheckbox(text, isSelected, setSelected, data)
+            assert(type(text) == "string" and type(isSelected) == "function" and type(setSelected) == "function",
+                "a label and two functions")
+            local check = Description({ text = text, isSelected = isSelected, setSelected = setSelected, data = data })
+            self.checks[#self.checks + 1] = check
+            return check
+        end
+        -- A line across the menu; `after` says which radio each one follows, `afterCheck`
+        -- which tick box.
         function root:CreateDivider()
             self.dividers = self.dividers + 1
             self.after = self.after or {}
             self.after[#self.after + 1] = #self.radios
-            local rule = Description({})
+            local rule = Description({ afterCheck = #self.checks })
             self.rules[#self.rules + 1] = rule
             return rule
         end
@@ -774,7 +823,7 @@ local function DropdownModel(dropdown)
             self.scroll = extent
         end
         self._generator(self, root)
-        self.radios = root.radios
+        self.radios, self.checks = root.radios, root.checks
         self.dividers, self.dividersAfter, self.scroll = root.dividers, root.after or {}, root.scroll
         self.rules = root.rules
         ShowSelection(self)
@@ -791,6 +840,75 @@ local function DropdownModel(dropdown)
         radio.setSelected(radio.data)
         self._open = false
         ShowSelection(self)
+    end
+
+    -- A frame of the game's for a line with a tick box, drawn as the game draws it
+    -- (MenuVariants.CreateCheckbox): its square, its mark when the line is ticked, the light
+    -- under the mouse and the words. Then the addon's own initializers dress it. What is
+    -- drawn on a menu's frame is attached, not created: the game takes it back when the menu
+    -- closes. An initializer may return the size of the line (line._size).
+    local function Attachable(frame)
+        function frame:AttachTexture() return self:CreateTexture() end
+        function frame:AttachFontString() return self:CreateFontString(nil, "ARTWORK", "GameFontHighlight") end
+        function frame:AttachFrame(kind)
+            assert(kind == "Frame" or kind == "Button" or kind == "CheckButton" or kind == "StatusBar" or kind == "EditBox",
+                "a kind of frame a menu can attach")
+            return Attachable(Widget(kind, nil, self))
+        end
+        return frame
+    end
+    local function MenuLine(check)
+        local line = Attachable(Widget("Button"))
+        line._check = check
+        line.leftTexture1, line.highlight = line:AttachTexture(), line:AttachTexture()
+        line.leftTexture1:SetAtlas("common-dropdown-ticksquare")
+        if check.isSelected(check.data) then
+            line.leftTexture2 = line:AttachTexture()
+            line.leftTexture2:SetAtlas("common-dropdown-icon-checkmark-yellow")
+        end
+        line.fontString = line:AttachFontString()
+        line.fontString:SetTextToFit(check.text)
+        for _, dress in ipairs(check.initializers) do
+            local width, height = dress(line, check, dropdown)
+            if width and height then line._size = { width, height } end
+        end
+        line:SetEnabled(check.enabled ~= false)
+        return line
+    end
+    local function DrawLines(self)
+        self.lines = {}
+        for i, check in ipairs(self.checks) do self.lines[i] = MenuLine(check) end
+    end
+    -- The player opens the menu: the game describes it anew and draws it.
+    function dropdown:Open()
+        self:GenerateMenu()
+        self._open = true
+        DrawLines(self)
+    end
+    function dropdown:Close()
+        assert(self._open, "an open menu")
+        -- The frames of its lines go back to the game: what is in them is hidden.
+        for _, line in ipairs(self.lines) do line:Hide() end
+        self._open, self.lines = false, nil
+    end
+    -- The tick box of the open menu with this label: its place among the tick boxes.
+    function dropdown:Find(text)
+        assert(self._open, "an open menu")
+        for i, check in ipairs(self.checks) do
+            if check.text == text then return i end
+        end
+    end
+    -- A click on a tick box of the open menu, by its label. The game plays a sound (by
+    -- whether the line was ticked before the click: MenuTemplates.lua), tells the line's
+    -- function, and draws the lines again without closing the menu (MenuResponse.Refresh).
+    -- A line that is not enabled takes no click.
+    function dropdown:Tick(text)
+        local i = assert(self:Find(text), "no tick box labelled " .. tostring(text))
+        local check = self.checks[i]
+        if check.enabled == false then return end
+        PlaySound(check.isSelected(check.data) and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
+        check.setSelected(check.data)
+        DrawLines(self)
     end
 end
 

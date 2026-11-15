@@ -27,6 +27,15 @@
 - When an item's price has changed since the scan, **Buy** still asks: the box shows the
   **old price** and the **new price**, and you buy or cancel. Before, the chat said so and you
   had to press Buy again.
+- The tick boxes above the lists are now in one menu, **Filters**, at the right end of the strip.
+  It stays open while you tick. The filters that are on are named beside it.
+- **Only leather**, **Only mail** or **Only plate**, a new filter on the Upgrades tab. It leaves
+  out armor lighter than the heaviest your character has learned to wear. Cloaks, rings, weapons
+  and shields stay. The bag arrows follow it.
+- **Upgrade at least**, a new filter with a number. It leaves out upgrades smaller than that
+  percent. An item for an empty slot always stays.
+- Each character has its own two. When you shop for another character, you see and set that
+  character's.
 
 ## 2.5.0
 

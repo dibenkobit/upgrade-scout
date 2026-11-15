@@ -23,6 +23,8 @@ local _, ns = ...
 --   scale       the Pawn scale chosen for it, for when Pawn scores (see Pawn.lua)
 --   talents     the profile for the talent tree it has the most points in; what it is
 --               scored on while none is chosen
+--   armorOnly, minGain, minGainOn
+--               what it wants of its gear: the list's filters that are its own (see Wants.lua)
 --   seen        when it was last written down (time())
 local Roster = {}
 ns.Roster = Roster

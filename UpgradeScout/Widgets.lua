@@ -421,6 +421,57 @@ local function SkinMenuLine(button)
     end
 end
 
+-- A line of such a menu with a tick box (root:CreateCheckbox), as the game has just drawn it:
+-- the recess and the gold tick of our own tick boxes where the game has its square and its
+-- mark, the light of our rows under the mouse, the words in our colour. Given to the line
+-- with AddInitializer, as SkinMenuLine is.
+-- The game makes its mark only for a line that is ticked. Ours is made either way and kept on
+-- the line as `Tick`, so that a line can be ticked while the menu is open without the menu
+-- being drawn again (the line with a number field: see Filters.lua).
+local CHECK_SIZE = 16
+local function SkinMenuCheck(button)
+    local box, mark = button.leftTexture1, button.leftTexture2
+    if not box then return end
+    -- The game's square keeps its place, which the words stand by; our recess is drawn over it.
+    box:SetAlpha(0)
+    box:SetSize(CHECK_SIZE, CHECK_SIZE)
+    NewSlices(box, "Inset", 0.25, 6, "ARTWORK", 0, 0, function() return button:AttachTexture() end)
+    local ticked = mark ~= nil
+    mark = mark or button:AttachTexture()
+    mark:SetTexture(File("Check"))
+    mark:SetTexCoord(0, 1, 0, 1)
+    mark:SetDrawLayer("ARTWORK", 2)
+    mark:SetSize(18, 18)
+    mark:ClearAllPoints()
+    mark:SetPoint("CENTER", box, "CENTER", 1, 1)
+    mark:SetShown(ticked)
+    button.Tick = mark
+    local glow = button.highlight
+    if glow then
+        glow:SetTexture(File("RowGlow"))
+        glow:SetTexCoord(0, 1, 0, 1)
+        glow:SetBlendMode("ADD")
+        glow:SetVertexColor(1, 0.72, 0.30, 0.22)
+    end
+    local text = button.fontString
+    if text then text:SetTextColor(CREAM[1], CREAM[2], CREAM[3]) end
+end
+
+-- The game's dropdown under a face of ours: a recess with a gold arrow. Its own plate and
+-- arrow are made see-through, not removed, because the dropdown goes on setting them as its
+-- state changes; its text is left as it is. Its menu opens on our plate (MenuStyle).
+local function SkinDropdown(dropdown)
+    dropdown.menuMixin = MenuStyle
+    dropdown.Background:SetAlpha(0)
+    dropdown.Arrow:SetAlpha(0)
+    NewSlices(dropdown, "Inset", 0.25, 8, "BACKGROUND", -1)
+    NewSlices(dropdown, "ButtonGlow", 0.25, 8, "HIGHLIGHT"):SetBlendMode("ADD")
+    local arrow = NewTexture(dropdown, "Chevron", "OVERLAY")
+    arrow:SetSize(14, 14)
+    arrow:SetPoint("RIGHT", dropdown, "RIGHT", -7, 0)
+    arrow:SetVertexColor(GOLD[1], GOLD[2], GOLD[3])
+end
+
 -- A line across such a menu (root:CreateDivider): our gold rule.
 local function SkinMenuDivider(frame)
     local line = frame.divider
@@ -438,3 +489,4 @@ Widgets.NewSlices, Widgets.NewColumn, Widgets.NewText = NewSlices, NewColumn, Ne
 Widgets.NewButton, Widgets.NewBar, Widgets.SetBar = NewButton, NewBar, SetBar
 Widgets.SkinScrollBar, Widgets.MenuStyle = SkinScrollBar, MenuStyle
 Widgets.SkinMenuLine, Widgets.SkinMenuDivider = SkinMenuLine, SkinMenuDivider
+Widgets.SkinMenuCheck, Widgets.SkinDropdown = SkinMenuCheck, SkinDropdown

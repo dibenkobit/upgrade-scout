@@ -10,11 +10,12 @@ local S = ns.Scanner
 --   the list        WowScrollBoxList, and MinimalScrollBar as a gold knob on a dark rail
 --   prices          MoneyDisplayFrameTemplate
 --   the profile     WowStyle1DropdownTemplate: its text, and its menu on our plate
+--   the filters     the same, with tick boxes in its menu (Filters.lua)
 -- A purchase is asked about in a box of ours (see BuildBuyBox), for gear as for consumables.
 --
 -- The "Consumables" tab is the same frame in another view (`view`): the same list with rows
--- of another kind, another second filter, a status line of its own, and a box that asks how
--- many pieces to buy. What differs between the views is gathered in ApplyView.
+-- of another kind, other filters, a status line of its own, and a box that asks how many
+-- pieces to buy. What differs between the views is gathered in ApplyView.
 local UI = {}
 ns.UI = UI
 
@@ -51,6 +52,7 @@ local COLUMNS = {
 local TITLE_LEFT, TITLE_TOP = 10, 16        -- the first title, and how far down the titles are
 local SCAN_WIDTH, STATUS_BAR_WIDTH = 118, 140
 local DROPDOWN_MIN, DROPDOWN_MAX = 110, 200
+local FILTERS_ROOM = 270                    -- kept for the names of the filters that are on: three of them
 local CHECK_SIZE, CHECK_GAP = 16, 6         -- a tick box and the room before its label
 
 -- What the tab is drawn with (see Widgets.lua): pictures, text, buttons, bars, and the
@@ -71,11 +73,10 @@ local PICKS = {
 }
 
 local frame, scrollBox, provider, hint, intro, status, statusBar, listBar, age
-local scanButton, profileDropdown, affordCheck, topCheck
-local netCheck              -- "Net cost": what the Upgrades view prices gear at (see Results.Cost)
+local scanButton, profileDropdown
 local view = "gear"         -- what the frame shows: "gear" (Upgrades) or "supplies" (Consumables)
 local holder                -- the frame the Consumables tab is made with (see Build)
-local bestCheck, buyBox     -- the Consumables view's own filter, and its box for buying
+local buyBox                -- the box that asks before a purchase
 local planBar               -- the strip under the list for the best set for a budget (see BuildPlan)
 local rows = {}
 local summary               -- what the last refresh counted, for the status line
@@ -109,6 +110,12 @@ end
 local function ProfileTitle()
     local profile = ns.Score.Current(ns.Roster.Target())
     return profile and profile.title or NONE
+end
+
+-- What that character wants of its gear: the filters of the list that are the character's
+-- own (see Wants.lua). nil when it leaves nothing out.
+local function Wanted()
+    return ns.Wants.Of(ns.Roster.Target() or ns.Roster.Me())
 end
 
 -- The game puts the tooltip of the worn item beside an item's by itself, but it knows only
@@ -891,7 +898,10 @@ local function StatusText()
         if summary.upgrades == 0 then parts[#parts + 1] = L.PLAN_NONE end
         parts[#parts + 1] = Shortfall()
     elseif S.finishedAt then
-        if summary.upgrades == 0 then
+        if summary.upgrades == 0 and (summary.unwanted or 0) > 0 then
+            -- There are upgrades, and the character's own filters leave every one out.
+            parts[#parts + 1] = L.ST_NONE_WANTED:format(summary.unwanted)
+        elseif summary.upgrades == 0 then
             parts[#parts + 1] = summary.hidden > 0 and L.ST_NONE_AFFORD:format(summary.hidden) or L.ST_NONE
         elseif summary.hidden > 0 then
             parts[#parts + 1] = L.ST_DONE_HIDDEN:format(summary.upgrades, summary.slots, summary.hidden)
@@ -1011,8 +1021,9 @@ end
 ---------------------------------------------------------------------------
 -- A strip along the bottom of the list's plate, in the Upgrades view once there is a scan: a
 -- tick box, the budget in gold and silver, and what the set comes to. With the box ticked
--- the list shows that set and nothing else (see Plan.lua), and the two filters above the
--- list have no say.
+-- the list shows that set and nothing else (see Plan.lua). The price filter and "Top N per
+-- slot" then have no say, and their lines of the Filters menu are grey (Filters.lua); what
+-- the character wants of its gear (Wants.lua) holds for a set as it does for the list.
 local PLAN_HEIGHT = 30
 local planCache = {}
 
@@ -1023,13 +1034,14 @@ end
 -- The set for the budget, as rows for the list.
 local function PlanRows()
     local money = GetMoney()
+    local wants = Wanted()
     -- The ladder of sets is made for all the gold there is, and made again only when what it
     -- is made of has changed; a budget picks a rung of it.
     if planCache.changes ~= S.changes or planCache.ctx ~= S.ctx or planCache.money ~= money
-        or planCache.bought ~= #S.acquired then
+        or planCache.bought ~= #S.acquired or planCache.wants ~= wants then
         planCache = {
-            changes = S.changes, ctx = S.ctx, money = money, bought = #S.acquired,
-            ladder = ns.Plan.Ladder(S.offers, ns.Plan.Wearing(S.ctx, S.acquired), money),
+            changes = S.changes, ctx = S.ctx, money = money, bought = #S.acquired, wants = wants,
+            ladder = ns.Plan.Ladder(S.offers, ns.Plan.Wearing(S.ctx, S.acquired), money, wants),
         }
     end
     return ns.Plan.Rows(ns.Plan.Choose(planCache.ladder, S.PlanCap()), ns.db.net)
@@ -1055,15 +1067,9 @@ local function PaintPlan()
         -- The list gives up the height of the strip.
         scrollBox:SetPoint("BOTTOMRIGHT", frame.List, "BOTTOMRIGHT", -LIST_RIGHT, LIST_BOTTOM + (shown and PLAN_HEIGHT or 0))
     end
-    local planned = Planned()
-    -- What the set holds is not for the two filters to say. ("Net cost" keeps its say: it
-    -- changes what the rows of a set are priced at, not what is in the set.)
-    affordCheck:SetEnabled(not planned)
-    affordCheck:SetAlpha(planned and 0.4 or 1)
-    topCheck:SetEnabled(not planned)
-    topCheck:SetAlpha(planned and 0.4 or 1)
     if not shown then return end
 
+    local planned = Planned()
     SetCheck(planBar.Check, ns.db.plan)
     PaintBudget()
     local text = ""
@@ -1108,6 +1114,7 @@ function UI.Refresh()
             money = GetMoney(),
             affordableOnly = ns.db.affordableOnly,
             net = ns.db.net,
+            wants = Wanted(),
             limit = ns.db.topOnly and ns.Results.TOP_COUNT or nil,
             unchecked = S.Unchecked(),
         })
@@ -1126,10 +1133,8 @@ function UI.Refresh()
     scanButton.Face:SetFile(idle and "ButtonRed" or "ButtonDark")
     -- (A lookup around a purchase is over in a moment, and is not for the button to stop.)
     scanButton:SetEnabled(idle or S.IsScan() or S.mode == "supplies")
-    SetCheck(affordCheck, ns.db.affordableOnly)
-    SetCheck(topCheck, ns.db.topOnly)
-    SetCheck(netCheck, ns.db.net)
-    SetCheck(bestCheck, ns.db.bestOnly)
+    -- Beside the Filters field: which of the filters are on.
+    ns.Filters.Paint()
 
     local profileKey = ProfileKey()
     if profileKey ~= profileShown then
@@ -1305,21 +1310,6 @@ local function ProfileMenu(_, root)
     if lines > MENU_ROWS then root:SetScrollMode(MENU_ROWS * 20) end
 end
 
--- The game's dropdown under a face of ours: a recess with a gold arrow. Its own plate and
--- arrow are made see-through, not removed, because the dropdown goes on setting them as its
--- state changes; its text is left as it is. Its menu opens on our plate (Widgets.MenuStyle).
-local function SkinDropdown(dropdown)
-    dropdown.menuMixin = Widgets.MenuStyle
-    dropdown.Background:SetAlpha(0)
-    dropdown.Arrow:SetAlpha(0)
-    NewSlices(dropdown, "Inset", 0.25, 8, "BACKGROUND", -1)
-    NewSlices(dropdown, "ButtonGlow", 0.25, 8, "HIGHLIGHT"):SetBlendMode("ADD")
-    local arrow = NewTexture(dropdown, "Chevron", "OVERLAY")
-    arrow:SetSize(14, 14)
-    arrow:SetPoint("RIGHT", dropdown, "RIGHT", -7, 0)
-    arrow:SetVertexColor(GOLD[1], GOLD[2], GOLD[3])
-end
-
 local function ScanOnClick()
     PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
     if S.state ~= "idle" then
@@ -1332,10 +1322,11 @@ local function ScanOnClick()
     UI.Refresh()
 end
 
--- A tick box for one of the list's two filters: a recess, a gold tick, the label beside it.
--- A click on the label ticks the box, as everywhere in the game.
+-- A tick box for a setting of the list (ns.db): a recess, a gold tick, the label beside it.
+-- A click on the label ticks the box, as everywhere in the game. The best set for a budget
+-- has one; the list's filters have theirs in the menu of the Filters field (Filters.lua).
 local function NewFilterCheck(text, setting, tip, parent)
-    local check = CreateFrame("CheckButton", nil, parent or frame)
+    local check = CreateFrame("CheckButton", nil, parent)
     check:SetSize(CHECK_SIZE, CHECK_SIZE)
     NewSlices(check, "Inset", 0.25, 6, "BACKGROUND")
     local glow = NewTexture(check, "Glow", "HIGHLIGHT")
@@ -1356,8 +1347,7 @@ local function NewFilterCheck(text, setting, tip, parent)
         ns.db[setting] = checked
         toTop = true
         -- The player changed what the list shows: price checks that were stopped may go on.
-        -- (A box that only changes how the prices are read asks for none: see `sameOffers`.)
-        if not self.sameOffers then S.Resume() end
+        S.Resume()
         UI.Refresh()
     end)
     if tip then
@@ -1715,10 +1705,6 @@ end
 ---------------------------------------------------------------------------
 -- The two views
 ---------------------------------------------------------------------------
-local function CheckWidth(check)
-    return CHECK_SIZE + CHECK_GAP + check.Text:GetStringWidth()
-end
-
 -- Makes the frame's controls and titles those of `view`. The list itself follows at the
 -- next refresh.
 local function ApplyView()
@@ -1739,35 +1725,26 @@ local function ApplyView()
     titles[5]:SetShown(not gear)
     intro.Heading:SetText(ns.Upper(gear and L.TITLE or L.TITLE_SUP))
 
-    -- Both views have the price filter; the tick boxes after it are the view's own. They
-    -- stand in a row against the right edge, the last of them at the edge.
-    local checks = gear and { affordCheck, topCheck, netCheck } or { affordCheck, bestCheck }
-    topCheck:SetShown(gear)
-    netCheck:SetShown(gear)
-    bestCheck:SetShown(not gear)
-    local taken = 0             -- the width of the row, with the room before each box
-    for i = #checks, 1, -1 do
-        local check = checks[i]
-        taken = taken + CheckWidth(check)
-        check:ClearAllPoints()
-        check:SetPoint("LEFT", frame, "TOPRIGHT", -(BAR_RIGHT + taken), -BAR_MIDDLE)
-        taken = taken + 2 * PAD
-    end
-
-    -- The profile field takes the room this view's labels leave, within reason. Where a
-    -- language's labels leave too little, the field stands without its own label; its tooltip
-    -- says what it is. Too little is less than the field has a use for: with other characters
-    -- in its menu it shows a name and a profile ("Diluna: Beast Mastery"), which takes all
-    -- the width it can have.
+    -- The Filters field stands against the right edge in both views; its menu is the view's
+    -- own, made each time it opens (Filters.lua). Left of it are the names of the filters
+    -- that are on, which are kept some room (FILTERS_ROOM), and the profile field takes what
+    -- that leaves, within reason. Where a language leaves too little, the profile field
+    -- stands without its own label; its tooltip says what it is. Too little is less than the
+    -- field has a use for: with other characters in its menu it shows a name and a profile
+    -- ("Diluna: Beast Mastery"), which takes all the width it can have.
     local label = frame.ProfileLabel
     local labelWidth = label:GetStringWidth() + PAD
-    local room = AuctionHouseFrame:GetWidth() - (BAR_LEFT + SCAN_WIDTH + 2 * PAD + taken + BAR_RIGHT)
+    local room = AuctionHouseFrame:GetWidth() - (BAR_LEFT + SCAN_WIDTH + 2 * PAD
+        + 2 * PAD + FILTERS_ROOM + PAD + frame.FilterField:GetWidth() + BAR_RIGHT)
     local labelled = room - labelWidth >= (OthersListed() and DROPDOWN_MAX or DROPDOWN_MIN)
     label:SetShown(labelled)
     if not labelled then labelWidth = 0 end
-    profileDropdown:SetWidth(Clamp(room - labelWidth, DROPDOWN_MIN, DROPDOWN_MAX))
+    local width = Clamp(room - labelWidth, DROPDOWN_MIN, DROPDOWN_MAX)
+    profileDropdown:SetWidth(width)
     profileDropdown:ClearAllPoints()
     profileDropdown:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD + labelWidth, 0)
+    -- The names have all there is between the two fields.
+    ns.Filters.SetRoom(FILTERS_ROOM + room - labelWidth - width)
 
     buyBox:Hide()
     toTop = true
@@ -1777,23 +1754,31 @@ end
 -- two tabs. (A part of Build in its own right, also because one Lua function can refer to
 -- only so many of a file's local names.)
 local function BuildViews(auction)
-    -- Where the Upgrades view has "Top N per slot".
-    bestCheck = NewFilterCheck(L.SUP_BEST, "bestOnly", L.SUP_BEST_TIP)
-    -- The Upgrades view's third box: gear priced at what it costs in the end, the buyout less
-    -- what a vendor pays for it afterwards. It is a way to read the prices, not a filter: the
+    BuildBuyBox()
+    BuildPlan()
+    frame.BuyBox = buyBox
+
+    -- The filters of the list in view, in the menu of a field at the right end of the strip
+    -- above it (Filters.lua). One line of that menu is no filter: "Net cost", gear priced at
+    -- what it costs in the end, the buyout less what a vendor pays for it afterwards. The
     -- price column, the best value and "Top N per slot" go by it (Results.Cost); what the
     -- player can pay for, and the best set for a budget, stay a matter of the buyout.
     -- Ticking it sends for no prices: a scan looks up what the list needs either way (see
     -- SkipReason in Scanner.lua), and price checks that were stopped stay stopped.
-    netCheck = NewFilterCheck(L.NET, "net", L.NET_TIP)
-    netCheck.sameOffers = true
-    BuildBuyBox()
-    BuildPlan()
-    -- The box that asks before a purchase may be up when "Net cost" is ticked.
-    netCheck:HookScript("OnClick", function()
-        if buyBox:IsShown() then PaintBox() end
-    end)
-    frame.BestCheck, frame.NetCheck, frame.BuyBox = bestCheck, netCheck, buyBox
+    local field, names = ns.Filters.Build(frame, {
+        View = function() return view end,
+        Planned = Planned,
+        Changed = function(sameOffers)
+            toTop = true
+            -- The player changed what the list shows: price checks that were stopped may go on.
+            if not sameOffers then S.Resume() end
+            -- The box that asks before a purchase may be up when "Net cost" is ticked.
+            if buyBox:IsShown() then PaintBox() end
+            UI.Refresh()
+        end,
+    })
+    field:SetPoint("RIGHT", frame, "TOPRIGHT", -BAR_RIGHT, -BAR_MIDDLE)
+    frame.FilterField, frame.FilterNames = field, names
 
     -- The library that makes the tabs shows and hides the frame a tab was made with. So the
     -- Consumables tab is made with an empty frame of its own, and the real one comes and goes
@@ -1829,11 +1814,8 @@ local function Build()
     scanButton.Label:SetText(ns.Upper(L.SCAN))
     scanButton:SetScript("OnClick", ScanOnClick)
 
-    -- The tick boxes stand against the right edge. (Where each of them and the profile field
-    -- go, and how wide the field is, depends on the view: see ApplyView.)
-    topCheck = NewFilterCheck(L.TOP:format(ns.Results.TOP_COUNT), "topOnly", L.TOP_TIP:format(ns.Results.TOP_COUNT))
-    affordCheck = NewFilterCheck(L.AFFORD, "affordableOnly")
-
+    -- After it the profile field, and against the right edge the Filters field (BuildViews).
+    -- How wide the profile field is, and whether it has its label, is for ApplyView to say.
     local profileLabel = NewText(frame, 9.5, GOLD_DIM)
     frame.ProfileLabel = profileLabel
     profileLabel:SetPoint("LEFT", scanButton, "RIGHT", 2 * PAD, 0)
@@ -1841,7 +1823,7 @@ local function Build()
 
     profileDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
     profileDropdown:SetHeight(24)
-    SkinDropdown(profileDropdown)
+    Widgets.SkinDropdown(profileDropdown)
     profileDropdown:SetDefaultText(NONE)
     profileDropdown:SetupMenu(ProfileMenu)
     profileDropdown:SetTooltip(function(tooltip)
@@ -1949,7 +1931,6 @@ local function Build()
 
     -- The parts by name, as the game's own windows have theirs.
     frame.ScanButton, frame.ProfileDropdown = scanButton, profileDropdown
-    frame.AffordCheck, frame.TopCheck = affordCheck, topCheck
     frame.List, frame.Progress, frame.Status, frame.Age = list, statusBar, status, age
     list.Intro, list.Hint, list.Progress = intro, hint, listBar
 

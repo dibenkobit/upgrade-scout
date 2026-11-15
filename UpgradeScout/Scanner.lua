@@ -231,6 +231,9 @@ local function EvalLink(link)
                     itemID = itemID,
                     unique = IsUnique(itemID),
                     value = value,
+                    -- Its kind of armor, where it has one: cloth, leather, mail or plate
+                    -- (see Wants.lua).
+                    armor = ns.Wants.ArmorOf(equipLoc, item.classID, item.subClassID),
                     effects = ns.Score.HasUnscoredEffects(item),
                     -- What a vendor pays for it, in copper; 0 for an item no vendor buys.
                     -- The net cost of an offer is its buyout less this (Results.Net).
@@ -311,15 +314,25 @@ local function Placements(cand)
     return cand.placements
 end
 
+-- What the character the scan is for wants of its gear (see Wants.lua); nil when it leaves
+-- nothing out.
+local function Wanted()
+    local ctx = S.ctx
+    if not ctx then return nil end
+    return ns.Wants.Of(ctx.who or ns.Roster.Me())
+end
+
 -- The verified offers as the list groups them (see Results.Collect), rebuilt when they change.
 local front = {}
 local function Front()
     local money = GetMoney()
     local afford = ns.db.affordableOnly and true or false
+    local wants = Wanted()
     if front.dirty or front.offers ~= S.offers or front.ctx ~= S.ctx
-        or front.money ~= money or front.afford ~= afford then
-        front.groups = ns.Results.Collect(S.offers, S.ctx, { money = money, affordableOnly = afford })
+        or front.money ~= money or front.afford ~= afford or front.wants ~= wants then
+        front.groups = ns.Results.Collect(S.offers, S.ctx, { money = money, affordableOnly = afford, wants = wants })
         front.offers, front.ctx, front.money, front.afford, front.dirty = S.offers, S.ctx, money, afford, false
+        front.wants = wants
     end
     return front.groups
 end
@@ -331,17 +344,21 @@ function S.PlanCap()
 end
 
 -- The verified offers by the way they are worn, put together again when they have changed.
+-- Only those the character would have at all (Wants.Fits): a set is made of nothing else.
 local byType = {}
 local function OffersWornAs(invType)
-    if byType.changes ~= S.changes or byType.offers ~= S.offers then
-        byType = { changes = S.changes, offers = S.offers, lists = {} }
+    local wants = Wanted()
+    if byType.changes ~= S.changes or byType.offers ~= S.offers or byType.wants ~= wants then
+        byType = { changes = S.changes, offers = S.offers, wants = wants, lists = {} }
         for _, offer in pairs(S.offers) do
-            local list = byType.lists[offer.invType]
-            if not list then
-                list = {}
-                byType.lists[offer.invType] = list
+            if ns.Wants.Fits(wants, offer) then
+                local list = byType.lists[offer.invType]
+                if not list then
+                    list = {}
+                    byType.lists[offer.invType] = list
+                end
+                list[#list + 1] = offer
             end
-            list[#list + 1] = offer
         end
     end
     return byType.lists[invType]
@@ -372,6 +389,9 @@ end
 -- reason is a proof that the list, as the player has it set up, would not show the item
 -- whatever the search found, so skipping it never changes what the list shows:
 --   worse      it no longer beats the player's gear
+--   unwanted   the character's own filters leave it out (Wants.lua): it is armor lighter than
+--              the character is to be offered, or it adds less than was asked for in every
+--              slot it fits
 --   price      "only what I can afford" is on and even the row's lowest price is too high
 --   dominated  "top N per slot" is on and, in every slot it fits, an offer already verified
 --              is stronger and no dearer per point than this could possibly be. That must
@@ -382,15 +402,20 @@ end
 -- The last two rest on the row's lowest price being a floor under its buyouts. ReadJob checks
 -- that against every row it reads; if the server turns out to mean something else by that
 -- number (scan.floorBroken), nothing is skipped for its price any more.
--- With the best set for a budget on, the list shows that set, and the two filters have no say.
+-- With the best set for a budget on, the list shows that set, and the price filter and "top N"
+-- have no say.
 -- A set can need an offer that "top N" would hide: the strongest chest may leave no money for
--- anything else. So the reasons are then:
+-- anything else. So the reasons are then, after the first two:
 --   price      even the row's lowest price is more than the budget
 --   outdone    no set can need it (see Outdone)
-local function SkipReason(cand)
+-- `wants` is what the character wants of its gear (Wanted), asked once for all the candidates.
+local function SkipReason(cand, wants)
     if not cand.eval or scan.bucketsVary then return nil end
     local placements = Placements(cand)
     if #placements == 0 then return "worse" end
+    -- The slots the list would show it in.
+    placements = ns.Wants.Keep(wants, cand.eval, placements)
+    if #placements == 0 then return "unwanted" end
     if scan.floorBroken then return nil end
     if ns.db.plan then
         if cand.minPrice > S.PlanCap() then return "price" end
@@ -419,9 +444,10 @@ end
 local function PickCandidate()
     local first, left = nil, 0
     local list = scan.candidates
+    local wants = Wanted()
     for i = 1, #list do
         local cand = list[i]
-        if not cand.status and not SkipReason(cand) then
+        if not cand.status and not SkipReason(cand, wants) then
             left = left + 1
             first = first or cand
         end
@@ -451,18 +477,23 @@ end
 -- Candidates whose price has not been looked up, as the list counts them:
 --   groups[slot group] = how many would go into that slot
 --   tooDear            = how many cost more than the player has ("only what I can afford")
+--   unwanted           = how many the character's own filters leave out (Wants.lua)
 function S.Unchecked()
-    local out = { groups = {}, tooDear = 0 }
+    local out = { groups = {}, tooDear = 0, unwanted = 0 }
     if not scan or scan.bucketsVary or not S.ctx then return out end
     local money = GetMoney()
     local afford = ns.db.affordableOnly and not scan.floorBroken
+    local wants = Wanted()
     local list = scan.candidates
     for i = 1, #list do
         local cand = list[i]
         if not cand.status and cand.eval then
             local placements = Placements(cand)
             if #placements > 0 then
-                if afford and cand.minPrice > money then
+                placements = ns.Wants.Keep(wants, cand.eval, placements)
+                if #placements == 0 then
+                    out.unwanted = out.unwanted + 1
+                elseif afford and cand.minPrice > money then
                     out.tooDear = out.tooDear + 1
                 else
                     for p = 1, #placements do
@@ -605,6 +636,7 @@ local function CountAuction(found, job, eval, info)
         itemID = eval.itemID,
         unique = eval.unique,
         value = eval.value,
+        armor = eval.armor,
         effects = eval.effects,
         sell = eval.sell,
         buyout = info.buyoutAmount,

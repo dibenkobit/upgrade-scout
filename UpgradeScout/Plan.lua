@@ -42,8 +42,10 @@ end
 
 -- Puts the items on one after another, each where it gains the most, on a copy of the gear.
 -- Returns what they gain together and where each went; nil when one of them would not be
--- worn, or would take the place of another of them: a set never pays for that.
-local function Try(ctx, items)
+-- worn, or would take the place of another of them: a set never pays for that. Nor does it
+-- hold an item that adds less where it goes than the character asks of an upgrade (`wants`,
+-- see Wants.lua): every row of a set is one the list could show.
+local function Try(ctx, items, wants)
     local view = On(ctx, CopyGear(ctx.equipped))
     local gain, placed, used = 0, {}, {}
     for i = 1, #items do
@@ -52,7 +54,10 @@ local function Try(ctx, items)
         local best
         for p = 1, #placements do
             local placement = placements[p]
-            if not used[placement.slot] and (not best or placement.delta > best.delta) then best = placement end
+            if not used[placement.slot] and (not best or placement.delta > best.delta)
+                and ns.Wants.Enough(wants, placement) then
+                best = placement
+            end
         end
         if not best then return nil end
         -- A two-hander empties the off hand, whatever was just put there.
@@ -111,11 +116,11 @@ end
 
 -- Every way to wear the offers of one kind for no more than `cap`, as a ladder. Its first
 -- rung is to buy none of them.
-local function Ways(ctx, offers, room, cap)
+local function Ways(ctx, offers, room, cap, wants)
     local out = { { cost = 0, gain = 0 } }
     for i = 1, #offers do
         local offer = offers[i]
-        local gain, placed = Try(ctx, { offer })
+        local gain, placed = Try(ctx, { offer }, wants)
         if gain then
             out[#out + 1] = { cost = offer.buyout, gain = gain, picks = { { offer = offer, placement = placed[1] } } }
         end
@@ -127,9 +132,9 @@ local function Ways(ctx, offers, room, cap)
                 local b = offers[j]
                 if a.buyout + b.buyout <= cap then
                     -- Which of the two goes on first can decide where each ends up.
-                    local gain, placed = Try(ctx, { a, b })
+                    local gain, placed = Try(ctx, { a, b }, wants)
                     local first, second = a, b
-                    local other, otherPlaced = Try(ctx, { b, a })
+                    local other, otherPlaced = Try(ctx, { b, a }, wants)
                     if other and (not gain or other > gain) then
                         gain, placed, first, second = other, otherPlaced, b, a
                     end
@@ -210,10 +215,12 @@ end
 -- The ladder of sets that can be bought from `offers` for no more than `cap` copper.
 --   offers   offer id -> offer (see Scanner)
 --   ctx      comparison context (see Score.Context)
-function Plan.Ladder(offers, ctx, cap)
+--   wants    what the character wants of its gear (Wants.Of): a set is made of the offers it
+--            would have, each adding as much as it asks; nil for any
+function Plan.Ladder(offers, ctx, cap, wants)
     local kinds, names = {}, {}
     for _, offer in pairs(offers) do
-        if offer.buyout <= cap then
+        if offer.buyout <= cap and ns.Wants.Fits(wants, offer) then
             local name, room = ns.Compare.Kind(offer.invType)
             if name then
                 local kind = kinds[name]
@@ -232,7 +239,7 @@ function Plan.Ladder(offers, ctx, cap)
     for i = 1, #names do
         local kind = kinds[names[i]]
         table.sort(kind.offers, ByID)
-        local ways = Ways(ctx, Needed(kind.offers, kind.room), kind.room, cap)
+        local ways = Ways(ctx, Needed(kind.offers, kind.room), kind.room, cap, wants)
         if #ways > 1 then ladder = Join(ladder, ways, cap) end
     end
     return ladder

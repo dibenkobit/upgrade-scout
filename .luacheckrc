@@ -20,6 +20,7 @@ read_globals = {
     "GameTooltip_AddErrorLine", "GameTooltip_AddHighlightLine", "GameTooltip_AddNormalLine", "GameTooltip_Hide",
     "GameTooltip_SetTitle", "GameTooltip_ShowCompareItem",
     -- its tables of functions and of numbers
+    "AnchorUtil",
     "C_AuctionHouse", "C_ClassTalents", "C_Container", "C_Item", "C_SpellBook", "C_Timer", "C_TooltipInfo", "C_Traits",
     "ColorManager", "Constants", "Settings",
     "Enum", "EventUtil", "TooltipDataProcessor", "TooltipUtil", "MoneyStringConstants", "PixelUtil", "SOUNDKIT", "ScrollBoxConstants", "ScrollUtil",
