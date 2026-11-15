@@ -195,7 +195,7 @@ local function ShowSupplyTooltip(row)
     GameTooltip:SetHyperlink(supply.link, nil, nil, hideVendorPrice)
     if ns.Shows("rowNotes") then
         -- On the right, whose profile the score is on.
-        AddHeader(GameTooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
+        AddHeader(GameTooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle(), true)
         if entry.value then
             GameTooltip_AddNormalLine(GameTooltip, L.TT_SUP_SCORE:format("+" .. ns.Num(entry.value)))
         elseif entry.why == "MANA" then
@@ -280,7 +280,7 @@ local function AddOfferLines(entry, who)
         AddOwn(GameTooltip, who and L.ST_WHO:format(WhoName(who), title) or title, entry, S.ctx.class)
     elseif score or notes then
         -- On the right, whose list it is when it is not the character's own.
-        AddHeader(GameTooltip, who and WhoName(who) or nil)
+        AddHeader(GameTooltip, who and WhoName(who) or nil, score)
         if score then
             -- How much better the item is on each profile of the class, in the class's colour.
             for _, line in ipairs(ProfileGains(entry)) do

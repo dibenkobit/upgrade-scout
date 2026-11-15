@@ -67,6 +67,7 @@ local L = {
     TT_OFFHAND_EMPTY = "Your off hand will be empty",
     TT_BOTH_HANDS = "Takes both hands",
     TT_CANT_AFFORD = "You are %s short",
+    TT_PAWN_SCORE = "Pawn score",
 
     MSG_GONE = "%s is no longer for sale.",
     MSG_PRICE = "%s now costs %s (was %s).",
@@ -252,6 +253,7 @@ if GetLocale() == "ruRU" then
         TT_OFFHAND_EMPTY = "Левая рука останется пустой",
         TT_BOTH_HANDS = "Занимает обе руки",
         TT_CANT_AFFORD = "Не хватает %s",
+        TT_PAWN_SCORE = "оценка Pawn",
 
         MSG_GONE = "%s уже не продаётся.",
         MSG_PRICE = "%s теперь стоит %s (было %s).",
@@ -432,6 +434,7 @@ if GetLocale() == "deDE" then
         TT_OFFHAND_EMPTY = "Deine Schildhand bleibt leer",
         TT_BOTH_HANDS = "Belegt beide Hände",
         TT_CANT_AFFORD = "Dir fehlen %s",
+        TT_PAWN_SCORE = "Pawn-Wertung",
 
         MSG_GONE = "%s wird nicht mehr angeboten.",
         MSG_PRICE = "%s kostet jetzt %s (vorher %s).",
@@ -613,6 +616,7 @@ if GetLocale() == "frFR" then
         TT_OFFHAND_EMPTY = "Votre main gauche sera vide",
         TT_BOTH_HANDS = "Occupe les deux mains",
         TT_CANT_AFFORD = "Il vous manque %s",
+        TT_PAWN_SCORE = "score Pawn",
 
         MSG_GONE = "%s n'est plus en vente.",
         MSG_PRICE = "%s coûte maintenant %s (%s auparavant).",
@@ -794,6 +798,7 @@ if GetLocale() == "zhCN" then
         TT_OFFHAND_EMPTY = "你的副手将会空出",
         TT_BOTH_HANDS = "占用双手",
         TT_CANT_AFFORD = "还差 %s",
+        TT_PAWN_SCORE = "Pawn 评分",
 
         MSG_GONE = "%s 已不再出售。",
         MSG_PRICE = "%s 现在售价 %s（之前为 %s）。",
@@ -976,6 +981,7 @@ if GetLocale() == "ptBR" then
         TT_OFFHAND_EMPTY = "Sua mão secundária ficará vazia",
         TT_BOTH_HANDS = "Ocupa as duas mãos",
         TT_CANT_AFFORD = "Faltam %s",
+        TT_PAWN_SCORE = "pontuação do Pawn",
 
         MSG_GONE = "%s não está mais à venda.",
         MSG_PRICE = "%s agora custa %s (antes: %s).",
@@ -1157,6 +1163,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         TT_OFFHAND_EMPTY = "Tu mano izquierda quedará vacía",
         TT_BOTH_HANDS = "Ocupa ambas manos",
         TT_CANT_AFFORD = "Te faltan %s",
+        TT_PAWN_SCORE = "puntuación de Pawn",
 
         MSG_GONE = "%s ya no está en venta.",
         MSG_PRICE = "%s ahora cuesta %s (antes %s).",
@@ -1340,6 +1347,7 @@ if GetLocale() == "koKR" then
         TT_OFFHAND_EMPTY = "보조장비 칸이 비게 됩니다",
         TT_BOTH_HANDS = "양손을 모두 씁니다",
         TT_CANT_AFFORD = "%s 부족합니다",
+        TT_PAWN_SCORE = "Pawn 점수",
 
         MSG_GONE = "%s: 더 이상 판매하지 않습니다.",
         MSG_PRICE = "%s: 이제 %s입니다(이전 %s).",
@@ -1522,6 +1530,7 @@ if GetLocale() == "zhTW" then
         TT_OFFHAND_EMPTY = "你的副手將會空出",
         TT_BOTH_HANDS = "佔用雙手",
         TT_CANT_AFFORD = "還差 %s",
+        TT_PAWN_SCORE = "Pawn 評分",
 
         MSG_GONE = "%s 已不再販售。",
         MSG_PRICE = "%s 現在售價 %s（之前為 %s）。",

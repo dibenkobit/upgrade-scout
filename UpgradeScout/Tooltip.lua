@@ -23,12 +23,23 @@ local ICON = "|TInterface\\AddOns\\" .. ADDON .. "\\icon.tga:0|t "
 local BRAND = ICON .. "Upgrade Scout"
 local BRAND_R, BRAND_G, BRAND_B = 0.53, 0.78, 0.96
 
-function T.AddHeader(tooltip, right)
+-- With Pawn scoring (Score.Engine) the lines are ours and the score in them is Pawn's: what
+-- an item is worth on a Pawn scale, measured our way against what is worn. Such lines say
+-- so, lest they be taken for the addon's own weights or for Pawn's own lines: the heading
+-- after the addon's name, "Upgrade Scout (Pawn score)", a single line after its scale's.
+local function WhoseScore()
+    return ns.Score.Engine() and " (" .. L.TT_PAWN_SCORE .. ")" or ""
+end
+
+-- scored: the lines under the heading say a score. (A row of our tabs can have notes alone
+-- under it, which are nobody's score: AddOfferLines in UI.lua.)
+function T.AddHeader(tooltip, right, scored)
     GameTooltip_AddBlankLineToTooltip(tooltip)
+    local brand = scored and BRAND .. WhoseScore() or BRAND
     if right then
-        tooltip:AddDoubleLine(BRAND, right, BRAND_R, BRAND_G, BRAND_B, NORMAL_FONT_COLOR:GetRGB())
+        tooltip:AddDoubleLine(brand, right, BRAND_R, BRAND_G, BRAND_B, NORMAL_FONT_COLOR:GetRGB())
     else
-        tooltip:AddLine(BRAND, BRAND_R, BRAND_G, BRAND_B)
+        tooltip:AddLine(brand, BRAND_R, BRAND_G, BRAND_B)
     end
 end
 
@@ -59,7 +70,7 @@ end
 -- profile's name says whose line it is, and a blank line sets it off as it does the heading.
 function T.AddOwn(tooltip, title, gain, class)
     GameTooltip_AddBlankLineToTooltip(tooltip)
-    T.AddGain(tooltip, ICON .. title, gain, class)
+    T.AddGain(tooltip, ICON .. title .. WhoseScore(), gain, class)
 end
 
 ---------------------------------------------------------------------------
@@ -223,7 +234,7 @@ local function OnItem(tooltip)
         note = own.gain.note
         T.AddOwn(tooltip, own.title, own.gain, class)
     else
-        T.AddHeader(tooltip)
+        T.AddHeader(tooltip, nil, true)
         for _, line in ipairs(answer) do
             local inUse = current ~= nil and line.name == current.name
             if inUse then note = line.gain.note end

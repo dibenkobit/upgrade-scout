@@ -5458,6 +5458,14 @@ function scenarios.pawn_tooltips()
     eq(W.compared, GameTooltip, "the worn item is shown beside it as ever")
     eq(Under("Great Chest"), "Has effects the score does not count | You are 4g short",
         "a row with something to say about buying: that, under the addon's name, and no gains")
+    local noted = Row("Great Chest")
+    noted:GetScript("OnEnter")(noted)
+    local named = false
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.text:find("Pawn score", 1, true) then named = true end
+    end
+    eq(named, false, "notes are nobody's score: the heading is the addon's name alone")
+    noted:GetScript("OnLeave")(noted)
     ns.db.net = true
     eq(Under("Good Chest"), "Buyout 40s | Sell Price 1s", "with Net cost ticked: what the cost is made of")
     ns.db.net = nil
@@ -5842,6 +5850,15 @@ function scenarios.pawn_supplies()
     eq(Value("Elixir of Wisdom"), nil, "Intellect is of no use on that scale")
     rows = ns.Supplies.Build(ns.Scanner.supplies, SupplyOpts(BALANCE, { mana = true }))
     near(Value("Elixir of Wisdom"), 6, "and worth its weight on a caster's")
+    -- The heading over a consumable's score says whose score it is.
+    GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    ns.Tooltip.AddHeader(GameTooltip, "Arms", true)
+    local heading = GameTooltip._lines[#GameTooltip._lines]
+    check(heading.text:find("Upgrade Scout (Pawn score)", 1, true) ~= nil, "a heading over a score, with Pawn scoring: " .. heading.text)
+    eq(heading.right, "Arms", "with what stands on its right")
+    ns.Tooltip.AddHeader(GameTooltip)
+    heading = GameTooltip._lines[#GameTooltip._lines]
+    eq(heading.text:find("Pawn", 1, true), nil, "a heading over notes alone names no Pawn")
     CheckPawnAsked("consumables")
 end
 
@@ -5922,10 +5939,22 @@ function scenarios.pawn_alt()
         if line.right then doubles[#doubles + 1] = line end
     end
     eq(doubles[1].right, ALTY, "a list for another character: our header, which says whose")
+    check(doubles[1].text:find("Upgrade Scout (Pawn score)", 1, true) ~= nil, "and that the score in our lines is Pawn's: " .. doubles[1].text)
     eq(doubles[2].text, "Balance", "then the druid's scales"); eq(doubles[2].right, "+67%", "with the gain on each: 20 against 12")
     eq(doubles[3].text, "Feral", "on the other one"); eq(doubles[3].right, "-33%", "2 against 3")
     eq(ShoppingTooltip1:IsShown(), true, "and the druid's chest beside it")
     jerkin:GetScript("OnLeave")(jerkin)
+
+    -- One line for the scale in use: it says whose score it is after the scale's name.
+    UpgradeScoutDB.ownTree = true
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    jerkin:GetScript("OnEnter")(jerkin)
+    local single = GameTooltip._lines[#GameTooltip._lines]
+    check(single.text:find(ALTY .. ": Balance (Pawn score)", 1, true) ~= nil, "\"Only my spec\": one line, with whose score it is: " .. single.text)
+    eq(single.right, "+67%", "and the gain")
+    jerkin:GetScript("OnLeave")(jerkin)
+    UpgradeScoutDB.ownTree = nil
+    ns.Fire("SETTING_CHANGED", "ownTree")
 
     -- Pawn writes into the game's tooltips what an item is to the character being played. In
     -- a list for another character that is kept out, of the row's tooltip and of the one
@@ -6011,11 +6040,13 @@ function scenarios.pawn_alt()
     jerkin:GetScript("OnEnter")(jerkin)
     eq(PawnLine(GameTooltip), nil, "the addon scoring: Pawn's line is kept out of a row for another character")
     eq(PawnLine(ShoppingTooltip1), nil, "and of what that character wears")
-    local ours = false
+    local ours, marked = false, false
     for _, line in ipairs(GameTooltip._lines) do
         if line.right == ALTY then ours = true end
+        if line.text:find("Pawn score", 1, true) then marked = true end
     end
     eq(ours, true, "under our header, which says whose list it is")
+    eq(marked, false, "and names no Pawn: the score is the addon's own")
     jerkin:GetScript("OnLeave")(jerkin)
     -- With the addon scoring its lines go by their box, in a list for another character too.
     UpgradeScoutDB.rowTooltip = false
