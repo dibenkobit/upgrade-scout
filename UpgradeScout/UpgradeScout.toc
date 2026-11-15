@@ -51,3 +51,4 @@ Mail.lua
 Widgets.lua
 UI.lua
 Welcome.lua
+Minimap.lua

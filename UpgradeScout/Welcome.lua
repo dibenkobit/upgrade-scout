@@ -4,9 +4,10 @@ local L = ns.L
 -- The welcome window: what the addon does and its few settings, in one look.
 --
 -- It comes up by itself once, a few seconds after the game is first entered with the addon (or
--- with the version that brought the window), and after that when it is asked for: /upscout
--- away from the auction house, the last line of the profile field's menu, the addon's page in
--- the game's own list of addons. However it is closed, it has been seen.
+-- with the version that brought the window), and after that when it is asked for: the button
+-- at the minimap (Minimap.lua), /upscout away from the auction house or on the addon's own
+-- tab there, the addon's page in the game's own list of addons. However it is closed, it has
+-- been seen.
 --
 -- Top to bottom:
 --   what the addon is, in a sentence

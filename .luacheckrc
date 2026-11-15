@@ -11,7 +11,7 @@ exclude_files = { "UpgradeScout/Libs" }     -- other people's libraries
 read_globals = {
     -- functions of the game
     "CanDualWield", "Clamp", "CreateDataProvider", "CreateFontFamily", "CreateFrame", "CreateScrollBoxListLinearView", "CursorHasItem",
-    "FormatPercentage", "GetInventoryItemLink", "GetLocale", "GetMoney", "GetMoneyString",
+    "FormatPercentage", "GetCursorPosition", "GetInventoryItemLink", "GetLocale", "GetMoney", "GetMoneyString",
     "GetInboxItemLink", "GetInboxNumItems", "GetProfessionInfo", "GetProfessions", "GetRealmName", "GetSendMailItem",
     "GetSendMailItemLink", "GetTime", "HandleModifiedItemClick", "InCombatLockdown",
     "IsModifiedClick", "PlaySound", "ResetCursor", "SendMail", "ShowInspectCursor", "UnitClass", "UnitFactionGroup", "UnitLevel", "UnitName",
@@ -25,7 +25,7 @@ read_globals = {
     "Enum", "EventUtil", "TooltipDataProcessor", "TooltipUtil", "MoneyStringConstants", "PixelUtil", "SOUNDKIT", "ScrollBoxConstants", "ScrollUtil",
     "BankPanelItemButtonMixin",
     -- its frames, fonts and colours
-    "AuctionHouseFrame", "GameTooltip", "MailFrame", "MailFrameTab2", "SendMailNameEditBox", "SendMailSubjectEditBox",
+    "AuctionHouseFrame", "GameTooltip", "MailFrame", "MailFrameTab2", "Minimap", "SendMailNameEditBox", "SendMailSubjectEditBox",
     "ItemRefTooltip", "ShoppingTooltip1", "UIParent", "UISpecialFrames", "BankPanel", "ContainerFrameCombinedBags", "ContainerFrameContainer", "GameFontNormal", "Number13FontWhite", "PriceFontRed", "PriceFontWhite", "STANDARD_TEXT_FONT",
     "GRAY_FONT_COLOR", "GREEN_FONT_COLOR", "HIGHLIGHT_FONT_COLOR", "NORMAL_FONT_COLOR", "RED_FONT_COLOR", "RAID_CLASS_COLORS",
     -- its words
@@ -37,6 +37,8 @@ read_globals = {
     "ATTACHMENTS_MAX_RECEIVE", "ATTACHMENTS_MAX_SEND", "NUM_TOTAL_EQUIPPED_BAG_SLOTS",
     -- the libraries that come with the addon
     "LibStub",
+    -- what other addons define, where they are installed: the shape one gave the minimap
+    "GetMinimapShape",
 }
 
 -- What the addon writes: its saved variables and its slash command.

@@ -37,7 +37,7 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
 - Works right after you install it. The **Profile** dropdown starts on the talent tree you have
   the most points in.
 - A window on your first login shows what the addon does. There you can switch off the tooltip
-  lines and the bag arrows. `/upscout` opens it again.
+  lines and the bag arrows. The addon's button at the minimap opens it again.
 - Scores gear with its own stat weights for every talent tree, worked out with the
   [wowsims/forever](https://github.com/wowsims/forever) simulator. No other addon is needed.
 

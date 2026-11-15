@@ -4,8 +4,9 @@
 
 - A welcome window comes up on your first login. It shows what the addon puts into the game: the
   tabs at the auction house, the lines in item tooltips and the arrows in your bags.
-- The tooltip lines and the bag arrows can be switched off in that window. `/upscout` opens it
-  again. At the auction house the command still goes to the Upgrades tab.
+- The tooltip lines and the bag arrows can be switched off in that window.
+- A button at the minimap opens the window again. So does `/upscout`; at the auction house the
+  command still goes to the Upgrades tab.
 - The **Profile** starts on the talent tree you have the most points in, no longer on one fixed
   for your class. A profile you chose yourself stays.
 

@@ -40,7 +40,8 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
 - Funciona en cuanto lo instalas. La lista **Perfil** empieza en la rama de talentos donde tienes
   más puntos.
 - La primera vez que entras, una ventana muestra lo que hace el addon. Ahí puedes desactivar las
-  líneas de la descripción y las flechas de las bolsas. `/upscout` la abre de nuevo.
+  líneas de la descripción y las flechas de las bolsas. El botón del addon junto al minimapa la
+  abre de nuevo.
 - Puntúa el equipo con pesos propios para cada rama de talentos, calculados con el simulador
   [wowsims/forever](https://github.com/wowsims/forever). No hace falta ningún otro addon.
 

@@ -86,7 +86,7 @@ for _, name in ipairs({
     "SetAllPoints", "SetJustifyH", "SetWordWrap", "SetSpacing",
     "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetDrawLayer",
     "SetTextColor", "SetShadowColor", "SetShadowOffset",
-    "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks",
+    "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks", "SetHighlightTexture",
     "SetFrameStrata", "EnableMouse", "SetSnapToPixelGrid", "SetTexelSnappingBias", "SetClampedToScreen",
     -- a window the player can drag about
     "SetMovable", "RegisterForDrag", "StartMoving", "StopMovingOrSizing",
@@ -813,6 +813,17 @@ ShoppingTooltip1._shown = false
 ItemRefTooltip = Widget("GameTooltip", "ItemRefTooltip")
 -- Where a frame's right edge is on the screen: unknown unless a test says (frame._right).
 function M:GetRight() return self._right end
+-- The minimap: 140 wide and high, as the game makes it. A test says where its middle is on
+-- the screen and how the game scales it (frame._center = { x, y }, frame._scale), and where
+-- the cursor is (W.pointer = { x, y }, in the screen's own pixels). No addon has reshaped it:
+-- a test that wants one defines GetMinimapShape, as such an addon does.
+Minimap = Widget("Frame", "Minimap", UIParent)
+Minimap:SetSize(140, 140)
+function M:GetCenter()
+    if self._center then return self._center[1], self._center[2] end
+end
+function M:GetEffectiveScale() return self._scale or 1 end
+function GetCursorPosition() return W.pointer[1], W.pointer[2] end
 
 ---------------------------------------------------------------------------
 -- Clock, timers, events

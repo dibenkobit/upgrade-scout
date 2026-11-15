@@ -44,7 +44,8 @@ chat.
 - Fonctionne dès l'installation. La liste **Profil** commence sur l'arbre de talents où vous avez
   le plus de points.
 - À la première connexion, une fenêtre montre ce que fait l'addon. Vous pouvez y désactiver les
-  lignes dans l'infobulle et les flèches dans les sacs. `/upscout` la rouvre.
+  lignes dans l'infobulle et les flèches dans les sacs. Le bouton de l'addon près de la minicarte
+  la rouvre.
 - Évalue l'équipement avec ses propres poids pour chaque arbre de talents, calculés avec le
   simulateur [wowsims/forever](https://github.com/wowsims/forever). Aucun autre addon n'est nécessaire.
 

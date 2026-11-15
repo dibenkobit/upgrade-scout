@@ -40,7 +40,8 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
 - Funciona logo depois de instalado. A lista **Perfil** já começa na árvore de talentos em que
   você tem mais pontos.
 - No primeiro login, uma janela mostra o que o addon faz. Nela você pode desligar as linhas na
-  dica de contexto e as setas nas bolsas. `/upscout` abre a janela de novo.
+  dica de contexto e as setas nas bolsas. O botão do addon ao lado do minimapa abre a janela de
+  novo.
 - Avalia os equipamentos com pesos próprios para cada árvore de talentos, calculados com o
   simulador [wowsims/forever](https://github.com/wowsims/forever). Nenhum outro addon é necessário.
 

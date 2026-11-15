@@ -13,7 +13,7 @@ local names = {
     "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "fonts", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
-    "talents", "welcome",
+    "talents", "welcome", "minimap",
 }
 
 if not scenario then
@@ -4694,6 +4694,181 @@ function scenarios.welcome()
     ns.Welcome.Show()
     eq(#UpgradeScoutWelcome.Trees, 2, "asked for, it has the trees of this character's class")
     eq(UpgradeScoutWelcome.Trees[2].Label:GetText(), "Feral", "by their names")
+end
+
+-- The button at the minimap (Minimap.lua): our own, or LibDBIcon's where an addon brought it.
+function scenarios.minimap()
+    local ICON = "Interface\\AddOns\\UpgradeScout\\icon"
+    local function about(actual, expected, label)
+        checks = checks + 1
+        if type(actual) ~= "number" or math.abs(actual - expected) > 0.01 then
+            error(string.format("%s: expected about %s, got %s", label, tostring(expected), tostring(actual)), 2)
+        end
+    end
+    -- Where a button is, from the middle of the minimap.
+    local function At(button)
+        local point = button._points[1]
+        eq(point.point, "CENTER", "the button is put by its middle"); eq(point.to, Minimap, "against the minimap")
+        eq(point.toPoint, "CENTER", "from the middle of it")
+        return point.x, point.y
+    end
+    -- A new session of the addon for `player`. libraries(), if given, runs when the addon's
+    -- files are in and the game has not yet said the character is logged in: the moment by
+    -- which other addons have brought their libraries.
+    local function Session(player, libraries)
+        if player then
+            W.Logout()
+            W.Login(player, {})
+            ns = {}
+        end
+        UpgradeScoutMinimapButton = nil
+        LoadAddon()
+        if libraries then libraries() end
+        eq(UpgradeScoutMinimapButton, nil, "no button before the character is logged in")
+        W.Fire("PLAYER_LOGIN")
+        W.Fire("PLAYER_ENTERING_WORLD")
+    end
+
+    StandardWorld()
+    -- The middle of the minimap on the screen, and the scale the game draws it at.
+    Minimap._center, Minimap._scale = { 1000, 600 }, 0.8
+    Session()
+    local button = UpgradeScoutMinimapButton
+    check(button ~= nil, "logged in: a button of our own")
+    eq(button:GetParent(), Minimap, "on the minimap"); eq(button:IsShown(), true, "in view")
+    eq(button:GetWidth(), 31, "as big as the game's own buttons there")
+    eq(button.Icon:GetTexture(), ICON, "with the addon's icon")
+    eq(Pictures(button, "MiniMap-TrackingBorder"), 1, "in the game's ring")
+    local x, y = At(button)
+    about(x, -79.696, "to begin with on the left of the minimap, ten past its edge"); about(y, 6.972, "a little above the middle")
+    about(UpgradeScoutDB.minimap.minimapPos, 175, "the place is written down for the account")
+
+    -- Pointed at, it says what it is for.
+    button:GetScript("OnEnter")(button)
+    eq(GameTooltip:GetOwner(), button, "pointed at: a tooltip"); eq(GameTooltip:IsShown(), true, "in view")
+    eq(#GameTooltip._lines, 3, "of three lines"); eq(GameTooltip._lines[1].text, "Upgrade Scout", "the addon's name")
+    eq(GameTooltip._lines[2].text, ns.L.MINIMAP_CLICK, "what a click does"); eq(GameTooltip._lines[3].text, ns.L.MINIMAP_DRAG, "and that it can be dragged")
+    button:GetScript("OnLeave")(button)
+    eq(GameTooltip:IsShown(), false, "the tooltip goes with the cursor")
+
+    -- A click opens the window, another closes it. Before the game has said who the
+    -- character is, too: the button is there from the first moment.
+    button:Click()
+    local window = UpgradeScoutWelcome
+    check(window ~= nil and window:IsShown(), "a click opens the addon's window")
+    eq(window.Again:GetText(), ns.L.WELCOME_AGAIN, "whose last line points back at the button")
+    button:Click()
+    eq(window:IsShown(), false, "another click closes it"); eq(UpgradeScoutDB.welcomed, true, "and the window has been seen")
+    W.Run(12)
+    eq(window:IsShown(), false, "seen by way of the button, it does not come up by itself after")
+    button:Click()
+    eq(#window.Trees, 2, "opened again: the trees of the character, known by now")
+    button:Click()
+
+    -- Dragged, it goes around the minimap after the cursor, and stays where it is let go.
+    W.pointer = { 800, 560 }            -- straight above the middle, at the minimap's scale
+    button:GetScript("OnEnter")(button)
+    button:GetScript("OnDragStart")(button)
+    eq(GameTooltip:IsShown(), false, "dragged: the tooltip gets out of the way")
+    W.Tick()
+    x, y = At(button)
+    about(x, 0, "it goes to where the cursor is: the top of the minimap"); about(y, 80, "on its edge")
+    about(UpgradeScoutDB.minimap.minimapPos, 90, "and the place is written down")
+    W.pointer = { 720, 560 }            -- above and to the left
+    W.Tick()
+    x, y = At(button)
+    about(x, -56.569, "on with the cursor"); about(y, 56.569, "along the edge")
+    button:GetScript("OnDragStop")(button)
+    W.pointer = { 1100, 500 }
+    W.Tick()
+    x, y = At(button)
+    about(x, -56.569, "let go, it stays"); about(y, 56.569, "where it was left")
+    about(UpgradeScoutDB.minimap.minimapPos, 135, "the place it was left at")
+
+    -- An addon makes the minimap bigger and square: the button keeps to its edge.
+    GetMinimapShape = function() return "SQUARE" end
+    Minimap:SetSize(200, 200)
+    Minimap:GetScript("OnSizeChanged")(Minimap)
+    x, y = At(button)
+    about(x, -102.929, "a bigger, square minimap: out towards its corner"); about(y, 102.929, "at once")
+    -- Another gives it one round corner, with no change of size: seen when the world is entered.
+    GetMinimapShape = function() return "CORNER-TOPLEFT" end
+    W.Fire("PLAYER_ENTERING_WORLD")
+    x, y = At(button)
+    about(x, -77.782, "a round corner where the button is: on the round of it"); about(y, 77.782, "as on a round minimap")
+    GetMinimapShape = function() return "CORNER-BOTTOMRIGHT" end
+    W.Run(3.5)
+    x, y = At(button)
+    about(x, -102.929, "reshaped a moment after: the button follows"); about(y, 102.929, "by itself")
+    GetMinimapShape = nil
+    Minimap:SetSize(140, 140)
+
+    -- Another character of the account has the button where it was left.
+    Session({ name = "Alty", level = 20, class = "DRUID", money = 5000 })
+    check(UpgradeScoutMinimapButton ~= nil and UpgradeScoutMinimapButton ~= button, "another character: a button again")
+    x, y = At(UpgradeScoutMinimapButton)
+    about(x, -56.569, "where the first character left it"); about(y, 56.569, "on a minimap of the usual size")
+
+    -- Another addon has brought LibDBIcon (and LibDataBroker, which it needs): the button is
+    -- that library's, which the tools that gather the minimap's buttons know.
+    local made, launchers = {}, {}
+    local function Libraries()
+        local brokers = LibStub:NewLibrary("LibDataBroker-1.1", 4)
+        function brokers:NewDataObject(name, object)
+            launchers[name] = object
+            return object
+        end
+        local icons = LibStub:NewLibrary("LibDBIcon-1.0", 57)
+        function icons:Register(name, object, db)
+            local theirs = CreateFrame("Button", "LibDBIcon10_" .. name, Minimap)
+            theirs.dataObject, theirs.db = object, db
+            made[name] = theirs
+        end
+        function icons:GetMinimapButton(name) return made[name] end
+    end
+    Session({ name = "Tester", level = 10, class = "WARRIOR", money = 5000 }, Libraries)
+    W.Run(1.5)
+    eq(UpgradeScoutMinimapButton, nil, "LibDBIcon is there: no button of our own")
+    local theirs = made.UpgradeScout
+    check(theirs ~= nil, "the library makes the button, under the addon's name")
+    eq(theirs.db, UpgradeScoutDB.minimap, "it is given the place to keep"); about(theirs.db.minimapPos, 135, "where our own button was")
+    eq(theirs.db.hide, nil, "and nothing says to hide it")
+    local launcher = theirs.dataObject
+    eq(launcher, launchers.UpgradeScout, "from a launcher given to LibDataBroker"); eq(launcher.type, "launcher", "of that kind")
+    eq(launcher.icon, ICON, "with the addon's icon"); eq(launcher.label, "Upgrade Scout", "and its name")
+    launcher.OnClick(theirs, "LeftButton")
+    eq(ns.Welcome.IsShown(), true, "a click on it opens the window")
+    launcher.OnClick(theirs, "RightButton")
+    eq(ns.Welcome.IsShown(), false, "and closes it, with either button of the mouse")
+    GameTooltip:SetOwner(theirs)
+    launcher.OnTooltipShow(GameTooltip)
+    eq(#GameTooltip._lines, 3, "its tooltip: the same three lines"); eq(GameTooltip._lines[3].text, ns.L.MINIMAP_DRAG, "it can be dragged too")
+    GameTooltip:SetOwner(UIParent)
+    launcher.OnTooltipShow(GameTooltip)
+    eq(#GameTooltip._lines, 2, "the launcher on a bar: nothing about dragging"); eq(GameTooltip._lines[2].text, ns.L.MINIMAP_CLICK, "only what a click does")
+
+    -- A LibDBIcon that will not make the button: our own after all, and the launcher stays.
+    made, launchers = {}, {}
+    Session({ name = "Tester", level = 10, class = "WARRIOR", money = 5000 }, function()
+        Libraries()
+        LibStub("LibDBIcon-1.0").Register = function() error("not today") end
+    end)
+    check(UpgradeScoutMinimapButton ~= nil, "the library fails to make the button: our own")
+    eq(next(made), nil, "and none of the library's"); check(launchers.UpgradeScout ~= nil, "the launcher is on the bars all the same")
+    UpgradeScoutMinimapButton:GetScript("OnEnter")(UpgradeScoutMinimapButton)
+    eq(#GameTooltip._lines, 3, "our own button says it can be dragged")
+
+    -- LibDataBroker alone, brought by a bar of launchers: a launcher there, our own button here.
+    made, launchers = {}, {}
+    Session({ name = "Tester", level = 10, class = "WARRIOR", money = 5000 }, function()
+        local brokers = LibStub:NewLibrary("LibDataBroker-1.1", 4)
+        function brokers:NewDataObject(name, object)
+            launchers[name] = object
+            return object
+        end
+    end)
+    check(UpgradeScoutMinimapButton ~= nil, "LibDataBroker without LibDBIcon: our own button")
+    check(launchers.UpgradeScout ~= nil, "and a launcher")
 end
 
 local function CheckLocale(locale, language, scan)

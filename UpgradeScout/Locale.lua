@@ -151,9 +151,13 @@ local L = {
     WELCOME_TOOLTIP_TEXT = "Point at any item and see how much better it is than what you wear.",
     WELCOME_ARROWS = "In your bags and bank",
     WELCOME_ARROWS_TEXT = "An arrow marks gear better than what you wear. Green: put it on. Grey: it asks for a higher level.",
-    WELCOME_AGAIN = "To change anything later, type /upscout.",
+    WELCOME_AGAIN = "To change anything later, click the addon's button at the minimap.",
     WELCOME_DONE = "Done",
     WELCOME_OPEN = "Open settings",
+
+    -- The button at the minimap (Minimap.lua): the two lines of its tooltip, under the addon's name.
+    MINIMAP_CLICK = "Click to open the settings.",
+    MINIMAP_DRAG = "Drag to move the button.",
 
     HEAD = "Head", NECK = "Neck", SHOULDER = "Shoulders", BACK = "Back", CHEST = "Chest",
     WRIST = "Wrist", HANDS = "Hands", WAIST = "Waist", LEGS = "Legs", FEET = "Feet",
@@ -311,9 +315,13 @@ if GetLocale() == "ruRU" then
         WELCOME_TOOLTIP_TEXT = "Наведи курсор на любую вещь и увидишь, насколько она лучше надетой.",
         WELCOME_ARROWS = "В сумках и банке",
         WELCOME_ARROWS_TEXT = "Стрелка отмечает вещи лучше надетых. Зелёная: надевай. Серая: нужен уровень выше.",
-        WELCOME_AGAIN = "Захочешь что-то поменять, набери /upscout.",
+        WELCOME_AGAIN = "Захочешь что-то поменять, нажми кнопку аддона у мини-карты.",
         WELCOME_DONE = "Готово",
         WELCOME_OPEN = "Открыть настройки",
+
+        -- The button at the minimap
+        MINIMAP_CLICK = "Нажми, чтобы открыть настройки.",
+        MINIMAP_DRAG = "Потяни, чтобы передвинуть кнопку.",
 
         HEAD = "Голова", NECK = "Шея", SHOULDER = "Плечи", BACK = "Спина", CHEST = "Грудь",
         WRIST = "Запястья", HANDS = "Кисти рук", WAIST = "Пояс", LEGS = "Ноги", FEET = "Ступни",
@@ -472,9 +480,13 @@ if GetLocale() == "deDE" then
         WELCOME_TOOLTIP_TEXT = "Zeige auf einen Gegenstand und sieh, wie viel besser er ist als der, den du trägst.",
         WELCOME_ARROWS = "In Taschen und Bank",
         WELCOME_ARROWS_TEXT = "Ein Pfeil markiert Ausrüstung, die besser ist als deine. Grün: gleich anlegen. Grau: braucht eine höhere Stufe.",
-        WELCOME_AGAIN = "Willst du später etwas ändern, tippe /upscout.",
+        WELCOME_AGAIN = "Willst du später etwas ändern, klicke auf die Schaltfläche des Addons an der Minikarte.",
         WELCOME_DONE = "Fertig",
         WELCOME_OPEN = "Einstellungen öffnen",
+
+        -- The button at the minimap
+        MINIMAP_CLICK = "Klicke, um die Einstellungen zu öffnen.",
+        MINIMAP_DRAG = "Ziehe, um die Schaltfläche zu verschieben.",
 
         HEAD = "Kopf", NECK = "Hals", SHOULDER = "Schultern", BACK = "Rücken", CHEST = "Brust",
         WRIST = "Handgelenke", HANDS = "Hände", WAIST = "Taille", LEGS = "Beine", FEET = "Füße",
@@ -634,9 +646,13 @@ if GetLocale() == "frFR" then
         WELCOME_TOOLTIP_TEXT = "Pointez un objet et voyez de combien il est meilleur que celui que vous portez.",
         WELCOME_ARROWS = "Dans les sacs et la banque",
         WELCOME_ARROWS_TEXT = "Une flèche marque l'équipement meilleur que le vôtre. Verte : équipez-le. Grise : il demande un niveau plus élevé.",
-        WELCOME_AGAIN = "Pour changer quelque chose plus tard, tapez /upscout.",
+        WELCOME_AGAIN = "Pour changer quelque chose plus tard, cliquez sur le bouton de l'addon près de la minicarte.",
         WELCOME_DONE = "Terminé",
         WELCOME_OPEN = "Ouvrir les réglages",
+
+        -- The button at the minimap
+        MINIMAP_CLICK = "Cliquez pour ouvrir les réglages.",
+        MINIMAP_DRAG = "Faites glisser pour déplacer le bouton.",
 
         HEAD = "Tête", NECK = "Cou", SHOULDER = "Épaules", BACK = "Dos", CHEST = "Torse",
         WRIST = "Poignets", HANDS = "Mains", WAIST = "Taille", LEGS = "Jambes", FEET = "Pieds",
@@ -796,9 +812,13 @@ if GetLocale() == "zhCN" then
         WELCOME_TOOLTIP_TEXT = "把鼠标移到任意物品上，就能看到它比你身上的好多少。",
         WELCOME_ARROWS = "在背包和银行",
         WELCOME_ARROWS_TEXT = "箭头标出比你身上更好的装备。绿色：现在就能穿。灰色：需要更高等级。",
-        WELCOME_AGAIN = "以后想改什么，输入 /upscout。",
+        WELCOME_AGAIN = "以后想改什么，点小地图旁的插件按钮。",
         WELCOME_DONE = "完成",
         WELCOME_OPEN = "打开设置",
+
+        -- The button at the minimap
+        MINIMAP_CLICK = "点击打开设置。",
+        MINIMAP_DRAG = "拖动可移动按钮。",
 
         HEAD = "头部", NECK = "颈部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
         WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "脚",
@@ -959,9 +979,13 @@ if GetLocale() == "ptBR" then
         WELCOME_TOOLTIP_TEXT = "Passe o cursor sobre qualquer item e veja o quanto ele é melhor do que o que você usa.",
         WELCOME_ARROWS = "Nas bolsas e no banco",
         WELCOME_ARROWS_TEXT = "Uma seta marca o equipamento melhor do que o seu. Verde: pode equipar. Cinza: pede um nível mais alto.",
-        WELCOME_AGAIN = "Para mudar algo depois, digite /upscout.",
+        WELCOME_AGAIN = "Para mudar algo depois, clique no botão do addon ao lado do minimapa.",
         WELCOME_DONE = "Pronto",
         WELCOME_OPEN = "Abrir configurações",
+
+        -- The button at the minimap
+        MINIMAP_CLICK = "Clique para abrir as configurações.",
+        MINIMAP_DRAG = "Arraste para mover o botão.",
 
         HEAD = "Cabeça", NECK = "Pescoço", SHOULDER = "Ombros", BACK = "Costas", CHEST = "Torso",
         WRIST = "Pulsos", HANDS = "Mãos", WAIST = "Cintura", LEGS = "Pernas", FEET = "Pés",
@@ -1121,9 +1145,13 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         WELCOME_TOOLTIP_TEXT = "Pasa el cursor sobre cualquier objeto y verás cuánto mejor es que el que llevas.",
         WELCOME_ARROWS = "En las bolsas y el banco",
         WELCOME_ARROWS_TEXT = "Una flecha marca el equipo mejor que el que llevas. Verde: póntelo. Gris: pide un nivel más alto.",
-        WELCOME_AGAIN = "Si quieres cambiar algo más tarde, escribe /upscout.",
+        WELCOME_AGAIN = "Si quieres cambiar algo más tarde, haz clic en el botón del addon junto al minimapa.",
         WELCOME_DONE = "Listo",
         WELCOME_OPEN = "Abrir ajustes",
+
+        -- The button at the minimap
+        MINIMAP_CLICK = "Haz clic para abrir los ajustes.",
+        MINIMAP_DRAG = "Arrastra para mover el botón.",
 
         HEAD = "Cabeza", NECK = "Cuello", SHOULDER = "Hombros", BACK = "Espalda", CHEST = "Pecho",
         WRIST = "Muñecas", HANDS = "Manos", WAIST = "Cintura", LEGS = "Piernas", FEET = "Pies",
@@ -1285,9 +1313,13 @@ if GetLocale() == "koKR" then
         WELCOME_TOOLTIP_TEXT = "아이템에 마우스를 올리면 착용한 것보다 얼마나 좋은지 보여줍니다.",
         WELCOME_ARROWS = "가방과 은행에서",
         WELCOME_ARROWS_TEXT = "화살표가 착용한 것보다 좋은 장비를 표시합니다. 초록색: 바로 착용 가능. 회색: 더 높은 레벨 필요.",
-        WELCOME_AGAIN = "나중에 바꾸고 싶으면 /upscout을 입력하세요.",
+        WELCOME_AGAIN = "나중에 바꾸고 싶으면 미니맵 옆의 애드온 버튼을 누르세요.",
         WELCOME_DONE = "완료",
         WELCOME_OPEN = "설정 열기",
+
+        -- The button at the minimap
+        MINIMAP_CLICK = "클릭하면 설정이 열립니다.",
+        MINIMAP_DRAG = "끌어서 버튼을 옮길 수 있습니다.",
 
         HEAD = "머리", NECK = "목", SHOULDER = "어깨", BACK = "등", CHEST = "가슴",
         WRIST = "손목", HANDS = "손", WAIST = "허리", LEGS = "다리", FEET = "발",
@@ -1448,9 +1480,13 @@ if GetLocale() == "zhTW" then
         WELCOME_TOOLTIP_TEXT = "把滑鼠移到任意物品上，就能看到它比你身上的好多少。",
         WELCOME_ARROWS = "在背包和銀行",
         WELCOME_ARROWS_TEXT = "箭頭標出比你身上更好的裝備。綠色：現在就能穿。灰色：需要更高等級。",
-        WELCOME_AGAIN = "以後想改什麼，輸入 /upscout。",
+        WELCOME_AGAIN = "以後想改什麼，點小地圖旁的插件按鈕。",
         WELCOME_DONE = "完成",
         WELCOME_OPEN = "打開設定",
+
+        -- The button at the minimap
+        MINIMAP_CLICK = "點擊打開設定。",
+        MINIMAP_DRAG = "拖曳可移動按鈕。",
 
         HEAD = "頭部", NECK = "頸部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
         WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "腳",

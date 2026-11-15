@@ -43,7 +43,8 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
 - Funktioniert gleich nach der Installation. In der Liste **Profil** steht anfangs der Talentbaum,
   in dem du die meisten Punkte hast.
 - Beim ersten Einloggen zeigt ein Fenster, was das Addon macht. Dort kannst du die Zeilen im
-  Tooltip und die Pfeile in den Taschen abschalten. `/upscout` öffnet es wieder.
+  Tooltip und die Pfeile in den Taschen abschalten. Die Schaltfläche des Addons an der Minikarte
+  öffnet es wieder.
 - Bewertet Ausrüstung mit eigenen Gewichten für jeden Talentbaum, berechnet mit dem Simulator
   [wowsims/forever](https://github.com/wowsims/forever). Ein anderes Addon ist nicht nötig.
 
