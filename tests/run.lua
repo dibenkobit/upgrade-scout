@@ -5586,7 +5586,7 @@ function scenarios.pawn_welcome()
     eq(trees[3]:IsShown(), true, "three of them"); eq(trees[2].Mark:IsShown(), true, "the one in use is lit")
     check(window.Ask:GetText():find(L.WELCOME_SCALE:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")), 1, true) ~= nil,
         "the question is about the scale, and names the character")
-    check(window.Ask:GetText():find(L.WELCOME_SCALE_WHY, 1, true) ~= nil, "and says what the answer is for")
+    eq(window.Ask:GetText(), L.WELCOME_SCALE:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")), "and stands alone, with nothing after it")
     pawn:Click()
     eq(told, 1, "the one that scores clicked again: nothing changes")
 

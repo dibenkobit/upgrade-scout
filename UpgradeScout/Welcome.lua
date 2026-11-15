@@ -739,7 +739,7 @@ Paint = function()
         if not pawn then
             frame.Ask:SetText(L.WELCOME_TREE:format(name) .. Aside(L.WELCOME_TREE_WHY))
         elseif #profiles > 0 then
-            frame.Ask:SetText(L.WELCOME_SCALE:format(name) .. Aside(L.WELCOME_SCALE_WHY))
+            frame.Ask:SetText(L.WELCOME_SCALE:format(name))
         else
             frame.Ask:SetText(L.WELCOME_NO_SCALE:format(name))
         end
