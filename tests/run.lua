@@ -5642,13 +5642,15 @@ function scenarios.pawn_welcome()
     eq(Arrow(), true, "and come back")
 
     -- Another character of the account. Pawn writes of the one being played alone, so the
-    -- lists for the other have our lines, and what the block asks about them is in use
-    -- again: how they are written, and the box of the tabs. The rest of the game is Pawn's.
+    -- lists for the other have our lines, always: the box of the tabs is held ticked, the
+    -- one of the rest of the game empty. How the lines are written is the player's to choose.
     UpgradeScoutDB.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", class = "DRUID", level = 20 }
     ns.Fire("SETTING_CHANGED", "rowTooltip")
     eq(block.Body:GetText(), L.WELCOME_TOOLTIP_PAWN_OTHERS, "with another character the block says where our lines are left")
-    eq(tabs:IsEnabled(), true, "the box of the tabs is in use"); eq(tabs:GetChecked(), true, "and ticked, as it was left")
-    eq(tabs.Tick:IsShown(), true, "with its tick"); eq(tabs:GetAlpha(), 1, "whole"); eq(tabs.Label:GetAlpha(), 1, "as its words are")
+    eq(tabs:IsEnabled(), false, "the box of the tabs is not the player's to change"); eq(tabs:GetChecked(), true, "it is held ticked")
+    eq(tabs.Tick:IsShown(), true, "with its tick"); eq(tabs:GetAlpha(), 0.4, "dim"); eq(tabs.Label:GetAlpha(), 0.5, "as its words are")
+    tabs:Click()
+    eq(UpgradeScoutDB.rowTooltip, nil, "a click on it changes nothing")
     eq(elsewhere:IsEnabled(), false, "the box of the rest of the game stays out of use"); eq(elsewhere:GetChecked(), false, "empty")
     eq(elsewhere:GetAlpha(), 0.4, "and dim")
     eq(block.All:IsEnabled(), true, "the two buttons are in use"); eq(block.Own:IsEnabled(), true, "both")
@@ -5659,18 +5661,19 @@ function scenarios.pawn_welcome()
     eq(tip.Lines[2].Title:IsShown(), false, "and the picture follows: one line")
     block.All:Click()
     eq(UpgradeScoutDB.ownTree, nil, "both ways")
-    tabs:SetChecked(false)
-    tabs:Click()
-    eq(UpgradeScoutDB.rowTooltip, false, "the box of the tabs unticked: written down")
-    eq(block.All:IsEnabled(), false, "no lines of ours anywhere now: the two buttons go dim"); eq(block.All:GetAlpha(), 0.35, "as without Pawn")
-    eq(tip.Lines[1].Title:IsShown(), false, "and the picture has the note alone")
-    tabs:SetChecked(true)
-    tabs:Click()
-    eq(UpgradeScoutDB.rowTooltip, nil, "ticked again"); eq(block.All:IsEnabled(), true, "the buttons are back")
+    -- Left unticked while the addon scored: with Pawn scoring that has no say.
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(tabs:GetChecked(), true, "the box of the tabs left unticked before: held ticked all the same"); eq(tabs.Tick:IsShown(), true, "with its tick")
+    eq(block.All:IsEnabled(), true, "and the two buttons in use"); eq(tip.Lines[1].Title:IsShown(), true, "the picture with the score's lines")
+    eq(UpgradeScoutDB.rowTooltip, false, "what the box was left at is kept")
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
     UpgradeScoutDB.chars["Alty-Testrealm"] = nil
     ns.Fire("SETTING_CHANGED", "rowTooltip")
     eq(block.Body:GetText(), L.WELCOME_TOOLTIP_PAWN, "without the other character the block is as it was")
-    eq(tabs:IsEnabled(), false, "the box of the tabs out of use"); eq(block.All:IsEnabled(), false, "and the two buttons")
+    eq(tabs:IsEnabled(), false, "the box of the tabs out of use"); eq(tabs:GetChecked(), false, "and empty")
+    eq(block.All:IsEnabled(), false, "and the two buttons out of use")
 
     -- A scale chosen in the window: written on the character's card, apart from the profile.
     trees[3]:Click()
@@ -5957,6 +5960,16 @@ function scenarios.pawn_alt()
     eq(PawnLine(GameTooltip), nil, "a row for another character: Pawn's line is kept out")
     eq(PawnLine(ShoppingTooltip1), nil, "and out of the tooltip of what that character wears")
     eq(GameTooltip._lines[#GameTooltip._lines].right, "-33%", "our lines are there as before")
+    -- They are all that says the score there, so they do not go by the box of our lines on
+    -- the tabs: a player who unticked it while the addon scored is not left with nothing.
+    jerkin:GetScript("OnLeave")(jerkin)
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(GameTooltip._lines[#GameTooltip._lines].right, "-33%", "our lines unticked for the tabs: they still stand in a list for another character")
+    eq(PawnLine(GameTooltip), nil, "with none of Pawn's")
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
     eq(GameTooltip._border, "white", "Pawn takes back a border it had coloured"); eq(ShoppingTooltip1._border, "white", "on both")
     eq(PawnCommon.ShowUpgradesOnTooltips, true, "Pawn's options are as they were"); eq(PawnCommon.ShowValuesForUpgradesOnly, true, "both")
     jerkin:GetScript("OnLeave")(jerkin)
@@ -6004,6 +6017,18 @@ function scenarios.pawn_alt()
     end
     eq(ours, true, "under our header, which says whose list it is")
     jerkin:GetScript("OnLeave")(jerkin)
+    -- With the addon scoring its lines go by their box, in a list for another character too.
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    jerkin:GetScript("OnEnter")(jerkin)
+    ours = false
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right == ALTY then ours = true end
+    end
+    eq(ours, false, "the addon scoring, its lines unticked for the tabs: none under the row")
+    jerkin:GetScript("OnLeave")(jerkin)
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
     eq(Elsewhere(), "Pawn: upgrade", "and Pawn writes on everywhere else")
 
     -- Without Pawn there is nobody to keep out: the tooltip is filled in and no more.

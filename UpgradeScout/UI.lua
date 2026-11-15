@@ -259,15 +259,19 @@ end
 --     says it anywhere in the game (Tooltip.lua);
 --   the notes (ns.Shows "rowNotes"): what the row cannot say for want of room (the hands,
 --     the effects, what the net cost is made of) and what is missing to pay.
--- With Pawn scoring (Score.Engine), the tooltip of a row in the player's own list has
--- Pawn's lines for the score: how much of an upgrade the item is on each of the player's
--- scales. Ours would say it twice and are left out, whatever their box says. (A list for
--- another character keeps them, and has none of Pawn's: those are about the character being
--- played. See ShowItemTooltip.)
+-- With Pawn scoring (Score.Engine) the score in a tooltip is not the box's to switch.
+-- Under a row of the player's own list stand Pawn's lines: how much of an upgrade the item
+-- is on each of the player's scales. Ours would say it twice and are left out. Under a row
+-- of a list for another character ours always stand, on that character's Pawn scales: Pawn
+-- can tell an upgrade only for the character being played (PawnIsItemAnUpgrade goes by
+-- that one's scales, class, level and what it wears, and its lines are kept out of such a
+-- row: ShowItemTooltip), so ours are all there is to say it, and a player who has Pawn
+-- score counts on finding the score there.
 -- Notes without the score stand under the addon's name. With nothing to note, nothing is
 -- written at all.
 local function AddOfferLines(entry, who)
-    local score = ns.Shows("rowTooltip") and not (ns.Score.Engine() and not who)
+    local score = ns.Shows("rowTooltip")
+    if ns.Score.Engine() then score = who ~= nil end
     local notes = ns.Shows("rowNotes") and HasNotes(entry)
     if score and ns.OwnTree() and S.ctx then
         -- The tree in use alone: one line, for the profile the list is made on, which reads

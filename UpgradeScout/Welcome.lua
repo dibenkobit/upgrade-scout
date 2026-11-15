@@ -784,34 +784,35 @@ Paint = function()
     -- With Pawn scoring the score in a tooltip is Pawn's to write (Tooltip.lua, AddOfferLines
     -- in UI.lua), and Pawn writes of the character being played: it knows of no other. So
     -- our lines are left in one place, the lists made for the account's other characters,
-    -- on our tabs. Where there are such characters the block says so, after saying that
-    -- Pawn writes here, and what it asks about those lines is in use as ever: how they are
-    -- written, and the box of the tabs. The box of the rest of the game is empty and dim,
-    -- and out of the mouse's reach (what is switched off would still light up under it).
-    -- With no other character nothing of the score is ours: the box of the tabs goes the
-    -- same way, and the two buttons dim. What a box was left at is kept for when the addon
+    -- on our tabs, and there they always stand: nothing else says the score. Where there are
+    -- such characters the block says so, after saying that Pawn writes here. How those
+    -- lines are written is the player's to choose as ever (the two buttons); where they
+    -- show is not: the two boxes are dim and out of the mouse's reach (what is switched off
+    -- would still light up under it), the one of the tabs ticked, the one of the rest of
+    -- the game empty. With no other character nothing of the score is ours: both boxes are
+    -- empty, and the two buttons dim. What a box was left at is kept for when the addon
     -- scores again.
     -- The notes under a row of our tabs are ours whoever scores: their box is always in use.
     -- So are the arrows in the bags, on their card.
     local block = frame.Tips
     local tabs, elsewhere, notes = PaintSwitch(block.Tabs), PaintSwitch(block.Elsewhere), PaintSwitch(block.Notes)
     local others = #ns.Roster.List() > (me and 1 or 0)
-    -- Where lines of ours can be: in the lists on our tabs, and in the rest of the game.
-    local lists, rest = not pawn or others, not pawn
     block.Body:SetText(not pawn and L.WELCOME_TOOLTIP_TEXT or others and L.WELCOME_TOOLTIP_PAWN_OTHERS
         or L.WELCOME_TOOLTIP_PAWN)
-    for _, case in ipairs({ { block.Tabs, lists }, { block.Elsewhere, rest } }) do
-        local switch, live = case[1], case[2]
-        if not live then
-            switch:SetChecked(false)
-            switch.Tick:SetShown(false)
+    -- (Each box with what it is held at while Pawn scores.)
+    for _, case in ipairs({ { block.Tabs, others }, { block.Elsewhere, false } }) do
+        local switch, held = case[1], case[2]
+        if pawn then
+            switch:SetChecked(held)
+            switch.Tick:SetShown(held)
         end
-        switch:SetEnabled(live)
-        switch:EnableMouse(live)
-        switch:SetAlpha(live and 1 or 0.4)
-        switch.Label:SetAlpha(live and 1 or 0.5)
+        switch:SetEnabled(not pawn)
+        switch:EnableMouse(not pawn)
+        switch:SetAlpha(pawn and 0.4 or 1)
+        switch.Label:SetAlpha(pawn and 0.5 or 1)
     end
-    local score = (tabs and lists) or (elsewhere and rest)
+    local score = tabs or elsewhere
+    if pawn then score = others end
     PaintTree(block.All, not about.own)
     PaintTree(block.Own, about.own)
     for _, button in ipairs({ block.All, block.Own }) do
