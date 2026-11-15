@@ -1903,7 +1903,7 @@ function scenarios.ui()
         "and hangs from the field's right end: the field stands at the window's edge")
     eq(frame.AffordCheck, nil, "no filter's tick box in the strip"); eq(frame.TopCheck, nil, "not one")
     -- A warrior of level 10 wears mail, and plate from 40: the line that is its own names mail.
-    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Only mail | Upgrade at least | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
         "the lines of the menu, the one that is no filter under a rule")
     local checkbox, topBox = FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
     eq(topBox:GetChecked(), true, "top five on by default")
@@ -2918,7 +2918,7 @@ function scenarios.net_ui()
 
     -- The box: the last line of the Filters menu, under a rule, off until it is ticked.
     eq(frame.NetCheck, nil, "no tick box of its own above the list")
-    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Only mail | Upgrade at least | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
         "the last line of the menu, under a rule: what the best value goes by, not a filter")
     eq(net:IsShown(), true, "in the menu of the Upgrades tab")
     eq(net:GetChecked(), false, "not ticked")
@@ -6652,7 +6652,7 @@ function scenarios.pawn_alt()
 end
 
 ---------------------------------------------------------------------------
--- What a character wants of its gear (Wants.lua), and the menu its two filters are in
+-- What is wanted of a character's gear (Wants.lua), and the menu the two filters are in
 ---------------------------------------------------------------------------
 -- The standard world with more for sale. For the empty head a leather cap and a cloth hood
 -- beside the mail helm; a cloak; and two more chests of mail, which add a half and a fifth to
@@ -6690,7 +6690,7 @@ function scenarios.wants()
     eq(Wants.ArmorOf("INVTYPE_2HWEAPON", 2, 1), nil, "a two-handed axe is a weapon, whatever the number of its kind")
     eq(Wants.ArmorOf(nil, 4, 2), nil, "nothing for what is not worn")
 
-    -- The heaviest armor a character wears now.
+    -- The best armor type for a character: the heaviest it wears now.
     local function Armor(class, level, learned)
         return Wants.Armor({ class = class, level = level, armor = learned })
     end
@@ -6699,41 +6699,46 @@ function scenarios.wants()
     eq(Armor("WARRIOR", 10), 3, "a warrior: mail"); eq(Armor("WARRIOR", 40), 4, "and plate from 40")
     eq(Armor("PALADIN", 39), 3, "a paladin the same"); eq(Armor("PALADIN", 60), 4, "then plate")
     eq(Armor("ROGUE", 60), 2, "a rogue: leather for good"); eq(Armor("DRUID", 60), 2, "a druid too")
-    eq(Armor("MAGE", 60), nil, "a mage wears cloth alone: nothing to leave out")
-    eq(Armor("PRIEST", 60), nil, "nor has a priest"); eq(Armor("WARLOCK", 60), nil, "or a warlock")
+    eq(Armor("MAGE", 60), 1, "a mage wears cloth alone")
+    eq(Armor("PRIEST", 60), 1, "as does a priest"); eq(Armor("WARLOCK", 60), 1, "and a warlock")
     -- Where the game has said what the character learned, that decides, not its level: mail
     -- and plate are taught by a trainer.
     eq(Armor("HUNTER", 45, { [1] = true, [2] = true }), 2, "a hunter of 45 who never went to the trainer: leather still")
     eq(Armor("HUNTER", 40, { [1] = true, [2] = true, [3] = true }), 3, "mail once it is learned")
     eq(Wants.Armor(nil), nil, "no character, no armor")
 
-    -- What a card asks for.
-    local hunter = { class = "HUNTER", level = 20 }
+    -- What is asked of a character's gear. The two boxes are the account's, one for all its
+    -- characters; which armor the first of them keeps is each character's own.
+    local account = ns.account
+    local hunter, rogue, mage = { class = "HUNTER", level = 20 }, { class = "ROGUE", level = 5 }, { class = "MAGE", level = 30 }
     eq(Wants.Of(hunter), nil, "nothing ticked: nothing is asked")
-    hunter.armorOnly = true
-    eq(Wants.Of(hunter).armor, 2, "only leather"); eq(Wants.Of(hunter).gain, nil, "and any gain")
-    check(Wants.Of(hunter) == Wants.Of({ class = "ROGUE", level = 5, armorOnly = true }), "the same wants are one table")
-    hunter.level = 40
-    eq(Wants.Of(hunter).armor, 3, "the tick goes with the character to mail")
-    eq(Wants.Of({ class = "MAGE", level = 30, armorOnly = true }), nil, "a tick on the card of one who wears cloth alone asks for nothing")
-    hunter.armorOnly = nil
-    eq(Wants.Gain(hunter), 10, "the number before one is typed")
-    hunter.minGain = 50
-    eq(Wants.Of(hunter), nil, "a number alone asks for nothing")
-    hunter.minGainOn = true
-    eq(Wants.Of(hunter).gain, 50, "ticked: at least that"); eq(Wants.Of(hunter).armor, nil, "of any armor")
     local told = 0
-    ns.Listen("WANTS_CHANGED", function(card) if card == hunter then told = told + 1 end end)
-    Wants.SetGain(hunter, true, 12345)
-    eq(hunter.minGain, 9999, "no more than four digits")
-    Wants.SetGain(hunter, true, 0.4)
-    eq(hunter.minGain, 1, "and no less than one")
-    Wants.SetGain(hunter, false)
-    eq(hunter.minGainOn, nil, "unticked"); eq(hunter.minGain, 1, "the number stays"); eq(told, 3, "the addon is told each time")
-    Wants.SetArmorOnly(hunter, true)
-    eq(hunter.armorOnly, true, "the other box"); eq(told, 4, "of which it is told as well")
-    hunter.minGain = "many"
-    eq(Wants.Gain(hunter), 10, "a card with no number for a number has the first one")
+    ns.Listen("WANTS_CHANGED", function() told = told + 1 end)
+    Wants.SetBestArmor(true)
+    eq(account.bestArmor, true, "ticked: kept with the account"); eq(Wants.BestArmor(), true, "which says so")
+    eq(Wants.Of(hunter).armor, 2, "of a hunter it asks for leather"); eq(Wants.Of(hunter).gain, nil, "and any gain")
+    check(Wants.Of(hunter) == Wants.Of(rogue), "the same wants are one table")
+    hunter.level = 40
+    eq(Wants.Of(hunter).armor, 3, "at 40 the same tick asks for mail")
+    eq(Wants.Of({ class = "WARRIOR", level = 40 }).armor, 4, "and of a warrior, with nothing else ticked, for plate")
+    eq(Wants.Of(mage), nil, "of one who wears cloth alone it asks nothing")
+    Wants.SetBestArmor(false)
+    eq(account.bestArmor, nil, "unticked"); eq(Wants.Of(hunter), nil, "nothing is asked again")
+    eq(Wants.Gain(), 10, "the number before one is typed")
+    account.minGain = 50
+    eq(Wants.Of(hunter), nil, "a number alone asks for nothing")
+    Wants.SetGain(true)
+    eq(Wants.GainOn(), true, "ticked"); eq(Wants.Of(hunter).gain, 50, "at least that"); eq(Wants.Of(hunter).armor, nil, "of any armor")
+    check(Wants.Of(hunter) == Wants.Of(mage), "and of every character alike")
+    Wants.SetGain(true, 12345)
+    eq(account.minGain, 9999, "no more than four digits")
+    Wants.SetGain(true, 0.4)
+    eq(account.minGain, 1, "and no less than one")
+    Wants.SetGain(false)
+    eq(account.minGainOn, nil, "unticked"); eq(account.minGain, 1, "the number stays"); eq(told, 6, "the addon is told each time")
+    account.minGain = "many"
+    eq(Wants.Gain(), 10, "no number where a number is kept: the first one")
+    account.minGain = nil
 
     -- The percent is held against the number as the list writes it, rounded.
     local half = { gain = 50 }
@@ -6783,8 +6788,9 @@ function scenarios.wants()
     local list, unwanted = Shown()
     eq(OfferCount(), 11, "eleven upgrades for sale"); eq(list, EVERYTHING, "all of them listed"); eq(unwanted, 0, "none left out")
 
-    -- "Only mail", ticked with every price known: the list is without the lighter armor.
-    Wants.SetArmorOnly(me, true)
+    -- The best armor type, which is mail for a warrior of level 10, ticked with every price
+    -- known: the list is without the lighter armor.
+    Wants.SetBestArmor(true)
     list, unwanted = Shown()
     eq(list, MAIL, "no leather cap, no cloth hood, no robe; the cloak, the ring and the weapons as before")
     eq(unwanted, 3, "three upgrades left out")
@@ -6796,46 +6802,46 @@ function scenarios.wants()
     eq(list, MAIL, "the same list"); eq(unwanted, 3, "and the same count")
     eq(S.Demand(), false, "nothing more is needed for the list as it is")
     -- Unticked: their prices are asked for, and no others.
-    Wants.SetArmorOnly(me, false)
+    Wants.SetBestArmor(false)
     eq(More(), 3, "unticked: three searches")
     eq(OfferCount(), 11, "and every upgrade has its price"); eq(Shown(), EVERYTHING, "and is listed")
 
     -- "Upgrade at least 50%": the fair chest (+20%) and the axe (+30%) add too little. The fine
     -- chest adds exactly a half; what goes into an empty slot stays whatever the number.
-    Wants.SetGain(me, true, 50)
+    Wants.SetGain(true,50)
     list, unwanted = Shown()
     eq(list, HALF, "the list of what adds a half or more"); eq(unwanted, 2, "two left out")
     eq(Scan(), all - 2, "a scan looks up no price for those two")
     eq(Offer("Fair Chest"), nil, "the fair chest"); eq(Offer("Big Axe"), nil, "and the axe")
     eq(S.Unchecked().unwanted, 2, "counted without a search")
     -- A smaller number asks for the prices it lets in.
-    Wants.SetGain(me, true, 25)
+    Wants.SetGain(true,25)
     eq(More(), 1, "at least 25: one search, for the axe")
     check(Offer("Big Axe") ~= nil, "which has its price now"); eq(Offer("Fair Chest"), nil, "the fair chest still adds too little")
-    Wants.SetGain(me, true, 51)
+    Wants.SetGain(true,51)
     eq(Shown(), "Good Chest, Great Chest, Helm, Hide Cap, New Ring, Shield, Silk Hood, Wool Cloak", "at least 51: the fine chest's +50% falls short")
     eq(More(), 0, "a bigger number asks for nothing")
     -- Both.
-    Wants.SetArmorOnly(me, true)
+    Wants.SetBestArmor(true)
     list, unwanted = Shown()
     eq(list, "Good Chest, Helm, New Ring, Shield, Wool Cloak", "both: mail that adds over a half, and what is no matter of armor")
     eq(unwanted, 6, "six left out, each counted once: three for their armor, three for their gain")
-    Wants.SetArmorOnly(me, false)
-    Wants.SetGain(me, false)
+    Wants.SetBestArmor(false)
+    Wants.SetGain(false)
     eq(More(), 1, "nothing asked any more: the fair chest's price is looked up")
 
     -- "Top 5 per slot" is judged among what the character would have. The leather cap is
     -- stronger than the mail helm and cheaper per point, so top five has no use for the helm;
-    -- with "Only mail" the helm is the best there is for the head.
+    -- with mail alone the helm is the best there is for the head.
     SetView(false, true)
     Scan()
     eq(Offer("Helm"), nil, "top five: no price for the helm"); check(Offer("Hide Cap") ~= nil, "the cap outdoes it")
-    Wants.SetArmorOnly(me, true)
+    Wants.SetBestArmor(true)
     check(More() >= 1, "only mail: the helm's price is asked for")
     check(Offer("Helm") ~= nil, "and found")
     Scan()
     check(Offer("Helm") ~= nil, "a scan with both ticked looks it up as well"); eq(Offer("Hide Cap"), nil, "and not the cap")
-    Wants.SetArmorOnly(me, false)
+    Wants.SetBestArmor(false)
     SetView(false, false)
 
     -- The best set for a budget is made of what the character would have. Worn: a chest and
@@ -6866,10 +6872,28 @@ function scenarios.wants()
     eq(Best({ gain = 50 }), "11:+10", "at least 50%: no boots")
     eq(Best({ armor = 3, gain = 50 }), "12:+6", "both: the mail chest alone")
     eq(Best({ armor = 3, gain = 70 }), "", "and nothing where nothing passes")
+
+    -- While 2.6.0 was made, the two were kept on each character's card. What such a build
+    -- left ticked goes over to the account, and the cards are cleared.
+    local saved = UpgradeScoutDB
+    saved.bestArmor, saved.minGain, saved.minGainOn = nil, nil, nil
+    saved.chars[me.key].armorOnly = true
+    saved.chars[me.key].minGain = 40
+    saved.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", faction = "Alliance",
+        class = "DRUID", level = 20, gear = {}, minGain = 25, minGainOn = true }
+    saved.chars["Magey-Testrealm"] = { key = "Magey-Testrealm", name = "Magey", realm = "Testrealm", faction = "Alliance",
+        class = "MAGE", level = 30, gear = {}, minGain = 60, minGainOn = true }
+    Relog(W.player, W.equipped)
+    eq(saved.bestArmor, true, "a tick on one card: the account's now")
+    eq(saved.minGainOn, true, "as is the other"); eq(saved.minGain, 25, "with the smallest of the numbers that were asked for")
+    for key, card in pairs(saved.chars) do
+        check(card.armorOnly == nil and card.minGain == nil and card.minGainOn == nil, "nothing of it is left on the card of " .. key)
+    end
+    eq(ns.Wants.Of(ns.Roster.Me()).armor, 3, "and it is asked of the character being played"); eq(ns.Wants.Gain(), 25, "with that number")
 end
 
--- "Only leather", "Only mail" or "Only plate" in the Filters menu of the Upgrades tab: the line
--- of the character the list is for, and that character's own tick.
+-- "Best armor type for the class" in the Filters menu of the Upgrades tab: one line and one
+-- tick for every character of the account, which keeps for each the heaviest armor it wears.
 function scenarios.wants_ui()
     WantsWorld()
     local warrior, warriorGear = W.player, W.equipped
@@ -6880,9 +6904,24 @@ function scenarios.wants_ui()
     W.AddItem({ id = 311, name = "Druid Robe", equipLoc = "INVTYPE_ROBE", subClassID = 1, value = 0, values = { D1 = 25 }, level = 18 })
     W.AddAuction(310, 2000)
     W.AddAuction(311, 1000)
-    local MENU = "Only what I can afford | Top 5 per slot | %s | Upgrade at least | / | Value by net cost"
+    local LABEL, SHORT = "Best armor type for the class", "Best armor"
+    local MENU = "Only what I can afford | Top 5 per slot | " .. LABEL .. " | Upgrade at least | / | Value by net cost"
+    -- The box of the menu in view, and the last line of its tooltip: which type it keeps
+    -- for the character the list is for.
+    local best = FilterBox(LABEL)
+    local function Kept()
+        best:Tooltip()
+        local lines = GameTooltip._lines
+        local title, tip, last = lines[1].text, lines[2].text, lines[#lines].text
+        GameTooltip:Hide()
+        eq(title, LABEL, "the tooltip is titled with the label"); eq(tip, ns.L.ARMOR_BEST_TIP, "and says what the box leaves out")
+        return last
+    end
+    local function Named(card, armor)
+        return ns.Roster.Colored(card, card.name) .. ": " .. armor
+    end
 
-    -- The druid is played, and ticks its box.
+    -- The druid is played, and ticks the box.
     W.Login(Druid())
     W.equipped = { [5] = W.Link(300) }
     LoadAddon()
@@ -6890,11 +6929,12 @@ function scenarios.wants_ui()
     W.Run(1.5)
     W.OpenAuctionHouse()
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
-    eq(FilterMenu(), MENU:format("Only leather"), "a druid's line names leather, the heaviest armor it wears")
-    local leather = FilterBox("Only leather")
-    eq(leather:GetChecked(), false, "not ticked until the player ticks it")
-    leather:Click()
-    eq(ns.Roster.Me().armorOnly, true, "ticked: written on the druid's card"); eq(leather:GetChecked(), true, "and the tick shows")
+    eq(FilterMenu(), MENU, "the line is in a druid's menu")
+    eq(best:GetChecked(), false, "not ticked until the player ticks it")
+    eq(Kept(), Named(ns.Roster.Me(), "Leather"), "its tooltip names the druid's best armor: leather")
+    best:Click()
+    eq(UpgradeScoutDB.bestArmor, true, "ticked: kept with the account"); eq(best:GetChecked(), true, "and the tick shows")
+    eq(ns.Roster.Me().armorOnly, nil, "nothing is written on the druid's card")
     W.CloseAuctionHouse()
 
     -- The warrior at the auction house. A mage of the account is known as well.
@@ -6926,14 +6966,16 @@ function scenarios.wants_ui()
     end
     local function Status() return frame.Status:GetText() or "" end
 
-    -- Its own line names mail, and its box is its own: the druid's tick is the druid's.
-    eq(FilterMenu(), MENU:format("Only mail"), "a warrior of level 10: mail")
-    local mail = FilterBox("Only mail")
-    eq(mail:GetChecked(), false, "not ticked")
-    mail:Tooltip()
-    eq(GameTooltip._lines[1].text, "Only mail", "its tooltip is titled with its label")
-    eq(GameTooltip._lines[2].text, ns.L.ARMOR_ONLY_TIP, "and says what it leaves out")
-    GameTooltip:Hide()
+    -- The same line, ticked as it was left while the druid was played: the box is one for
+    -- every character of the account. For the warrior it keeps mail.
+    local mage = UpgradeScoutDB.chars["Magey-Testrealm"]
+    eq(FilterMenu(), MENU, "a warrior's menu has the same line")
+    eq(best:GetChecked(), true, "ticked: another character logged in, and nothing was reset")
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 per slot \194\183 " .. SHORT,
+        "and named beside the field, after the two that are on from the start")
+    eq(Kept(), Named(me, "Mail"), "its tooltip names the best armor of a warrior of level 10: mail")
+    best:Click()
+    eq(UpgradeScoutDB.bestArmor, nil, "unticked")
 
     -- Everything, with the tab's own two filters off.
     SetView(false, false)
@@ -6945,19 +6987,19 @@ function scenarios.wants_ui()
 
     -- Ticked: the list keeps mail, and what is no matter of armor. Nothing is looked up.
     local searches = W.AH.calls.search
-    mail:Click()
+    best:Click()
     Settle()
-    eq(me.armorOnly, true, "written on the warrior's card"); eq(UpgradeScoutDB.chars[me.key].armorOnly, true, "which is saved with the account")
+    eq(UpgradeScoutDB.bestArmor, true, "kept with the account"); eq(me.armorOnly, nil, "and not on the warrior's card")
     eq(Row("Hide Cap"), nil, "the leather cap is out"); eq(Row("Silk Hood"), nil, "the cloth hood"); eq(Row("Great Chest"), nil, "and the robe")
     check(Row("Helm") ~= nil and Row("Good Chest") ~= nil, "mail stays")
     check(Row("Wool Cloak") ~= nil, "a cloak stays: it is cloth for everyone")
     check(Row("New Ring") ~= nil and Row("Big Axe") ~= nil and Row("Shield") ~= nil, "and a ring, a weapon, a shield")
     eq(Row("Helm").Pick.Text:GetText(), "Best of both", "the picks are chosen among what is left")
     eq(W.AH.calls.search, searches, "no item search: every price was known")
-    eq(frame.FilterNames:GetText(), "Only mail", "the filter is named beside the field")
+    eq(frame.FilterNames:GetText(), SHORT, "the filter is named beside the field")
     check(Status():find("8 upgrades in 6 slots.", 1, true) ~= nil, "the status line counts what is listed: " .. Status())
     frame.FilterField._tooltip(GameTooltip)
-    eq(GameTooltip._lines[2].text, "Only mail", "and the field's tooltip names it")
+    eq(GameTooltip._lines[2].text, LABEL, "and the field's tooltip names it in full")
     GameTooltip:Hide()
 
     -- The best set for a budget is made of the same.
@@ -6967,12 +7009,12 @@ function scenarios.wants_ui()
     Settle()
     check(Row("Good Chest") ~= nil and Row("Helm") ~= nil, "the set for ten gold: the best mail")
     eq(Row("Great Chest"), nil, "not the robe, which the money would buy"); eq(Row("Hide Cap"), nil, "nor the leather cap")
-    eq(mail:IsEnabled(), true, "the box keeps its say in a set"); eq(frame.FilterNames:GetText(), "Only mail", "and its name beside the field")
+    eq(best:IsEnabled(), true, "the box keeps its say in a set"); eq(frame.FilterNames:GetText(), SHORT, "and its name beside the field")
     bar.Check:SetChecked(false)
     bar.Check:Click()
     Settle()
 
-    -- The arrows in the bags are the same character's: lighter armor gets none.
+    -- The arrows in the bags go by the same box: lighter armor gets none.
     local function Arrow(slot)
         local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
         return arrow ~= nil and arrow:IsShown()
@@ -6981,68 +7023,75 @@ function scenarios.wants_ui()
     W.OpenBags()
     eq(Arrow(helm), true, "a mail helm for the empty head has its arrow"); eq(Arrow(cloak), true, "and a cloak")
     eq(Arrow(cap), false, "the leather cap has none")
-    mail:Click()
+    best:Click()
     W.Run(1.5)
     eq(Arrow(cap), true, "unticked: the cap has its arrow")
     check(Row("Hide Cap") ~= nil, "and its row")
-    mail:Click()
+    best:Click()
     W.Run(1.5)
     eq(Arrow(cap), false, "ticked again: gone"); eq(Row("Hide Cap"), nil, "from the list too")
 
-    -- The lists for the druid: the line is the druid's, ticked as the druid left it.
+    -- The lists for the druid: the same menu, and the box as it was. For the druid it
+    -- keeps leather.
     W.RunUntil(function() return W.AH.ready end, 5)
     frame.ProfileDropdown:Pick(3)
     W.Run(0.5)
     eq(ns.Roster.Target(), druid, "the lists are for the druid")
-    eq(FilterMenu(), MENU:format("Only leather"), "the menu's line is the druid's")
-    leather = FilterBox("Only leather")
-    eq(leather:GetChecked(), true, "ticked, as the druid left it")
-    eq(frame.FilterNames:GetText(), "Only leather", "and named beside the field")
+    eq(FilterMenu(), MENU, "the menu is what it was")
+    eq(best:GetChecked(), true, "and the box is still ticked: another character chosen, and nothing was reset")
+    eq(frame.FilterNames:GetText(), SHORT, "it is named beside the field")
+    eq(Kept(), Named(druid, "Leather"), "and its tooltip names the druid's armor")
     frame.ScanButton:Click()
     Settle()
     check(Row("Druid Jerkin") ~= nil, "the leather jerkin is listed")
     eq(Row("Druid Robe"), nil, "the cloth robe is not"); eq(Offer("Druid Robe"), nil, "and its price was not looked up")
-    eq(Arrow(cap), false, "the arrows stay the warrior's")
-    -- Unticked by whoever shops for the druid: on the druid's card, and on no other.
+    eq(Arrow(cap), false, "the arrows are the warrior's, who is played, and go by mail")
+    -- Unticked while the list is the druid's: for everyone, as it was ticked.
     searches = W.AH.calls.search
-    leather:Click()
+    best:Click()
     Settle()
-    eq(druid.armorOnly, nil, "unticked on the druid's card"); eq(me.armorOnly, true, "the warrior's own tick is where it was")
+    eq(UpgradeScoutDB.bestArmor, nil, "unticked")
     eq(W.AH.calls.search, searches + 1, "one item search, for the robe")
     check(Row("Druid Robe") ~= nil, "which is listed now")
-    -- Both of the druid's filters on, and between them they leave every upgrade out: the
+    W.Run(1.5)
+    eq(Arrow(cap), true, "and the leather cap in the warrior's bags has its arrow again")
+    -- Both filters on, and between them they leave every upgrade of the druid's out: the
     -- robe for its cloth, the jerkin (+67%) for its gain.
-    leather:Click()
-    ns.Wants.SetGain(druid, true, 90)
+    best:Click()
+    ns.Wants.SetGain(true, 90)
     ns.UI.Refresh()
     eq(Row("Druid Jerkin"), nil, "nothing is listed")
     check(Status():find("No upgrade passes your filters. They leave out 2.", 1, true) ~= nil, "and the status line says why: " .. Status())
-    eq(frame.FilterNames:GetText(), "Only leather \194\183 From +90%", "beside the names of the two")
-    ns.Wants.SetGain(druid, false)
+    eq(frame.FilterNames:GetText(), SHORT .. " \194\183 From +90%", "beside the names of the two")
+    ns.Wants.SetGain(false)
     ns.UI.Refresh()
     check(Row("Druid Jerkin") ~= nil, "the jerkin is back without the second")
-    eq(me.minGainOn, nil, "the warrior's own second filter was never on")
 
-    -- A mage wears cloth alone: there is nothing lighter to leave out, and no such line.
+    -- A mage wears cloth alone, and there is nothing lighter to leave out. The line is in
+    -- its menu all the same, ticked as it was.
     frame.ProfileDropdown:Pick(5)
     W.Run(0.5)
-    eq(ns.Roster.Target(), UpgradeScoutDB.chars["Magey-Testrealm"], "the lists are for the mage")
-    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Upgrade at least | / | Value by net cost", "a mage's menu has no line about armor")
+    eq(ns.Roster.Target(), mage, "the lists are for the mage")
+    eq(FilterMenu(), MENU, "a mage's menu is the same")
+    eq(best:GetChecked(), true, "with the box ticked"); eq(frame.FilterNames:GetText(), SHORT, "and named beside the field")
+    eq(Kept(), Named(mage, "Cloth"), "its tooltip names cloth")
+    eq(ns.Wants.Of(mage), nil, "of which nothing is left out")
 
-    -- Back to the warrior: its box is as it was.
+    -- Back to the warrior: the box is as it was.
     frame.ProfileDropdown:Pick(1)
     W.Run(0.5)
     eq(ns.Roster.Target(), nil, "the lists are the warrior's own again")
-    eq(FilterBox("Only mail"):GetChecked(), true, "and its box is ticked, as it was")
-    eq(frame.FilterNames:GetText(), "Only mail", "named beside the field")
-    -- At level 40 a warrior wears plate, and the tick goes with it.
+    eq(best:GetChecked(), true, "and the box is ticked, as it was")
+    eq(frame.FilterNames:GetText(), SHORT, "named beside the field")
+    eq(ns.Wants.Of(me).armor, 3, "of the warrior it asks for mail")
+    -- At level 40 a warrior wears plate: the same tick keeps plate.
     W.player.level = 40
     W.Fire("PLAYER_LEVEL_UP", 40)
     W.Run(2)
-    eq(FilterMenu(), MENU:format("Only plate"), "level 40: the line names plate")
-    eq(FilterBox("Only plate"):GetChecked(), true, "still ticked")
-    ns.UI.Refresh()
-    eq(frame.FilterNames:GetText(), "Only plate", "under its new name")
+    eq(FilterMenu(), MENU, "level 40: the same line")
+    eq(best:GetChecked(), true, "still ticked")
+    eq(ns.Wants.Of(me).armor, 4, "and it asks for plate now")
+    eq(Kept(), Named(me, "Plate"), "as its tooltip says")
 end
 
 -- "Upgrade at least N %" in the Filters menu: a tick box with a field for the number.
@@ -7053,7 +7102,7 @@ function scenarios.gain_ui()
     local S = ns.Scanner
     local frame = UpgradeScoutFrame
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
-    local filters, me = frame.FilterField, ns.Roster.Me()
+    local filters, saved = frame.FilterField, UpgradeScoutDB
     local box
     for _, w in ipairs(W.frames) do
         if w._template == "WowScrollBoxList" then box = w end
@@ -7104,7 +7153,7 @@ function scenarios.gain_ui()
     -- that would take the field from under the keys.
     local sounds = #W.sounds
     W.Type(number, "50")
-    eq(me.minGain, 50, "the number is written on the character's card"); eq(me.minGainOn, true, "and asked for")
+    eq(saved.minGain, 50, "the number is kept with the account"); eq(saved.minGainOn, true, "and asked for")
     eq(line.Tick:IsShown(), true, "the typing ticked the box"); eq(#W.sounds, sounds, "without a click")
     eq(filters._open, true, "the menu stays up"); check(Line() == line, "and its line is the one that was typed into")
     W.Run(0.5)
@@ -7130,15 +7179,15 @@ function scenarios.gain_ui()
     -- An empty field asks for nothing while the player types. Left empty, it unticks the box
     -- and shows the last number again.
     W.Type(number, "")
-    eq(me.minGain, 51, "an empty field changes nothing yet"); eq(me.minGainOn, true, "the box stays ticked")
+    eq(saved.minGain, 51, "an empty field changes nothing yet"); eq(saved.minGainOn, true, "the box stays ticked")
     W.PressEnter(number)
-    eq(me.minGainOn, nil, "left empty: unticked"); eq(line.Tick:IsShown(), false, "the tick goes")
-    eq(number:GetText(), "51", "and the last number is back in the field"); eq(me.minGain, 51, "kept for the next time")
+    eq(saved.minGainOn, nil, "left empty: unticked"); eq(line.Tick:IsShown(), false, "the tick goes")
+    eq(number:GetText(), "51", "and the last number is back in the field"); eq(saved.minGain, 51, "kept for the next time")
     W.Run(0.5)
     check(Row("Fine Chest") ~= nil and Row("Fair Chest") ~= nil, "everything is listed again")
     eq(frame.FilterNames:GetText(), "", "and nothing stands beside the field")
     W.Type(number, "0")
-    eq(me.minGainOn, nil, "nought is no number to ask for")
+    eq(saved.minGainOn, nil, "nought is no number to ask for")
     W.PressEnter(number)
     eq(number:GetText(), "51", "and gives way to the last one")
     filters:Close()
@@ -7149,11 +7198,11 @@ function scenarios.gain_ui()
     eq(GameTooltip._lines[1].text, "Upgrade at least", "its tooltip is titled with its words"); eq(GameTooltip._lines[2].text, ns.L.GAIN_MIN_TIP, "and says what it leaves out")
     GameTooltip:Hide()
     gain:Click()
-    eq(me.minGainOn, true, "ticked"); eq(me.minGain, 51, "with the number that was there")
+    eq(saved.minGainOn, true, "ticked"); eq(saved.minGain, 51, "with the number that was there")
     W.Run(0.5)
     eq(Row("Fine Chest"), nil, "the list is cut at once")
     gain:Click()
-    eq(me.minGainOn, nil, "unticked"); eq(me.minGain, 51, "the number stays")
+    eq(saved.minGainOn, nil, "unticked"); eq(saved.minGain, 51, "the number stays")
 
     -- A scan with the filter on looks up no price for what adds too little; a smaller number
     -- sends for the prices it lets in.
@@ -7208,17 +7257,19 @@ function scenarios.gain_ui()
     FilterBox("Top 5 per slot"):Click()
     Settle()
     eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 per slot \194\183 From +25%", "three filters by name")
-    FilterBox("Only mail"):Click()
+    FilterBox("Best armor type for the class"):Click()
     Settle()
     eq(frame.FilterNames:GetText(), "Filters on: 4", "four: how many are on")
     filters._tooltip(GameTooltip)
     local named = {}
     for i = 2, #GameTooltip._lines do named[#named + 1] = GameTooltip._lines[i].text end
-    eq(table.concat(named, " | "), "Only what I can afford | Top 5 per slot | Only mail | Upgrade at least 25%", "the tooltip names them in full")
+    eq(table.concat(named, " | "), "Only what I can afford | Top 5 per slot | Best armor type for the class | Upgrade at least 25%", "the tooltip names them in full")
     GameTooltip:Hide()
 
-    -- The number is the character's own, kept with the account.
-    eq(UpgradeScoutDB.chars[me.key].minGain, 25, "the number is saved on the character's card"); eq(UpgradeScoutDB.chars[me.key].minGainOn, true, "with its tick")
+    -- The number and its tick are the account's: no character's card has them.
+    eq(saved.minGain, 25, "the number is saved with the account"); eq(saved.minGainOn, true, "with its tick")
+    local card = ns.Roster.Me()
+    eq(card.minGain, nil, "not on the card of the character being played"); eq(card.minGainOn, nil, "nor its tick")
 end
 
 local function CheckLocale(locale, language, scan)

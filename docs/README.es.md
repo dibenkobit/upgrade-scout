@@ -31,9 +31,9 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
   Comprado por 4 de plata y vendido por 3, te costó 1.
 - **Mejor conjunto por** elige las mejoras que, juntas, dan más por tu oro o por una suma que
   escribas.
-- El menú **Filtros** acota la lista. **Solo cuero**, **Solo mallas** o **Solo placas** omite las
-  armaduras más ligeras que la más pesada que lleva tu personaje. **Mejora de al menos** omite las
-  mejoras menores que el porcentaje que escribas.
+- El menú **Filtros** acota la lista. **Mejor tipo de armadura de la clase** omite las armaduras
+  más ligeras que la más pesada que lleva tu personaje. **Mejora de al menos** omite las mejoras
+  menores que el porcentaje que escribas.
 - Compra también para tus otros personajes. Un botón en el buzón mete el equipo que compraste en
   una carta para ellos.
 - La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, para
@@ -92,13 +92,14 @@ A mano:
 - **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **Nuevo**
   significa que la ranura está vacía. Los puntos, como `+6 pts`, significan que lo que llevas ahí
   no aporta nada a tu perfil.
-- **Solo cuero** nombra la armadura más pesada que tu personaje ha aprendido a llevar: cuero para
-  un cazador, mallas cuando las haya aprendido. Capas, anillos, armas y escudos se quedan en la
-  lista. Un mago, un sacerdote y un brujo solo llevan tela y no tienen esta casilla.
+- **Mejor tipo de armadura de la clase** conserva la armadura más pesada que tu personaje ha
+  aprendido a llevar: cuero para un cazador, mallas cuando las haya aprendido. Capas, anillos,
+  armas y escudos se quedan en la lista. Un mago, un sacerdote y un brujo solo llevan tela: para
+  ellos no cambia nada.
 - **Mejora de al menos** va por el porcentaje de la columna **Mejora**. Un objeto para una ranura
   vacía se queda siempre.
-- Cada personaje tiene su propia casilla **Solo cuero** y su propio número en
-  **Mejora de al menos**. Cuando compras para otro personaje, ves y cambias los suyos.
+- Los dos ajustes valen para todos tus personajes. Cuando compras para otro personaje, se
+  quedan como están.
 - Un `*` amarillo tras el nombre: el objeto tiene efectos que la puntuación no cuenta.
 - Las pociones de salud y de maná no tienen puntuación: ningún peso pone número a «restaura
   700 p. de salud».

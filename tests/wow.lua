@@ -1402,8 +1402,11 @@ function C_Item.GetItemSpell(info)
 end
 -- The game's names for the subcategories of Consumables it knows.
 W.subNames = { [1] = "Potions", [2] = "Elixirs", [5] = "Food & Drink", [7] = "Bandages" }
+-- And for the kinds of armor.
+W.armorNames = { [1] = "Cloth", [2] = "Leather", [3] = "Mail", [4] = "Plate" }
 function C_Item.GetItemSubClassInfo(classID, subClassID)
     if classID == 0 then return W.subNames[subClassID] end
+    if classID == 4 then return W.armorNames[subClassID] end
 end
 function C_Item.IsItemDataCachedByID(id)
     for _, item in pairs(W.items) do

@@ -84,6 +84,8 @@ ns.account = { chars = {} }
 -- Also for the whole account, and chosen in the same window: engine, "pawn" when gear is to
 -- be scored by the player's Pawn scales and not by the addon's own weights (Score.Engine).
 -- pawnOffered: the window has been seen since that choice could be made in it.
+-- And the two filters of the Upgrades list that are about the gear (Wants.lua), which stay
+-- as they were set whichever character the list is for: bestArmor, minGain and minGainOn.
 
 -- Is this part of the addon on: "tooltip", "rowTooltip", "rowNotes" or "arrows"?
 function ns.Shows(part)
@@ -111,6 +113,21 @@ EventUtil.ContinueOnAddOnLoaded(ADDON, function()
     -- megabytes the game would otherwise read at every login. (Take this out with the check, if
     -- it is ever brought back.)
     UpgradeScoutDB.check = nil
+    -- While 2.6.0 was made, the two filters about gear were kept on each character's card
+    -- (armorOnly, minGain, minGainOn), and no release had them there. What such a build left
+    -- ticked goes over to the account, the smallest of the numbers with it, and the cards
+    -- are cleared.
+    local least
+    for _, card in pairs(UpgradeScoutDB.chars) do
+        if type(card) == "table" then
+            if card.armorOnly == true then UpgradeScoutDB.bestArmor = true end
+            if card.minGainOn == true and type(card.minGain) == "number" and (not least or card.minGain < least) then
+                least = card.minGain
+            end
+            card.armorOnly, card.minGain, card.minGainOn = nil, nil, nil
+        end
+    end
+    if least then UpgradeScoutDB.minGain, UpgradeScoutDB.minGainOn = least, true end
     ns.account = UpgradeScoutDB
 end)
 

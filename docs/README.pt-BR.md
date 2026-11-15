@@ -31,9 +31,9 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
   Comprado por 4 de prata e vendido por 3, custou 1.
 - **Melhor conjunto por** escolhe as melhorias que, juntas, rendem mais pelo seu ouro ou por um
   valor que você digitar.
-- O menu **Filtros** enxuga a lista. **Só couro**, **Só malha** ou **Só placas** deixa de fora as
-  armaduras mais leves que a mais pesada que o seu personagem usa. **Melhoria de pelo menos** deixa
-  de fora as melhorias menores que a porcentagem que você digitar.
+- O menu **Filtros** enxuga a lista. **Melhor tipo de armadura da classe** deixa de fora as
+  armaduras mais leves que a mais pesada que o seu personagem usa. **Melhoria de pelo menos**
+  deixa de fora as melhorias menores que a porcentagem que você digitar.
 - Compra também para os seus outros personagens. Um botão na caixa de correio coloca os
   equipamentos comprados numa carta para eles.
 - A dica de qualquer item mostra quanto ele é melhor do que o que você usa, para cada árvore de
@@ -92,13 +92,13 @@ Manualmente:
 - **Melhoria** diz quanto um item é melhor do que o que ele substitui, em porcentagem. **Novo**
   quer dizer que o espaço está vazio. Pontos, como `+6 pts`, querem dizer que o que você usa ali
   não acrescenta nada ao seu perfil.
-- **Só couro** traz o nome da armadura mais pesada que o seu personagem já aprendeu a usar: couro
-  para um caçador, malha depois que ele aprender. Capas, anéis, armas e escudos continuam na lista.
-  Mago, sacerdote e bruxo só usam tecido e não têm essa caixa.
+- **Melhor tipo de armadura da classe** mantém a armadura mais pesada que o seu personagem já
+  aprendeu a usar: couro para um caçador, malha depois que ele aprender. Capas, anéis, armas e
+  escudos continuam na lista. Mago, sacerdote e bruxo só usam tecido: para eles nada muda.
 - **Melhoria de pelo menos** segue a porcentagem da coluna **Melhoria**. Um item para um espaço
   vazio sempre fica.
-- Cada personagem tem a sua própria caixa **Só couro** e o seu próprio número em
-  **Melhoria de pelo menos**. Ao comprar para outro personagem, você vê e muda os dele.
+- As duas configurações valem para todos os seus personagens. Ao comprar para outro personagem,
+  elas ficam como estão.
 - Um `*` amarelo depois do nome: o item tem efeitos que a pontuação não conta.
 - Poções de vida e de mana não têm pontuação: nenhum peso dá um número para "restaura 700 de vida".
 - Botas "do Tigre" e botas "da Baleia" são itens diferentes, com preços diferentes. A aba "Vender"

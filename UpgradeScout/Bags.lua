@@ -48,9 +48,9 @@ local function Wearable(link)
     return known
 end
 
--- Is the item armor of a lighter kind than the character has asked to be offered ("Only
--- leather" in the Filters menu of the Upgrades tab: see Wants.lua)? What the list at the
--- auction house leaves out for that gets no arrow either.
+-- Is the item armor of a lighter kind than the character is to be offered ("Best armor type
+-- for the class" in the Filters menu of the Upgrades tab: see Wants.lua)? What the list at
+-- the auction house leaves out for that gets no arrow either.
 local function TooLight(link)
     local wants = ns.Wants.Of(ns.Roster.Me())
     if not wants or not wants.armor then return false end
@@ -203,9 +203,8 @@ ns.Listen("SCORING_CHANGED", function()
     MarkAllSoon()
 end)
 
--- The character being played asks for another kind of armor, or for any again (Wants.lua).
-ns.Listen("WANTS_CHANGED", function(card)
-    if card ~= ns.Roster.Me() then return end
+-- Only the best armor type is asked for, or any again (Wants.lua).
+ns.Listen("WANTS_CHANGED", function()
     retries = 0
     MarkAllSoon()
 end)

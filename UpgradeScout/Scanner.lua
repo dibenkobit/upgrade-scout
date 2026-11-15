@@ -390,7 +390,7 @@ end
 -- reason is a proof that the list, as the player has it set up, would not show the item
 -- whatever the search found, so skipping it never changes what the list shows:
 --   worse      it no longer beats the player's gear
---   unwanted   the character's own filters leave it out (Wants.lua): it is armor lighter than
+--   unwanted   the filters about gear leave it out (Wants.lua): it is armor lighter than
 --              the character is to be offered, or it adds less than was asked for in every
 --              slot it fits
 --   price      "only what I can afford" is on and even the row's lowest price is too high
@@ -478,7 +478,7 @@ end
 -- Candidates whose price has not been looked up, as the list counts them:
 --   groups[slot group] = how many would go into that slot
 --   tooDear            = how many cost more than the player has ("only what I can afford")
---   unwanted           = how many the character's own filters leave out (Wants.lua)
+--   unwanted           = how many the filters about gear leave out (Wants.lua)
 function S.Unchecked()
     local out = { groups = {}, tooDear = 0, unwanted = 0 }
     if not scan or scan.bucketsVary or not S.ctx then return out end

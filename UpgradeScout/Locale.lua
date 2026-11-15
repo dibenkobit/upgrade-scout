@@ -204,23 +204,23 @@ local L = {
     -- list's tick boxes. Beside the field stand the names of the filters that are on, AFFORD
     -- among them as AFFORD_SHORT, or FILTERS_COUNT where the names do not fit; FILTERS_NONE
     -- is in the field's tooltip.
-    -- What a character wants of its gear (Wants.lua). ARMOR_ONLY_n is the tick box of a
-    -- character whose heaviest armor is leather (2), mail (3) or plate (4), named in the
-    -- game's own word for that armor. GAIN_MIN stands before a field with a number and a
-    -- percent sign; GAIN_MIN_SHORT names it beside the Filters field, GAIN_MIN_FULL in that
-    -- field's tooltip. ST_NONE_WANTED is the status line when those two leave every upgrade out.
+    -- What is wanted of a character's gear (Wants.lua). ARMOR_BEST is the tick box that
+    -- keeps the heaviest armor the character wears, the same line for every class, and
+    -- ARMOR_BEST_SHORT its name beside the Filters field. GAIN_MIN stands before a field with
+    -- a number and a percent sign; GAIN_MIN_SHORT names it beside the Filters field,
+    -- GAIN_MIN_FULL in that field's tooltip. ST_NONE_WANTED is the status line when those two
+    -- leave every upgrade out.
     FILTERS = "Filters",
     FILTERS_COUNT = "Filters on: %d",
     FILTERS_NONE = "No filter is on.",
     AFFORD_SHORT = "Affordable",
-    ARMOR_ONLY_2 = "Only leather",
-    ARMOR_ONLY_3 = "Only mail",
-    ARMOR_ONLY_4 = "Only plate",
-    ARMOR_ONLY_TIP = "Leaves lighter armor out: the list keeps the heaviest kind this character can wear. Cloaks, rings and weapons are not touched. Each character has a box of its own.",
+    ARMOR_BEST = "Best armor type for the class",
+    ARMOR_BEST_SHORT = "Best armor",
+    ARMOR_BEST_TIP = "Leaves lighter armor out: the list keeps the heaviest kind this character can wear. Cloaks, rings and weapons are not touched.",
     GAIN_MIN = "Upgrade at least",
     GAIN_MIN_SHORT = "From +%d%%",
     GAIN_MIN_FULL = "Upgrade at least %d%%",
-    GAIN_MIN_TIP = "Leaves out upgrades smaller than this. An item for an empty slot always stays. Each character has a number of its own.",
+    GAIN_MIN_TIP = "Leaves out upgrades smaller than this. An item for an empty slot always stays.",
     ST_NONE_WANTED = "No upgrade passes your filters. They leave out %d.",
 }
 
@@ -411,14 +411,13 @@ if GetLocale() == "ruRU" then
         FILTERS_COUNT = "Фильтров: %d",
         FILTERS_NONE = "Ни один фильтр не включён.",
         AFFORD_SHORT = "По карману",
-        ARMOR_ONLY_2 = "Только кожа",
-        ARMOR_ONLY_3 = "Только кольчуга",
-        ARMOR_ONLY_4 = "Только латы",
-        ARMOR_ONLY_TIP = "Убирает из списка броню легче: остаётся самый тяжёлый тип, который персонаж может носить. Плащи, кольца и оружие не трогает. У каждого персонажа своя галочка.",
+        ARMOR_BEST = "Лучший тип брони для класса",
+        ARMOR_BEST_SHORT = "Лучшая броня",
+        ARMOR_BEST_TIP = "Убирает из списка броню легче: остаётся самый тяжёлый тип, который персонаж может носить. Плащи, кольца и оружие не трогает.",
         GAIN_MIN = "Улучшение от",
         GAIN_MIN_SHORT = "От +%d%%",
         GAIN_MIN_FULL = "Улучшение от %d%%",
-        GAIN_MIN_TIP = "Убирает улучшения слабее этого. Вещь в пустой слот остаётся всегда. У каждого персонажа своё число.",
+        GAIN_MIN_TIP = "Убирает улучшения слабее этого. Вещь в пустой слот остаётся всегда.",
         ST_NONE_WANTED = "Под твои фильтры ничего не подходит. Скрыто улучшений: %d.",
     }
     for k, v in pairs(R) do L[k] = v end
@@ -611,14 +610,13 @@ if GetLocale() == "deDE" then
         FILTERS_COUNT = "Filter aktiv: %d",
         FILTERS_NONE = "Kein Filter ist aktiv.",
         AFFORD_SHORT = "Bezahlbares",
-        ARMOR_ONLY_2 = "Nur Leder",
-        ARMOR_ONLY_3 = "Nur schwere Rüstung",
-        ARMOR_ONLY_4 = "Nur Platte",
-        ARMOR_ONLY_TIP = "Lässt leichtere Rüstung weg: In der Liste bleibt die schwerste Art, die dieser Charakter tragen kann. Umhänge, Ringe und Waffen sind nicht betroffen. Jeder Charakter hat sein eigenes Häkchen.",
+        ARMOR_BEST = "Beste Rüstungsart für die Klasse",
+        ARMOR_BEST_SHORT = "Beste Rüstung",
+        ARMOR_BEST_TIP = "Lässt leichtere Rüstung weg: In der Liste bleibt die schwerste Art, die dieser Charakter tragen kann. Umhänge, Ringe und Waffen sind nicht betroffen.",
         GAIN_MIN = "Verbesserung ab",
         GAIN_MIN_SHORT = "Ab +%d%%",
         GAIN_MIN_FULL = "Verbesserung ab %d%%",
-        GAIN_MIN_TIP = "Lässt kleinere Verbesserungen weg. Ein Gegenstand für einen leeren Slot bleibt immer. Jeder Charakter hat seine eigene Zahl.",
+        GAIN_MIN_TIP = "Lässt kleinere Verbesserungen weg. Ein Gegenstand für einen leeren Slot bleibt immer.",
         ST_NONE_WANTED = "Keine Verbesserung besteht deine Filter. Ausgeblendet: %d.",
     }
     for k, v in pairs(D) do L[k] = v end
@@ -812,14 +810,13 @@ if GetLocale() == "frFR" then
         FILTERS_COUNT = "Filtres actifs : %d",
         FILTERS_NONE = "Aucun filtre n'est actif.",
         AFFORD_SHORT = "Dans mes moyens",
-        ARMOR_ONLY_2 = "Cuir uniquement",
-        ARMOR_ONLY_3 = "Mailles uniquement",
-        ARMOR_ONLY_4 = "Plaques uniquement",
-        ARMOR_ONLY_TIP = "Écarte les armures plus légères : la liste garde le type le plus lourd que ce personnage peut porter. Capes, anneaux et armes ne sont pas concernés. Chaque personnage a sa propre case.",
+        ARMOR_BEST = "Meilleur type d'armure pour la classe",
+        ARMOR_BEST_SHORT = "Meilleure armure",
+        ARMOR_BEST_TIP = "Écarte les armures plus légères : la liste garde le type le plus lourd que ce personnage peut porter. Capes, anneaux et armes ne sont pas concernés.",
         GAIN_MIN = "Amélioration d'au moins",
         GAIN_MIN_SHORT = "Dès +%d %%",
         GAIN_MIN_FULL = "Amélioration d'au moins %d %%",
-        GAIN_MIN_TIP = "Écarte les améliorations plus faibles. Un objet pour un emplacement vide reste toujours. Chaque personnage a son propre nombre.",
+        GAIN_MIN_TIP = "Écarte les améliorations plus faibles. Un objet pour un emplacement vide reste toujours.",
         ST_NONE_WANTED = "Aucune amélioration ne passe vos filtres. Écartées : %d.",
     }
     for k, v in pairs(F) do L[k] = v end
@@ -1013,14 +1010,13 @@ if GetLocale() == "zhCN" then
         FILTERS_COUNT = "已开启筛选：%d",
         FILTERS_NONE = "没有开启任何筛选。",
         AFFORD_SHORT = "买得起的",
-        ARMOR_ONLY_2 = "只看皮甲",
-        ARMOR_ONLY_3 = "只看锁甲",
-        ARMOR_ONLY_4 = "只看板甲",
-        ARMOR_ONLY_TIP = "不显示更轻的护甲：列表只保留这个角色能穿的最重的一种。披风、戒指和武器不受影响。每个角色各有自己的勾选。",
+        ARMOR_BEST = "本职业的最佳护甲类型",
+        ARMOR_BEST_SHORT = "最佳护甲",
+        ARMOR_BEST_TIP = "不显示更轻的护甲：列表只保留这个角色能穿的最重的一种。披风、戒指和武器不受影响。",
         GAIN_MIN = "提升至少",
         GAIN_MIN_SHORT = "至少 +%d%%",
         GAIN_MIN_FULL = "提升至少 %d%%",
-        GAIN_MIN_TIP = "不显示低于这个数值的提升。空部位的物品始终保留。每个角色各有自己的数值。",
+        GAIN_MIN_TIP = "不显示低于这个数值的提升。空部位的物品始终保留。",
         ST_NONE_WANTED = "没有符合你筛选条件的提升装备。被筛掉的有%d件。",
     }
     for k, v in pairs(Z) do L[k] = v end
@@ -1215,14 +1211,13 @@ if GetLocale() == "ptBR" then
         FILTERS_COUNT = "Filtros ativos: %d",
         FILTERS_NONE = "Nenhum filtro está ativo.",
         AFFORD_SHORT = "Posso pagar",
-        ARMOR_ONLY_2 = "Só couro",
-        ARMOR_ONLY_3 = "Só malha",
-        ARMOR_ONLY_4 = "Só placas",
-        ARMOR_ONLY_TIP = "Deixa de fora as armaduras mais leves: a lista mantém o tipo mais pesado que este personagem pode usar. Capas, anéis e armas não são afetados. Cada personagem tem a sua própria caixa.",
+        ARMOR_BEST = "Melhor tipo de armadura da classe",
+        ARMOR_BEST_SHORT = "Melhor armadura",
+        ARMOR_BEST_TIP = "Deixa de fora as armaduras mais leves: a lista mantém o tipo mais pesado que este personagem pode usar. Capas, anéis e armas não são afetados.",
         GAIN_MIN = "Melhoria de pelo menos",
         GAIN_MIN_SHORT = "A partir de +%d%%",
         GAIN_MIN_FULL = "Melhoria de pelo menos %d%%",
-        GAIN_MIN_TIP = "Deixa de fora as melhorias menores que isso. Um item para um espaço vazio sempre fica. Cada personagem tem o seu próprio número.",
+        GAIN_MIN_TIP = "Deixa de fora as melhorias menores que isso. Um item para um espaço vazio sempre fica.",
         ST_NONE_WANTED = "Nenhuma melhoria passa pelos seus filtros. Deixadas de fora: %d.",
     }
     for k, v in pairs(P) do L[k] = v end
@@ -1416,15 +1411,13 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         FILTERS_COUNT = "Filtros activos: %d",
         FILTERS_NONE = "No hay ningún filtro activo.",
         AFFORD_SHORT = "Lo que puedo pagar",
-        ARMOR_ONLY_2 = "Solo cuero",
-        -- (The game says "Mallas" in Spain and "Malla" in Latin America.)
-        ARMOR_ONLY_3 = GetLocale() == "esMX" and "Solo malla" or "Solo mallas",
-        ARMOR_ONLY_4 = "Solo placas",
-        ARMOR_ONLY_TIP = "Omite las armaduras más ligeras: la lista conserva el tipo más pesado que este personaje puede llevar. Capas, anillos y armas no se ven afectados. Cada personaje tiene su propia casilla.",
+        ARMOR_BEST = "Mejor tipo de armadura de la clase",
+        ARMOR_BEST_SHORT = "Mejor armadura",
+        ARMOR_BEST_TIP = "Omite las armaduras más ligeras: la lista conserva el tipo más pesado que este personaje puede llevar. Capas, anillos y armas no se ven afectados.",
         GAIN_MIN = "Mejora de al menos",
         GAIN_MIN_SHORT = "Desde +%d%%",
         GAIN_MIN_FULL = "Mejora de al menos %d%%",
-        GAIN_MIN_TIP = "Omite las mejoras menores que esta. Un objeto para una ranura vacía se queda siempre. Cada personaje tiene su propio número.",
+        GAIN_MIN_TIP = "Omite las mejoras menores que esta. Un objeto para una ranura vacía se queda siempre.",
         ST_NONE_WANTED = "Ninguna mejora pasa tus filtros. Omitidas: %d.",
     }
     for k, v in pairs(E) do L[k] = v end
@@ -1620,14 +1613,13 @@ if GetLocale() == "koKR" then
         FILTERS_COUNT = "켜진 필터: %d개",
         FILTERS_NONE = "켜진 필터가 없습니다.",
         AFFORD_SHORT = "살 수 있는 것",
-        ARMOR_ONLY_2 = "가죽만",
-        ARMOR_ONLY_3 = "사슬만",
-        ARMOR_ONLY_4 = "판금만",
-        ARMOR_ONLY_TIP = "더 가벼운 방어구는 목록에서 뺍니다. 이 캐릭터가 입을 수 있는 가장 무거운 종류만 남습니다. 망토, 반지, 무기에는 영향이 없습니다. 캐릭터마다 따로 설정됩니다.",
+        ARMOR_BEST = "직업 최적 방어구 유형",
+        ARMOR_BEST_SHORT = "최적 방어구",
+        ARMOR_BEST_TIP = "더 가벼운 방어구는 목록에서 뺍니다. 이 캐릭터가 입을 수 있는 가장 무거운 종류만 남습니다. 망토, 반지, 무기에는 영향이 없습니다.",
         GAIN_MIN = "최소 향상",
         GAIN_MIN_SHORT = "+%d%% 이상",
         GAIN_MIN_FULL = "최소 향상 %d%%",
-        GAIN_MIN_TIP = "이보다 작은 향상은 목록에서 뺍니다. 빈 부위에 들어갈 아이템은 항상 남습니다. 캐릭터마다 숫자를 따로 둡니다.",
+        GAIN_MIN_TIP = "이보다 작은 향상은 목록에서 뺍니다. 빈 부위에 들어갈 아이템은 항상 남습니다.",
         ST_NONE_WANTED = "필터에 맞는 향상이 없습니다. 필터로 빠진 것: %d개.",
     }
     for k, v in pairs(K) do L[k] = v end
@@ -1822,14 +1814,13 @@ if GetLocale() == "zhTW" then
         FILTERS_COUNT = "已開啟篩選：%d",
         FILTERS_NONE = "沒有開啟任何篩選。",
         AFFORD_SHORT = "買得起的",
-        ARMOR_ONLY_2 = "只看皮甲",
-        ARMOR_ONLY_3 = "只看鎖甲",
-        ARMOR_ONLY_4 = "只看鎧甲",
-        ARMOR_ONLY_TIP = "不顯示更輕的護甲：列表只保留這個角色能穿的最重的一種。披風、戒指和武器不受影響。每個角色各有自己的勾選。",
+        ARMOR_BEST = "本職業的最佳護甲類型",
+        ARMOR_BEST_SHORT = "最佳護甲",
+        ARMOR_BEST_TIP = "不顯示更輕的護甲：列表只保留這個角色能穿的最重的一種。披風、戒指和武器不受影響。",
         GAIN_MIN = "提升至少",
         GAIN_MIN_SHORT = "至少 +%d%%",
         GAIN_MIN_FULL = "提升至少 %d%%",
-        GAIN_MIN_TIP = "不顯示低於這個數值的提升。空部位的物品始終保留。每個角色各有自己的數值。",
+        GAIN_MIN_TIP = "不顯示低於這個數值的提升。空部位的物品始終保留。",
         ST_NONE_WANTED = "沒有符合你篩選條件的提升裝備。被篩掉的有%d件。",
     }
     for k, v in pairs(T) do L[k] = v end

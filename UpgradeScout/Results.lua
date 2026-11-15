@@ -149,12 +149,12 @@ function Results.Entry(offer, placement, affordable, net)
 end
 
 -- The offers the list can show, as entries per slot group (unsorted): one entry for every
--- slot an offer is an upgrade in, unless a filter leaves it out: the character's own
+-- slot an offer is an upgrade in, unless a filter leaves it out: one of the two about gear
 -- (Wants.lua), which may also leave out one slot of two, or the price filter.
 -- opts: { money = copper the player has, affordableOnly = bool, net = bool (see Results.Cost),
 --         wants = what the character wants of its gear (Wants.Of), nil for anything }
 -- Returns byGroup, hidden (upgrades left out for their price), unwanted (upgrades the
--- character's own filters leave out; one of those is not counted for its price as well)
+-- filters about gear leave out; one of those is not counted for its price as well)
 function Results.Collect(offers, ctx, opts)
     local byGroup, hidden, unwanted = {}, 0, 0
     local money = opts.money or 0
@@ -196,7 +196,7 @@ end
 --            total counts unchecked upgrades too; approx says so, because some of them may
 --            turn out to have no buyout price.
 --   summary: { upgrades = offers listed, slots = blocks listed, hidden = upgrades left out for price,
---              unwanted = upgrades the character's own filters leave out }
+--              unwanted = upgrades the filters about gear leave out }
 -- The picks are chosen among everything found for the slot, so `limit` never changes them.
 function Results.Build(offers, ctx, opts)
     local rows = {}

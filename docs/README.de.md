@@ -33,10 +33,9 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
   ihn nicht mehr brauchst. Für 4 Silber gekauft und für 3 verkauft, hat er dich 1 gekostet.
 - **Bestes Set für** wählt die Verbesserungen, die zusammen am meisten für dein Gold bringen, oder
   für einen Betrag, den du eintippst.
-- Das Menü **Filter** grenzt die Liste ein. **Nur Leder**, **Nur schwere Rüstung** oder
-  **Nur Platte** lässt Rüstung weg, die leichter ist als die schwerste, die dein Charakter trägt.
-  **Verbesserung ab** lässt Verbesserungen weg, die kleiner sind als der Prozentwert, den du
-  eintippst.
+- Das Menü **Filter** grenzt die Liste ein. **Beste Rüstungsart für die Klasse** lässt Rüstung
+  weg, die leichter ist als die schwerste, die dein Charakter trägt. **Verbesserung ab** lässt
+  Verbesserungen weg, die kleiner sind als der Prozentwert, den du eintippst.
 - Kauft auch für deine anderen Charaktere ein. Ein Button am Briefkasten legt die gekaufte
   Ausrüstung in einen Brief an sie.
 - Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden
@@ -96,15 +95,14 @@ Von Hand:
 - **Verbesserung** zeigt in Prozent, wie viel besser ein Gegenstand ist als der, den er ersetzt.
   **Neu** heißt: Der Slot ist leer. Punkte wie `+6 Pkt.` heißen: Was du dort trägst, bringt
   deinem Profil nichts.
-- **Nur Leder** nennt die schwerste Rüstung, die dein Charakter schon tragen gelernt hat: Leder
-  beim Jäger, schwere Rüstung, sobald er sie gelernt hat. Umhänge, Ringe, Waffen und Schilde
-  bleiben in der Liste. Magier, Priester und Hexenmeister tragen nur Stoff und haben dieses
-  Häkchen nicht.
+- **Beste Rüstungsart für die Klasse** behält die schwerste Rüstung, die dein Charakter schon
+  tragen gelernt hat: Leder beim Jäger, schwere Rüstung, sobald er sie gelernt hat. Umhänge,
+  Ringe, Waffen und Schilde bleiben in der Liste. Magier, Priester und Hexenmeister tragen nur
+  Stoff: Für sie ändert sich nichts.
 - **Verbesserung ab** richtet sich nach dem Prozentwert in der Spalte **Verbesserung**. Ein
   Gegenstand für einen leeren Slot bleibt immer.
-- Jeder Charakter hat sein eigenes Häkchen **Nur Leder** und seine eigene Zahl bei
-  **Verbesserung ab**. Kaufst du für einen anderen Charakter ein, siehst und änderst du dessen
-  Einstellungen.
+- Beide Einstellungen gelten für alle deine Charaktere. Kaufst du für einen anderen Charakter
+  ein, bleiben sie, wie sie sind.
 - Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die die Wertung nicht mitzählt.
 - Heil- und Manatränke haben keine Wertung: Kein Gewicht macht aus „stellt 700 Gesundheit wieder her“
   eine Zahl.

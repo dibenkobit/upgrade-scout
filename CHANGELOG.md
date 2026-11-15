@@ -47,13 +47,14 @@
   the addon's lines were missing there.
 - The tick boxes above the lists are now in one menu, **Filters**, at the right end of the strip.
   It stays open while you tick. The filters that are on are named beside it.
-- **Only leather**, **Only mail** or **Only plate**, a new filter on the Upgrades tab. It leaves
-  out armor lighter than the heaviest your character has learned to wear. Cloaks, rings, weapons
-  and shields stay. The bag arrows follow it.
+- **Best armor type for the class**, a new filter on the Upgrades tab. It leaves out armor
+  lighter than the heaviest your character has learned to wear: a hunter is offered leather, and
+  mail once it has learned mail. Cloaks, rings, weapons and shields stay. The bag arrows follow
+  it.
 - **Upgrade at least**, a new filter with a number. It leaves out upgrades smaller than that
   percent. An item for an empty slot always stays.
-- Each character has its own two. When you shop for another character, you see and set that
-  character's.
+- Both are set once for all your characters. They stay as they are when you shop for another
+  character.
 
 ## 2.5.0
 

@@ -47,9 +47,9 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
   end. That is the buyout less what a vendor pays for it when you are done with it. Bought for 4
   silver and sold for 3, it cost you 1.
 - **Best set for** picks the upgrades that give the most together for your gold, or for a sum you type.
-- The **Filters** menu narrows the list. **Only leather**, **Only mail** or **Only plate** leaves
-  out armor lighter than the heaviest your character wears. **Upgrade at least** leaves out
-  upgrades smaller than the percent you type.
+- The **Filters** menu narrows the list. **Best armor type for the class** leaves out armor
+  lighter than the heaviest your character wears. **Upgrade at least** leaves out upgrades
+  smaller than the percent you type.
 - Shops for your other characters too. A button at the mailbox puts the gear you bought into a
   letter to them.
 - Any item's tooltip shows how much better it is than what you wear, for every spec of your class,
@@ -102,13 +102,13 @@ To install by hand:
   longer, up to a few minutes on a busy auction house.
 - **Upgrade** is how much better an item is than the one it replaces, in percent. **New** means
   the slot is empty. Points, such as `+6 pts`, mean what you wear there adds nothing on your profile.
-- **Only leather** names the heaviest armor your character has learned to wear: leather for a
-  hunter, mail once it has learned mail. Cloaks, rings, weapons and shields stay in the list. A
-  mage, a priest and a warlock wear cloth alone and have no such box.
+- **Best armor type for the class** keeps the heaviest armor your character has learned to
+  wear: leather for a hunter, mail once it has learned mail. Cloaks, rings, weapons and shields
+  stay in the list. A mage, a priest and a warlock wear cloth alone: for them it changes nothing.
 - **Upgrade at least** goes by the percent in the **Upgrade** column. An item for an empty slot
   always stays.
-- Each character has its own **Only leather** box and its own **Upgrade at least** number. When
-  you shop for another character, you see and set that character's.
+- Both are set once for all your characters. They stay as they are when you shop for another
+  character.
 - A yellow `*` after a name means the item has effects the score does not count, such as procs.
 - Health and mana potions have no score: no weight puts a number on "restores 700 health".
 - Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The
