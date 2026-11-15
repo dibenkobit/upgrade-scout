@@ -1,11 +1,13 @@
 # Screenshot captions
 
 In the order of the gallery on CurseForge, which is also the order of the pictures in the
-description (`curseforge-description.html`).
+description (`curseforge-description.html`). Each picture carries its caption as a headline.
 
-1. One scan: upgrades by slot, with prices. Buy from the list
-2. Any tooltip shows the upgrade, for every talent tree
-3. Consumables you can use, the most useful first
-4. Shop for your other characters
-5. Net cost: what gear costs you in the end
-6. One window shows what the addon does and holds its settings
+1. One scan shows what to buy
+2. Every talent tree in the tooltip
+3. A green arrow in your bags
+4. Consumables too
+5. Shop for your other characters
+6. Mail your purchases in two clicks
+7. What gear costs you in the end
+8. One window to set it up
