@@ -2498,7 +2498,7 @@ function scenarios.net_ui()
     eq(robe.Price:GetAmount(), 2000, "listed again, at its net cost"); eq(robe.Price._font, PriceFontRed, "in red: its buyout cannot be paid")
     eq(robe.Buy:IsEnabled(), false, "and it cannot be bought")
     robe:GetScript("OnEnter")(robe)
-    check(Lines()["You are 4g short."] ~= nil, "the tooltip counts what is missing from the buyout")
+    check(Lines()["You are 4g short"] ~= nil, "the tooltip counts what is missing from the buyout")
     robe:GetScript("OnLeave")(robe)
     W.player.money = 100000
     W.Fire("PLAYER_MONEY")
@@ -4576,7 +4576,7 @@ function scenarios.tooltip_settings()
     eq(W.compared, GameTooltip, "the worn item is still shown beside it")
     chest:GetScript("OnLeave")(chest)
     eq(block.Picture:GetAlpha(), 1, "the score shown nowhere: the picture stays for the note")
-    eq(tip.Note:IsShown(), true, "which it has"); eq(tip.Note:GetText(), "You are 12s short.", "in the row's own words")
+    eq(tip.Note:IsShown(), true, "which it has"); eq(tip.Note:GetText(), "You are 12s short", "in the row's own words")
     eq(tip.Brand:IsShown(), true, "under the addon's name"); eq(tip.Lines[1].Title:IsShown(), false, "and no line of the score")
     local notes = block.Notes
     eq(notes.Label:GetText(), 'Show lines such as "You are 12s short" and "Takes both hands"', "the box of the notes names two of them, word for word")
@@ -5456,7 +5456,7 @@ function scenarios.pawn_tooltips()
     end
     eq(Under("Good Chest"), nil, "a row with nothing to add: no lines of ours, not even the addon's name")
     eq(W.compared, GameTooltip, "the worn item is shown beside it as ever")
-    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short.",
+    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short",
         "a row with something to say about buying: that, under the addon's name, and no gains")
     ns.db.net = true
     eq(Under("Good Chest"), "Buyout 40s | Sell Price 1s", "with Net cost ticked: what the cost is made of")
@@ -5465,7 +5465,7 @@ function scenarios.pawn_tooltips()
     -- on the tabs has nothing to say here.
     UpgradeScoutDB.rowTooltip = false
     ns.Fire("SETTING_CHANGED", "rowTooltip")
-    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short.", "the score's box unticked: the notes stay")
+    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short", "the score's box unticked: the notes stay")
     UpgradeScoutDB.rowTooltip = nil
     UpgradeScoutDB.rowNotes = false
     ns.Fire("SETTING_CHANGED", "rowNotes")
@@ -5479,7 +5479,7 @@ function scenarios.pawn_tooltips()
     ns.Fire("SETTING_CHANGED", "ownTree")
     eq(Shown(GameTooltip, 200), nil, "\"Only my spec\" chosen: still no lines of ours in the bags")
     eq(Under("Good Chest"), nil, "nor under a row with nothing to add")
-    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short.", "and the notes as they were")
+    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short", "and the notes as they were")
     UpgradeScoutDB.ownTree = nil
     ns.Fire("SETTING_CHANGED", "ownTree")
     CheckPawnAsked("tooltips and arrows")
@@ -5495,7 +5495,7 @@ function scenarios.pawn_tooltips()
     -- With the addon scoring, the two kinds of lines under a row each go by their own box.
     W.Run(1)
     local both = Under("Great Chest")
-    check(both:find("Arms +200%", 1, true) ~= nil and both:find("Has effects the score does not count. | You are 4g short.", 1, true) ~= nil,
+    check(both:find("Arms +200%", 1, true) ~= nil and both:find("Has effects the score does not count. | You are 4g short", 1, true) ~= nil,
         "the score and the notes: " .. both)
     UpgradeScoutDB.rowNotes = false
     local scoreOnly = Under("Great Chest")
@@ -5503,7 +5503,7 @@ function scenarios.pawn_tooltips()
     check(scoreOnly:find("Has effects", 1, true) == nil and scoreOnly:find("short", 1, true) == nil, "without the notes: " .. scoreOnly)
     UpgradeScoutDB.rowNotes = nil
     UpgradeScoutDB.rowTooltip = false
-    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short.", "the score unticked: the notes alone, under the addon's name")
+    eq(Under("Great Chest"), "Has effects the score does not count. | You are 4g short", "the score unticked: the notes alone, under the addon's name")
     eq(Under("Good Chest"), nil, "and nothing where there is nothing to note")
     UpgradeScoutDB.rowNotes = false
     eq(Under("Great Chest"), nil, "both unticked: nothing of ours")

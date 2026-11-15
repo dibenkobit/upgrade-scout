@@ -66,7 +66,7 @@ local L = {
     TT_EFFECTS = "Has effects the score does not count.",
     TT_OFFHAND_EMPTY = "Your off hand will be empty.",
     TT_BOTH_HANDS = "Takes both hands.",
-    TT_CANT_AFFORD = "You are %s short.",
+    TT_CANT_AFFORD = "You are %s short",
 
     MSG_GONE = "%s is no longer for sale.",
     MSG_PRICE = "%s now costs %s (was %s).",
@@ -1339,7 +1339,7 @@ if GetLocale() == "koKR" then
         TT_EFFECTS = "점수에 넣지 않은 효과가 있습니다.",
         TT_OFFHAND_EMPTY = "보조장비 칸이 비게 됩니다.",
         TT_BOTH_HANDS = "양손을 모두 씁니다.",
-        TT_CANT_AFFORD = "%s 부족합니다.",
+        TT_CANT_AFFORD = "%s 부족합니다",
 
         MSG_GONE = "%s: 더 이상 판매하지 않습니다.",
         MSG_PRICE = "%s: 이제 %s입니다(이전 %s).",
