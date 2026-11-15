@@ -8,6 +8,8 @@
 
 English · [简体中文](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.zh-CN.md) · [繁體中文](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.zh-TW.md) · [Deutsch](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.de.md) · [Русский](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.ru.md) · [Français](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.fr.md) · [Español](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.es.md) · [Português](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.pt-BR.md) · [한국어](https://github.com/dibenkobit/upgrade-scout/blob/main/docs/README.ko.md)
 
+---
+
 Open the auction house, click the **Upgrades** tab and press **Scan**. You get a list of gear that is
 better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
 
