@@ -9,7 +9,7 @@ local ADDON_DIR = "UpgradeScout/"
 local names = {
     "events", "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
-    "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_eta",
+    "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
@@ -844,8 +844,69 @@ function scenarios.scan_halt()
     W.AH.dropSearches = 1000
     W.RunUntil(function() return S.state == "idle" end, 120)
     eq(S.message, ns.L.ERR_BROWSE, "says the auction house did not answer")
-    eq(S.halted, true, "on hold"); eq(S.partial, true, "and marked incomplete")
+    eq(S.halted, true, "on hold"); eq(S.unanswered, 3, "with three prices missing")
     eq(S.stats.timeouts, 3, "statistics: three searches without an answer")
+end
+
+-- An item search that the auction house leaves unanswered does not end the scan. It goes on
+-- without that price, and the status line says that one is missing: not that the scan stopped.
+function scenarios.scan_unanswered()
+    StandardWorld()
+    LoadAddon()
+    SetView(false, false)
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local S = ns.Scanner
+    local frame = UpgradeScoutFrame
+    local function Status() return frame.Status:GetText() or "" end
+    local missing = "Price checks that got no answer: 1. The list may be incomplete."
+
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return S.state == "verify" and OfferCount() >= 1 end, 60)
+    W.AH.dropSearches = 2       -- a search and its second try
+    W.RunUntil(function() return S.state == "idle" end, 120)
+    W.Run(0.3)
+    eq(S.stats.timeouts, 1, "one item search went unanswered, asked twice")
+    eq(S.unanswered, 1, "the scanner counts it")
+    eq(S.partial, false, "the scan did not stop early"); eq(S.halted, false, "nor do its price checks wait")
+    eq(S.message, nil, "it has no note of its own")
+    eq(OfferCount(), 5, "the other five prices are in the list")
+    check(Status():find("5 upgrades in 5 slots.", 1, true) ~= nil, "which the status line counts: " .. Status())
+    check(Status():find(missing, 1, true) ~= nil, "and it says a price is missing: " .. Status())
+    check(Status():find(ns.L.ST_PARTIAL, 1, true) == nil, "not that the scan stopped early")
+    eq(S.Demand(), false, "the search is not sent again by itself")
+
+    -- The best set for a budget is drawn from the same prices, and says the same.
+    frame.PlanBar.Check:SetChecked(true)
+    frame.PlanBar.Check:Click()
+    W.RunUntil(function() return S.state == "idle" end, 120)
+    W.Run(0.3)
+    check(Status():find(missing, 1, true) ~= nil, "with the best set shown: " .. Status())
+    frame.PlanBar.Check:SetChecked(false)
+    frame.PlanBar.Check:Click()
+    W.Run(0.3)
+
+    -- A scan that is stopped says that it was, and no more.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    check(S.Start(), "second scan starts")
+    eq(S.unanswered, 0, "a new scan starts its count anew")
+    W.RunUntil(function() return S.state == "verify" and OfferCount() >= 1 end, 60)
+    W.AH.dropSearches = 2
+    W.RunUntil(function() return S.unanswered == 1 end, 60)
+    W.CloseAuctionHouse()
+    W.OpenAuctionHouse()
+    W.Run(0.3)
+    eq(S.halted, true, "the window closed during the price checks")
+    check(Status():find(ns.L.ST_PARTIAL, 1, true) ~= nil, "the scan stopped early: " .. Status())
+    check(Status():find("no answer", 1, true) == nil, "which says enough")
+
+    -- Every answer in: nothing is said.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    ScanToEnd()
+    W.Run(0.3)
+    eq(S.unanswered, 0, "a scan with every answer")
+    check(Status():find("6 upgrades in 5 slots.", 1, true) ~= nil, "lists all six: " .. Status())
+    check(Status():find("incomplete", 1, true) == nil, "and has nothing to add")
 end
 
 -- With "top 5" off every remaining price is looked up, so the status line can say how long
@@ -1970,7 +2031,8 @@ end
 
 ---------------------------------------------------------------------------
 -- Net cost: gear priced at its buyout less what a vendor pays for it afterwards. What the
--- list makes of it, and that a scan still looks up no more prices than the list can show.
+-- list makes of it, and that a scan looks up the prices the list needs by net cost and by
+-- buyout alike, so that the box can be ticked afterwards without a search.
 function scenarios.net()
     BusyWorld()
     -- What a vendor pays for each of the 150 items: from nothing up to two gold, so that many
@@ -2042,14 +2104,19 @@ function scenarios.net()
     eq(Read(), "a@4000!UPGRADE f@0!VALUE", "free in the end: the best value, and nothing weaker has a place beside it")
 
     -- What the scanner asks before an item search: would "top five" hide an item whatever its
-    -- price turns out to be? The least it can cost is then a net cost as well.
-    local entries = R.Collect({ a = offer("a", 50, 100000, 96000) }, ctx, { money = 1e9, net = true }).CHEST
-    eq(R.Dominated(entries, 20, 2000), true, "+20 for a silver a point at the least: no cheaper than the dear chest")
-    eq(R.Dominated(entries, 20, 1999), false, "a copper less and it may be worth a row")
-    eq(R.Dominated(entries, 40, 4001), true, "the same gain for more")
-    eq(R.Dominated(entries, 40, 4000), false, "but not for the same")
-    entries = R.Collect({ a = offer("a", 50, 100000, 96000) }, ctx, { money = 1e9 }).CHEST
-    eq(R.Dominated(entries, 20, 2000), false, "by buyout the dear chest rules that item out no more")
+    -- price turns out to be? It asks that of the list by net cost and of the one by buyout, and
+    -- the least the item can cost is a cost of the same kind.
+    local entries = R.Collect({ a = offer("a", 50, 100000, 96000) }, ctx, { money = 1e9 }).CHEST
+    eq(R.Dominated(entries, 20, 2000, true), true, "by net cost, +20 for a silver a point at the least: no cheaper than the dear chest")
+    eq(R.Dominated(entries, 20, 1999, true), false, "a copper less and it may be worth a row")
+    eq(R.Dominated(entries, 40, 4001, true), true, "the same gain for more")
+    eq(R.Dominated(entries, 40, 4000, true), false, "but not for the same")
+    eq(R.Dominated(entries, 20, 2000, false), false, "by buyout the dear chest rules that item out no more")
+    eq(R.Dominated(entries, 20, 50000, false), true, "+20 for 25 silver a point at the least: by buyout no cheaper than it")
+    eq(R.Dominated(entries, 20, 49999, false), false, "a copper less and it may be worth a row there too")
+    entries = R.Collect({ a = offer("a", 50, 100000, 96000) }, ctx, { money = 1e9, net = true }).CHEST
+    eq(R.Dominated(entries, 20, 2000, false), false, "the answer is the same for entries that were priced at their net cost")
+    eq(R.Dominated(entries, 20, 2000, true), true, "either way")
 
     -- A set is chosen by its buyouts, and says what it costs in the end.
     local plan = ns.Plan
@@ -2102,27 +2169,30 @@ function scenarios.net()
     local want = { net = Shown(true, true), buyout = Shown(false, true) }
     check(want.net ~= want.buyout, "the net cost changes what 'top five' shows in this world")
 
-    -- Scanned with the box ticked and the filters on: the same list for fewer searches.
+    -- Scanned with the filters on, the scan looks up the prices either list needs, the one by
+    -- net cost and the one by buyout: fewer searches than all of them, and both lists as the
+    -- full scan has them.
     local used = Scan(true, true, true)
     eq(Shown(true, true), want.net, "the same list by net cost as the full scan")
+    eq(Shown(false, true), want.buyout, "and the same list by buyout")
     check(used < all, "for fewer item searches (" .. used .. " of " .. all .. ")")
     eq(S.stats.searches + S.stats.skipped, S.stats.candidates, "every candidate is either searched or skipped")
 
-    -- Scanned without it, the list is the one by buyout. Ticking the box afterwards looks up
-    -- the prices the list by net cost needs and the one by buyout did not.
+    -- The box has no say in what a scan looks up, so ticking it afterwards sends for nothing.
     local plain = Scan(false, true, true)
-    eq(Shown(false, true), want.buyout, "the same list by buyout as the full scan")
+    eq(plain, used, "a scan with the box unticked sends the same searches")
+    eq(Shown(false, true), want.buyout, "for the same list by buyout")
     eq(S.Demand(), false, "which needs nothing more")
+    local before = W.AH.calls.search
     ns.db.net = true
-    eq(S.Demand(), true, "ticked after the scan: the offers only the net cost brings up get their prices looked up")
-    eq(S.mode, "more", "as a follow-up, not as a new scan")
-    W.RunUntil(Idle, 600)
-    eq(Shown(true, true), want.net, "then the list is the one a scan with the box ticked makes")
-    eq(S.Demand(), false, "and nothing is left to look up")
+    eq(S.Demand(), false, "ticked after the scan: no price is sent for")
+    eq(Shown(true, true), want.net, "and the list is the one a scan with the box ticked makes")
     ns.db.net = false
-    if S.Demand() then W.RunUntil(Idle, 600) end
-    eq(Shown(false, true), want.buyout, "unticked: the list by buyout again")
-    realPrint(string.format("      item searches: %d with both filters off, %d by net cost, %d by buyout", all, used, plain))
+    eq(S.Demand(), false, "unticked: nor then")
+    eq(Shown(false, true), want.buyout, "and the list by buyout is back")
+    W.RunUntil(Idle, 5)
+    eq(W.AH.calls.search, before, "not one item search for all that")
+    realPrint(string.format("      item searches: %d with both filters off, %d with them on", all, used))
 end
 
 -- The "Net cost" box of the Upgrades tab, and what it changes there.
@@ -2253,24 +2323,25 @@ function scenarios.net_ui()
     eq(tip["No sell price"].r, DISABLED_FONT_COLOR.r, "in grey")
     helm:GetScript("OnLeave")(helm)
 
-    -- A scan with the box ticked looks up no price the list by net cost has no use for: the
-    -- slight chest goes unpriced. (The first scan, by buyout, searched for all nine items that
-    -- score as upgrades. The good chest's row has a bid on it, so its lowest price says nothing
-    -- of its buyouts, and it is searched for either way.) Unticking the box brings the slight
-    -- chest up: the list by buyout has a row for it.
+    -- A scan with the box ticked sends the searches a scan without it sends: it looks up what
+    -- the list needs either way, so that the box can be ticked and unticked without one. (The
+    -- list by net cost has no use for the slight chest; its price is looked up for the list
+    -- by buyout, which has a row for it.)
     eq(searches, 9, "the scan by buyout: nine item searches")
     W.RunUntil(function() return W.AH.ready end, 5)
     ScanToEnd()
     W.Run(0.3)
-    eq(W.AH.calls.search - searches, 8, "the scan by net cost: one fewer")
-    eq(Offer("Slight Chest"), nil, "the slight chest's price was not looked up")
-    eq(Heading("CHEST").Count:GetText(), "1 of about 3", "its heading counts it all the same")
+    eq(W.AH.calls.search - searches, 9, "the scan by net cost: the same nine")
+    check(Offer("Slight Chest") ~= nil, "the slight chest's price is known")
+    eq(Row("Slight Chest"), nil, "and the list by net cost has no row for it")
+    eq(Heading("CHEST").Count:GetText(), "1 of 3", "its heading counts it")
     Tick(net, false)
-    eq(W.AH.calls.search - searches, 9, "unticked: one search more")
-    check(Row("Slight Chest") ~= nil, "for the slight chest, which the list by buyout shows")
+    eq(W.AH.calls.search - searches, 9, "unticked: no search")
+    check(Row("Slight Chest") ~= nil, "and the slight chest is in the list by buyout")
     eq(Row("Good Chest").Pick.Text:GetText(), "Best value", "under the best value")
     Tick(net, true)
-    eq(Row("Slight Chest"), nil, "ticked again: out of the list once more")
+    eq(W.AH.calls.search - searches, 9, "ticked again: no search")
+    eq(Row("Slight Chest"), nil, "and it is out of the list once more")
 
     -- The best set for a budget is chosen by buyouts, as ever. Its rows are priced as the list's,
     -- and the strip says both sums.
@@ -2352,6 +2423,26 @@ function scenarios.net_ui()
     eq(shield.Price:GetAmount(), 700, "at its buyout"); eq(shield.Price.CopperDisplay:IsShown(), false, "in whole silver")
     eq(list.Titles[4]:GetText(), "BUYOUT", "under the old heading")
     eq(ns.db.net, false, "the setting is kept")
+
+    -- Price checks that were stopped stay stopped when the box is ticked: it changes how the
+    -- prices are read, and asks for none. A filter changes what the list shows, and they go on.
+    Tick(afford, false)
+    Tick(top, false)
+    W.RunUntil(function() return W.AH.ready end, 5)
+    scan:Click()
+    W.RunUntil(function() return S.state == "verify" and OfferCount() >= 2 end, 60)
+    scan:Click()
+    eq(S.state, "idle", "a scan stopped during its price checks"); eq(S.halted, true, "which wait")
+    W.Run(0.3)
+    local sent, known = W.AH.calls.search, OfferCount()
+    Tick(net, true)
+    eq(S.halted, true, "the box ticked: they still wait"); eq(S.message, ns.L.ST_STOPPED, "under the same note")
+    Tick(net, false)
+    eq(S.halted, true, "unticked: the same")
+    eq(W.AH.calls.search, sent, "no search was sent"); eq(OfferCount(), known, "and no price came in")
+    Tick(top, true)
+    eq(S.halted, false, "a filter ticked: they go on")
+    check(W.AH.calls.search > sent, "with the searches that were left")
 end
 
 -- Which consumables do the same thing, which of them is the best, and the rows of the list.

@@ -10,7 +10,7 @@
 ## Notes-esMX: Encuentra en la casa de subastas las mejoras de equipo y los consumibles que puedes usar y pagar.
 ## Notes-ptBR: Encontra na Casa de Leilões as melhorias de equipamento e os consumíveis que você pode usar e que cabem no seu bolso.
 ## Notes-koKR: 경매장에서 쓸 수 있고 살 수 있는 장비 향상과 소비용품을 찾아줍니다.
-## Version: 2.4.0
+## Version: 2.4.1
 ## Author: Nikita Snetkov
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323

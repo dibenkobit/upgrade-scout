@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.1
+
+- Ticking or unticking **Net cost** no longer sends for prices. The list is repriced on the
+  spot: a scan now looks up what it needs either way.
+- When the auction house leaves a price check unanswered, the status line says how many it
+  left. It used to say that the scan stopped early, though it had run to its end.
+
 ## 2.4.0
 
 - **Net cost**, a new box on the Upgrades tab. Ticked, the list prices gear at what it costs

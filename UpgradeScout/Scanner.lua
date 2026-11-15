@@ -47,7 +47,9 @@ S.offers = {}                  -- offer id -> offer
 S.ctx = nil                    -- comparison context of the last scan (see Score.Context)
 S.info = { rows = 0, scored = 0, toScore = 0, verified = 0, toVerify = 0 }
 S.message = nil                -- note for the status line
-S.partial = false              -- the last scan did not see everything
+S.partial = false              -- the last scan stopped before it had seen everything
+S.unanswered = 0               -- item searches the auction house did not answer since the last scan
+                               -- began: the scan went on without those prices
 S.halted = false               -- the price checks were stopped and wait for S.Resume()
 S.finishedAt = nil
 S.stats = nil                  -- what the last scan sent and how long it took (see NewStats)
@@ -314,11 +316,10 @@ local front = {}
 local function Front()
     local money = GetMoney()
     local afford = ns.db.affordableOnly and true or false
-    local net = ns.db.net and true or false
     if front.dirty or front.offers ~= S.offers or front.ctx ~= S.ctx
-        or front.money ~= money or front.afford ~= afford or front.net ~= net then
-        front.groups = ns.Results.Collect(S.offers, S.ctx, { money = money, affordableOnly = afford, net = net })
-        front.offers, front.ctx, front.money, front.afford, front.net, front.dirty = S.offers, S.ctx, money, afford, net, false
+        or front.money ~= money or front.afford ~= afford then
+        front.groups = ns.Results.Collect(S.offers, S.ctx, { money = money, affordableOnly = afford })
+        front.offers, front.ctx, front.money, front.afford, front.dirty = S.offers, S.ctx, money, afford, false
     end
     return front.groups
 end
@@ -373,10 +374,11 @@ end
 --   worse      it no longer beats the player's gear
 --   price      "only what I can afford" is on and even the row's lowest price is too high
 --   dominated  "top N per slot" is on and, in every slot it fits, an offer already verified
---              is stronger and no dearer per point than this could possibly be. With "Net
---              cost" on, the list prices its offers at their net cost (Results.Cost), and
---              the least the candidate can cost is its row's lowest price less what a
---              vendor pays for the item.
+--              is stronger and no dearer per point than this could possibly be. That must
+--              hold both by buyout and by net cost (Results.Cost), where the least the
+--              candidate can cost is its row's lowest price less what a vendor pays for the
+--              item: the "Net cost" box only changes how the prices are shown, so ticking it
+--              must not leave the list short of one. The box has no say here for that reason.
 -- The last two rest on the row's lowest price being a floor under its buyouts. ReadJob checks
 -- that against every row it reads; if the server turns out to mean something else by that
 -- number (scan.floorBroken), nothing is skipped for its price any more.
@@ -398,11 +400,13 @@ local function SkipReason(cand)
     if ns.db.affordableOnly and cand.minPrice > GetMoney() then return "price" end
     if ns.db.topOnly then
         local groups = Front()
-        local least = ns.db.net and ns.Results.Net(cand.minPrice, cand.eval.sell) or cand.minPrice
+        local least, leastNet = cand.minPrice, ns.Results.Net(cand.minPrice, cand.eval.sell)
         for i = 1, #placements do
             local p = placements[i]
             local entries = groups[p.group]
-            if not entries or not ns.Results.Dominated(entries, p.delta, least) then
+            if not entries
+                or not ns.Results.Dominated(entries, p.delta, least, false)
+                or not ns.Results.Dominated(entries, p.delta, leastNet, true) then
                 return nil
             end
         end
@@ -744,7 +748,8 @@ local function StepJobs(now)
             if run.stats then run.stats.timeouts = run.stats.timeouts + 1 end
             S.info.verified = S.info.verified + 1
             if IsScanMode(run.mode) then
-                S.partial = true
+                -- The scan goes on without this price, and the list says that one is missing.
+                S.unanswered = S.unanswered + 1
                 -- Three in a row without an answer: the auction house is not talking to us,
                 -- and waiting out every remaining search would take minutes.
                 run.failStreak = (run.failStreak or 0) + 1
@@ -1174,6 +1179,7 @@ function S.Reset()
     S.finishedAt = nil
     S.message = nil
     S.partial = false
+    S.unanswered = 0
     S.halted = false
     scan = nil
 end
@@ -1244,6 +1250,7 @@ function S.Start()
     S.offers = {}
     S.changes = S.changes + 1
     S.partial = false
+    S.unanswered = 0
     S.halted = false
     S.finishedAt = nil
     S.info = { rows = 0, scored = 0, toScore = 0, verified = 0, toVerify = 0 }

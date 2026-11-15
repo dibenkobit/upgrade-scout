@@ -57,15 +57,20 @@ end
 -- whatever its real price turns out to be? True when an entry that sorts before it already
 -- costs no more per point than the item's best case. The scanner uses this to skip item
 -- searches whose result "Top N per slot" would hide; it must stay in step with Sensible().
--- `minCost` is a cost as the entries have theirs (see Results.Cost).
-function Results.Dominated(entries, delta, minCost)
+-- `net` says which list is asked about, the one by buyout or the one by net cost (see
+-- Results.Cost): `minCost` is a cost of that kind, and the entries are priced the same way
+-- here, however they were priced when they were made.
+function Results.Dominated(entries, delta, minCost, net)
     local bestCase = minCost / delta
     for i = 1, #entries do
         local entry = entries[i]
-        if entry.delta > delta then
-            if entry.costPer <= bestCase then return true end
-        elseif entry.delta == delta and entry.cost < minCost then
-            return true
+        if entry.delta >= delta then
+            local cost = Results.Cost(entry.offer, net)
+            if entry.delta > delta then
+                if cost / entry.delta <= bestCase then return true end
+            elseif cost < minCost then
+                return true
+            end
         end
     end
     return false

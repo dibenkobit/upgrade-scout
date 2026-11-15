@@ -792,6 +792,16 @@ local function SuppliesText()
     return ForWho(table.concat(parts, " "))
 end
 
+-- Why the list of gear may be short of something, for the end of its status line; nil when
+-- it is not, or when a note of the scanner's already says what happened.
+local function Shortfall()
+    if S.message then return nil end
+    if S.partial or S.halted then return L.ST_PARTIAL end
+    -- The scan ran to its end, and the auction house left some item searches unanswered.
+    if S.unanswered > 0 then return L.ST_UNANSWERED:format(S.unanswered) end
+    return nil
+end
+
 local function StatusText()
     -- What the scanner is doing is said in both views, whichever of them it is working for.
     if S.state == "browse" then
@@ -815,7 +825,7 @@ local function StatusText()
     if S.finishedAt and summary.cost then
         -- The best set for a budget: what it comes to stands in the strip under the list.
         if summary.upgrades == 0 then parts[#parts + 1] = L.PLAN_NONE end
-        if (S.partial or S.halted) and not S.message then parts[#parts + 1] = L.ST_PARTIAL end
+        parts[#parts + 1] = Shortfall()
     elseif S.finishedAt then
         if summary.upgrades == 0 then
             parts[#parts + 1] = summary.hidden > 0 and L.ST_NONE_AFFORD:format(summary.hidden) or L.ST_NONE
@@ -824,7 +834,7 @@ local function StatusText()
         else
             parts[#parts + 1] = L.ST_DONE:format(summary.upgrades, summary.slots)
         end
-        if (S.partial or S.halted) and not S.message then parts[#parts + 1] = L.ST_PARTIAL end
+        parts[#parts + 1] = Shortfall()
     end
     return ForWho(table.concat(parts, " "))
 end
@@ -1246,7 +1256,8 @@ local function NewFilterCheck(text, setting, tip, parent)
         ns.db[setting] = checked
         toTop = true
         -- The player changed what the list shows: price checks that were stopped may go on.
-        S.Resume()
+        -- (A box that only changes how the prices are read asks for none: see `sameOffers`.)
+        if not self.sameOffers then S.Resume() end
         UI.Refresh()
     end)
     if tip then
@@ -1652,7 +1663,10 @@ local function BuildViews(auction)
     -- what a vendor pays for it afterwards. It is a way to read the prices, not a filter: the
     -- price column, the best value and "Top N per slot" go by it (Results.Cost); what the
     -- player can pay for, and the best set for a budget, stay a matter of the buyout.
+    -- Ticking it sends for no prices: a scan looks up what the list needs either way (see
+    -- SkipReason in Scanner.lua), and price checks that were stopped stay stopped.
     netCheck = NewFilterCheck(L.NET, "net", L.NET_TIP)
+    netCheck.sameOffers = true
     BuildBuyBox()
     BuildPlan()
     -- The box that asks before a purchase may be up when "Net cost" is ticked.
