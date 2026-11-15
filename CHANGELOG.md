@@ -9,9 +9,6 @@
   command still goes to the Upgrades tab.
 - The **Profile** starts on the talent tree you have the most points in, no longer on one fixed
   for your class. A profile you chose yourself stays.
-
-## 2.4.1
-
 - Ticking or unticking **Net cost** no longer sends for prices. The list is repriced on the
   spot: a scan now looks up what it needs either way.
 - A scan leaves alone gear that is sold by the piece, like a grey necklace that stacks. One
