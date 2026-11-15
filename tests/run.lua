@@ -1529,7 +1529,7 @@ function scenarios.ui()
     local about = {}
     for _, line in ipairs(GameTooltip._lines) do about[#about + 1] = line.text end
     about = table.concat(about, "\n")
-    check(about:find("Choose the profile for your talent tree.", 1, true) ~= nil, "the tooltip says which profile to take: " .. about)
+    check(about:find("Choose the profile for your spec.", 1, true) ~= nil, "the tooltip says which profile to take: " .. about)
     check(about:find("~ means the weights are estimated.", 1, true) ~= nil, "and what the mark by a profile means")
     check(about:find("Your other characters are here too", 1, true) ~= nil, "and that the list has the other characters")
     for _, word in ipairs({ "simulat", "approximation", "by hand", "At level", "Pawn" }) do

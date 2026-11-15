@@ -484,6 +484,9 @@ local function WhereHeight(switch)
     if switch.wide <= room then return 15 end
     switch.Label:SetWordWrap(true)
     switch.Label:SetWidth(room)
+    -- (From the top of the box down, wherever they stood before.)
+    switch.Label:ClearAllPoints()
+    switch.Label:SetPoint("TOPLEFT", switch, "TOPLEFT", 21, -2)
     local tall = math.max(15, 2 + switch.Label:GetStringHeight())
     switch:SetHitRectInsets(0, -(6 + room), -4, -(4 + tall - 15))
     return tall
@@ -531,6 +534,15 @@ local function NewBlock()
     block.Rule = NewRule(block)
     block.Notes = NewWhere(block, "rowNotes", L.WELCOME_NOTES:format(
         Quoted(L.TT_CANT_AFFORD:format(ns.Money(SAMPLES[1].short))), Quoted(L.TT_BOTH_HANDS)))
+    -- The sum in those words has a coin, a picture among letters. The room between lines that
+    -- the words of the other boxes have lifts such a picture out of its line, so these have
+    -- none: they stand on one line (their translations are kept that short), set level with
+    -- the box by their middle.
+    local words = block.Notes.Label
+    words:SetSpacing(0)
+    words:ClearAllPoints()
+    words:SetPoint("LEFT", block.Notes, "LEFT", 21, 0)
+    block.Notes.wide = words:GetStringWidth()
     return block
 end
 
