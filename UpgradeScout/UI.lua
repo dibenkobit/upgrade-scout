@@ -1373,9 +1373,10 @@ end
 ---------------------------------------------------------------------------
 -- One box for both views: the item at its top, two lines about the purchase, "Buy" and
 -- "Cancel". It follows the purchase in `step`.
--- Gear (`offer`): the gain the list shows for the item, and its buyout. With "Net cost" on, a
--- line under them: what the item costs in the end, as its row says. When the price has moved
--- since the scan (`was`), the price the list had stands over the one it has now.
+-- Gear (`offer`): the gain the list shows for the item, its buyout, and under them what the
+-- item costs in the end (its net cost), whether the list is priced by "Net cost" or not. When
+-- the price has moved since the scan (`was`), the price the list had stands over the one it
+-- has now.
 --   confirm  the item was looked up again and is still there
 --   wait     "Buy" was pressed: the bid is out, and the box stays until the auction house
 --            answers, as the game's own question before a buyout does
@@ -1404,8 +1405,8 @@ local function PlaceBoxLine(label, value, y)
 end
 
 -- The lines under the first. What is paid is always there. Only gear has the other two: the
--- old price over it when the price has moved, the net cost under it with "Net cost" on. The
--- box is taller by each; the buttons hang from its bottom edge.
+-- old price over it when the price has moved, and the net cost under it. The box is taller by
+-- each; the buttons hang from its bottom edge.
 local function ShowBoxLines(was, net)
     local y = BOX_FIRST - BOX_LINE
     buyBox.WasLabel:SetShown(was)
@@ -1427,15 +1428,16 @@ local function PaintGearBox()
         return
     end
     local affordable = offer.buyout <= GetMoney()
-    local net = ns.db.net and true or false
-    ShowBoxLines(was ~= nil, net)
+    ShowBoxLines(was ~= nil, true)
     if was then SetMoney(buyBox.Was, was) end
     -- What is paid is the buyout, whatever the list prices the item at.
     buyBox.TotalLabel:SetText(Caption(was and L.BOX_NOW or L.COL_PRICE))
     buyBox.Total:Show()
     buyBox.Total:SetFontObject(affordable and PriceFontWhite or PriceFontRed)
     SetMoney(buyBox.Total, offer.buyout)
-    if net then SetMoney(buyBox.Net, ns.Results.Net(offer.buyout, offer.sell)) end
+    -- And what it costs in the end, with the "Net cost" filter on or off: it is what the
+    -- player is about to spend for good.
+    SetMoney(buyBox.Net, ns.Results.Net(offer.buyout, offer.sell))
     buyBox.Buy:SetEnabled(step == "confirm" and affordable)
 end
 
@@ -1793,8 +1795,6 @@ local function BuildViews(auction)
             toTop = true
             -- The player changed what the list shows: price checks that were stopped may go on.
             if not sameOffers then S.Resume() end
-            -- The box that asks before a purchase may be up when "Net cost" is ticked.
-            if buyBox:IsShown() then PaintBox() end
             UI.Refresh()
         end,
     })

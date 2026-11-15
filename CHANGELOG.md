@@ -30,6 +30,7 @@
 - If someone else buys the item while the box is up, the box stays. It looks the item up again
   and shows the next price, or says that the item is **no longer for sale**. Before, the box
   closed and you went back to the list.
+- The box always shows the **net cost** of gear, with the Net cost filter on or off.
 - The tick boxes above the lists are now in one menu, **Filters**, at the right end of the strip.
   It stays open while you tick. The filters that are on are named beside it.
 - **Only leather**, **Only mail** or **Only plate**, a new filter on the Upgrades tab. It leaves
