@@ -49,8 +49,9 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
 - Shops for your other characters too. A button at the mailbox puts the gear you bought into a
   letter to them.
 - Any item's tooltip shows how much better it is than what you wear, for every spec of your class,
-  such as Arms, Fury and Protection for a warrior. Tick **Only my talent tree** in the addon's
-  window to keep one line, for the tree you play.
+  such as Arms, Fury and Protection for a warrior. In the addon's window you can keep one line,
+  for the tree you play, and choose where the lines show: on the addon's tabs at the auction
+  house, in the rest of the game, or nowhere.
 - A green arrow on the icon of an item in your bags or bank means it is an upgrade you can put
   on now. A grey one: an upgrade once you reach its level.
 - Works right after you install it. The **Profile** dropdown starts on the talent tree you have

@@ -34,9 +34,9 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
 - Compra também para os seus outros personagens. Um botão na caixa de correio coloca os
   equipamentos comprados numa carta para eles.
 - A dica de qualquer item mostra quanto ele é melhor do que o que você usa, para cada árvore de
-  talentos da sua classe, como Armas, Fúria e Proteção para um guerreiro. Marque
-  **Só a minha árvore de talentos** na janela do addon e fica uma linha só: a da árvore com que
-  você joga.
+  talentos da sua classe, como Armas, Fúria e Proteção para um guerreiro. Na janela do addon
+  dá para deixar uma linha só, a da sua árvore, e escolher onde as linhas aparecem: nas abas
+  do addon na Casa de Leilões, no resto do jogo ou em lugar nenhum.
 - Uma seta verde no ícone de um item nas bolsas ou no banco indica uma melhoria que você pode
   equipar agora. Uma cinza: uma melhoria assim que você chegar ao nível dela.
 - Funciona logo depois de instalado. A lista **Perfil** já começa na árvore de talentos em que

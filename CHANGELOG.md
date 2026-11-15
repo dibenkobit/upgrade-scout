@@ -2,9 +2,14 @@
 
 ## 2.6.0
 
-- **Only my talent tree**, a new box in the addon's window, under **In item tooltips**. Ticked,
-  an item's tooltip has one line from the addon: how much better the item is for the tree you
-  play. Unticked, it has a line for every tree of your class, as before.
+- The addon's window asks two things about item tooltips. How: **All trees** shows a line for
+  every tree of your class, as before. **Only mine** keeps one line: how much better the item
+  is for the tree you play.
+- Where: one box for the addon's tabs at the auction house, one for the rest of the game (bags,
+  loot, chat). Untick both and the addon writes nothing into tooltips. Before, the lines on
+  the addon's tabs could not be switched off.
+- The window has a new layout: the auction house and the bags side by side, and the tooltip in
+  a block of its own under them.
 
 ## 2.5.0
 

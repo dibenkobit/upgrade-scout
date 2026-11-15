@@ -4,7 +4,9 @@ local L = ns.L
 -- Our lines in an item's tooltip: under the addon's name, how much better the item is than
 -- what the character wears, on every profile of its class, the way Pawn shows its scales.
 -- A player whose tooltips are long enough as it is can have one line in their place, for the
--- profile in use ("Only my talent tree" in the welcome window: ns.OwnTree).
+-- profile in use ("Only mine" in the welcome window: ns.OwnTree), or none at all: the lines
+-- written here are switched off there apart from those of our own tabs (ns.Shows "tooltip"
+-- and "rowTooltip").
 -- The Upgrades list writes them under its own rows (UI.lua), for the character the list is
 -- for. Everywhere else in the game they come from here, for the character being played: the
 -- bags, loot, quest rewards, links in the chat, the auction house's own lists.
@@ -52,7 +54,7 @@ function T.AddGain(tooltip, title, gain, class)
     tooltip:AddDoubleLine(title, text, r, g, b, rightR, rightG, rightB)
 end
 
--- With "Only my talent tree" ticked (ns.OwnTree) the lines are one: the profile in use and
+-- With the tree in use alone chosen (ns.OwnTree) the lines are one: the profile in use and
 -- the gain on it. There is no heading over a single line; the addon's icon before the
 -- profile's name says whose line it is, and a blank line sets it off as it does the heading.
 function T.AddOwn(tooltip, title, gain, class)
@@ -170,7 +172,8 @@ local NOTES = { OFFHAND_EMPTY = "TT_OFFHAND_EMPTY", BOTH_HANDS = "TT_BOTH_HANDS"
 -- for a link in the chat get our lines: the tooltips beside them show what is worn.
 local function OnItem(tooltip)
     if tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip then return end
-    -- Switched off in the welcome window. (The rows of our own list keep their lines.)
+    -- Switched off in the welcome window. (The rows of our own tabs have a switch of their
+    -- own there, "rowTooltip".)
     if not ns.Shows("tooltip") then return end
     -- A row of our own list writes its lines itself.
     local owner = tooltip:GetOwner()
@@ -183,7 +186,7 @@ local function OnItem(tooltip)
     local current = ns.Score.Current()
     local class = ns.Roster.Me().class
     local note
-    -- "Only my talent tree": the line of the profile in use, and no other.
+    -- The tree in use alone: the line of the profile in use, and no other.
     local own
     if ns.OwnTree() and current then
         for _, line in ipairs(answer) do
