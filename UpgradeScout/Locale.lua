@@ -166,7 +166,6 @@ local L = {
     -- Pawn in place of the addon's own weights (Pawn.lua): the choice in the welcome window, and
     -- what the tab says of Pawn's scales. WELCOME_SCALE and WELCOME_NO_SCALE take the character's name.
     WELCOME_ENGINE = "Who scores your gear?",
-    WELCOME_ENGINE_WHY = "Upgrade Scout: by its own weights. Pawn: by your Pawn scales.",
     WELCOME_NO_PAWN = "Pawn is not installed or is switched off.",
     WELCOME_SCALE = "Which Pawn scale does %s use?",
     WELCOME_SCALE_WHY = "The addon picks gear by it.",
@@ -346,7 +345,6 @@ if GetLocale() == "ruRU" then
 
         -- Pawn in place of the addon's own weights
         WELCOME_ENGINE = "Кто оценивает вещи?",
-        WELCOME_ENGINE_WHY = "Upgrade Scout: по своим весам. Pawn: по твоим шкалам Pawn.",
         WELCOME_NO_PAWN = "Pawn не установлен или выключен.",
         WELCOME_SCALE = "Какую шкалу Pawn использует %s?",
         WELCOME_SCALE_WHY = "По ней аддон подбирает вещи.",
@@ -527,7 +525,6 @@ if GetLocale() == "deDE" then
 
         -- Pawn in place of the addon's own weights
         WELCOME_ENGINE = "Wer bewertet deine Ausrüstung?",
-        WELCOME_ENGINE_WHY = "Upgrade Scout: nach eigenen Gewichten. Pawn: nach deinen Bewertungsprofilen in Pawn.",
         WELCOME_NO_PAWN = "Pawn ist nicht installiert oder deaktiviert.",
         WELCOME_SCALE = "Welches Bewertungsprofil von Pawn nutzt %s?",
         WELCOME_SCALE_WHY = "Danach sucht das Addon die Ausrüstung aus.",
@@ -709,7 +706,6 @@ if GetLocale() == "frFR" then
 
         -- Pawn in place of the addon's own weights
         WELCOME_ENGINE = "Qui évalue votre équipement ?",
-        WELCOME_ENGINE_WHY = "Upgrade Scout : selon ses propres poids. Pawn : selon vos échelles Pawn.",
         WELCOME_NO_PAWN = "Pawn n'est pas installé ou est désactivé.",
         WELCOME_SCALE = "Quelle échelle Pawn utilise %s ?",
         WELCOME_SCALE_WHY = "L'addon choisit l'équipement selon cette échelle.",
@@ -891,7 +887,6 @@ if GetLocale() == "zhCN" then
 
         -- Pawn in place of the addon's own weights
         WELCOME_ENGINE = "由谁给装备评分？",
-        WELCOME_ENGINE_WHY = "Upgrade Scout：按自带的权重。Pawn：按你的 Pawn 属性权重。",
         WELCOME_NO_PAWN = "Pawn 未安装或未启用。",
         WELCOME_SCALE = "%s 用哪个 Pawn 属性权重？",
         WELCOME_SCALE_WHY = "插件按它来挑装备。",
@@ -1074,7 +1069,6 @@ if GetLocale() == "ptBR" then
 
         -- Pawn in place of the addon's own weights
         WELCOME_ENGINE = "Quem avalia o seu equipamento?",
-        WELCOME_ENGINE_WHY = "Upgrade Scout: pelos próprios pesos. Pawn: pelas suas escalas do Pawn.",
         WELCOME_NO_PAWN = "O Pawn não está instalado ou está desativado.",
         WELCOME_SCALE = "Qual escala do Pawn %s usa?",
         WELCOME_SCALE_WHY = "O addon escolhe o equipamento por ela.",
@@ -1256,7 +1250,6 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
 
         -- Pawn in place of the addon's own weights
         WELCOME_ENGINE = "¿Quién puntúa tu equipo?",
-        WELCOME_ENGINE_WHY = "Upgrade Scout: con sus propios pesos. Pawn: con tus escalas de Pawn.",
         WELCOME_NO_PAWN = "Pawn no está instalado o está desactivado.",
         WELCOME_SCALE = "¿Qué escala de Pawn usa %s?",
         WELCOME_SCALE_WHY = "El addon elige el equipo según ella.",
@@ -1440,7 +1433,6 @@ if GetLocale() == "koKR" then
 
         -- Pawn in place of the addon's own weights
         WELCOME_ENGINE = "장비 점수는 누가 매기나요?",
-        WELCOME_ENGINE_WHY = "Upgrade Scout: 자체 가중치로. Pawn: 내 Pawn 능력치 비율로.",
         WELCOME_NO_PAWN = "Pawn이 설치되어 있지 않거나 꺼져 있습니다.",
         WELCOME_SCALE = "%s의 Pawn 능력치 비율은 무엇인가요?",
         WELCOME_SCALE_WHY = "애드온이 그 비율에 맞춰 장비를 고릅니다.",
@@ -1623,7 +1615,6 @@ if GetLocale() == "zhTW" then
 
         -- Pawn in place of the addon's own weights
         WELCOME_ENGINE = "由誰給裝備評分？",
-        WELCOME_ENGINE_WHY = "Upgrade Scout：依內建的權重。Pawn：依你的 Pawn 權重。",
         WELCOME_NO_PAWN = "Pawn 未安裝或未啟用。",
         WELCOME_SCALE = "%s 用哪個 Pawn 權重？",
         WELCOME_SCALE_WHY = "插件依它來挑裝備。",

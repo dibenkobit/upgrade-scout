@@ -653,11 +653,12 @@ Paint = function()
     -- Up to say that Pawn can be chosen now: that comes first.
     if offering then frame.About:SetText(L.WELCOME_PAWN_NEW) end
 
-    -- Who scores: the one that does is lit. Pawn cannot be chosen while it is not there,
-    -- and the line says why its button is grey.
+    -- Who scores: the one that does is lit. The question stands alone: the two names on the
+    -- buttons are the answer. Pawn cannot be chosen while it is not there, and only then the
+    -- line goes on, to say why its button is grey.
     local pawn = ns.Score.Engine() == "pawn"
     local usable = ns.Pawn.Usable()
-    frame.Who:SetText(L.WELCOME_ENGINE .. Aside(usable and L.WELCOME_ENGINE_WHY or L.WELCOME_NO_PAWN))
+    frame.Who:SetText(usable and L.WELCOME_ENGINE or L.WELCOME_ENGINE .. Aside(L.WELCOME_NO_PAWN))
     for i = 1, #frame.Engines do
         local button = frame.Engines[i]
         local there = button.engine == nil or usable

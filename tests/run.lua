@@ -5507,7 +5507,7 @@ function scenarios.pawn_welcome()
     eq(window.About:GetText(), L.WELCOME_PAWN_NEW, "Pawn is there now: the window comes up to say that it can be chosen")
     own, pawn = window.Engines[1], window.Engines[2]
     eq(pawn:IsEnabled(), true, "Pawn can be chosen"); eq(pawn:GetAlpha(), 1, "its button is no longer grey")
-    check(window.Who:GetText():find(L.WELCOME_ENGINE_WHY, 1, true) ~= nil, "the line says what each one goes by")
+    eq(window.Who:GetText(), L.WELCOME_ENGINE, "the question stands alone: nothing more to say of a button that can be clicked")
     eq(own.Mark:IsShown(), true, "the addon scores until Pawn is chosen")
     eq(window:GetHeight(), height, "the window is as tall as without Pawn")
 
