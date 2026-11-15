@@ -98,11 +98,12 @@ Von Hand:
 - **Beste Rüstungsart für die Klasse** behält die schwerste Rüstung, die dein Charakter schon
   tragen gelernt hat: Leder beim Jäger, schwere Rüstung, sobald er sie gelernt hat. Umhänge,
   Ringe, Waffen und Schilde bleiben in der Liste. Magier, Priester und Hexenmeister tragen nur
-  Stoff: Für sie ändert sich nichts.
+  Stoff und haben dieses Häkchen nicht.
 - **Verbesserung ab** richtet sich nach dem Prozentwert in der Spalte **Verbesserung**. Ein
   Gegenstand für einen leeren Slot bleibt immer.
-- Beide Einstellungen gelten für alle deine Charaktere. Kaufst du für einen anderen Charakter
-  ein, bleiben sie, wie sie sind.
+- Jeder Charakter hat sein eigenes Häkchen **Beste Rüstungsart für die Klasse** und seine eigene
+  Zahl bei **Verbesserung ab**. Kaufst du für einen anderen Charakter ein, siehst und änderst du
+  dessen Einstellungen.
 - Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die die Wertung nicht mitzählt.
 - Heil- und Manatränke haben keine Wertung: Kein Gewicht macht aus „stellt 700 Gesundheit wieder her“
   eine Zahl.

@@ -100,11 +100,12 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 - **Meilleur type d'armure pour la classe** garde l'armure la plus lourde que votre personnage a
   appris à porter : le cuir pour un chasseur, les mailles une fois qu'il les a apprises. Capes,
   anneaux, armes et boucliers restent dans la liste. Un mage, un prêtre et un démoniste ne
-  portent que du tissu : pour eux, rien ne change.
+  portent que du tissu et n'ont pas cette case.
 - **Amélioration d'au moins** suit le pourcentage de la colonne **Amélioration**. Un objet pour un
   emplacement vide reste toujours.
-- Les deux réglages valent pour tous vos personnages. Quand vous achetez pour un autre
-  personnage, ils restent tels quels.
+- Chaque personnage a sa propre case **Meilleur type d'armure pour la classe** et son propre
+  nombre pour **Amélioration d'au moins**. Quand vous achetez pour un autre personnage, vous
+  voyez et réglez les siens.
 - Un `*` jaune après un nom : l'objet a des effets que le score ne compte pas.
 - Les potions de vie et de mana n'ont pas de score : aucun poids ne chiffre « rend 700 points
   de vie ».

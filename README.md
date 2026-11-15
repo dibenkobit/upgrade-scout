@@ -104,11 +104,11 @@ To install by hand:
   the slot is empty. Points, such as `+6 pts`, mean what you wear there adds nothing on your profile.
 - **Best armor type for the class** keeps the heaviest armor your character has learned to
   wear: leather for a hunter, mail once it has learned mail. Cloaks, rings, weapons and shields
-  stay in the list. A mage, a priest and a warlock wear cloth alone: for them it changes nothing.
+  stay in the list. A mage, a priest and a warlock wear cloth alone and have no such box.
 - **Upgrade at least** goes by the percent in the **Upgrade** column. An item for an empty slot
   always stays.
-- Both are set once for all your characters. They stay as they are when you shop for another
-  character.
+- Each character has its own **Best armor type for the class** box and its own **Upgrade at
+  least** number. When you shop for another character, you see and set that character's.
 - A yellow `*` after a name means the item has effects the score does not count, such as procs.
 - Health and mana potions have no score: no weight puts a number on "restores 700 health".
 - Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The

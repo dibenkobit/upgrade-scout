@@ -1,17 +1,20 @@
 local _, ns = ...
 
--- What the player wants of gear: the two filters of the Upgrades list that are about the gear
--- itself, and not about the purchase. They are kept for the whole account (ns.account), so
--- they stay as they were set whichever character is played, and whichever one the list is for:
---   bestArmor   true: only the best armor type for the class, which is the heaviest the
+-- What a character wants of its gear: the two filters of the Upgrades list that are about the
+-- character the list is for, and not about the purchase. They are written on the character's
+-- card (Roster.lua), which is kept for the whole account. So they go with the character the
+-- list is for, and not with the one who shops: what is set while shopping for an alt is the
+-- alt's, the alt finds it so when it is played and shops for itself, and what it changes then
+-- is what the next one to shop for it finds.
+--   armorOnly   true: only the best armor type for its class, which is the heaviest armor the
 --               character has learned to wear. A hunter is then offered leather, and mail
 --               once it has learned mail; cloth is left out.
 --   minGain     the least an upgrade has to add, in percent of what it takes the place of;
 --   minGainOn   true while that is asked for. The number stays when its box is unticked.
 -- ("Only what I can afford" and "Top N per slot" are about the buyer: those are in ns.db.)
 --
--- What they ask of one character's gear is that character's "wants": { armor = the one kind
--- of armor to offer (an item subclass: 2 leather, 3 mail, 4 plate), gain = the least percent },
+-- What is asked of a character's gear right now is its "wants": { armor = the one kind of
+-- armor to offer (an item subclass: 2 leather, 3 mail, 4 plate), gain = the least percent },
 -- either of them nil when it is not asked for. Nothing asked for is nil, and every function
 -- here takes that for wants that leave nothing out.
 local Wants = {}
@@ -40,29 +43,20 @@ function Wants.ArmorOf(invType, classID, subClassID)
     return nil
 end
 
--- The best armor type for the character of a card: the heaviest kind it wears now, which is
--- what "Best armor type for the class" keeps. A mage, a priest and a warlock wear cloth alone.
+-- The heaviest armor the character of a card wears now, which is what "Best armor type for
+-- the class" keeps. nil for a character that wears nothing but cloth: there is nothing
+-- lighter to leave out.
 function Wants.Armor(card)
     if not card then return nil end
     for kind = PLATE, CLOTH + 1, -1 do
         if ns.Roster.Wields(card, ARMOR_CLASS, kind) then return kind end
     end
-    return CLOTH
+    return nil
 end
 
--- Is "Best armor type for the class" ticked?
-function Wants.BestArmor()
-    return ns.account.bestArmor == true
-end
-
--- Is "Upgrade at least" ticked?
-function Wants.GainOn()
-    return ns.account.minGainOn == true
-end
-
--- The percent that was typed, asked for or not. (It comes out of a saved file.)
-function Wants.Gain()
-    local gain = ns.account.minGain
+-- The percent typed for a character, asked for or not. (A card comes out of a saved file.)
+function Wants.Gain(card)
+    local gain = card and card.minGain
     if type(gain) ~= "number" or gain < 1 then return Wants.DEFAULT_GAIN end
     return math.min(math.floor(gain), Wants.MAX_GAIN)
 end
@@ -71,13 +65,11 @@ end
 -- wants can tell by the table itself whether they are still the same.
 local made = {}
 
--- The wants of the character of a card; nil when nothing is asked of its gear.
+-- The wants of the character of a card; nil when it asks for nothing.
 function Wants.Of(card)
     if not card then return nil end
-    local armor = Wants.BestArmor() and Wants.Armor(card) or nil
-    -- One who wears cloth alone has nothing lighter to be left out.
-    if armor == CLOTH then armor = nil end
-    local gain = Wants.GainOn() and Wants.Gain() or nil
+    local armor = card.armorOnly == true and Wants.Armor(card) or nil
+    local gain = card.minGainOn == true and Wants.Gain(card) or nil
     if not armor and not gain then return nil end
     local key = (armor or 0) .. ":" .. (gain or 0)
     local wants = made[key]
@@ -119,15 +111,15 @@ function Wants.Keep(wants, item, placements)
 end
 
 -- The two are set in the menu of the Filters field (Filters.lua). Whoever shows what they
--- change hears WANTS_CHANGED: the arrows in the bags. (The list is told by the menu itself.)
-function Wants.SetBestArmor(on)
-    ns.account.bestArmor = on and true or nil
-    ns.Fire("WANTS_CHANGED")
+-- change hears WANTS_CHANGED with the card: the list, and the arrows in the bags.
+function Wants.SetArmorOnly(card, on)
+    card.armorOnly = on and true or nil
+    ns.Fire("WANTS_CHANGED", card)
 end
 
 -- percent: the number that was typed; nil leaves the one there is.
-function Wants.SetGain(on, percent)
-    if percent then ns.account.minGain = Clamp(math.floor(percent), 1, Wants.MAX_GAIN) end
-    ns.account.minGainOn = on and true or nil
-    ns.Fire("WANTS_CHANGED")
+function Wants.SetGain(card, on, percent)
+    if percent then card.minGain = Clamp(math.floor(percent), 1, Wants.MAX_GAIN) end
+    card.minGainOn = on and true or nil
+    ns.Fire("WANTS_CHANGED", card)
 end

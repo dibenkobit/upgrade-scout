@@ -94,12 +94,12 @@ A mano:
   no aporta nada a tu perfil.
 - **Mejor tipo de armadura de la clase** conserva la armadura más pesada que tu personaje ha
   aprendido a llevar: cuero para un cazador, mallas cuando las haya aprendido. Capas, anillos,
-  armas y escudos se quedan en la lista. Un mago, un sacerdote y un brujo solo llevan tela: para
-  ellos no cambia nada.
+  armas y escudos se quedan en la lista. Un mago, un sacerdote y un brujo solo llevan tela y no
+  tienen esta casilla.
 - **Mejora de al menos** va por el porcentaje de la columna **Mejora**. Un objeto para una ranura
   vacía se queda siempre.
-- Los dos ajustes valen para todos tus personajes. Cuando compras para otro personaje, se
-  quedan como están.
+- Cada personaje tiene su propia casilla **Mejor tipo de armadura de la clase** y su propio
+  número en **Mejora de al menos**. Cuando compras para otro personaje, ves y cambias los suyos.
 - Un `*` amarillo tras el nombre: el objeto tiene efectos que la puntuación no cuenta.
 - Las pociones de salud y de maná no tienen puntuación: ningún peso pone número a «restaura
   700 p. de salud».

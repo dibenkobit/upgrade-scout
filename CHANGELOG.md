@@ -52,8 +52,8 @@
   it.
 - **Upgrade at least**, a new filter with a number. It leaves out upgrades smaller than that
   percent. An item for an empty slot always stays.
-- Both are set once for all your characters. They stay as they are when you shop for another
-  character.
+- Each character has its own two. When you shop for another character, you see and set that
+  character's.
 
 ## 2.5.0
 

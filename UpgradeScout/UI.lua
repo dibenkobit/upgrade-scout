@@ -117,8 +117,8 @@ local function ProfileTitle()
     return profile and profile.title or NONE
 end
 
--- What is wanted of that character's gear: the two filters of the list that are about the
--- gear (see Wants.lua). nil when they leave nothing out.
+-- What that character wants of its gear: the filters of the list that are the character's
+-- own (see Wants.lua). nil when it leaves nothing out.
 local function Wanted()
     return ns.Wants.Of(ns.Roster.Target() or ns.Roster.Me())
 end
@@ -939,7 +939,7 @@ local function StatusText()
         parts[#parts + 1] = Shortfall()
     elseif S.finishedAt then
         if summary.upgrades == 0 and (summary.unwanted or 0) > 0 then
-            -- There are upgrades, and the filters about gear leave every one out.
+            -- There are upgrades, and the character's own filters leave every one out.
             parts[#parts + 1] = L.ST_NONE_WANTED:format(summary.unwanted)
         elseif summary.upgrades == 0 then
             parts[#parts + 1] = summary.hidden > 0 and L.ST_NONE_AFFORD:format(summary.hidden) or L.ST_NONE

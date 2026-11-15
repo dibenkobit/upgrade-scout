@@ -94,11 +94,11 @@ Manualmente:
   não acrescenta nada ao seu perfil.
 - **Melhor tipo de armadura da classe** mantém a armadura mais pesada que o seu personagem já
   aprendeu a usar: couro para um caçador, malha depois que ele aprender. Capas, anéis, armas e
-  escudos continuam na lista. Mago, sacerdote e bruxo só usam tecido: para eles nada muda.
+  escudos continuam na lista. Mago, sacerdote e bruxo só usam tecido e não têm essa caixa.
 - **Melhoria de pelo menos** segue a porcentagem da coluna **Melhoria**. Um item para um espaço
   vazio sempre fica.
-- As duas configurações valem para todos os seus personagens. Ao comprar para outro personagem,
-  elas ficam como estão.
+- Cada personagem tem a sua própria caixa **Melhor tipo de armadura da classe** e o seu próprio
+  número em **Melhoria de pelo menos**. Ao comprar para outro personagem, você vê e muda os dele.
 - Um `*` amarelo depois do nome: o item tem efeitos que a pontuação não conta.
 - Poções de vida e de mana não têm pontuação: nenhum peso dá um número para "restaura 700 de vida".
 - Botas "do Tigre" e botas "da Baleia" são itens diferentes, com preços diferentes. A aba "Vender"

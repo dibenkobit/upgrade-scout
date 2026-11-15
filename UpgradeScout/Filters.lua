@@ -12,9 +12,9 @@ local L = ns.L
 -- does. Beside the field stand the names of the filters that are on, so that it is plain
 -- without a click why the list is what it is; where they do not fit, how many are on.
 --
--- Two of the filters of gear are about the gear itself, and are kept for the whole account:
--- they stay as they were set whichever character the list is for (see Wants.lua). The others
--- are kept with the character being played (ns.db).
+-- Two of the filters of gear are about the character the list is for, and are kept with
+-- that character: every character has its own, whichever character of the account shops
+-- for it (see Wants.lua). The others are the player's (ns.db).
 local Filters = {}
 ns.Filters = Filters
 
@@ -58,11 +58,9 @@ local function Active()
         return out
     end
     if ns.db.topOnly and not planned then Add(L.TOP:format(ns.Results.TOP_COUNT)) end
-    if ns.Wants.BestArmor() then Add(L.ARMOR_BEST_SHORT, L.ARMOR_BEST) end
-    if ns.Wants.GainOn() then
-        local gain = ns.Wants.Gain()
-        Add(L.GAIN_MIN_SHORT:format(gain), L.GAIN_MIN_FULL:format(gain))
-    end
+    local wants = ns.Wants.Of(Owner())
+    if wants and wants.armor then Add(L.ARMOR_BEST_SHORT, L.ARMOR_BEST) end
+    if wants and wants.gain then Add(L.GAIN_MIN_SHORT:format(wants.gain), L.GAIN_MIN_FULL:format(wants.gain)) end
     return out
 end
 
@@ -127,27 +125,39 @@ local function Flip(key)
     tab.Changed(key == "net")
 end
 
--- The two that are about the gear, and the account's (Wants.lua).
+-- The two that are the character's.
+local function ArmorOnly()
+    local card = Owner()
+    return card ~= nil and card.armorOnly == true
+end
+
 local function FlipArmor()
-    ns.Wants.SetBestArmor(not ns.Wants.BestArmor())
+    local card = Owner()
+    if not card then return end
+    ns.Wants.SetArmorOnly(card, not card.armorOnly)
     tab.Changed()
+end
+
+local function GainOn()
+    local card = Owner()
+    return card ~= nil and card.minGainOn == true
 end
 
 local function FlipGain()
-    ns.Wants.SetGain(not ns.Wants.GainOn())
+    local card = Owner()
+    if not card then return end
+    ns.Wants.SetGain(card, not card.minGainOn)
     tab.Changed()
 end
 
--- "Best armor type for the class" is one line for every character, so its tooltip says
+-- "Best armor type for the class" reads the same for every class, so the line's tooltip says
 -- which type that is for the character the list is for, in the game's own word for it:
--- "Diluna: Leather".
-local function ArmorNote()
-    local card = Owner()
-    local kind = ns.Wants.Armor(card)
-    local armor = kind and C_Item.GetItemSubClassInfo(Enum.ItemClass.Armor, kind)
-    if not armor or armor == "" then return nil end
-    if not card.name then return armor end
-    return ns.Roster.Colored(card, card.name) .. ": " .. armor
+-- "Diluna: Leather". `armor` is that type (Wants.Armor).
+local function ArmorNote(card, armor)
+    local word = C_Item.GetItemSubClassInfo(Enum.ItemClass.Armor, armor)
+    if not word or word == "" then return nil end
+    if not card.name then return word end
+    return ns.Roster.Colored(card, card.name) .. ": " .. word
 end
 
 -- The line "Upgrade at least [ 50 ] %": after the words of its tick box, a field for the
@@ -163,7 +173,7 @@ end
 -- itself (see Widgets.SkinMenuCheck).
 -- Returns the size of the line, which the game would otherwise have to measure.
 local function AddNumber(button)
-    local Wants = ns.Wants
+    local card = Owner()
     local words = button.fontString
     local box = button:AttachFrame("EditBox")
     -- The game hands a frame over reset to nothing: in no layer of the menu's, so that it is
@@ -189,33 +199,33 @@ local function AddNumber(button)
     box:SetMaxLetters(4)
 
     local function Ink()
-        local ink = Wants.GainOn() and CREAM or MUTED
+        local ink = card and card.minGainOn and CREAM or MUTED
         box:SetTextColor(ink[1], ink[2], ink[3])
     end
     local function Tick(shown)
         if button.Tick then button.Tick:SetShown(shown) end
     end
-    box:SetText(tostring(Wants.Gain()))
+    box:SetText(tostring(ns.Wants.Gain(card)))
     Ink()
 
     box:SetScript("OnTextChanged", function(self, userInput)
-        if not userInput then return end
+        if not userInput or not card then return end
         local number = self:GetNumber()
         if number < 1 then return end
-        Wants.SetGain(true, number)
+        ns.Wants.SetGain(card, true, number)
         Tick(true)
         Ink()
         tab.Changed()
     end)
     -- The field is left: by Enter or Escape, by a click elsewhere.
     local function Settle(self)
-        if self:GetNumber() >= 1 then return end
-        if Wants.GainOn() then
-            Wants.SetGain(false)
+        if not card or self:GetNumber() >= 1 then return end
+        if card.minGainOn then
+            ns.Wants.SetGain(card, false)
             Tick(false)
             tab.Changed()
         end
-        self:SetText(tostring(Wants.Gain()))
+        self:SetText(tostring(ns.Wants.Gain(card)))
         Ink()
     end
     local function Leave(self)
@@ -248,10 +258,14 @@ local function Menu(_, root)
     end
     local top = ns.Results.TOP_COUNT
     AddCheck(root, L.TOP:format(top), IsSet, Flip, "topOnly", L.TOP_TIP:format(top), free)
-    -- The same line whoever the list is for, ticked or not as it was left: for one who wears
-    -- cloth alone it leaves nothing out.
-    AddCheck(root, L.ARMOR_BEST, ns.Wants.BestArmor, FlipArmor, nil, L.ARMOR_BEST_TIP, nil, ArmorNote())
-    AddCheck(root, L.GAIN_MIN, ns.Wants.GainOn, FlipGain, nil, L.GAIN_MIN_TIP):AddInitializer(AddNumber)
+    -- "Best armor type for the class" keeps the heaviest armor the character wears, and its
+    -- tooltip names it. One that wears cloth alone has nothing to leave out, and no line.
+    local owner = Owner()
+    local armor = ns.Wants.Armor(owner)
+    if armor then
+        AddCheck(root, L.ARMOR_BEST, ArmorOnly, FlipArmor, nil, L.ARMOR_BEST_TIP, nil, ArmorNote(owner, armor))
+    end
+    AddCheck(root, L.GAIN_MIN, GainOn, FlipGain, nil, L.GAIN_MIN_TIP):AddInitializer(AddNumber)
     root:CreateDivider():AddInitializer(Widgets.SkinMenuDivider)
     AddCheck(root, L.NET_VALUE, IsSet, Flip, "net", L.NET_TIP)
 end
