@@ -85,7 +85,7 @@ local function noop() end
 for _, name in ipairs({
     "SetAllPoints", "SetJustifyH", "SetWordWrap", "SetSpacing",
     "SetColorTexture", "SetBlendMode", "SetTexCoord", "SetVertexColor", "SetDrawLayer",
-    "SetFontObject", "SetTextColor", "SetShadowColor", "SetShadowOffset",
+    "SetTextColor", "SetShadowColor", "SetShadowOffset",
     "SetHitRectInsets", "SetTitle", "UnregisterEvent", "RegisterForClicks",
     "SetFrameStrata", "EnableMouse", "SetSnapToPixelGrid", "SetTexelSnappingBias", "SetClampedToScreen",
     -- edit boxes
@@ -147,6 +147,11 @@ function M:GetTexture() return self._texture end
 function M:SetFont(file, size, flags)
     assert(type(file) == "string" and type(size) == "number" and type(flags) == "string", "a font file, a size and flags")
     self._font = file
+end
+-- A font object of the game's, or a family made with CreateFontFamily: widget._font is that object.
+function M:SetFontObject(font)
+    assert(type(font) == "table", "a font object")
+    self._font = font
 end
 
 function M:SetAtlas(atlas)
@@ -974,7 +979,42 @@ RAID_CLASS_COLORS = { WARRIOR = Color(0.78, 0.61, 0.43), DRUID = Color(1, 0.49, 
 PriceFontWhite, PriceFontRed = { name = "PriceFontWhite" }, { name = "PriceFontRed" }
 -- The font files the tab writes with: the standard one, and the one behind the game's number fonts.
 STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
-Number13FontWhite = { GetFont = function() return "Fonts\\ARIALN.TTF", 13, "" end }
+-- The game's fonts are families: a font file for each alphabet, of which a text takes the one
+-- that suits what it says. W.gameFonts are those files, as the game's Fonts.xml has them, for
+-- the two fonts the addon asks: the one for words and the one for numbers.
+W.gameFonts = {
+    words = { roman = "Fonts\\FRIZQT__.TTF", korean = "Fonts\\2002.TTF", simplifiedchinese = "Fonts\\ARKai_T.ttf",
+        traditionalchinese = "Fonts\\blei00d.TTF", russian = "Fonts\\FRIZQT___CYR.TTF" },
+    numbers = { roman = "Fonts\\ARIALN.TTF", korean = "Fonts\\K_Damage.TTF", simplifiedchinese = "Fonts\\ARKai_C.ttf",
+        traditionalchinese = "Fonts\\bKAI00M.TTF", russian = "Fonts\\ARIALN.TTF" },
+}
+local function GameFont(files, size)
+    return {
+        GetFont = function() return files.roman, size, "" end,
+        GetFontObjectForAlphabet = function(_, alphabet)
+            assert(files[alphabet], "an alphabet the game has a font for")
+            return { GetFont = function() return files[alphabet], size, "" end }
+        end,
+    }
+end
+GameFontNormal = GameFont(W.gameFonts.words, 12)
+Number13FontWhite = GameFont(W.gameFonts.numbers, 13)
+-- A family of an addon's own. W.fontFamilies keeps them by name, which the game wants unique.
+W.fontFamilies = {}
+function CreateFontFamily(name, members)
+    assert(type(name) == "string" and not W.fontFamilies[name], "a name no other font has")
+    assert(type(members) == "table" and #members > 0, "the members of the family")
+    local seen = {}
+    for _, member in ipairs(members) do
+        assert(W.gameFonts.words[member.alphabet] and not seen[member.alphabet], "each alphabet once, by the game's name for it")
+        assert(type(member.file) == "string" and type(member.height) == "number" and type(member.flags) == "string",
+            "a font file, a size and flags for every member")
+        seen[member.alphabet] = true
+    end
+    local family = { name = name, members = members }
+    W.fontFamilies[name] = family
+    return family
+end
 ITEM_QUALITY_COLORS = { [2] = { color = Color(0.118, 1, 0) }, [3] = { color = Color(0, 0.44, 0.87) } }
 ColorManager = {}
 function ColorManager.GetColorDataForItemQuality(quality) return ITEM_QUALITY_COLORS[quality] end
@@ -1045,6 +1085,7 @@ function W.Logout()
     end
     W.timers = {}
     W.loaded = {}
+    W.fontFamilies = {}         -- the next session makes its fonts anew
     awaitingAddOn = {}
     W.charSaved[W.player.name] = UpgradeScoutCharDB
     UpgradeScoutCharDB = nil
@@ -1104,6 +1145,12 @@ function C_Item.GetItemInfo(info)
     if not item or not item.cached then return nil end
     return item.name, W.Link(id, suffix), item.quality, item.level + 5, item.level, "Type", "SubType", item.stack or 1,
         item.equipLoc, 134400, item.sell or 100, item.classID, item.subClassID
+end
+-- How many of an item go into one stack: nil until the client has loaded the item.
+function C_Item.GetItemMaxStackSizeByID(info)
+    local item = ParseItem(info)
+    if not item or not item.cached then return nil end
+    return item.stack or 1
 end
 -- The spell an item casts when it is used: consumables have one, and say what it does (`use`).
 function C_Item.GetItemSpell(info)
@@ -1289,6 +1336,8 @@ function C_AuctionHouse.GetItemKeyRequiredLevel(key)
 end
 function C_AuctionHouse.GetItemKeySampleLink(key)
     if not A.sampleLinks then return nil end
+    -- A pile of pieces has no auction of one item to give as a sample.
+    if W.IsCommodity(key.itemID) then return nil end
     local bucket = InBucket(key)
     if not bucket[1] then return nil end
     return W.Link(bucket[1].id, bucket[1].suffix)
@@ -1314,19 +1363,25 @@ function C_AuctionHouse.SendSearchQuery(key, sorts, separateOwnerItems, minLevel
         C_Timer.After(0.2, function() W.Fire("COMMODITY_SEARCH_RESULTS_UPDATED", itemID) end)
         return
     end
-    A.results[KeyText(key)] = list
-    A.loaded[KeyText(key)] = math.min(#list, A.itemPageSize)
+    -- The auctions are there to be read when the answer comes, not before.
+    local text = KeyText(key)
+    A.results[text], A.loaded[text] = nil, nil
     local copy = { itemID = key.itemID, itemLevel = key.itemLevel, itemSuffix = key.itemSuffix, battlePetSpeciesID = 0 }
-    C_Timer.After(0.2, function() W.Fire("ITEM_SEARCH_RESULTS_UPDATED", copy) end)
+    C_Timer.After(0.2, function()
+        A.results[text] = list
+        A.loaded[text] = math.min(#list, A.itemPageSize)
+        W.Fire("ITEM_SEARCH_RESULTS_UPDATED", copy)
+    end)
 end
 
 ---------------------------------------------------------------------------
--- Things sold by the piece ("commodities"): every consumable that stacks. All sellers' pieces
--- of an item are one pile; a purchase takes the cheapest pieces first.
+-- Things sold by the piece ("commodities"): everything that stacks, which is most consumables
+-- and now and then a piece of gear (the game has a grey necklace that stacks to 20). All
+-- sellers' pieces of an item are one pile; a purchase takes the cheapest pieces first.
 ---------------------------------------------------------------------------
 function W.IsCommodity(itemID)
     local item = W.items[itemID .. ":0"]
-    return item ~= nil and item.classID == 0 and (item.stack or 1) > 1
+    return item ~= nil and (item.stack or 1) > 1
 end
 function C_AuctionHouse.GetNumCommoditySearchResults(itemID)
     return A.pieces and A.pieces[itemID] and #A.pieces[itemID] or 0

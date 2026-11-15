@@ -9,8 +9,8 @@ local ADDON_DIR = "UpgradeScout/"
 local names = {
     "events", "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
-    "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_eta",
-    "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "tooltips", "arrows",
+    "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_pieces", "scan_eta",
+    "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "fonts", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
 }
@@ -859,7 +859,7 @@ function scenarios.scan_unanswered()
     local S = ns.Scanner
     local frame = UpgradeScoutFrame
     local function Status() return frame.Status:GetText() or "" end
-    local missing = "Price checks that got no answer: 1. The list may be incomplete."
+    local missing = "Price checks without an answer: 1."
 
     check(S.Start(), "scan starts")
     W.RunUntil(function() return S.state == "verify" and OfferCount() >= 1 end, 60)
@@ -898,7 +898,7 @@ function scenarios.scan_unanswered()
     W.Run(0.3)
     eq(S.halted, true, "the window closed during the price checks")
     check(Status():find(ns.L.ST_PARTIAL, 1, true) ~= nil, "the scan stopped early: " .. Status())
-    check(Status():find("no answer", 1, true) == nil, "which says enough")
+    check(Status():find("without an answer", 1, true) == nil, "which says enough")
 
     -- Every answer in: nothing is said.
     W.RunUntil(function() return W.AH.ready end, 5)
@@ -906,7 +906,131 @@ function scenarios.scan_unanswered()
     W.Run(0.3)
     eq(S.unanswered, 0, "a scan with every answer")
     check(Status():find("6 upgrades in 5 slots.", 1, true) ~= nil, "lists all six: " .. Status())
-    check(Status():find("incomplete", 1, true) == nil, "and has nothing to add")
+    check(Status():find("incomplete", 1, true) == nil and Status():find("answer", 1, true) == nil, "and has nothing to add")
+end
+
+-- A piece of gear that stacks is sold by the piece out of one pile, as consumables are: the game
+-- has a grey necklace like that. Its row has no sample link, and a search for it is answered
+-- with a price list, under another event than the one for auctions. The scan for gear leaves
+-- such a row alone: no wait for a sample, no search, nothing left unanswered.
+function scenarios.scan_pieces()
+    StandardWorld()
+    LoadAddon()
+    SetView(false, false)
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    ScanToEnd()
+    local rows, searches, candidates = S.info.rows, S.stats.searches, S.stats.candidates
+    CheckStandardOffers("the world as it is")
+
+    -- A price list that comes in for some other item (the game's own Buy tab asked for it) is
+    -- no answer to a search of the scan.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return S.state == "verify" end, 60)
+    for _ = 1, 2000 do
+        if S.state == "idle" then break end
+        W.Fire("COMMODITY_SEARCH_RESULTS_UPDATED", 999)
+        W.Run(0.05)
+    end
+    eq(S.stats.searches, searches, "the same searches"); eq(S.unanswered, 0, "each with its answer")
+    CheckStandardOffers("with price lists for other items coming in")
+
+    W.AddItem({ id = 230, name = "Tarnished Necklace", equipLoc = "INVTYPE_NECK", quality = 0, value = 3, level = 1, stack = 20 })
+    W.AddAuction(230, 50, { quantity = 7 })
+    W.RunUntil(function() return W.AH.ready end, 5)
+    ScanToEnd()
+    eq(S.info.rows, rows + 1, "the necklace is a row of the auction list")
+    eq(S.stats.candidates, candidates, "and no candidate for the list of gear")
+    eq(S.stats.searches, searches, "no search is sent for it")
+    eq(S.stats.timeouts, 0, "so none goes unanswered"); eq(S.unanswered, 0, "and no price is missing")
+    check(S.stats.score < 1, "the scoring did not wait for a sample link that never comes (" .. S.stats.score .. " s)")
+    eq(Offer("Tarnished Necklace"), nil, "it is not an offer")
+    CheckStandardOffers("with a necklace sold by the piece")
+
+    -- An item the client has not loaded when the rows are scored cannot be told from gear by
+    -- then. Its search is sent, as for any row nothing is known of, and the price list that
+    -- comes back settles it at once: it holds no auctions.
+    W.items["230:0"].cached = false
+    W.neverLoad = { [230] = true }
+    W.RunUntil(function() return W.AH.ready end, 5)
+    ScanToEnd()
+    eq(S.stats.searches, searches + 1, "one search more: for the row nothing was known of")
+    eq(S.stats.timeouts, 0, "the price list is its answer"); eq(S.unanswered, 0, "and no price is missing")
+    eq(S.partial, false, "a whole scan")
+    eq(Offer("Tarnished Necklace"), nil, "still not an offer")
+    CheckStandardOffers("with a necklace the client had not loaded")
+end
+
+-- The tabs write in font families of their own: the client's font file, and for an alphabet
+-- that file is not for, the file the game's own font has for it. The name of a Russian
+-- character on an English client is then written in letters, not in squares.
+function scenarios.fonts()
+    StandardWorld()
+    LoadAddon()
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    ScanToEnd()
+    W.Run(0.3)
+    local function Member(family, alphabet)
+        for _, member in ipairs(family.members) do
+            if member.alphabet == alphabet then return member end
+        end
+    end
+    -- A row of the list that is in view.
+    local function Row()
+        for _, w in ipairs(W.frames) do
+            if w._template == "WowScrollBoxList" then
+                for _, row in ipairs(w:GetFrames()) do
+                    if row._shown and row.entry and row.Name then return row end
+                end
+            end
+        end
+    end
+
+    local frame = UpgradeScoutFrame
+    local words = frame.Status._font
+    eq(type(words), "table", "the status line is written in a font family")
+    eq(#words.members, 5, "with a member for each of the game's alphabets")
+    eq(Member(words, "roman").file, "Fonts\\FRIZQT__.TTF", "Latin letters in the client's standard font")
+    eq(Member(words, "russian").file, "Fonts\\FRIZQT___CYR.TTF", "Cyrillic in the game's font for it")
+    eq(Member(words, "korean").file, "Fonts\\2002.TTF", "Korean in the game's")
+    eq(Member(words, "simplifiedchinese").file, "Fonts\\ARKai_T.ttf", "Chinese in the game's")
+    eq(Member(words, "traditionalchinese").file, "Fonts\\blei00d.TTF", "in either writing")
+    for _, member in ipairs(words.members) do
+        eq(member.height, 11, "every member at the size of the line"); eq(member.flags, "", "and plain")
+    end
+    eq(frame.Age._font, words, "a text of the same font and size is in the same family")
+    check(frame.AffordCheck.Text._font ~= nil, "a tick box's label has a font")
+    -- The rows are in the narrow font the game writes numbers and auction lists in.
+    local narrow = Row().Name._font
+    eq(type(narrow), "table", "an item's name is in a family too")
+    check(narrow ~= words, "another one")
+    eq(Member(narrow, "roman").file, "Fonts\\ARIALN.TTF", "the narrow font")
+    eq(Member(narrow, "korean").file, "Fonts\\K_Damage.TTF", "with the game's Korean file for that font")
+    eq(Member(narrow, "roman").height, 13, "at the size of a row")
+    local count = 0
+    for name, family in pairs(W.fontFamilies) do
+        eq(family.name, name, "a family is known by its name, which no other has")
+        count = count + 1
+    end
+    check(count >= 2 and count <= 16, "a family for each font and size, not for each text (" .. count .. ")")
+
+    -- On a Russian client, with a font of the player's own in place of the game's: the client's
+    -- file writes Latin and Cyrillic, and the game's files the rest.
+    local player, equipped = W.player, W.equipped
+    W.Logout()
+    W.locale = "ruRU"
+    STANDARD_TEXT_FONT = "Interface\\AddOns\\SomeFont\\Mine.ttf"
+    W.Login(player, equipped)
+    ns = {}
+    LoadAddon()
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    words = UpgradeScoutFrame.Status._font
+    eq(Member(words, "roman").file, STANDARD_TEXT_FONT, "Latin letters in the font the player chose")
+    eq(Member(words, "russian").file, STANDARD_TEXT_FONT, "and Cyrillic, the client's own writing")
+    eq(Member(words, "korean").file, "Fonts\\2002.TTF", "Korean still in the game's")
 end
 
 -- With "top 5" off every remaining price is looked up, so the status line can say how long

@@ -30,6 +30,40 @@ local function NumberFont()
     return (Number13FontWhite:GetFont())
 end
 
+-- The alphabets the game has fonts for, as its font families name them, and the one of the
+-- client's own language where that is not the Latin one.
+local ALPHABETS = { "roman", "korean", "simplifiedchinese", "traditionalchinese", "russian" }
+local OWN_ALPHABET = { koKR = "korean", zhCN = "simplifiedchinese", zhTW = "traditionalchinese", ruRU = "russian" }
+
+-- A font of the tabs': the file `file` at `size`, and for the alphabets that file is not for,
+-- the files the game's own font `like` writes them with. A text set to one font file shows
+-- squares for the letters the file lacks: the name of a Russian character on an English
+-- client. A font family, which is what the game's own fonts are, takes the file that suits
+-- what is written. Made once for a file and a size.
+local families, familyCount = {}, 0
+local function Family(file, size, like)
+    local key = file .. "@" .. size
+    local family = families[key]
+    if not family then
+        local own = OWN_ALPHABET[GetLocale()]
+        local members = {}
+        for i = 1, #ALPHABETS do
+            local alphabet = ALPHABETS[i]
+            local written = file
+            -- The client's font has the letters of its own language and the Latin ones.
+            if alphabet ~= "roman" and alphabet ~= own then
+                local object = like:GetFontObjectForAlphabet(alphabet)
+                written = object and object:GetFont() or file
+            end
+            members[i] = { alphabet = alphabet, file = written, height = size, flags = "" }
+        end
+        familyCount = familyCount + 1
+        family = CreateFontFamily(ADDON .. "Font" .. familyCount, members)
+        families[key] = family
+    end
+    return family
+end
+
 ---------------------------------------------------------------------------
 -- Drawing
 ---------------------------------------------------------------------------
@@ -170,10 +204,16 @@ end
 
 -- Text in the game's own fonts, so that it reads right in every language and follows a font
 -- the player has put in their place: the standard one for words, the narrow one the game
--- writes numbers and auction lists in for the rows. `color` is one of the tables above.
+-- writes numbers and auction lists in for the rows. A name in another writing than the
+-- client's (a character of the account, in the status line) is written with the game's font
+-- for that writing: see Family. `color` is one of the tables above.
 local function NewText(parent, size, color, justify, narrow)
     local text = parent:CreateFontString(nil, "ARTWORK")
-    text:SetFont(narrow and NumberFont() or TextFont(), size, "")
+    if narrow then
+        text:SetFontObject(Family(NumberFont(), size, Number13FontWhite))
+    else
+        text:SetFontObject(Family(TextFont(), size, GameFontNormal))
+    end
     text:SetTextColor(color[1], color[2], color[3])
     text:SetShadowColor(0, 0, 0, 0.9)
     text:SetShadowOffset(1, -1)

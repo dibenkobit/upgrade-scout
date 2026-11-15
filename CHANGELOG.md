@@ -4,8 +4,11 @@
 
 - Ticking or unticking **Net cost** no longer sends for prices. The list is repriced on the
   spot: a scan now looks up what it needs either way.
-- When the auction house leaves a price check unanswered, the status line says how many it
-  left. It used to say that the scan stopped early, though it had run to its end.
+- A scan leaves alone gear that is sold by the piece, like a grey necklace that stacks. One
+  such item held every scan up, and the list then said that the scan had stopped early.
+- A name in another alphabet than the game's language is written in letters, not in squares:
+  a Russian character's name on an English client.
+- When the auction house leaves a price check unanswered, the status line says how many.
 
 ## 2.4.0
 

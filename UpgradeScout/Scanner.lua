@@ -778,6 +778,12 @@ local function ScoreRow(row)
         return false
     end
 
+    -- An item that stacks is sold by the piece out of one pile, as consumables are, whatever
+    -- it is filed under (a grey necklace that is a quest's trophy is Armor). It has no
+    -- auctions to read or to bid on, and no sample link either: the row would wait for one,
+    -- and the search for it is answered with a price list. Nothing for this list.
+    if (C_Item.GetItemMaxStackSizeByID(itemID) or 1) > 1 then return true end
+
     -- The link of one real auction in this row: the item as it is for sale, "of the Tiger"
     -- and all. No link made from the row's key could stand in for it: the variant is in no
     -- field of a link that the key could fill in, and the plain item scores as something else.
@@ -1675,7 +1681,17 @@ end
 ns.On("ITEM_DATA_LOAD_RESULT", OnItemLoaded)
 ns.On("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
 
-ns.On("COMMODITY_SEARCH_RESULTS_UPDATED", ReadLookupPieces)
+ns.On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
+    -- An item search of the scan for gear that is answered with a price list was for
+    -- something sold by the piece. ScoreRow lets through none that it knows to stack; this is
+    -- one the client had not loaded by then. The answer is in, and it holds no auctions.
+    local job = run and not run.lookup and run.job
+    if job and S.state == "verify" and job.state == "query" and job.key.itemID == itemID then
+        job.state = "read"
+        return
+    end
+    ReadLookupPieces(itemID)
+end)
 
 ns.On("COMMODITY_PRICE_UPDATED", function(_, total)
     if not quote or quote.sent or type(total) ~= "number" then return end
