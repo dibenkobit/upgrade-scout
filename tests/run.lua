@@ -1180,9 +1180,26 @@ function scenarios.buy()
     eq(box.Count:IsShown(), false, "nothing to count"); eq(box.Stock:IsShown(), false, "nor a stock")
     eq(box.Buy.Label:GetText(), "BUY", "its button says what it does")
     check(table.concat(UISpecialFrames, " "):find(box:GetName(), 1, true) ~= nil, "Escape closes it")
+    -- The item in the box has the tooltip its row in the list has: the item's own, and under
+    -- it the addon's lines, written by the tab as a row's are and so only once.
     box.Item:GetScript("OnEnter")(box.Item)
     eq(GameTooltip._link, good.link, "the item's tooltip over its name")
+    eq(GameTooltip._owner, box.Item, "hung from the item in the box")
+    local gains = 0
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.text == "Arms" then
+            gains = gains + 1
+            eq(line.right, "+80%", "how much better it is on the profile, as its row says")
+        end
+    end
+    eq(gains, 1, "the line of the profile, and once")
+    eq(box.Item.upgradeScoutRow, true, "the tab writes these lines itself, as on a row")
     box.Item:GetScript("OnLeave")(box.Item)
+    eq(GameTooltip:IsShown(), false, "and goes when the mouse leaves")
+    -- The box may go from under the mouse (bought, or Escape): the tooltip goes with it.
+    box.Item:GetScript("OnEnter")(box.Item)
+    box.Item:GetScript("OnHide")(box.Item)
+    eq(GameTooltip:IsShown(), false, "the tooltip of an item whose box has gone")
 
     -- "Cancel": nothing is bought, and the scanner is free again.
     box.Cancel:Click()
@@ -1319,6 +1336,11 @@ function scenarios.buy_refused()
     eq(box.Buy:IsEnabled(), false, "nothing to buy"); eq(box.Cancel:IsEnabled(), true, "the box can be closed")
     eq(Offer("Helm"), nil, "the item leaves the list")
     eq(Said("no longer for sale"), 0, "the box said it, not the chat")
+    -- The list has no row for it now: the item in the box has the tooltip it has anywhere.
+    box.Item:GetScript("OnEnter")(box.Item)
+    eq(GameTooltip._link, box.link, "the item's own tooltip"); eq(box.Item.entry, nil, "with nothing of a row's")
+    eq(box.Item.upgradeScoutRow, false, "nor written as a row's is")
+    box.Item:GetScript("OnLeave")(box.Item)
     -- Gold coming in repaints the box: it stays as it is.
     W.Fire("PLAYER_MONEY")
     W.Run(0.3)
@@ -1603,6 +1625,16 @@ function scenarios.buy_gone()
     eq(Y(box.NetLabel), -166, "on the fourth line"); eq(Y(box.Net), -166, "coins and all")
     eq(box:GetHeight(), 226, "the box is taller by the line")
     eq(box.Buy.Label:GetText(), "BUY", "the button is the usual one"); eq(box.Buy:IsEnabled(), true, "and ready")
+    -- The tooltip of the item in the box has the notes of its row, about the price as the box
+    -- has it.
+    ns.db.net = true
+    box.Item:GetScript("OnEnter")(box.Item)
+    local noted = {}
+    for _, line in ipairs(GameTooltip._lines) do noted[line.text] = line.right end
+    eq(noted.Buyout, "45s", "the buyout as the box has it, not as the list had it")
+    eq(noted["Vendor sell price"], "1s", "what a vendor pays"); eq(noted["Net cost"], "44s", "and what that leaves")
+    box.Item:GetScript("OnLeave")(box.Item)
+    ns.db.net = nil
     box.Cancel:Click()
     eq(#W.AH.calls.bids, 0, "nothing bought before the player agrees")
 

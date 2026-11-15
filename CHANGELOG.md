@@ -43,6 +43,8 @@
 - **Best set for** always says what the set costs in the end, beside what you pay for it.
 - With **Value by net cost** ticked, a row's tooltip has the whole sum: **Buyout**, **Vendor
   sell price** and **Net cost**. The vendor's line used to read "Sell Price".
+- The item in the box before a purchase has the same tooltip as its row in the list. Before,
+  the addon's lines were missing there.
 - The tick boxes above the lists are now in one menu, **Filters**, at the right end of the strip.
   It stays open while you tick. The filters that are on are named beside it.
 - **Only leather**, **Only mail** or **Only plate**, a new filter on the Upgrades tab. It leaves

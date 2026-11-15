@@ -1548,12 +1548,62 @@ local function BoxBuyOnClick()
     PaintBox()
 end
 
--- The item at the top of the box has its tooltip, and a modified click links it or tries it
--- on, as on a row.
+-- The row of the list an offer is on, for the gain the box repeats. (An offer is not listed
+-- when it was bought from somewhere else than its row.)
+local function ListedEntry(offer)
+    for i = 1, #rows do
+        local entry = rows[i].entry
+        if entry and entry.offer and entry.offer.id == offer.id then return entry end
+    end
+end
+
+-- What the list has of the thing the box asks about, as its row's tooltip wants it; nil when
+-- the list has no row for it (an item that is gone). Gear is told as the box has it: the
+-- price may have moved since the row was drawn.
+local function BoxEntry()
+    local offer = buyBox.offer
+    if not offer then
+        for i = 1, #rows do
+            local entry = rows[i].entry
+            if entry and entry.supply and entry.supply == buyBox.supply then return entry end
+        end
+        return nil
+    end
+    -- (An item that has just gone may still be on the list for a moment: the list is redrawn
+    -- a beat after the scanner speaks.)
+    local listed = buyBox.step ~= "gone" and ListedEntry(offer)
+    if not listed then return nil end
+    local entry = {}
+    for key, value in pairs(listed) do entry[key] = value end
+    entry.offer, entry.affordable = offer, offer.buyout <= GetMoney()
+    return entry
+end
+
+-- The item at the top of the box has the tooltip its row in the list has, with our lines
+-- under it (ShowItemTooltip): the box stands over the list, and what the player was reading
+-- there is still to be read. An item the list has no row for has the tooltip it has
+-- anywhere in the game. A modified click links the item or tries it on, as on a row.
 local function BoxItemOnEnter(item)
+    local entry = BoxEntry()
+    -- (Tooltip.lua leaves alone a tooltip that writes its lines itself.)
+    item.entry, item.upgradeScoutRow = entry, entry ~= nil
+    if entry then
+        ShowItemTooltip(item)
+        return
+    end
     GameTooltip:SetOwner(item, "ANCHOR_RIGHT")
     GameTooltip:SetHyperlink(buyBox.link, nil, nil, true)
     GameTooltip:Show()
+end
+
+local function BoxItemOnLeave()
+    HideWorn()
+    GameTooltip_Hide()
+end
+
+-- The box goes without the mouse leaving the item: bought, or closed with Escape.
+local function BoxItemOnHide(item)
+    if GameTooltip:IsOwned(item) then BoxItemOnLeave() end
 end
 
 local function BoxItemOnClick()
@@ -1586,7 +1636,8 @@ local function BuildBuyBox()
     item:SetPoint("TOPLEFT", buyBox.Rim, "TOPLEFT", 0, 0)
     item:SetPoint("BOTTOMRIGHT", buyBox.Name, "BOTTOMRIGHT", 0, 0)
     item:SetScript("OnEnter", BoxItemOnEnter)
-    item:SetScript("OnLeave", GameTooltip_Hide)
+    item:SetScript("OnLeave", BoxItemOnLeave)
+    item:SetScript("OnHide", BoxItemOnHide)
     item:SetScript("OnClick", BoxItemOnClick)
     buyBox.Item = item
 
@@ -1681,15 +1732,6 @@ local function SetBoxKind(gear)
     -- A consumable is used up, and its price is asked for on the spot: it has neither a net
     -- cost nor an old price. (For gear, PaintGearBox says.)
     if not gear then ShowBoxLines(false, false) end
-end
-
--- The row of the list an offer is on, for the gain the box repeats. (An offer is not listed
--- when it was bought from somewhere else than its row.)
-local function ListedEntry(offer)
-    for i = 1, #rows do
-        local entry = rows[i].entry
-        if entry and entry.offer and entry.offer.id == offer.id then return entry end
-    end
 end
 
 ---------------------------------------------------------------------------
