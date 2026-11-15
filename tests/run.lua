@@ -4809,7 +4809,7 @@ function scenarios.welcome()
     eq(trees[1].Label:GetText(), "Arms", "by its name"); eq(trees[2].Label:GetText(), "Protection ~", "an estimated one marked as in the field")
     eq(trees[2].Mark:IsShown(), true, "the one in use is lit: the tree the talents are in"); eq(trees[1].Mark:IsShown(), false, "the other is not")
     check(window.Ask:GetText():find("Tester", 1, true) ~= nil, "the question names the character")
-    check(window.Ask:GetText():find(ns.L.WELCOME_TREE_WHY, 1, true) ~= nil, "and says what the answer is for")
+    eq(window.Ask:GetText(), ns.L.WELCOME_TREE:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")), "and stands alone, with nothing after it")
 
     -- The pictures: the list, an item's tooltip, the bags.
     local list, tip, bag = window.Pair[1].Picture, window.Tips.Picture.Tip, window.Pair[2].Picture

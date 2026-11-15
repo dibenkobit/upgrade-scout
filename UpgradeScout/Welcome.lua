@@ -737,7 +737,7 @@ Paint = function()
     if frame.asks then
         local name = ns.Roster.Colored(me, me.name or "")
         if not pawn then
-            frame.Ask:SetText(L.WELCOME_TREE:format(name) .. Aside(L.WELCOME_TREE_WHY))
+            frame.Ask:SetText(L.WELCOME_TREE:format(name))
         elseif #profiles > 0 then
             frame.Ask:SetText(L.WELCOME_SCALE:format(name))
         else
