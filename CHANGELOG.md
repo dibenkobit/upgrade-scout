@@ -2,9 +2,9 @@
 
 ## 2.6.0
 
-- The addon's window asks two things about item tooltips. How: **All trees** shows a line for
-  every tree of your class, as before. **Only mine** keeps one line: how much better the item
-  is for the tree you play.
+- The addon's window asks two things about item tooltips. How: **All specs** shows a line for
+  every talent tree of your class, as before. **Only my spec** keeps one line: how much better
+  the item is for the tree you play.
 - Where: one box for the addon's tabs at the auction house, one for the rest of the game (bags,
   loot, chat). Untick both and the addon writes nothing into tooltips. Before, the lines on
   the addon's tabs could not be switched off.

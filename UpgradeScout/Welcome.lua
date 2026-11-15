@@ -427,14 +427,28 @@ local function NewHow(block, own, text)
 end
 
 -- A tick box with its words after it, which a click ticks as well: one of the places the
--- lines can show in.
+-- lines can show in. `wide` is how wide its words are on one line.
 local function NewWhere(block, part, text)
     local switch = NewSwitch(block, part)
     switch.Label = NewText(block, 10.5, CREAM)
+    switch.Label:SetSpacing(3)
     switch.Label:SetPoint("TOPLEFT", switch, "TOPLEFT", 21, -2)
     switch.Label:SetText(text)
-    switch:SetHitRectInsets(0, -(6 + switch.Label:GetStringWidth()), -4, -4)
+    switch.wide = switch.Label:GetStringWidth()
+    switch:SetHitRectInsets(0, -(6 + switch.wide), -4, -4)
     return switch
+end
+
+-- How tall such a tick box is where it has a line of the block to itself. Words too long for
+-- the line go on to a second one.
+local function WhereHeight(switch)
+    local room = BLOCK_ROOM - 21
+    if switch.wide <= room then return 15 end
+    switch.Label:SetWordWrap(true)
+    switch.Label:SetWidth(room)
+    local tall = math.max(15, 2 + switch.Label:GetStringHeight())
+    switch:SetHitRectInsets(0, -(6 + room), -4, -(4 + tall - 15))
+    return tall
 end
 
 -- As wide as the two cards. What a card has under one another the block has side by side:
@@ -541,17 +555,19 @@ local function Layout()
     under = under + HOW_HEIGHT + 11
     -- The tick boxes stand side by side where their words leave room for that, and one under
     -- the other where they do not.
-    local first = 21 + block.Tabs.Label:GetStringWidth()
+    local first = 21 + block.Tabs.wide
     block.Tabs:ClearAllPoints()
     block.Tabs:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -under)
     block.Elsewhere:ClearAllPoints()
-    if first + 24 + 21 + block.Elsewhere.Label:GetStringWidth() <= BLOCK_ROOM then
+    if first + 24 + 21 + block.Elsewhere.wide <= BLOCK_ROOM then
         block.Elsewhere:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT + first + 24, -under)
+        under = under + 15
     else
-        under = under + 15 + 7
+        under = under + WhereHeight(block.Tabs) + 7
         block.Elsewhere:SetPoint("TOPLEFT", block, "TOPLEFT", BLOCK_TEXT, -under)
+        under = under + WhereHeight(block.Elsewhere)
     end
-    under = under + 15 + 16
+    under = under + 16
     -- As tall as its words, or as its picture where a class has many trees.
     block:SetHeight(math.max(under, block.Picture.Tip:GetHeight() + 32))
     block:ClearAllPoints()

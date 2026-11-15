@@ -4476,9 +4476,11 @@ function scenarios.tooltip_settings()
     near(window.Pair[1]:GetWidth() * 2 + 11, block:GetWidth(), "which together are as wide as the block under them")
     eq(block.Title:GetText(), "IN ITEM TOOLTIPS", "the block's name, in capitals as a card's")
     check(block.Body:GetText():find("Point at any item", 1, true) ~= nil, "and its sentence")
-    eq(all.Label:GetText(), "All trees", "how: a button for every tree"); eq(own.Label:GetText(), "Only mine", "and one for the tree in use")
-    eq(tabs.Label:GetText(), "On the addon's auction tabs", "where: a box for the addon's tabs")
-    eq(elsewhere.Label:GetText(), "Elsewhere: bags, loot, chat", "and one for the rest of the game")
+    eq(all.Label:GetText(), "All specs", "how: a button for every tree"); eq(own.Label:GetText(), "Only my spec", "and one for the tree in use")
+    eq(tabs.Label:GetText(), "Show on the addon's auction tabs", "where: a box for the addon's tabs")
+    eq(elsewhere.Label:GetText(), "Show elsewhere: bags, loot, chat", "and one for the rest of the game")
+    eq(elsewhere._points[1].x, tabs._points[1].x, "one box under the other: their words do not fit side by side")
+    eq(tabs._points[1].y - elsewhere._points[1].y, 15 + 7, "lower by a box and the room between two")
     eq(all.Mark:IsShown(), true, "every tree is lit to begin with"); eq(own.Mark:IsShown(), false, "the other is dark")
     eq(tabs:GetChecked(), true, "both places ticked to begin with"); eq(elsewhere:GetChecked(), true, "the second as well")
     eq(tabs.Tick:IsShown(), true, "with their ticks"); eq(elsewhere.Tick:IsShown(), true, "both")
@@ -5100,6 +5102,16 @@ end
 
 function scenarios.locale_ru()
     CheckLocale("ruRU", "Russian", "Скан")
+    -- The welcome window: words too long for a line of the tooltip's block go on to a second
+    -- one, and the box under them stands lower by it. (The stand-in client measures a text by
+    -- its bytes, and a Cyrillic letter is two.)
+    ns.Welcome.Show()
+    local block = UpgradeScoutWelcome.Tips
+    eq(block.All.Label:GetText(), "Все спеки", "how, in Russian"); eq(block.Own.Label:GetText(), "Только мой спек", "both buttons")
+    eq(block.Tabs.Label:GetText(), "Показывать на вкладках аддона на аукционе", "where: the addon's tabs")
+    eq(block.Elsewhere.Label:GetText(), "Показывать в остальной игре: сумки, добыча, чат", "and the rest of the game")
+    eq(block.Tabs.Label:GetWidth(), 378, "words too long for the line are given its width")
+    eq(block.Tabs._points[1].y - block.Elsewhere._points[1].y, 2 + 24 + 7, "and the next box is lower by their two lines")
 end
 
 function scenarios.locale_de()

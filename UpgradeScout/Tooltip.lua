@@ -4,7 +4,7 @@ local L = ns.L
 -- Our lines in an item's tooltip: under the addon's name, how much better the item is than
 -- what the character wears, on every profile of its class, the way Pawn shows its scales.
 -- A player whose tooltips are long enough as it is can have one line in their place, for the
--- profile in use ("Only mine" in the welcome window: ns.OwnTree), or none at all: the lines
+-- profile in use ("Only my spec" in the welcome window: ns.OwnTree), or none at all: the lines
 -- written here are switched off there apart from those of our own tabs (ns.Shows "tooltip"
 -- and "rowTooltip").
 -- The Upgrades list writes them under its own rows (UI.lua), for the character the list is
