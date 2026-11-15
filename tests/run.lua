@@ -4474,7 +4474,7 @@ function scenarios.tooltip_settings()
     local all, own, tabs, elsewhere = block.All, block.Own, block.Tabs, block.Elsewhere
     eq(#window.Pair, 2, "two cards: the auction house and the bags")
     near(window.Pair[1]:GetWidth() * 2 + 11, block:GetWidth(), "which together are as wide as the block under them")
-    eq(block.Title:GetText(), "IN ITEM TOOLTIPS", "the block's name, in capitals as a card's")
+    eq(block.Title:GetText(), "TOOLTIP SETTINGS", "the block's name, in capitals as a card's")
     check(block.Body:GetText():find("Point at any item", 1, true) ~= nil, "and its sentence")
     eq(all.Label:GetText(), "All specs", "how: a button for every tree"); eq(own.Label:GetText(), "Only my spec", "and one for the tree in use")
     eq(tabs.Label:GetText(), "Show on the addon's auction tabs", "where: a box for the addon's tabs")
