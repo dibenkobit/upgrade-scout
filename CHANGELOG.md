@@ -27,6 +27,9 @@
 - When an item's price has changed since the scan, **Buy** still asks: the box shows the
   **old price** and the **new price**, and you buy or cancel. Before, the chat said so and you
   had to press Buy again.
+- If someone else buys the item while the box is up, the box stays. It looks the item up again
+  and shows the next price, or says that the item is **no longer for sale**. Before, the box
+  closed and you went back to the list.
 - The tick boxes above the lists are now in one menu, **Filters**, at the right end of the strip.
   It stays open while you tick. The filters that are on are named beside it.
 - **Only leather**, **Only mail** or **Only plate**, a new filter on the Upgrades tab. It leaves

@@ -17,6 +17,7 @@ local names = {
     "talents", "welcome", "minimap",
     "tooltip_settings",
     "wants", "wants_ui", "gain_ui",
+    "buy_refused",
 }
 
 if not scenario then
@@ -1196,17 +1197,28 @@ function scenarios.buy()
     eq(Offer("Good Chest").count, 1, "the next copy is listed at its own price")
     check(W.printed[#W.printed]:find("Bought", 1, true) ~= nil, "purchase reported in chat")
 
-    -- Someone else was faster: the auction house turns the bid down, and the box goes.
+    -- The auction house turns the bid down, and the item is still there at its price (what the
+    -- bid was turned down for, it does not say). The box stays, looks the item up once more
+    -- and asks again. (What a refused bid leads to otherwise: scenarios.buy_refused.)
     W.RunUntil(function() return ns.Scanner.state == "idle" and W.AH.ready end, 30)
     local bids = #W.AH.calls.bids
     W.AH.failBid = true
     ns.Scanner.Buy(Offer("Great Chest"))
     W.RunUntil(Asking, 30)
+    searches = W.AH.calls.search
     box.Buy:Click()
     eq(#W.AH.calls.bids, bids + 1, "the bid went out")
-    W.RunUntil(function() return not box:IsShown() end, 5)
+    W.RunUntil(function() return box.step == "check" end, 5)
+    eq(box:IsShown(), true, "turned down: the box stays"); eq(box.Buy:IsEnabled(), false, "its button greyed while the item is looked up")
+    W.RunUntil(function() return box.step == "confirm" end, 30)
+    eq(W.AH.calls.search, searches + 1, "one more item search")
+    eq(box:IsShown(), true, "and the box asks again"); eq(box.Buy:IsEnabled(), true, "with its button back")
+    eq(box.WasLabel:IsShown(), false, "no old price: the price holds"); eq(box.TotalLabel:GetText(), "BUYOUT", "the usual line")
+    eq(box.Total:GetAmount(), 90000, "at the price it had"); eq(box:GetHeight(), 162, "the box at its usual height")
     W.AH.failBid = nil
     check(Offer("Great Chest") ~= nil, "and nothing was bought")
+    box.Cancel:Click()
+    eq(#W.AH.calls.bids, bids + 1, "no second bid without a second press")
 
     -- Too expensive
     W.player.money = 10
@@ -1214,6 +1226,148 @@ function scenarios.buy()
     ns.Scanner.Buy(Offer("Great Chest"))
     eq(Asking(), nil, "no box when the player cannot pay")
     eq(ns.Scanner.state, "idle", "and no search")
+end
+
+-- The player pressed "Buy" in the box and the auction house turned the bid down: someone else
+-- was faster. The player is not sent back to the list: the box looks the item up once more
+-- and goes on from what it finds.
+function scenarios.buy_refused()
+    StandardWorld()
+    W.AddAuction(200, 6000)             -- a third Good Chest, dearer than the two of the standard world
+    LoadAddon()
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local function Idle() return ns.Scanner.state == "idle" and W.AH.ready end
+    -- Someone else buys every copy of the item at this price.
+    local function Sold(id, buyout)
+        for i = #W.AH.auctions, 1, -1 do
+            local a = W.AH.auctions[i]
+            if a.id == id and a.buyout == buyout then table.remove(W.AH.auctions, i) end
+        end
+    end
+    local function Said(words)
+        local n = 0
+        for _, line in ipairs(W.printed) do
+            if line:find(words, 1, true) then n = n + 1 end
+        end
+        return n
+    end
+
+    -- The next copy costs more. The box shows the price the player agreed to and the price the
+    -- item has now, and "Buy" buys at that one.
+    ns.Scanner.Buy(Offer("Good Chest"))
+    W.RunUntil(Asking, 30)
+    local box = Asking()
+    eq(box.Total:GetAmount(), 4000, "the cheapest copy"); eq(box.WasLabel:IsShown(), false, "at the price the list has")
+    Sold(200, 4000)
+    W.AH.failBid = true
+    box.Buy:Click()
+    eq(#W.AH.calls.bids, 1, "the bid went out"); eq(W.AH.calls.bids[1].amount, 4000, "at that price")
+    W.RunUntil(function() return box.step == "check" end, 5)
+    eq(box:IsShown(), true, "turned down: the box stays")
+    eq(box.Buy:IsEnabled(), false, "its button greyed while the item is looked up")
+    eq(box.Total:GetAmount(), 4000, "the price the player agreed to still in it")
+    W.AH.failBid = nil
+    W.RunUntil(function() return box.step == "confirm" end, 30)
+    eq(box:IsShown(), true, "the box asks again")
+    eq(box.WasLabel:GetText(), "OLD PRICE", "the price the player agreed to"); eq(box.Was:GetAmount(), 4000, "in grey over the new one")
+    eq(box.TotalLabel:GetText(), "NEW PRICE", "the price of the next copy"); eq(box.Total:GetAmount(), 5000, "which is what is paid")
+    eq(box.Gain:GetText(), "+80%", "the gain as it was"); eq(box:GetHeight(), 194, "the box taller by the line")
+    eq(box.Buy:IsEnabled(), true, "and the button is back")
+    eq(Offer("Good Chest").buyout, 5000, "the list has the new price too")
+    eq(Said("now costs"), 0, "not a word in the chat")
+
+    -- That copy goes as well, while the box is up: the same again, from the price the box had.
+    Sold(200, 5000)
+    W.AH.failBid = true
+    box.Buy:Click()
+    eq(#W.AH.calls.bids, 2, "a second bid, from a second press"); eq(W.AH.calls.bids[2].amount, 5000, "at the price the box showed")
+    W.RunUntil(function() return box.step == "check" end, 5)
+    W.AH.failBid = nil
+    W.RunUntil(function() return box.step == "confirm" end, 30)
+    eq(box.Was:GetAmount(), 5000, "the old price is the one the player agreed to last"); eq(box.Total:GetAmount(), 6000, "the new one the third copy's")
+    box.Buy:Click()
+    eq(#W.AH.calls.bids, 3, "the third press"); eq(W.AH.calls.bids[3].amount, 6000, "buys at the price shown")
+    W.RunUntil(function() return not box:IsShown() end, 5)
+    eq(Said("Bought"), 1, "bought, the chat says"); eq(W.player.money, 100000 - 6000, "for 60 silver")
+    W.RunUntil(Idle, 30)
+
+    -- None is left. The box says so in place of its lines and stays until the player closes
+    -- it: a box that went away by itself would look like a purchase.
+    ns.Scanner.Buy(Offer("Helm"))
+    W.RunUntil(Asking, 30)
+    eq(box.Note:IsShown(), false, "no note in the usual question")
+    Sold(211, Offer("Helm").buyout)
+    W.AH.failBid = true
+    box.Buy:Click()
+    W.RunUntil(function() return box.step == "check" end, 5)
+    W.AH.failBid = nil
+    W.RunUntil(function() return box.step == "gone" end, 30)
+    eq(box:IsShown(), true, "the box stays")
+    eq(box.Note:IsShown(), true, "with a note"); eq(box.Note:GetText(), "No longer for sale", "that the item is gone")
+    check(box.Name:GetText():find("Helm", 1, true) ~= nil, "under the item's name")
+    eq(box.FirstLabel:IsShown(), false, "no gain"); eq(box.Gain:IsShown(), false, "nor its number")
+    eq(box.TotalLabel:IsShown(), false, "no price"); eq(box.Total:IsShown(), false, "nor its coins")
+    eq(box.WasLabel:IsShown(), false, "no old one"); eq(box.NetLabel:IsShown(), false, "no net cost")
+    eq(box:GetHeight(), 162, "the box at its usual height")
+    eq(box.Buy:IsEnabled(), false, "nothing to buy"); eq(box.Cancel:IsEnabled(), true, "the box can be closed")
+    eq(Offer("Helm"), nil, "the item leaves the list")
+    eq(Said("no longer for sale"), 0, "the box said it, not the chat")
+    -- Gold coming in repaints the box: it stays as it is.
+    W.Fire("PLAYER_MONEY")
+    W.Run(0.3)
+    eq(box.Note:IsShown(), true, "the note holds"); eq(box.Buy:IsEnabled(), false, "and so does the button")
+    box.Cancel:Click()
+    eq(box:IsShown(), false, "closed")
+
+    -- The next question has its lines back.
+    W.RunUntil(Idle, 30)
+    ns.Scanner.Buy(Offer("Great Chest"))
+    W.RunUntil(Asking, 30)
+    eq(box.Note:IsShown(), false, "no note"); eq(box.TotalLabel:IsShown(), true, "the price is back")
+    eq(box.TotalLabel:GetText(), "BUYOUT", "under its usual name"); eq(box.Total:GetAmount(), 90000, "the robe's")
+    eq(box.Gain:IsShown(), true, "and the gain"); eq(box.Buy:IsEnabled(), true, "and the button")
+
+    -- The player closes the box while the item is being looked up: nothing comes back up.
+    local bids = #W.AH.calls.bids
+    W.AH.failBid = true
+    box.Buy:Click()
+    W.RunUntil(function() return box.step == "check" end, 5)
+    W.AH.failBid = nil
+    box.Cancel:Click()
+    W.RunUntil(Idle, 30)
+    W.Run(0.5)
+    eq(Asking(), nil, "no box after the player closed it")
+    eq(#W.AH.calls.bids, bids + 1, "and nothing more was bid")
+
+    -- Closed in the same way, and the item turns out to be gone: the chat says what the box
+    -- could not.
+    ns.Scanner.Buy(Offer("Great Chest"))
+    W.RunUntil(Asking, 30)
+    Sold(201, 90000)
+    W.AH.failBid = true
+    box.Buy:Click()
+    W.RunUntil(function() return box.step == "check" end, 5)
+    W.AH.failBid = nil
+    box.Cancel:Click()
+    W.RunUntil(Idle, 30)
+    W.Run(0.5)
+    eq(Asking(), nil, "no box")
+    eq(Offer("Great Chest"), nil, "the item leaves the list"); eq(Said("no longer for sale"), 1, "and the chat says why")
+
+    -- The auction house does not answer the lookup: the box goes, and the chat says so.
+    ns.Scanner.Buy(Offer("New Ring"))
+    W.RunUntil(Asking, 30)
+    W.AH.failBid = true
+    W.AH.dropSearches = 5
+    box.Buy:Click()
+    W.RunUntil(function() return box.step == "check" end, 5)
+    W.AH.failBid = nil
+    W.RunUntil(function() return not box:IsShown() end, 60)
+    W.AH.dropSearches = nil
+    eq(Said("did not answer"), 1, "the chat says the auction house did not answer")
+    check(Offer("New Ring") ~= nil, "the item stays in the list")
 end
 
 function scenarios.buy_gone()

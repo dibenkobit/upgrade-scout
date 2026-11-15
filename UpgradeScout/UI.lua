@@ -1379,6 +1379,12 @@ end
 --   confirm  the item was looked up again and is still there
 --   wait     "Buy" was pressed: the bid is out, and the box stays until the auction house
 --            answers, as the game's own question before a buyout does
+--   check    the auction house turned the bid down (someone else was faster): the item is
+--            being looked up once more, and the box goes back to `confirm` with the price it
+--            has now under the one the player agreed to
+--   gone     that lookup found none left: the box says so in place of its lines, and stays
+--            until the player closes it. A box that went away by itself would look like a
+--            purchase.
 -- A consumable (`supply`, `tiers`) is bought by the piece, in steps (see "Consumables: the scan
 -- and the purchase" in Scanner.lua): how many, and what that many cost.
 --   choose   the player types how many; the box shows what that many cost by the price list
@@ -1414,6 +1420,12 @@ end
 
 local function PaintGearBox()
     local offer, step, was = buyBox.offer, buyBox.step, buyBox.was
+    buyBox.Buy.Label:SetText(ns.Upper(L.BUY))
+    -- Nothing left to price or to buy: the box holds its note (see BUY_GONE).
+    if step == "gone" then
+        buyBox.Buy:SetEnabled(false)
+        return
+    end
     local affordable = offer.buyout <= GetMoney()
     local net = ns.db.net and true or false
     ShowBoxLines(was ~= nil, net)
@@ -1424,7 +1436,6 @@ local function PaintGearBox()
     buyBox.Total:SetFontObject(affordable and PriceFontWhite or PriceFontRed)
     SetMoney(buyBox.Total, offer.buyout)
     if net then SetMoney(buyBox.Net, ns.Results.Net(offer.buyout, offer.sell)) end
-    buyBox.Buy.Label:SetText(ns.Upper(L.BUY))
     buyBox.Buy:SetEnabled(step == "confirm" and affordable)
 end
 
@@ -1580,6 +1591,13 @@ local function BuildBuyBox()
     buyBox.Net:SetFontObject(PriceFontWhite)
     ShowBoxLines(false, false)
 
+    -- What the box says in place of its lines when the item is gone, in the middle of the
+    -- room the first two have.
+    buyBox.Note = NewText(buyBox, 12, CREAM, "CENTER")
+    PlaceBoxLine(buyBox.Note, buyBox.Note, BOX_FIRST - BOX_LINE / 2)
+    buyBox.Note:SetText(L.BOX_GONE)
+    buyBox.Note:Hide()
+
     buyBox.Buy = NewButton(buyBox, 138, 24, "ButtonRed", 11)
     buyBox.Buy:SetPoint("BOTTOMLEFT", buyBox, "BOTTOMLEFT", BOX_EDGE, 16)
     buyBox.Buy:SetScript("OnClick", BoxBuyOnClick)
@@ -1603,6 +1621,9 @@ local function SetBoxItem(icon, quality, name, link)
 end
 
 local function SetBoxKind(gear)
+    -- A new question: whatever the last one ended with, its lines are back.
+    buyBox.Note:Hide()
+    buyBox.TotalLabel:Show()
     buyBox.Gain:SetShown(gear)
     buyBox.Count:SetShown(not gear)
     buyBox.Stock:SetShown(not gear)
@@ -1982,18 +2003,44 @@ ns.Listen("CONFIRM_BUY", function(offer, was)
     PaintBox()
 end)
 
--- The auction house's answer to the bid: bought, or turned down (someone else was faster).
--- Either way the box has done its work. A purchase is told in the chat by the scanner; what
--- went wrong, the game shows itself.
+-- The auction house's answer to the bid. Bought: the box has done its work, and the scanner
+-- tells the purchase in the chat. (Whatever step the box is in: an error from elsewhere may
+-- have sent it to look the item up while the bid was still on its way.)
 ns.On("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
-    if buyBox and buyBox:IsShown() and buyBox.offer and buyBox.step == "wait"
-        and buyBox.offer.auctionID == auctionID then
+    if buyBox and buyBox:IsShown() and buyBox.offer and buyBox.offer.auctionID == auctionID then
         buyBox:Hide()
     end
 end)
 
+-- Turned down: someone else was faster, most likely; the game shows what went wrong. The
+-- player is not sent back to the list to press "Buy" again: the box stays, the item is
+-- looked up once more, and the box shows what came of it. That is the price it has now
+-- (CONFIRM_BUY), or that there is none left (BUY_GONE).
 ns.On("AUCTION_HOUSE_SHOW_ERROR", function()
-    if buyBox and buyBox:IsShown() and buyBox.offer and buyBox.step == "wait" then buyBox:Hide() end
+    if not (buyBox and buyBox:IsShown() and buyBox.offer and buyBox.step == "wait") then return end
+    if S.BuyAgain(buyBox.offer) then
+        buyBox.step = "check"
+        PaintBox()
+    else
+        buyBox:Hide()
+    end
+end)
+
+ns.Listen("BUY_GONE", function(offer)
+    if not (buyBox:IsShown() and buyBox.offer == offer) then return end
+    buyBox.step = "gone"
+    buyBox.FirstLabel:Hide()
+    buyBox.Gain:Hide()
+    ShowBoxLines(false, false)
+    buyBox.TotalLabel:Hide()
+    buyBox.Total:Hide()
+    buyBox.Note:Show()
+    PaintBox()
+end)
+
+-- The auction house did not answer the lookup: the scanner says so in the chat.
+ns.Listen("BUY_FAILED", function(offer)
+    if buyBox:IsShown() and buyBox.offer == offer then buyBox:Hide() end
 end)
 
 ---------------------------------------------------------------------------

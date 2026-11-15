@@ -76,6 +76,7 @@ local lastRequest              -- request sent last, repeated if the server drop
 local sendingBrowse = false
 local purchases = {}           -- auction id -> offer, for purchases the player confirmed
 local confirming = false       -- the player is looking at the "Buy this?" box
+local asking                   -- the item lookup that the box, already up, is waiting for (see S.BuyAgain)
 local quote                    -- the consumable purchase the server was asked to price (see QuoteSupply)
 local supplyBids = {}          -- auction id -> { supply, tiers }, for consumables bought as one auction
 local stateSince = 0
@@ -1385,7 +1386,7 @@ function S.Buy(offer)
         ns.Print(L.MSG_CANT_AFFORD)
         return
     end
-    confirming = false
+    confirming, asking = false, nil
     local id, link, price = offer.id, offer.link, offer.buyout
     -- "Is it still there at this price" is answered by the first auction at that price.
     SearchOne("buy", offer, function(ok)
@@ -1401,18 +1402,55 @@ function S.Buy(offer)
     end, offer.uniform and price or nil)
 end
 
--- The player said yes in the confirmation box.
+-- The player said yes in the confirmation box. The box stays up until the auction house
+-- answers, so `confirming` holds until it goes (S.CancelPurchase).
 function S.ConfirmPurchase(offer)
-    confirming = false
-    if not ahOpen then return end
+    if not ahOpen then
+        confirming = false
+        return
+    end
     purchases[offer.auctionID] = offer
     -- Whom it is bought for, should the lists be for someone else by the time it is bought.
     offer.boughtFor = S.ctx and S.ctx.who or nil
     AH.PlaceBid(offer.auctionID, offer.buyout)
 end
 
+-- The auction house turned the bid down: someone else was faster, most likely. The box is
+-- still up, so the item is looked up once more and the box told what came of it:
+--   CONFIRM_BUY  as after S.Buy: it is for sale, at the price the player agreed to or another
+--   BUY_GONE     there is none left
+--   BUY_FAILED   the auction house did not answer
+-- Returns false, and does nothing, when it cannot look now.
+function S.BuyAgain(offer)
+    if S.state ~= "idle" or not ahOpen or not S.ctx then return false end
+    local id, price = offer.id, offer.buyout
+    local mine = {}
+    asking = mine
+    SearchOne("buy", offer, function(ok)
+        local fresh = S.offers[id]
+        -- The player closed the box meanwhile: there is nothing to show it. An item that has
+        -- left the list for good is told in the chat.
+        if asking ~= mine then
+            if ok and not fresh then ns.Print(L.MSG_GONE:format(offer.link)) end
+            return
+        end
+        asking = nil
+        if not ok then
+            ns.Print(L.ERR_BROWSE)
+            ns.Fire("BUY_FAILED", offer)
+        elseif not fresh then
+            ns.Fire("BUY_GONE", offer)
+        else
+            confirming = true
+            ns.Fire("CONFIRM_BUY", fresh, fresh.buyout ~= price and price or nil)
+        end
+    end, offer.uniform and price or nil)
+    return true
+end
+
 -- The confirmation box went away, with or without a purchase.
 function S.CancelPurchase()
+    asking = nil
     if not confirming then return end
     confirming = false
     ns.Fire("OFFERS_CHANGED")

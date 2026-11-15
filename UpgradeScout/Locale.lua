@@ -75,6 +75,9 @@ local L = {
     -- price the list had, and the price the item has now.
     BOX_WAS = "Old price",
     BOX_NOW = "New price",
+    -- In the same box, when the auction house turned the purchase down and the item, looked
+    -- up once more, is gone.
+    BOX_GONE = "No longer for sale",
     MSG_BOUGHT = "Bought %s for %s. It will arrive by mail.",
     MSG_CANT_AFFORD = "You can't afford that.",
 
@@ -286,6 +289,7 @@ if GetLocale() == "ruRU" then
         MSG_PRICE = "%s теперь стоит %s (было %s).",
         BOX_WAS = "Старая цена",
         BOX_NOW = "Новая цена",
+        BOX_GONE = "Уже не продаётся",
         MSG_BOUGHT = "Куплено: %s за %s. Вещь придёт по почте.",
         MSG_CANT_AFFORD = "На это не хватает золота.",
 
@@ -484,6 +488,7 @@ if GetLocale() == "deDE" then
         MSG_PRICE = "%s kostet jetzt %s (vorher %s).",
         BOX_WAS = "Alter Preis",
         BOX_NOW = "Neuer Preis",
+        BOX_GONE = "Wird nicht mehr angeboten",
         MSG_BOUGHT = "%s für %s gekauft. Der Gegenstand kommt per Post.",
         MSG_CANT_AFFORD = "Das kannst du dir nicht leisten.",
 
@@ -683,6 +688,7 @@ if GetLocale() == "frFR" then
         MSG_PRICE = "%s coûte maintenant %s (%s auparavant).",
         BOX_WAS = "Ancien prix",
         BOX_NOW = "Nouveau prix",
+        BOX_GONE = "N'est plus en vente",
         MSG_BOUGHT = "Achat de %s pour %s. L'objet arrivera par courrier.",
         MSG_CANT_AFFORD = "Vous n'avez pas assez d'argent.",
 
@@ -882,6 +888,7 @@ if GetLocale() == "zhCN" then
         MSG_PRICE = "%s 现在售价 %s（之前为 %s）。",
         BOX_WAS = "原价",
         BOX_NOW = "现价",
+        BOX_GONE = "已不再出售",
         MSG_BOUGHT = "已购买 %s，花费 %s。物品将通过邮件送达。",
         MSG_CANT_AFFORD = "你的金币不够。",
 
@@ -1082,6 +1089,7 @@ if GetLocale() == "ptBR" then
         MSG_PRICE = "%s agora custa %s (antes: %s).",
         BOX_WAS = "Preço antigo",
         BOX_NOW = "Preço novo",
+        BOX_GONE = "Não está mais à venda",
         MSG_BOUGHT = "Você comprou %s por %s. O item chegará pelo correio.",
         MSG_CANT_AFFORD = "Você não tem dinheiro suficiente para isso.",
 
@@ -1281,6 +1289,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         MSG_PRICE = "%s ahora cuesta %s (antes %s).",
         BOX_WAS = "Precio anterior",
         BOX_NOW = "Precio nuevo",
+        BOX_GONE = "Ya no está en venta",
         MSG_BOUGHT = "Has comprado %s por %s. Llegará por correo.",
         MSG_CANT_AFFORD = "No tienes suficiente dinero.",
 
@@ -1483,6 +1492,7 @@ if GetLocale() == "koKR" then
         MSG_PRICE = "%s: 이제 %s입니다(이전 %s).",
         BOX_WAS = "이전 가격",
         BOX_NOW = "현재 가격",
+        BOX_GONE = "더 이상 판매하지 않습니다",
         MSG_BOUGHT = "%s 구매 완료, %s. 우편으로 도착합니다.",
         MSG_CANT_AFFORD = "골드가 부족합니다.",
 
@@ -1683,6 +1693,7 @@ if GetLocale() == "zhTW" then
         MSG_PRICE = "%s 現在售價 %s（之前為 %s）。",
         BOX_WAS = "原價",
         BOX_NOW = "現價",
+        BOX_GONE = "已不再販售",
         MSG_BOUGHT = "已購買 %s，花費 %s。物品將透過郵件送達。",
         MSG_CANT_AFFORD = "你的金幣不夠。",
 
