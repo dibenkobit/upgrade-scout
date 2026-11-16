@@ -521,9 +521,11 @@ local function BuildItemRow(row)
     row.Name = NewText(row, 13, CREAM, "LEFT", true)
     row.Name:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
 
-    -- "One-Hand", "Two-Hand"...: at the right end of the name's room, on weapon rows only
-    -- (InitItemRow says where that is).
+    -- "One-Hand", "Two-Hand"...: on weapon rows only, in a column of its own that ends where
+    -- the name's room does, a step before the place of the pick. A row with a pick and a row
+    -- without one have it there alike, so the labels of a slot stand one under another.
     row.Hand = NewText(row, 11, MUTED, "RIGHT", true)
+    row.Hand:SetPoint("RIGHT", row, "LEFT", NAME_LEFT + COLUMNS.gear.name, 0)
 
     row.Pick = NewPick(row)
 
@@ -687,26 +689,25 @@ local function InitItemRow(row, element)
 
     SetPick(row.Pick, entry.pick)
 
-    -- The name has the room up to the pick. A row without a pick has nothing there, and its
-    -- name may run on to where the gain begins.
+    -- The name has the room up to the pick. "Main Hand" lists one-hand and two-hand weapons
+    -- together, so each row says which it is, at the end of that room (see BuildItemRow): the
+    -- name gives up what the label takes, down to the least a name is given, and a label that
+    -- would take more is cut short itself. A row with neither a pick nor a label has nothing
+    -- after its name, which may run on to where the gain begins. A weapon's does not, pick or
+    -- no pick: its label would move with it, and the labels of a slot would stand apart.
     local at = COLUMNS.gear
     local nameWidth = at.name
-    if not entry.pick then nameWidth = at.upgrade - METER_WIDTH - PAD - NAME_LEFT end
-    -- "Main Hand" lists one-hand and two-hand weapons together, so each row says which it is,
-    -- at the end of that room. The name gives up what the label takes, down to the least a
-    -- name is given; a label that would take more is cut short itself.
     local hand = ns.Compare.HandLabel(offer.invType)
     row.Hand:SetShown(hand ~= nil)
     if hand then
         row.Hand:SetText(hand)
         local handWidth = math.min(row.Hand:GetUnboundedStringWidth(), nameWidth - NAME_MIN_WIDTH - PAD)
         row.Hand:SetWidth(handWidth)
-        row.Hand:ClearAllPoints()
-        row.Hand:SetPoint("RIGHT", row, "LEFT", NAME_LEFT + nameWidth, 0)
-        row.Name:SetWidth(nameWidth - handWidth - PAD)
-    else
-        row.Name:SetWidth(nameWidth)
+        nameWidth = nameWidth - handWidth - PAD
+    elseif not entry.pick then
+        nameWidth = at.upgrade - METER_WIDTH - PAD - NAME_LEFT
     end
+    row.Name:SetWidth(nameWidth)
 
     row.Upgrade:SetText(GainText(entry))
     row.Meter:SetWidth(math.max((METER_WIDTH - 1) * data.share, 2))

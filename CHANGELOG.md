@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.1
+
+- **One-Hand** and **Two-Hand** stand in one column in a weapon slot. Before, the word moved
+  to the right in the rows without a **Best upgrade** or **Best value** badge.
+
 ## 2.6.0
 
 - **Pawn** can score your gear. In the addon's window, under **Who scores your gear?**, choose

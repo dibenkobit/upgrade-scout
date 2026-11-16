@@ -1867,6 +1867,24 @@ function scenarios.ui()
     eq(axe.Name:GetWidth(), 110, "the name at its least"); eq(axe.Hand:GetWidth(), nameWidth - 110 - 8, "the label in what is left")
     check(axe.Hand:GetWidth() < #"Two-Hand (game)" * 6, "which is less than its words take")
     eq(axe.Hand._points[1].x, axe.Name._points[1].x + nameWidth, "at the end of the name's room")
+    -- The labels of a slot stand in one column: a weapon that is no pick has its label where
+    -- one that is a pick does, and its name ends before the label. (The name of armor with no
+    -- pick runs on: scenarios.prices.)
+    do
+        local element = axe:GetElementData()
+        local _, draw = box._view:_Ask(element)
+        local entry = element.data.entry
+        local pick = entry.pick
+        check(pick ~= nil and axe.Pick:IsShown(), "the axe is a pick of its slot")
+        entry.pick = nil
+        draw(axe, element)
+        eq(axe.Pick:IsShown(), false, "the same row as one that is no pick")
+        eq(At(axe.Hand), At(axe.Name) + nameWidth, "has its label in the same place")
+        eq(axe.Name:GetWidth() + 8 + axe.Hand:GetWidth(), nameWidth, "and its name still ends before the label")
+        entry.pick = pick
+        draw(axe, element)
+        eq(axe.Pick:IsShown(), true, "the axe as it was")
+    end
     eq(shield.Hand:GetText(), "Off Hand", "the addon's words where the game has none")
     eq(ns.Compare.HandLabel("INVTYPE_WEAPON"), "One-Hand", "one-hand weapons are named too")
     eq(ns.Compare.HandLabel("INVTYPE_CHEST"), nil, "nothing for armor")
