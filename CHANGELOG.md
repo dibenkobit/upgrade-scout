@@ -11,6 +11,8 @@
 - Each character has its own sum. When you shop for another character, you see and set that
   character's.
 - **Best set for** has its own budget and does not use it.
+- In Russian, the names of the filters beside the **Filters** field have a dot between them.
+  Before, there was a square.
 
 ## 2.6.1
 

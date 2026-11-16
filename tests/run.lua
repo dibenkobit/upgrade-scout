@@ -7777,6 +7777,10 @@ end
 
 function scenarios.locale_ru()
     CheckLocale("ruRU", "Russian", "Скан")
+    -- Beside the Filters field the names stand apart by a bullet: the game's Russian font has
+    -- no middle dot, and draws a square for one.
+    ns.Filters.SetRoom(1000)
+    eq(UpgradeScoutFrame.FilterNames:GetText(), "По карману \226\128\162 Топ-5 в слоте", "the filters that are on, a bullet between them")
     -- The welcome window: words too long for a line of the tooltip's block go on to a second
     -- one, and the box under them stands lower by it. (The stand-in client measures a text by
     -- its bytes, and a Cyrillic letter is two.)
@@ -7799,6 +7803,10 @@ end
 
 function scenarios.locale_zh()
     CheckLocale("zhCN", "Simplified Chinese", "扫描")
+    -- Beside the Filters field the middle dot stays: for a bullet, which the Russian client
+    -- gets, the game's Chinese font has an empty place.
+    ns.Filters.SetRoom(1000)
+    check(UpgradeScoutFrame.FilterNames:GetText():find(" \194\183 ", 1, true) ~= nil, "a middle dot between the filters that are on")
 end
 
 function scenarios.locale_pt()

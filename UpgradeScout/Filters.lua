@@ -32,7 +32,11 @@ local BOX_WIDTH, LINE_HEIGHT = 16, 20           -- a line's tick box, and how ta
 -- What a field of the menu is told to do, by one line or another (see NewField).
 local FIELD_SCRIPTS = { "OnTextChanged", "OnEditFocusGained", "OnEditFocusLost", "OnEnterPressed", "OnEscapePressed", "OnTabPressed" }
 local GAP = 8                                   -- between the field and the names beside it
-local SEPARATOR = " \194\183 "                  -- a dot at mid height between two names
+-- Between two names stands a dot at mid height. The game's Russian font (FRIZQT___CYR.TTF)
+-- has no such sign and draws a square in its place, so the Russian client gets a bullet,
+-- which that font has. A bullet for every language would not do: the game's Chinese font
+-- (ARKai_T.ttf) has an empty place for it.
+local SEPARATOR = GetLocale() == "ruRU" and " \226\128\162 " or " \194\183 "
 
 local field, names          -- the dropdown, and the text beside it
 local tab                   -- what the tab tells the field: see Filters.Build
