@@ -68,8 +68,9 @@ end
 -- Saved settings
 ---------------------------------------------------------------------------
 -- Per character. collapsed: slot id -> true for the slots the player folded away in the list.
--- Off until ticked, and so not listed here: plan (the best set for a budget, see Plan.lua) and
--- net (gear priced at its net cost, see Results.Cost).
+-- Off until ticked, and so not listed here: plan (the best set for a budget, see Plan.lua),
+-- net (gear priced at its net cost, see Results.Cost) and allUsable (the list of consumables
+-- has everything the character can use, and not only what has a score, see Supplies.lua).
 ns.db = { affordableOnly = true, topOnly = true, bestOnly = true, collapsed = {} }
 -- For the whole account. chars: the characters of the account as each was last seen, by
 -- name (see Roster.lua). On until switched off in the welcome window (Welcome.lua), and so

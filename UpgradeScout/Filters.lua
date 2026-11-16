@@ -8,7 +8,9 @@ local L = ns.L
 --                 type for the class, Upgrade at least N %; and under a rule Value by net
 --                 cost, which is no filter: it says which of a row's two prices the best
 --                 value is judged by
---   Consumables   Only what I can afford, Best for me
+--   Consumables   Only what I can afford, Best for me, Everything I can use. The last one
+--                 lets more in where the others leave out: unticked, the list is of what
+--                 has a score (see Supplies.lua)
 -- The menu stays open while its boxes are ticked, as the game's own menu of auction filters
 -- does. Beside the field stand the names of the filters that are on, so that it is plain
 -- without a click why the list is what it is; where they do not fit, how many are on.
@@ -66,6 +68,7 @@ local function Active()
     if ns.db.affordableOnly and not planned then Add(L.AFFORD_SHORT, L.AFFORD) end
     if not gear then
         if ns.db.bestOnly then Add(L.SUP_BEST) end
+        if ns.db.allUsable then Add(L.SUP_ALL_SHORT, L.SUP_ALL) end
         return out
     end
     local cap = not planned and ns.Wants.Price(Owner())
@@ -388,6 +391,7 @@ local function Menu(_, root)
     AddCheck(root, L.AFFORD, IsSet, Flip, "affordableOnly", nil, free)
     if not gear then
         AddCheck(root, L.SUP_BEST, IsSet, Flip, "bestOnly", L.SUP_BEST_TIP)
+        AddCheck(root, L.SUP_ALL, IsSet, Flip, "allUsable", L.SUP_ALL_TIP)
         return
     end
     AddCheck(root, L.PRICE_MAX, PriceOn, FlipPrice, nil, L.PRICE_MAX_TIP, free):AddInitializer(AddSum)

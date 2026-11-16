@@ -25,6 +25,12 @@ local L = ns.L
 -- Within a kind the best is the one with the highest score. Where there is no score, it is
 -- the one that asks for the higher level; equal levels are settled by the bigger number in the
 -- text (that is how bandages differ, which ask for a skill and not a level).
+--
+-- The list is of what adds to the character: the consumables that have a score. The rest of
+-- what the character can use (food and drink, potions that restore, bandages, what the tables
+-- do not know, what is of no use) is listed only when asked for: "Everything I can use" in
+-- the Filters menu. (The tab once listed all of it, and what has a score stood under rows of
+-- food and water.)
 local Supplies = {}
 ns.Supplies = Supplies
 
@@ -166,24 +172,31 @@ end
 -- opts:     { money = copper the player has, affordableOnly = bool,
 --             value = function(stats) -> their score on the profile in use; nil without a profile,
 --             mana = the character has mana,
---             bestOnly = bool: one row per kind, its best, and nothing that is of no use }
+--             bestOnly = bool: one row per kind, its best, and nothing that is of no use,
+--             all = bool: everything the character can use, and not only what has a score }
 -- Returns rows, summary
 --   rows:    { { kind = "header", group = "SUB1", title = "Potions", shown = n, total = n },
 --              { kind = "supply", entry = { supply = {...}, affordable = bool, best = bool,
 --                                           value = score or nil, useless = bool, why = ... } }, ... }
 --            best: the first of its kind among what the list may show.
 --   summary: { items = rows listed, groups = subcategories listed,
---              hidden = left out for their price, useless = left out as of no use }
+--              hidden = left out for their price, useless = left out as of no use,
+--              scoreless = left out for having no score (never with `all`) }
 function Supplies.Build(supplies, opts)
     local rows = {}
-    local summary = { items = 0, groups = 0, hidden = 0, useless = 0 }
+    local summary = { items = 0, groups = 0, hidden = 0, useless = 0, scoreless = 0 }
     local money = opts.money or 0
+    -- Without a way to score nothing has a score, and there is nothing to tell apart by it:
+    -- the list is of everything then.
+    local all = opts.all or not opts.value
 
     local bySub, subs = {}, {}
     for _, supply in pairs(supplies) do
         local affordable = supply.price <= money
         local value, use, why, plain = Judge(supply, opts)
-        if opts.bestOnly and use == false then
+        if not all and not value then
+            summary.scoreless = summary.scoreless + 1
+        elseif opts.bestOnly and use == false then
             summary.useless = summary.useless + 1
         elseif opts.affordableOnly and not affordable then
             summary.hidden = summary.hidden + 1

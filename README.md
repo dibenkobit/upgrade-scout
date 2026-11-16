@@ -14,8 +14,9 @@ Open the auction house, click the **Upgrades** tab and press **Scan**. You get a
 better than what you wear, slot by slot, with prices. Press **Buy** on the one you want.
 
 The **Consumables** tab does the same for potions, elixirs, flasks, food, bandages and oils. It
-lists the ones your character can use and scores what each one adds. **Best for me** keeps one of
-each kind: the one that gives you the most, at its lowest price.
+lists the ones that add to your character and scores what each one adds. **Best for me** keeps one
+of each kind: the one that gives you the most, at its lowest price. **Everything I can use** adds
+what has no score: plain food and drink, healing and mana potions, bandages.
 
 Away from the auction house, the tooltip of any item shows how much better it is than what you
 wear: in your bags, in loot, in a quest reward and in a chat link.
@@ -45,8 +46,9 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
 ## What it does
 
 - The scan shows only what you can equip right now and can pay for.
-- The **Consumables** tab lists potions, elixirs, flasks, food, bandages and oils you can use, the
-  most useful for your character first. What is of no use to you is left out.
+- The **Consumables** tab lists the potions, elixirs, flasks, food and oils that add to your
+  character, the most useful first. **Everything I can use** in the **Filters** menu adds what
+  has no score: plain food and drink, healing and mana potions, bandages.
 - Marks two items in every slot: the **Best upgrade** is the strongest, the **Best value** is the
   cheapest per point of improvement.
 - Every row has two prices: the **Buyout** and the **Net cost**, what the item costs you in the

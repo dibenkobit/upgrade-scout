@@ -13,9 +13,10 @@ obtenez la liste de l'équipement meilleur que celui que vous portez, emplacemen
 avec les prix. Appuyez sur **Acheter** pour l'objet que vous voulez.
 
 L'onglet **Consommables** fait de même pour les potions, élixirs, flacons, nourritures, bandages et
-huiles. Il liste ceux que votre personnage peut utiliser et évalue ce que chacun apporte.
-**Le meilleur pour moi** n'en garde qu'un de chaque type : celui qui vous apporte le plus, à son
-prix le plus bas.
+huiles. Il liste ceux qui apportent quelque chose à votre personnage et évalue ce que chacun
+apporte. **Le meilleur pour moi** n'en garde qu'un de chaque type : celui qui vous apporte le plus,
+à son prix le plus bas. **Tout ce que je peux utiliser** ajoute ce qui n'a pas de score :
+nourriture et boissons simples, potions de soins et de mana, bandages.
 
 En dehors de l'hôtel des ventes, l'infobulle de chaque objet montre de combien il est meilleur que
 ce que vous portez : dans vos sacs, dans le butin, dans une récompense de quête et dans un lien du
@@ -24,9 +25,10 @@ chat.
 ## Ce qu'il fait
 
 - Le scan montre seulement ce que vous pouvez équiper tout de suite et payer.
-- L'onglet **Consommables** liste les potions, élixirs, flacons, nourritures, bandages et huiles
-  que vous pouvez utiliser. Les plus utiles pour votre personnage viennent en premier. Ce qui ne
-  vous sert à rien est écarté.
+- L'onglet **Consommables** liste les potions, élixirs, flacons, nourritures et huiles qui
+  apportent quelque chose à votre personnage. Les plus utiles viennent en premier. **Tout ce que
+  je peux utiliser**, dans le menu **Filtres**, ajoute ce qui n'a pas de score : nourriture et
+  boissons simples, potions de soins et de mana, bandages.
 - Marque deux objets par emplacement. **Meilleure amélioration** est le plus fort.
   **Meilleure affaire** est le moins cher par point d'amélioration.
 - Chaque ligne a deux prix : l'**Achat immédiat** et le **Coût net**, ce qu'un objet vous coûte au

@@ -3108,7 +3108,7 @@ function scenarios.net_ui()
     tabs:SetSelected("UpgradeScoutSupplies")
     W.Run(0.3)
     eq(net:IsShown(), false, "no such line over consumables")
-    eq(FilterMenu(), "Only what I can afford | Best for me", "whose menu has their own two filters, and no rule")
+    eq(FilterMenu(), "Only what I can afford | Best for me | Everything I can use", "whose menu has their own filters, and no rule")
     eq(list.Titles[4]:GetText(), "EACH", "whose price column is the price of a piece")
     eq(list.Titles[5]:GetText(), "FOR SALE", "and whose last one counts the pieces")
     eq(Right(filters), -14, "the field stands where it stood")
@@ -3223,22 +3223,38 @@ function scenarios.supplies()
         return table.concat(out, " ")
     end
 
-    -- The default view, for a character without mana: the best of each kind that is of use,
-    -- among what the character can pay for.
+    -- The default view: what adds to the character, which is what has a score; the best of
+    -- each kind, among what the character can pay for.
     local rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    eq(Text(rows), "[Elixirs 2/3] j*=15 l*=12", "what has a score, the higher first, and nothing else")
+    eq(summary.items, 2, "rows counted"); eq(summary.groups, 1, "subcategories counted")
+    eq(summary.scoreless, 11, "the rest is left out and counted: what restores, what the tables do not know, what is of no use")
+    eq(summary.useless, 0, "under that count alone: not as of no use"); eq(summary.hidden, 0, "nor as what costs too much")
+    eq(rows[1].group, "SUB2", "a heading is known by its subcategory")
+    -- Every rank of a kind, with "Best for me" off.
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = false, value = Value, mana = false })
+    eq(Text(rows), "[Elixirs 3/3] j*=15 i=8 l*=12", "each kind from its best down")
+    -- What has a score and costs too much is left out for its price, as before.
+    rows, summary = P.Build(list, { money = 600, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    eq(Text(rows), "[Elixirs 2/2] l*=12 i*=8", "the weaker Agility elixir stands for its kind")
+    eq(summary.hidden, 1, "the stronger one costs too much"); eq(summary.scoreless, 11, "and what has no score is not counted with it")
+
+    -- "Everything I can use", for a character without mana: the best of each kind that is of
+    -- use, among what the character can pay for.
+    rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
         "what restores first, health before health and mana; then by score, the higher first; then what has none")
     eq(summary.items, 8, "rows counted"); eq(summary.groups, 5, "subcategories counted")
     eq(summary.useless, 2, "mana for a character without it and Intellect on a scale without it are left out")
-    eq(summary.hidden, 0, "and are not counted among what costs too much")
+    eq(summary.hidden, 0, "and are not counted among what costs too much"); eq(summary.scoreless, 0, "nothing is left out for having no score")
     eq(rows[1].group, "SUB1", "a heading is known by its subcategory")
 
     -- The same for a character with mana: the mana potion is of use, only too dear.
-    _, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = true })
+    _, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = true })
     eq(summary.useless, 1, "with mana, only the Intellect elixir is of no use"); eq(summary.hidden, 1, "and the mana potion costs too much")
 
-    -- Everything: kinds stay together; what is of no use goes last and is marked.
-    rows, summary = P.Build(list, { money = 20000, affordableOnly = false, bestOnly = false, value = Value, mana = false })
+    -- With no filter besides: kinds stay together; what is of no use goes last and is marked.
+    rows, summary = P.Build(list, { money = 20000, affordableOnly = false, bestOnly = false, all = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 4/4] b* a n* c*!~ [Elixirs 5/5] j*=15 i=8 l*=12 m* k*~ [Food & Drink 2/2] e* d [Bandages 2/2] g* f [Other 1/1] h*",
         "every consumable, the best of its kind first and marked")
     eq(summary.items, 14, "all listed"); eq(summary.hidden, 0, "nothing left out"); eq(summary.useless, 0, "not even what is of no use")
@@ -3250,42 +3266,47 @@ function scenarios.supplies()
 
     -- Other weights turn the elixirs around without another scan.
     weights = { Intellect = 1 }
-    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = true })
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = true })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 2/2] k*=25 m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
         "on weights for Intellect its elixir is the one worth having")
     weights = { Agility = 1, Strength = 1.5 }
 
-    -- Without a way to score, nothing has a score and nothing is left out; kinds keep an
-    -- order all the same: what restores, then the rest from the highest level down.
+    -- Without a way to score, nothing has a score and nothing is left out, asked for or not:
+    -- there is no telling what adds to the character. Kinds keep an order all the same: what
+    -- restores, then the rest from the highest level down.
     rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, mana = true })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 4/5] k* j* l* m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
         "no scores without a way to score, and no meter to order by: the level decides")
-    eq(summary.useless, 0, "what cannot be scored is not called useless")
+    eq(summary.useless, 0, "what cannot be scored is not called useless"); eq(summary.scoreless, 0, "nor left out for having no score")
 
     -- A new rank the tables do not know yet: the kind goes by level, as before there were scores.
     list.o = Make("o", 2, "Increases Agility by 35 for 1 hr.", 29, 900, 1)
-    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/5] l*=12 o* m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
         "the unknown stronger elixir stands for its kind, without a score")
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    eq(Text(rows), "[Elixirs 2/3] j*=15 l*=12", "and is not in the list of what has one, where its kind goes by the ranks that do")
     list.o = nil
 
     -- Food that restores health and adds a stat without a weight is still food.
     list.p = Make("p", 5, "Restores 874 health over 27 sec. Also increases your Intellect by 5.", 25, 100, 5)
     list.p.stats, list.p.restores = { Intellect = 5 }, "H"
-    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 2/3] e* p* [Bandages 1/2] g* [Other 1/1] h*",
         "it is listed for what it restores")
     -- And all such food is one kind, whatever the bonuses: the one for the higher level stands for it.
     list.q = Make("q", 5, "Restores 1392 health over 30 sec. Also increases your Spirit by 8.", 35, 150, 5)
     list.q.stats, list.q.restores = { Spirit = 8 }, "H"
-    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 2/4] q* e* [Bandages 1/2] g* [Other 1/1] h*",
         "one row for food with a bonus of no use, not one for every bonus")
     -- With a weight for one of the bonuses, that food is scored and stands apart.
     weights = { Agility = 1, Strength = 1.5, Spirit = 0.5 }
-    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 3/4] e* p* q*=4 [Bandages 1/2] g* [Other 1/1] h*",
         "food with a bonus of use has its score")
+    rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
+    eq(Text(rows), "[Elixirs 2/3] j*=15 l*=12 [Food & Drink 1/1] q*=4", "and is the one meal in the list of what adds to the character")
     weights = { Agility = 1, Strength = 1.5 }
     list.p, list.q = nil, nil
 
@@ -3394,8 +3415,13 @@ function scenarios.supplies_scan()
     eq(Supply("Elixir of Agility").stats.ITEM_MOD_AGILITY_SHORT, 15, "what an elixir adds")
     eq(Supply("Rough Dynamite").stats, nil, "nothing where the tables say nothing"); eq(Supply("Rough Dynamite").restores, nil, "of either kind")
 
-    -- The rows the tab would show a character without mana, on the profile "S1".
+    -- The rows the tab would show a character without mana, on the profile "S1": what has a score.
     local rows, summary = ns.Supplies.Build(S.supplies, SupplyOpts("S1", { affordableOnly = true, bestOnly = true, mana = false }))
+    eq(#rows, 4, "one heading and three rows"); eq(rows[1].title, "Elixirs", "the elixirs alone")
+    eq(rows[2].entry.supply.name, "Elixir of Agility", "the one that scores highest"); eq(rows[4].entry.supply.name, "Silent Elixir", "down to the last of them")
+    eq(summary.scoreless, 11, "the rest has no score on this profile"); eq(summary.hidden, 1, "and the best Strength elixir costs too much")
+    -- And with everything the character can use.
+    rows, summary = ns.Supplies.Build(S.supplies, SupplyOpts("S1", { affordableOnly = true, bestOnly = true, all = true, mana = false }))
     eq(rows[1].title, "Potions", "potions first"); eq(rows[2].entry.supply.name, "Greater Healing Potion", "the best healing potion")
     eq(rows[3].title, "Elixirs", "the mana potion is of no use, so elixirs come next")
     eq(rows[4].entry.supply.name, "Elixir of Agility", "the elixir that scores highest"); eq(rows[4].entry.value, 15, "with its score")
@@ -3634,6 +3660,7 @@ function scenarios.supplies_ui()
         W.Run(0.3)
     end
     local topBox, bestBox, affordBox = FilterBox("Top 5 per slot"), FilterBox("Best for me"), FilterBox("Only what I can afford")
+    local allBox = FilterBox("Everything I can use")
 
     -- The Upgrades tab has its own titles and controls.
     lib:SetSelected("UpgradeScout")
@@ -3663,10 +3690,14 @@ function scenarios.supplies_ui()
     eq(frame.ProfileDropdown:IsShown(), true, "the profile stays: consumables are scored on it")
     eq(frame.FilterField:IsShown(), true, "the Filters field stays, with the menu of this view")
     eq(topBox:IsShown(), false, "the top-N filter is gone"); eq(bestBox:IsShown(), true, "another one is in its place")
-    eq(FilterMenu(), "Only what I can afford | Best for me", "after the price filter, which is shared: two lines, and no rule")
+    eq(FilterMenu(), "Only what I can afford | Best for me | Everything I can use", "after the price filter, which is shared: two lines of its own, and no rule")
     eq(bestBox:GetChecked(), true, "ticked by default")
     bestBox:Tooltip()
     eq(GameTooltip._lines[1].text, "Best for me", "its tooltip is titled with its label"); eq(GameTooltip._lines[2].text, ns.L.SUP_BEST_TIP, "and says what it does")
+    GameTooltip:Hide()
+    eq(allBox:GetChecked(), false, "the last one is not ticked: the list is of what has a score")
+    allBox:Tooltip()
+    eq(GameTooltip._lines[1].text, "Everything I can use", "titled with its label too"); eq(GameTooltip._lines[2].text, ns.L.SUP_ALL_TIP, "and saying what it adds")
     GameTooltip:Hide()
     eq(frame.FilterNames:GetText(), "Affordable \194\183 Best for me", "both are on, and named beside the field")
     eq(list.Intro:IsShown(), true, "the emblem before the first scan")
@@ -3681,6 +3712,14 @@ function scenarios.supplies_ui()
     W.RunUntil(function() return S.state == "idle" end, 120)
     W.Run(0.3)
     eq(scan.Label:GetText(), "SCAN", "back to Scan")
+    -- Left to itself the list is of what adds to the character: what has a score.
+    eq(Listed(), "[ELIXIRS 2 of 3], Elixir of Agility, Elixir of Ogre Strength",
+        "the best of each kind that has a score and that the character can pay for, and no potion, food or bandage")
+    check(Said("2 consumables in 1 categories. 1 more cost more than you have.") ~= nil, "the status line counts them: " .. tostring(Said("consumables in")))
+    -- "Everything I can use" brings the rest.
+    Tick(allBox, true)
+    eq(ns.db.allUsable, true, "the setting is saved")
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Best for me \194\183 Everything", "and the box is named beside the field, in a word")
     eq(Listed(), "[POTIONS 1 of 3], Greater Healing Potion, [ELIXIRS 2 of 3], Elixir of Agility, Elixir of Ogre Strength, "
         .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite",
         "the best of each kind that is of use and that the character can pay for, by subcategory")
@@ -3749,7 +3788,7 @@ function scenarios.supplies_ui()
     -- Every consumable instead of the best of each kind.
     Tick(bestBox, false)
     eq(ns.db.bestOnly, false, "the setting is saved")
-    eq(frame.FilterNames:GetText(), "Affordable", "and the filter is named beside the field no more")
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Everything", "and the filter is named beside the field no more")
     -- The list is now longer than the plate: it is read at its top and at its bottom.
     local top = Listed()
     scrollBox:SetScrollPercentage(1)
@@ -3768,9 +3807,9 @@ function scenarios.supplies_ui()
 
     -- What costs too much comes back in red when the price filter is off.
     Tick(affordBox, false)
-    eq(frame.FilterNames:GetText(), "", "no filter is on: nothing stands beside the field")
+    eq(frame.FilterNames:GetText(), "Everything", "one box is left on")
     frame.FilterField._tooltip(GameTooltip)
-    eq(GameTooltip._lines[2].text, "No filter is on.", "and its tooltip says so")
+    eq(GameTooltip._lines[2].text, "Everything I can use", "which the field's tooltip names in full")
     GameTooltip:Hide()
     local mana = Row("Mana Potion")
     check(mana ~= nil, "the mana potion is listed")
@@ -3778,6 +3817,16 @@ function scenarios.supplies_ui()
     check(Tooltip(mana):find("you have none", 1, true) ~= nil, "a character without mana is told so: " .. Tooltip(mana))
     eq(Row("Elixir of Giants").Upgrade:GetText(), "+37.5", "the elixir that costs too much has the best score")
     check(math.abs(Row("Elixir of Agility").Meter:GetWidth() - 71 * 15 / 37.5) < 0.01, "and the meters now measure against it")
+    -- With no box ticked at all the list is every consumable that has a score.
+    Tick(allBox, false)
+    eq(ns.db.allUsable, false, "the setting is saved")
+    eq(frame.FilterNames:GetText(), "", "no filter is on: nothing stands beside the field")
+    frame.FilterField._tooltip(GameTooltip)
+    eq(GameTooltip._lines[2].text, "No filter is on.", "and its tooltip says so")
+    GameTooltip:Hide()
+    eq(Listed(), "[ELIXIRS], Elixir of Giants, Elixir of Ogre Strength, Elixir of Agility, Elixir of Lesser Agility",
+        "the kind with the highest score first, each from its best down; nothing without a score")
+    Tick(allBox, true)
     Tick(affordBox, true)
     Tick(bestBox, true)
 
@@ -3896,6 +3945,16 @@ function scenarios.supplies_ui()
     lib:SetSelected("UpgradeScoutSupplies")
     W.Run(0.3)
     check(Row("Greater Healing Potion") ~= nil, "the Consumables tab still has its list")
+
+    -- Nothing for sale has a score (here: the tables know of no stats), and the box is not
+    -- ticked: the list is empty, and says which box lists the rest.
+    for _, supply in pairs(S.supplies) do supply.stats = nil end
+    Tick(allBox, false)
+    eq(Listed(), "", "nothing has a score: nothing is listed")
+    eq(frame.Status:GetText(), "Nothing for sale has a score on this profile. Tick \"Everything I can use\" in Filters to see the rest.", "the status line says where the rest is")
+    eq(list.Hint:GetText(), frame.Status:GetText(), "and so does the middle of the empty plate")
+    Tick(allBox, true)
+    check(Row("Greater Healing Potion") ~= nil, "ticked, it lists them")
 end
 
 ---------------------------------------------------------------------------
@@ -4316,7 +4375,9 @@ function scenarios.alt()
     end
     local gearColumns, gearRows = Columns(jerkin), ItemRows("offer")
 
-    -- Consumables for the druid: its level, its mana, its profession.
+    -- Consumables for the druid: its level, its mana, its profession. (Everything it can use:
+    -- a potion that restores has no score, and is not in the list otherwise.)
+    ns.db.allUsable = true
     lib:SetSelected("UpgradeScoutSupplies")
     check(list.Hint:GetText():find(ALTY .. " can use", 1, true) ~= nil, "the other view is the druid's too: " .. list.Hint:GetText())
     eq(frame.ProfileLabel:IsShown(), false, "the strip is laid out as on the other tab: no caption here either")

@@ -13,9 +13,10 @@ eine Liste mit Ausrüstung, die besser ist als das, was du trägst, Slot für Sl
 Drücke **Kaufen** bei dem Gegenstand, den du willst.
 
 Der Tab **Verbrauchbares** macht dasselbe für Tränke, Elixiere, Fläschchen, Essen, Verbände und
-Öle. Er zeigt, was dein Charakter benutzen kann, und bewertet, was jedes davon bringt.
+Öle. Er zeigt, was deinem Charakter etwas bringt, und bewertet es.
 **Das Beste für mich** behält eins von jeder Art: das, was dir am meisten bringt, zum niedrigsten
-Preis.
+Preis. **Alles, was ich benutzen kann** zeigt auch, was keine Wertung hat: einfaches Essen und
+Trinken, Heil- und Manatränke, Verbände.
 
 Außerhalb des Auktionshauses zeigt der Tooltip jedes Gegenstands, wie viel besser er ist als das,
 was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in einem Chat-Link.
@@ -23,9 +24,10 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
 ## Was es kann
 
 - Der Scan zeigt nur, was du jetzt anlegen und bezahlen kannst.
-- Der Tab **Verbrauchbares** zeigt Tränke, Elixiere, Fläschchen, Essen, Verbände und Öle, die du
-  benutzen kannst. Das Nützlichste für deinen Charakter steht oben. Was dir nichts nützt, wird
-  ausgelassen.
+- Der Tab **Verbrauchbares** zeigt Tränke, Elixiere, Fläschchen, Essen und Öle, die deinem
+  Charakter etwas bringen. Das Nützlichste steht oben. **Alles, was ich benutzen kann** im Menü
+  **Filter** zeigt auch, was keine Wertung hat: einfaches Essen und Trinken, Heil- und
+  Manatränke, Verbände.
 - Markiert in jedem Slot zwei Gegenstände. **Beste Verbesserung** ist der stärkste.
   **Beste Preis-Leistung** ist der günstigste pro Punkt Verbesserung.
 - Jede Zeile hat zwei Preise: den **Sofortkauf** und die **Nettokosten**, also was dich ein

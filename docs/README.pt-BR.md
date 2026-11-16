@@ -13,8 +13,10 @@ equipamentos melhores do que os que está usando, espaço por espaço, com os pr
 **Comprar** no item que quiser.
 
 A aba **Consumíveis** faz o mesmo com poções, elixires, frascos, comida, bandagens e óleos. Ela
-mostra os que o seu personagem pode usar e avalia o que cada um acrescenta. **O melhor para mim**
-deixa um de cada tipo: o que mais acrescenta a você, pelo menor preço.
+mostra os que acrescentam algo ao seu personagem e avalia o que cada um acrescenta.
+**O melhor para mim** deixa um de cada tipo: o que mais acrescenta a você, pelo menor preço.
+**Tudo o que posso usar** acrescenta o que não tem pontuação: comida e bebida comuns, poções de
+vida e de mana, bandagens.
 
 Fora da Casa de Leilões, a dica de qualquer item mostra quanto ele é melhor do que o que você usa:
 nas bolsas, no saque, numa recompensa de missão e num link do chat.
@@ -22,8 +24,9 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
 ## O que ele faz
 
 - O escaneamento mostra só o que você pode equipar agora e pagar.
-- A aba **Consumíveis** mostra poções, elixires, frascos, comida, bandagens e óleos que você pode
-  usar. Primeiro, os mais úteis para o seu personagem. O que não serve para você fica de fora.
+- A aba **Consumíveis** mostra as poções, elixires, frascos, comida e óleos que acrescentam algo
+  ao seu personagem. Primeiro, os mais úteis. **Tudo o que posso usar**, no menu **Filtros**,
+  acrescenta o que não tem pontuação: comida e bebida comuns, poções de vida e de mana, bandagens.
 - Marca dois itens em cada espaço. **Maior melhoria** é o mais forte. **Melhor custo-benefício** é
   o mais barato por ponto de melhoria.
 - Cada linha tem dois preços: o **Arremate** e o **Custo líquido**, quanto um item custa no fim das

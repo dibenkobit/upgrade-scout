@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.9.0
+
+- The **Consumables** tab now lists only what adds to your character: the consumables that have
+  a score on your profile. Before, it listed everything you could use, and the elixirs stood
+  under rows of food, water and potions.
+- **Everything I can use**, a new box in the **Filters** menu, brings the rest back: plain food
+  and drink, healing and mana potions, bandages.
+- When nothing for sale has a score, the list says so and names the box.
+
 ## 2.8.0
 
 - **Forever Companion** can score your gear. In the addon's window, under **Who scores your

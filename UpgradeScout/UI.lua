@@ -904,8 +904,12 @@ local function SuppliesText()
     local parts = {}
     if S.suppliesNote then parts[#parts + 1] = S.suppliesNote end
     if S.suppliesAt then
-        if summary.items == 0 then
-            parts[#parts + 1] = summary.hidden > 0 and L.ST_SUP_NONE_AFFORD:format(summary.hidden) or L.ST_SUP_NONE
+        if summary.items == 0 and summary.hidden > 0 then
+            parts[#parts + 1] = L.ST_SUP_NONE_AFFORD:format(summary.hidden)
+        elseif summary.items == 0 then
+            -- Nothing with a score, and things without one that the list leaves out: the
+            -- line says which box of the Filters menu lists them.
+            parts[#parts + 1] = summary.scoreless > 0 and L.ST_SUP_NONE_SCORED or L.ST_SUP_NONE
         elseif summary.hidden > 0 then
             parts[#parts + 1] = L.ST_SUP_DONE_HIDDEN:format(summary.items, summary.groups, summary.hidden)
         else
@@ -1165,6 +1169,7 @@ function UI.Refresh()
             money = GetMoney(),
             affordableOnly = ns.db.affordableOnly,
             bestOnly = ns.db.bestOnly,
+            all = ns.db.allUsable,
             value = SupplyValue(who),
             mana = mana,
         })

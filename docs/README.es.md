@@ -13,8 +13,9 @@ de equipo mejor que el que llevas, ranura por ranura, con sus precios. Pulsa **C
 objeto que quieras.
 
 La pestaña **Consumibles** hace lo mismo con pociones, elixires, frascos, comida, vendas y aceites.
-Muestra los que tu personaje puede usar y puntúa lo que aporta cada uno. **Lo mejor para mí** deja
-uno de cada tipo: el que más te aporta, a su precio más bajo.
+Muestra los que aportan algo a tu personaje y puntúa lo que aporta cada uno. **Lo mejor para mí**
+deja uno de cada tipo: el que más te aporta, a su precio más bajo. **Todo lo que puedo usar** añade
+lo que no tiene puntuación: comida y bebida corrientes, pociones de salud y de maná, vendas.
 
 Fuera de la casa de subastas, la descripción emergente de cualquier objeto muestra cuánto mejor es
 que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y en un enlace del chat.
@@ -22,8 +23,9 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
 ## Qué hace
 
 - El escaneo muestra solo lo que puedes equipar ahora mismo y pagar.
-- La pestaña **Consumibles** muestra pociones, elixires, frascos, comida, vendas y aceites que
-  puedes usar. Primero, lo más útil para tu personaje. Lo que no te sirve se omite.
+- La pestaña **Consumibles** muestra las pociones, elixires, frascos, comida y aceites que aportan
+  algo a tu personaje. Primero, lo más útil. **Todo lo que puedo usar**, en el menú **Filtros**,
+  añade lo que no tiene puntuación: comida y bebida corrientes, pociones de salud y de maná, vendas.
 - Marca dos objetos en cada ranura. **Mayor mejora** es el más fuerte. **Más rentable** es el más
   barato por punto de mejora.
 - Cada fila tiene dos precios: la **Compra** y el **Precio neto**, lo que un objeto te cuesta al

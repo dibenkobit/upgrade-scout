@@ -86,7 +86,7 @@ local L = {
     TITLE_SUP = "Consumables for sale",
     SUP_BEST = "Best for me",
     SUP_BEST_TIP = "One row for each kind of effect: the consumable that gives your character the most, at its lowest price. What is of no use to you is left out: stats your profile gives no weight, mana for a character without it.",
-    SUP_HINT = "Press Scan. The list will show the consumables on the auction house that you can use right now, and score what they add on your profile: the ones worth the most to your character first.",
+    SUP_HINT = "Press Scan. The list will show the consumables on the auction house that you can use right now and that add to your character, with their score on your profile: the ones worth the most first.",
     SUP_OTHER = "Other",
     COL_EFFECT = "Effect",
     COL_UNIT = "Each",
@@ -113,7 +113,7 @@ local L = {
     WHO_TIP = "Your other characters are here too, once you log in to them with the addon.",
     WHO_SEEN = "%s, level %d. Seen %s ago.",
     HINT_WHO = "Press Scan. The list will show gear on the auction house that %s can equip right now and that scores higher than what that character wears on the profile \"%s\".",
-    SUP_HINT_WHO = "Press Scan. The list will show the consumables on the auction house that %s can use right now, and score what they add on that character's profile: the ones worth the most first.",
+    SUP_HINT_WHO = "Press Scan. The list will show the consumables on the auction house that %s can use right now and that add to that character, with their score on its profile: the ones worth the most first.",
     ST_WHO = "%s: %s",
     TT_OFFHAND_EMPTY_WHO = "The off hand will be empty",
     TT_SUP_NO_WEIGHT_WHO = "Of no use to this character: its profile gives no weight to what it adds",
@@ -246,6 +246,14 @@ local L = {
     WELCOME_ARROWS_COMPANION = "Here Forever Companion draws its own arrows.",
     ERR_NO_SCALE_COMPANION = "Forever Companion has no scale for this character's class.",
     PROFILE_TIP_COMPANION = "Choose the Forever Companion scale to score by.",
+    -- "Everything I can use" (Filters.lua, Supplies.lua): unticked, the list of consumables
+    -- has only what has a score; ticked, the rest of what the character can use as well.
+    -- SUP_ALL_SHORT names it beside the Filters field. ST_SUP_NONE_SCORED is the status line
+    -- when nothing for sale has a score and the box would list something.
+    SUP_ALL = "Everything I can use",
+    SUP_ALL_SHORT = "Everything",
+    SUP_ALL_TIP = "Adds what has no score: food and drink, potions that restore health or mana, bandages and the like. Unticked, the list keeps only what adds to your character.",
+    ST_SUP_NONE_SCORED = "Nothing for sale has a score on this profile. Tick \"Everything I can use\" in Filters to see the rest.",
 }
 
 if GetLocale() == "ruRU" then
@@ -328,7 +336,7 @@ if GetLocale() == "ruRU" then
         TITLE_SUP = "Расходники на аукционе",
         SUP_BEST = "Лучшее для меня",
         SUP_BEST_TIP = "По одной строке на каждый вид эффекта: расходник, который даёт персонажу больше всего, по самой низкой цене. Бесполезное не показывается: характеристики без веса в профиле, мана для персонажа без маны.",
-        SUP_HINT = "Нажми «Скан». В списке появятся расходники с аукциона, которые можно использовать прямо сейчас, с оценкой того, что они дают, по профилю: сначала самые полезные для персонажа.",
+        SUP_HINT = "Нажми «Скан». В списке появятся расходники с аукциона, которые можно использовать прямо сейчас и которые что-то прибавляют персонажу, с оценкой по профилю: сначала самые полезные.",
         SUP_OTHER = "Прочее",
         COL_EFFECT = "Эффект",
         COL_UNIT = "За штуку",
@@ -355,7 +363,7 @@ if GetLocale() == "ruRU" then
         WHO_TIP = "Здесь есть и другие твои персонажи: каждый появляется после входа на него с аддоном.",
         WHO_SEEN = "%s, %d ур. Данные записаны %s назад.",
         HINT_WHO = "Нажми «Скан». В списке появятся вещи с аукциона, которые %s может надеть прямо сейчас и которые по профилю «%s» лучше надетых.",
-        SUP_HINT_WHO = "Нажми «Скан». В списке появятся расходники с аукциона, которые %s может использовать прямо сейчас, с оценкой того, что они дают, по профилю этого персонажа: сначала самые полезные.",
+        SUP_HINT_WHO = "Нажми «Скан». В списке появятся расходники с аукциона, которые %s может использовать прямо сейчас и которые что-то прибавляют этому персонажу, с оценкой по его профилю: сначала самые полезные.",
         ST_WHO = "%s: %s",
         TT_OFFHAND_EMPTY_WHO = "Левая рука останется пустой",
         TT_SUP_NO_WEIGHT_WHO = "Этому персонажу не пригодится: профиль не даёт веса тому, что он прибавляет",
@@ -459,6 +467,11 @@ if GetLocale() == "ruRU" then
         WELCOME_ARROWS_COMPANION = "Здесь свои стрелки рисует Forever Companion.",
         ERR_NO_SCALE_COMPANION = "В Forever Companion нет шкалы для класса этого персонажа.",
         PROFILE_TIP_COMPANION = "Выбери шкалу Forever Companion, по которой оценивать вещи.",
+        -- "Everything I can use"
+        SUP_ALL = "Всё, что могу использовать",
+        SUP_ALL_SHORT = "Всё подряд",
+        SUP_ALL_TIP = "Добавляет то, у чего нет оценки: еду и питьё, зелья здоровья и маны, бинты и прочее. Без галочки в списке только то, что прибавляет персонажу.",
+        ST_SUP_NONE_SCORED = "В продаже нет ничего с оценкой по этому профилю. Остальное покажет фильтр «Всё, что могу использовать».",
     }
     for k, v in pairs(R) do L[k] = v end
 end
@@ -543,7 +556,7 @@ if GetLocale() == "deDE" then
         TITLE_SUP = "Verbrauchsgüter im Auktionshaus",
         SUP_BEST = "Das Beste für mich",
         SUP_BEST_TIP = "Eine Zeile pro Art von Effekt: das Verbrauchsgut, das deinem Charakter am meisten bringt, zum niedrigsten Preis. Was dir nichts nützt, wird ausgelassen: Werte, denen dein Profil kein Gewicht gibt, Mana für einen Charakter ohne Mana.",
-        SUP_HINT = "Drücke Scannen. Die Liste zeigt Verbrauchsgüter aus dem Auktionshaus, die du jetzt benutzen kannst, und bewertet, was sie bringen, nach deinem Profil: zuerst die, die deinem Charakter am meisten nützen.",
+        SUP_HINT = "Drücke Scannen. Die Liste zeigt Verbrauchsgüter aus dem Auktionshaus, die du jetzt benutzen kannst und die deinem Charakter etwas bringen, mit ihrer Wertung nach deinem Profil: zuerst die nützlichsten.",
         SUP_OTHER = "Sonstiges",
         COL_EFFECT = "Effekt",
         COL_UNIT = "Pro Stück",
@@ -570,7 +583,7 @@ if GetLocale() == "deDE" then
         WHO_TIP = "Hier stehen auch deine anderen Charaktere, sobald du dich mit dem Addon auf ihnen eingeloggt hast.",
         WHO_SEEN = "%s, Stufe %d. Zuletzt gesehen vor %s.",
         HINT_WHO = "Klicke auf »Scannen«. Die Liste zeigt dann Ausrüstung aus dem Auktionshaus, die %s sofort anlegen kann und die nach dem Profil »%s« besser ist als das, was dieser Charakter trägt.",
-        SUP_HINT_WHO = "Drücke Scannen. Die Liste zeigt Verbrauchsgüter aus dem Auktionshaus, die %s jetzt benutzen kann, und bewertet, was sie bringen, nach dem Profil dieses Charakters: zuerst die nützlichsten.",
+        SUP_HINT_WHO = "Drücke Scannen. Die Liste zeigt Verbrauchsgüter aus dem Auktionshaus, die %s jetzt benutzen kann und die diesem Charakter etwas bringen, mit ihrer Wertung nach seinem Profil: zuerst die nützlichsten.",
         ST_WHO = "%s: %s",
         TT_OFFHAND_EMPTY_WHO = "Die Schildhand bleibt leer",
         TT_SUP_NO_WEIGHT_WHO = "Nützt diesem Charakter nichts: Sein Profil gewichtet nicht, was es bringt",
@@ -674,6 +687,11 @@ if GetLocale() == "deDE" then
         WELCOME_ARROWS_COMPANION = "Hier zeichnet Forever Companion seine eigenen Pfeile.",
         ERR_NO_SCALE_COMPANION = "Forever Companion hat kein Bewertungsprofil für die Klasse dieses Charakters.",
         PROFILE_TIP_COMPANION = "Wähle das Bewertungsprofil von Forever Companion, nach dem bewertet wird.",
+        -- "Everything I can use"
+        SUP_ALL = "Alles, was ich benutzen kann",
+        SUP_ALL_SHORT = "Alles",
+        SUP_ALL_TIP = "Zeigt auch, was keine Wertung hat: Essen und Trinken, Heil- und Manatränke, Verbände und Ähnliches. Ohne Haken bleibt nur, was deinem Charakter etwas bringt.",
+        ST_SUP_NONE_SCORED = "Nichts im Angebot hat nach diesem Profil eine Wertung. Der Filter »Alles, was ich benutzen kann« zeigt den Rest.",
     }
     for k, v in pairs(D) do L[k] = v end
 end
@@ -759,7 +777,7 @@ if GetLocale() == "frFR" then
         TITLE_SUP = "Consommables en vente",
         SUP_BEST = "Le meilleur pour moi",
         SUP_BEST_TIP = "Une ligne par type d'effet : le consommable qui apporte le plus à votre personnage, à son prix le plus bas. Ce qui ne vous sert à rien est écarté : les caractéristiques sans poids dans votre profil, le mana pour un personnage qui n'en a pas.",
-        SUP_HINT = "Appuyez sur Scanner. La liste affichera les consommables de l'hôtel des ventes que vous pouvez utiliser dès maintenant et évaluera ce qu'ils apportent selon votre profil : les plus utiles à votre personnage en premier.",
+        SUP_HINT = "Appuyez sur Scanner. La liste affichera les consommables de l'hôtel des ventes que vous pouvez utiliser dès maintenant et qui apportent quelque chose à votre personnage, avec leur score selon votre profil : les plus utiles en premier.",
         SUP_OTHER = "Autre",
         COL_EFFECT = "Effet",
         COL_UNIT = "À l'unité",
@@ -786,7 +804,7 @@ if GetLocale() == "frFR" then
         WHO_TIP = "Vos autres personnages sont ici aussi, dès que vous vous êtes connecté sur eux avec l'addon.",
         WHO_SEEN = "%s, niveau %d. Vu il y a %s.",
         HINT_WHO = "Cliquez sur « Scanner ». La liste affichera l'équipement de l'hôtel des ventes que %s peut équiper dès maintenant et dont le score dépasse celui de l'équipement que porte ce personnage selon le profil « %s ».",
-        SUP_HINT_WHO = "Appuyez sur Scanner. La liste affichera les consommables de l'hôtel des ventes que %s peut utiliser dès maintenant et évaluera ce qu'ils apportent selon le profil de ce personnage : les plus utiles en premier.",
+        SUP_HINT_WHO = "Appuyez sur Scanner. La liste affichera les consommables de l'hôtel des ventes que %s peut utiliser dès maintenant et qui apportent quelque chose à ce personnage, avec leur score selon son profil : les plus utiles en premier.",
         ST_WHO = "%s : %s",
         TT_OFFHAND_EMPTY_WHO = "La main gauche sera vide",
         TT_SUP_NO_WEIGHT_WHO = "Ne sert à rien à ce personnage : son profil ne donne aucun poids à ce qu'il apporte",
@@ -890,6 +908,11 @@ if GetLocale() == "frFR" then
         WELCOME_ARROWS_COMPANION = "Ici, Forever Companion dessine ses propres flèches.",
         ERR_NO_SCALE_COMPANION = "Forever Companion n'a aucune échelle pour la classe de ce personnage.",
         PROFILE_TIP_COMPANION = "Choisissez l'échelle Forever Companion qui sert à évaluer.",
+        -- "Everything I can use"
+        SUP_ALL = "Tout ce que je peux utiliser",
+        SUP_ALL_SHORT = "Tout",
+        SUP_ALL_TIP = "Ajoute ce qui n'a pas de score : nourriture et boissons, potions de soins et de mana, bandages et autres. Décochée, la liste ne garde que ce qui apporte quelque chose à votre personnage.",
+        ST_SUP_NONE_SCORED = "Rien en vente n'a de score selon ce profil. Le filtre « Tout ce que je peux utiliser » affiche le reste.",
     }
     for k, v in pairs(F) do L[k] = v end
 end
@@ -975,7 +998,7 @@ if GetLocale() == "zhCN" then
         TITLE_SUP = "在售消耗品",
         SUP_BEST = "最适合我的",
         SUP_BEST_TIP = "每种效果一行：对你的角色提升最大的消耗品，以及它的最低价。对你没用的不会显示：方案中没有权重的属性，以及没有法力的角色用不上的法力。",
-        SUP_HINT = "点击扫描。列表会显示拍卖行中你现在就能使用的消耗品，并按你的方案为它们所加的属性评分：对你的角色最有价值的排在前面。",
+        SUP_HINT = "点击扫描。列表会显示拍卖行中你现在就能使用、并且对你的角色有提升的消耗品，以及按你的方案给出的评分：最有价值的排在前面。",
         SUP_OTHER = "其他",
         COL_EFFECT = "效果",
         COL_UNIT = "单价",
@@ -1002,7 +1025,7 @@ if GetLocale() == "zhCN" then
         WHO_TIP = "你的其他角色也在这里：用本插件登录过一次就会出现。",
         WHO_SEEN = "%s，%d 级。记录于 %s前。",
         HINT_WHO = "点击“扫描”。列表会显示拍卖行中 %s 现在就能装备，并且按方案“%s”评分高于该角色当前装备的物品。",
-        SUP_HINT_WHO = "点击扫描。列表会显示拍卖行中 %s 现在就能使用的消耗品，并按该角色的方案为它们所加的属性评分：最有价值的排在前面。",
+        SUP_HINT_WHO = "点击扫描。列表会显示拍卖行中 %s 现在就能使用、并且对该角色有提升的消耗品，以及按该角色的方案给出的评分：最有价值的排在前面。",
         ST_WHO = "%s：%s",
         TT_OFFHAND_EMPTY_WHO = "副手将会空出",
         TT_SUP_NO_WEIGHT_WHO = "对该角色没用：它的方案没有给这些属性任何权重",
@@ -1106,6 +1129,11 @@ if GetLocale() == "zhCN" then
         WELCOME_ARROWS_COMPANION = "这里由 Forever Companion 画它自己的箭头。",
         ERR_NO_SCALE_COMPANION = "Forever Companion 没有适用于这个角色职业的属性权重。",
         PROFILE_TIP_COMPANION = "选择用来评分的 Forever Companion 属性权重。",
+        -- "Everything I can use"
+        SUP_ALL = "所有我能用的",
+        SUP_ALL_SHORT = "全部",
+        SUP_ALL_TIP = "加上没有评分的：食物和饮料、恢复生命或法力的药水、绷带等。不勾选时，列表只保留对你的角色有提升的。",
+        ST_SUP_NONE_SCORED = "在售的消耗品按这个方案都没有评分。勾选筛选中的“所有我能用的”可查看其余的。",
     }
     for k, v in pairs(Z) do L[k] = v end
 end
@@ -1192,7 +1220,7 @@ if GetLocale() == "ptBR" then
         TITLE_SUP = "Consumíveis à venda",
         SUP_BEST = "O melhor para mim",
         SUP_BEST_TIP = "Uma linha para cada tipo de efeito: o consumível que mais acrescenta ao seu personagem, pelo menor preço. O que não serve para você fica de fora: atributos sem peso no seu perfil, mana para um personagem que não tem mana.",
-        SUP_HINT = "Clique em Escanear. A lista mostrará os consumíveis da Casa de Leilões que você pode usar agora mesmo e pontuará o que eles acrescentam no seu perfil: primeiro os que mais valem para o seu personagem.",
+        SUP_HINT = "Clique em Escanear. A lista mostrará os consumíveis da Casa de Leilões que você pode usar agora mesmo e que acrescentam algo ao seu personagem, com a pontuação no seu perfil: primeiro os que mais valem.",
         SUP_OTHER = "Outros",
         COL_EFFECT = "Efeito",
         COL_UNIT = "Cada",
@@ -1219,7 +1247,7 @@ if GetLocale() == "ptBR" then
         WHO_TIP = "Seus outros personagens também estão aqui, depois que você entrar neles com o addon.",
         WHO_SEEN = "%s, nível %d. Visto há %s.",
         HINT_WHO = "Clique em Escanear. A lista mostrará equipamentos da Casa de Leilões que %s pode equipar agora mesmo e que pontuam mais do que os que esse personagem está usando no perfil \"%s\".",
-        SUP_HINT_WHO = "Clique em Escanear. A lista mostrará os consumíveis da Casa de Leilões que %s pode usar agora mesmo e pontuará o que eles acrescentam no perfil desse personagem: primeiro os que mais valem.",
+        SUP_HINT_WHO = "Clique em Escanear. A lista mostrará os consumíveis da Casa de Leilões que %s pode usar agora mesmo e que acrescentam algo a esse personagem, com a pontuação no perfil dele: primeiro os que mais valem.",
         ST_WHO = "%s: %s",
         TT_OFFHAND_EMPTY_WHO = "A mão secundária ficará vazia",
         TT_SUP_NO_WEIGHT_WHO = "Não serve para este personagem: o perfil dele não dá peso ao que isto acrescenta",
@@ -1323,6 +1351,11 @@ if GetLocale() == "ptBR" then
         WELCOME_ARROWS_COMPANION = "Aqui o Forever Companion desenha as próprias setas.",
         ERR_NO_SCALE_COMPANION = "O Forever Companion não tem nenhuma escala para a classe deste personagem.",
         PROFILE_TIP_COMPANION = "Escolha a escala do Forever Companion usada na avaliação.",
+        -- "Everything I can use"
+        SUP_ALL = "Tudo o que posso usar",
+        SUP_ALL_SHORT = "Tudo",
+        SUP_ALL_TIP = "Acrescenta o que não tem pontuação: comida e bebida, poções de vida e de mana, ataduras e afins. Desmarcada, a lista mantém só o que acrescenta algo ao seu personagem.",
+        ST_SUP_NONE_SCORED = "Nada à venda tem pontuação neste perfil. O filtro \"Tudo o que posso usar\" mostra o resto.",
     }
     for k, v in pairs(P) do L[k] = v end
 end
@@ -1408,7 +1441,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         TITLE_SUP = "Consumibles en venta",
         SUP_BEST = "Lo mejor para mí",
         SUP_BEST_TIP = "Una fila por cada tipo de efecto: el consumible que más aporta a tu personaje, a su precio más bajo. Lo que no te sirve se omite: estadísticas sin peso en tu perfil, maná para un personaje que no tiene.",
-        SUP_HINT = "Pulsa Escanear. La lista mostrará los consumibles de la casa de subastas que puedes usar ahora mismo y puntuará lo que aportan según tu perfil: primero los que más valen para tu personaje.",
+        SUP_HINT = "Pulsa Escanear. La lista mostrará los consumibles de la casa de subastas que puedes usar ahora mismo y que aportan algo a tu personaje, con su puntuación según tu perfil: primero los que más valen.",
         SUP_OTHER = "Otros",
         COL_EFFECT = "Efecto",
         COL_UNIT = "Por unidad",
@@ -1435,7 +1468,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         WHO_TIP = "Tus otros personajes también están aquí, en cuanto entres en ellos con el addon.",
         WHO_SEEN = "%s, nivel %d. Visto hace %s.",
         HINT_WHO = "Pulsa «Escanear». La lista mostrará el equipo de la casa de subastas que %s puede equiparse ahora mismo y que, según el perfil «%s», puntúa más que lo que lleva puesto ese personaje.",
-        SUP_HINT_WHO = "Pulsa Escanear. La lista mostrará los consumibles de la casa de subastas que %s puede usar ahora mismo y puntuará lo que aportan según el perfil de ese personaje: primero los que más valen.",
+        SUP_HINT_WHO = "Pulsa Escanear. La lista mostrará los consumibles de la casa de subastas que %s puede usar ahora mismo y que aportan algo a ese personaje, con su puntuación según su perfil: primero los que más valen.",
         ST_WHO = "%s: %s",
         TT_OFFHAND_EMPTY_WHO = "La mano izquierda quedará vacía",
         TT_SUP_NO_WEIGHT_WHO = "No le sirve a este personaje: su perfil no da peso a lo que aporta",
@@ -1539,6 +1572,11 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         WELCOME_ARROWS_COMPANION = "Aquí Forever Companion dibuja sus propias flechas.",
         ERR_NO_SCALE_COMPANION = "Forever Companion no tiene ninguna escala para la clase de este personaje.",
         PROFILE_TIP_COMPANION = "Elige la escala de Forever Companion con la que se puntúa.",
+        -- "Everything I can use"
+        SUP_ALL = "Todo lo que puedo usar",
+        SUP_ALL_SHORT = "Todo",
+        SUP_ALL_TIP = "Añade lo que no tiene puntuación: comida y bebida, pociones de salud y de maná, vendas y similares. Sin marcar, la lista deja solo lo que aporta algo a tu personaje.",
+        ST_SUP_NONE_SCORED = "Nada de lo que está en venta tiene puntuación con este perfil. El filtro «Todo lo que puedo usar» muestra el resto.",
     }
     for k, v in pairs(E) do L[k] = v end
 end
@@ -1626,7 +1664,7 @@ if GetLocale() == "koKR" then
         TITLE_SUP = "판매 중인 소비용품",
         SUP_BEST = "나에게 가장 좋은 것",
         SUP_BEST_TIP = "효과 종류마다 한 줄: 캐릭터에게 가장 도움이 되는 소비용품과 그 최저가입니다. 쓸모없는 것은 빠집니다: 프로필에 가중치가 없는 능력치, 마나가 없는 캐릭터의 마나.",
-        SUP_HINT = "스캔을 누르세요. 경매장에서 지금 바로 쓸 수 있는 소비용품을 보여주고, 올려 주는 능력치를 프로필로 점수 매깁니다. 캐릭터에게 가장 가치 있는 것이 먼저 나옵니다.",
+        SUP_HINT = "스캔을 누르세요. 경매장에서 지금 바로 쓸 수 있고 캐릭터에게 보탬이 되는 소비용품을 프로필 점수와 함께 보여줍니다. 가장 가치 있는 것이 먼저 나옵니다.",
         SUP_OTHER = "기타",
         COL_EFFECT = "효과",
         COL_UNIT = "개당",
@@ -1653,7 +1691,7 @@ if GetLocale() == "koKR" then
         WHO_TIP = "다른 내 캐릭터도 여기 있습니다. 애드온을 설치한 채 한 번 접속하면 나타납니다.",
         WHO_SEEN = "%s, %d레벨. %s 전에 기록됨.",
         HINT_WHO = "스캔을 누르세요. 경매장에서 %s 캐릭터가 지금 바로 착용할 수 있고 프로필 “%s” 기준으로 그 캐릭터의 장비보다 점수가 높은 장비를 보여줍니다.",
-        SUP_HINT_WHO = "스캔을 누르세요. 경매장에서 %s 캐릭터가 지금 바로 쓸 수 있는 소비용품을 보여주고, 올려 주는 능력치를 그 캐릭터의 프로필로 점수 매깁니다. 가장 가치 있는 것이 먼저 나옵니다.",
+        SUP_HINT_WHO = "스캔을 누르세요. 경매장에서 %s 캐릭터가 지금 바로 쓸 수 있고 그 캐릭터에게 보탬이 되는 소비용품을 그 캐릭터의 프로필 점수와 함께 보여줍니다. 가장 가치 있는 것이 먼저 나옵니다.",
         ST_WHO = "%s: %s",
         TT_OFFHAND_EMPTY_WHO = "보조장비 칸이 비게 됩니다",
         TT_SUP_NO_WEIGHT_WHO = "이 캐릭터에게 쓸모없음: 프로필이 이 능력치에 가중치를 두지 않습니다",
@@ -1757,6 +1795,11 @@ if GetLocale() == "koKR" then
         WELCOME_ARROWS_COMPANION = "여기에는 Forever Companion이 자체 화살표를 그립니다.",
         ERR_NO_SCALE_COMPANION = "Forever Companion에 이 캐릭터의 직업에 맞는 능력치 비율이 없습니다.",
         PROFILE_TIP_COMPANION = "점수를 매길 Forever Companion 능력치 비율을 고르세요.",
+        -- "Everything I can use"
+        SUP_ALL = "내가 쓸 수 있는 모든 것",
+        SUP_ALL_SHORT = "전부",
+        SUP_ALL_TIP = "점수가 없는 것도 보여줍니다: 음식과 음료, 생명력이나 마나를 회복하는 물약, 붕대 등. 끄면 캐릭터에게 보탬이 되는 것만 남습니다.",
+        ST_SUP_NONE_SCORED = "판매 중인 소비용품 가운데 이 프로필로 점수가 있는 것이 없습니다. 필터에서 “내가 쓸 수 있는 모든 것”을 켜면 나머지가 보입니다.",
     }
     for k, v in pairs(K) do L[k] = v end
 end
@@ -1843,7 +1886,7 @@ if GetLocale() == "zhTW" then
         TITLE_SUP = "販售中的消耗品",
         SUP_BEST = "最適合我的",
         SUP_BEST_TIP = "每種效果一列：對你的角色提升最大的消耗品，以及它的最低價。對你沒用的不會顯示：方案中沒有權重的屬性，以及沒有法力的角色用不上的法力。",
-        SUP_HINT = "點擊「掃描」。列表會顯示拍賣場中你現在就能使用的消耗品，並按你的方案為它們所加的屬性評分：對你的角色最有價值的排在前面。",
+        SUP_HINT = "點擊「掃描」。列表會顯示拍賣場中你現在就能使用、並且對你的角色有提升的消耗品，以及按你的方案給出的評分：最有價值的排在前面。",
         SUP_OTHER = "其他",
         COL_EFFECT = "效果",
         COL_UNIT = "單價",
@@ -1870,7 +1913,7 @@ if GetLocale() == "zhTW" then
         WHO_TIP = "你的其他角色也在這裡：用本插件登入過一次就會出現。",
         WHO_SEEN = "%s，%d 級。記錄於 %s前。",
         HINT_WHO = "點擊「掃描」。列表會顯示拍賣場中 %s 現在就能裝備，並且按方案「%s」評分高於該角色目前裝備的物品。",
-        SUP_HINT_WHO = "點擊「掃描」。列表會顯示拍賣場中 %s 現在就能使用的消耗品，並按該角色的方案為它們所加的屬性評分：最有價值的排在前面。",
+        SUP_HINT_WHO = "點擊「掃描」。列表會顯示拍賣場中 %s 現在就能使用、並且對該角色有提升的消耗品，以及按該角色的方案給出的評分：最有價值的排在前面。",
         ST_WHO = "%s：%s",
         TT_OFFHAND_EMPTY_WHO = "副手將會空出",
         TT_SUP_NO_WEIGHT_WHO = "對該角色沒用：它的方案沒有給這些屬性任何權重",
@@ -1974,6 +2017,11 @@ if GetLocale() == "zhTW" then
         WELCOME_ARROWS_COMPANION = "這裡由 Forever Companion 畫它自己的箭頭。",
         ERR_NO_SCALE_COMPANION = "Forever Companion 沒有適用於這個角色職業的權重。",
         PROFILE_TIP_COMPANION = "選擇用來評分的 Forever Companion 權重。",
+        -- "Everything I can use"
+        SUP_ALL = "所有我能用的",
+        SUP_ALL_SHORT = "全部",
+        SUP_ALL_TIP = "加上沒有評分的：食物和飲料、恢復生命或法力的藥水、繃帶等。不勾選時，列表只保留對你的角色有提升的。",
+        ST_SUP_NONE_SCORED = "販售中的消耗品按這個方案都沒有評分。勾選篩選中的「所有我能用的」可查看其餘的。",
     }
     for k, v in pairs(T) do L[k] = v end
 end
