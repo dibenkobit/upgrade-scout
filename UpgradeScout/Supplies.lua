@@ -39,6 +39,9 @@ local CONSUMABLE = Enum.ItemClass.Consumable
 -- The subcategories of Consumables in the order the tab lists them (potions, elixirs,
 -- flasks, food and drink, bandages, scrolls, then what goes on gear and what engineers
 -- make). A subcategory that is not named here comes after these, by its number.
+-- The subcategories that have something with a score come first, in this order, and then the
+-- ones that have nothing of the kind (see Build): with everything listed, the potions would
+-- otherwise open the list with what only restores.
 local ORDER = { 1, 2, 3, 5, 7, 4, 15, 6, 0, 14, 8 }
 local RANK = {}
 for i = 1, #ORDER do RANK[ORDER[i]] = i end
@@ -224,12 +227,11 @@ function Supplies.Build(supplies, opts)
             if not value then kind.scored = false end
         end
     end
-    table.sort(subs, function(a, b) return Rank(a) < Rank(b) end)
-
+    -- Each subcategory is put in order: the ranks within a kind, then its kinds.
     for s = 1, #subs do
-        local sub = subs[s]
-        local kinds = bySub[sub].list
-        local total = 0
+        local group = bySub[subs[s]]
+        local kinds = group.list
+        group.total = 0
         for k = 1, #kinds do
             local kind = kinds[k]
             -- A kind with a member the tables do not know (a new rank of an old elixir) is
@@ -237,10 +239,25 @@ function Supplies.Build(supplies, opts)
             table.sort(kind.entries, kind.scored and Worthier or Stronger)
             kind.entries[1].best = true
             Place(kind)
-            total = total + #kind.entries
+            group.total = group.total + #kind.entries
         end
         table.sort(kinds, ByPlace)
+        -- Its first row has a score: there is something under this heading that adds to the
+        -- character.
+        group.scored = kinds[1].class == SCORED
+    end
+    -- Then the subcategories themselves: the ones with something that adds to the character
+    -- before the ones without, each lot in the order of the tab. A heading changes its lot
+    -- only when the last row with a score under it goes, or the first one comes.
+    table.sort(subs, function(a, b)
+        local x, y = bySub[a].scored, bySub[b].scored
+        if x ~= y then return x end
+        return Rank(a) < Rank(b)
+    end)
 
+    for s = 1, #subs do
+        local sub = subs[s]
+        local kinds, total = bySub[sub].list, bySub[sub].total
         local header = { kind = "header", group = "SUB" .. sub, title = Supplies.SubLabel(sub), shown = 0, total = total }
         rows[#rows + 1] = header
         for k = 1, #kinds do

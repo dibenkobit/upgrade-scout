@@ -3242,12 +3242,12 @@ function scenarios.supplies()
     -- "Everything I can use", for a character without mana: the best of each kind that is of
     -- use, among what the character can pay for.
     rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
-    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
-        "under a heading: by score, the higher first; then what restores, health before health and mana; then what has neither")
+    eq(Text(rows), "[Elixirs 3/4] j*=15 l*=12 m* [Potions 2/3] b* n* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
+        "the heading with scores under it first; under a heading by score, the higher first, then what restores, health before health and mana, then what has neither")
     eq(summary.items, 8, "rows counted"); eq(summary.groups, 5, "subcategories counted")
     eq(summary.useless, 2, "mana for a character without it and Intellect on a scale without it are left out")
     eq(summary.hidden, 0, "and are not counted among what costs too much"); eq(summary.scoreless, 0, "nothing is left out for having no score")
-    eq(rows[1].group, "SUB1", "a heading is known by its subcategory")
+    eq(rows[1].group, "SUB2", "the elixirs lead: theirs is the one heading with a score under it"); eq(rows[5].group, "SUB1", "and the potions follow, at the head of the rest")
 
     -- The same for a character with mana: the mana potion is of use, only too dear.
     _, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = true })
@@ -3255,7 +3255,7 @@ function scenarios.supplies()
 
     -- With no filter besides: kinds stay together; what is of no use goes last and is marked.
     rows, summary = P.Build(list, { money = 20000, affordableOnly = false, bestOnly = false, all = true, value = Value, mana = false })
-    eq(Text(rows), "[Potions 4/4] b* a n* c*!~ [Elixirs 5/5] j*=15 i=8 l*=12 m* k*~ [Food & Drink 2/2] e* d [Bandages 2/2] g* f [Other 1/1] h*",
+    eq(Text(rows), "[Elixirs 5/5] j*=15 i=8 l*=12 m* k*~ [Potions 4/4] b* a n* c*!~ [Food & Drink 2/2] e* d [Bandages 2/2] g* f [Other 1/1] h*",
         "every consumable, the best of its kind first and marked")
     eq(summary.items, 14, "all listed"); eq(summary.hidden, 0, "nothing left out"); eq(summary.useless, 0, "not even what is of no use")
     local why = {}
@@ -3269,19 +3269,20 @@ function scenarios.supplies()
     list.r = Make("r", 1, "Increases Strength by 4 for 2 min.", 5, 80, 3, { Strength = 4 })
     rows = P.Build(list, { money = 20000, affordableOnly = false, bestOnly = false, all = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 5/5] r*=6 b* a n* c*!~ [Elixirs 5/5] j*=15 i=8 l*=12 m* k*~ [Food & Drink 2/2] e* d [Bandages 2/2] g* f [Other 1/1] h*",
-        "the potion with a score first, then the ones that restore, then the one of no use")
+        "the potion with a score first, then the ones that restore, then the one of no use; and the potions, with a score among them now, lead the list as the tab has them")
     list.r = nil
 
     -- Other weights turn the elixirs around without another scan.
     weights = { Intellect = 1 }
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = true })
-    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 2/2] k*=25 m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
+    eq(Text(rows), "[Elixirs 2/2] k*=25 m* [Potions 2/3] b* n* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
         "on weights for Intellect its elixir is the one worth having")
     weights = { Agility = 1, Strength = 1.5 }
 
     -- Without a way to score, nothing has a score and nothing is left out, asked for or not:
     -- there is no telling what adds to the character. Kinds keep an order all the same: what
-    -- restores, then the rest from the highest level down.
+    -- restores, then the rest from the highest level down. And the headings stand as the tab
+    -- has them: none has a score under it to come first for.
     rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, mana = true })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 4/5] k* j* l* m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
         "no scores without a way to score, and no meter to order by: the level decides")
@@ -3290,7 +3291,7 @@ function scenarios.supplies()
     -- A new rank the tables do not know yet: the kind goes by level, as before there were scores.
     list.o = Make("o", 2, "Increases Agility by 35 for 1 hr.", 29, 900, 1)
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
-    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/5] l*=12 o* m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
+    eq(Text(rows), "[Elixirs 3/5] l*=12 o* m* [Potions 2/3] b* n* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
         "the unknown stronger elixir stands for its kind, without a score")
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
     eq(Text(rows), "[Elixirs 2/3] j*=15 l*=12", "and is not in the list of what has one, where its kind goes by the ranks that do")
@@ -3300,19 +3301,19 @@ function scenarios.supplies()
     list.p = Make("p", 5, "Restores 874 health over 27 sec. Also increases your Intellect by 5.", 25, 100, 5)
     list.p.stats, list.p.restores = { Intellect = 5 }, "H"
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
-    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 2/3] e* p* [Bandages 1/2] g* [Other 1/1] h*",
+    eq(Text(rows), "[Elixirs 3/4] j*=15 l*=12 m* [Potions 2/3] b* n* [Food & Drink 2/3] e* p* [Bandages 1/2] g* [Other 1/1] h*",
         "it is listed for what it restores")
     -- And all such food is one kind, whatever the bonuses: the one for the higher level stands for it.
     list.q = Make("q", 5, "Restores 1392 health over 30 sec. Also increases your Spirit by 8.", 35, 150, 5)
     list.q.stats, list.q.restores = { Spirit = 8 }, "H"
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
-    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 2/4] q* e* [Bandages 1/2] g* [Other 1/1] h*",
+    eq(Text(rows), "[Elixirs 3/4] j*=15 l*=12 m* [Potions 2/3] b* n* [Food & Drink 2/4] q* e* [Bandages 1/2] g* [Other 1/1] h*",
         "one row for food with a bonus of no use, not one for every bonus")
     -- With a weight for one of the bonuses, that food is scored and stands apart.
     weights = { Agility = 1, Strength = 1.5, Spirit = 0.5 }
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
-    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 3/4] q*=4 e* p* [Bandages 1/2] g* [Other 1/1] h*",
-        "food with a bonus of use has its score, and stands above the food that only restores")
+    eq(Text(rows), "[Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 3/4] q*=4 e* p* [Potions 2/3] b* n* [Bandages 1/2] g* [Other 1/1] h*",
+        "food with a bonus of use has its score, and stands above the food that only restores; its heading moves up to the elixirs', above the potions")
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
     eq(Text(rows), "[Elixirs 2/3] j*=15 l*=12 [Food & Drink 1/1] q*=4", "and is the one meal in the list of what adds to the character")
     weights = { Agility = 1, Strength = 1.5 }
@@ -3430,12 +3431,13 @@ function scenarios.supplies_scan()
     eq(summary.scoreless, 11, "the rest has no score on this profile"); eq(summary.hidden, 1, "and the best Strength elixir costs too much")
     -- And with everything the character can use.
     rows, summary = ns.Supplies.Build(S.supplies, SupplyOpts("S1", { affordableOnly = true, bestOnly = true, all = true, mana = false }))
-    eq(rows[1].title, "Potions", "potions first"); eq(rows[2].entry.supply.name, "Greater Healing Potion", "the best healing potion")
-    eq(rows[3].title, "Elixirs", "the mana potion is of no use, so elixirs come next")
-    eq(rows[4].entry.supply.name, "Elixir of Agility", "the elixir that scores highest"); eq(rows[4].entry.value, 15, "with its score")
-    eq(rows[5].entry.supply.name, "Elixir of Ogre Strength", "then the next kind"); eq(rows[5].entry.value, 12, "by its score")
-    eq(rows[6].entry.supply.name, "Silent Elixir", "an item without its effect line is scored all the same")
-    eq(rows[7].title, "Food & Drink", "nothing for the Intellect elixir on this profile")
+    eq(rows[1].title, "Elixirs", "the elixirs first: they have scores")
+    eq(rows[2].entry.supply.name, "Elixir of Agility", "the elixir that scores highest"); eq(rows[2].entry.value, 15, "with its score")
+    eq(rows[3].entry.supply.name, "Elixir of Ogre Strength", "then the next kind"); eq(rows[3].entry.value, 12, "by its score")
+    eq(rows[4].entry.supply.name, "Silent Elixir", "an item without its effect line is scored all the same")
+    eq(rows[5].title, "Potions", "nothing for the Intellect elixir on this profile: the potions come next, the first of what has no score")
+    eq(rows[6].entry.supply.name, "Greater Healing Potion", "the best healing potion")
+    eq(rows[7].title, "Food & Drink", "the mana potion is of no use, so food comes next")
     eq(summary.useless, 2, "it and the mana potion are of no use"); eq(summary.hidden, 1, "and the best Strength elixir costs too much")
 
     -- A scan that is stopped keeps what it read, and the note is the consumables list's own.
@@ -3728,9 +3730,9 @@ function scenarios.supplies_ui()
     Tick(allBox, true)
     eq(ns.db.allUsable, true, "the setting is saved")
     eq(frame.FilterNames:GetText(), "Affordable \194\183 Best for me \194\183 Everything", "and the box is named beside the field, in a word")
-    eq(Listed(), "[POTIONS 1 of 3], Greater Healing Potion, [ELIXIRS 2 of 3], Elixir of Agility, Elixir of Ogre Strength, "
+    eq(Listed(), "[ELIXIRS 2 of 3], Elixir of Agility, Elixir of Ogre Strength, [POTIONS 1 of 3], Greater Healing Potion, "
         .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite",
-        "the best of each kind that is of use and that the character can pay for, by subcategory")
+        "the best of each kind that is of use and that the character can pay for, by subcategory: the one with scores first")
     check(Said("6 consumables in 5 categories. 1 more cost more than you have.") ~= nil, "the status line counts them")
     check(Said("Sec ago") ~= nil, "and says how old the scan is")
     check(frame.Status:GetText():find("ago", 1, true) == nil, "at the right end, not in the status line: " .. frame.Status:GetText())
@@ -3802,8 +3804,8 @@ function scenarios.supplies_ui()
     scrollBox:SetScrollPercentage(1)
     local bottom = Listed()
     scrollBox:SetScrollPercentage(0)
-    local first = "[POTIONS], Greater Healing Potion, Healing Potion, Minor Healing Potion, "
-        .. "[ELIXIRS], Elixir of Agility, Elixir of Lesser Agility, Elixir of Ogre Strength, Elixir of Wisdom, "
+    local first = "[ELIXIRS], Elixir of Agility, Elixir of Lesser Agility, Elixir of Ogre Strength, Elixir of Wisdom, "
+        .. "[POTIONS], Greater Healing Potion, Healing Potion, Minor Healing Potion, "
         .. "[FOOD & DRINK], Stormwind Brie, Wild Hog Shank, Mutton Chop"
     local ending = "[BANDAGES], Heavy Wool Bandage, Wool Bandage, [OTHER], Rough Dynamite"
     eq(top:sub(1, #first), first, "each kind from its best down; of two equally strong the cheaper first; what is of no use last")
@@ -3841,18 +3843,18 @@ function scenarios.supplies_ui()
     -- A heading folds its subcategory away, as a slot's heading does.
     local heading = Rows()[1]
     heading.Toggle:Click()
-    eq(ns.db.collapsed.SUB1, true, "potions folded")
-    eq(Listed(), "[POTIONS 1 of 3], [ELIXIRS 2 of 3], Elixir of Agility, Elixir of Ogre Strength, "
-        .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite", "its rows are gone")
+    eq(ns.db.collapsed.SUB2, true, "elixirs folded")
+    eq(Listed(), "[ELIXIRS 2 of 3], [POTIONS 1 of 3], Greater Healing Potion, "
+        .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite", "its rows are gone, and it keeps its place")
     Rows()[1].Toggle:Click()
-    eq(ns.db.collapsed.SUB1, nil, "and unfolded again")
+    eq(ns.db.collapsed.SUB2, nil, "and unfolded again")
 
     -- Another profile: the list is scored again as it stands. No scan, of either kind.
     local scannedAt = S.suppliesAt
     frame.ProfileDropdown:Pick(2)
     W.Run(0.3)
     eq(ns.Roster.Me().profile, "S2", "the choice is saved"); eq(S.state, "idle", "nothing is scanned"); eq(S.suppliesAt, scannedAt, "the list is the same scan's")
-    eq(Listed(), "[POTIONS 1 of 3], Greater Healing Potion, [ELIXIRS], Elixir of Wisdom, "
+    eq(Listed(), "[ELIXIRS], Elixir of Wisdom, [POTIONS 1 of 3], Greater Healing Potion, "
         .. "[FOOD & DRINK 1 of 3], Stormwind Brie, [BANDAGES 1 of 2], Heavy Wool Bandage, [OTHER], Rough Dynamite",
         "on a profile for Intellect its elixir is the one of use")
     eq(Row("Elixir of Wisdom").Upgrade:GetText(), "+6", "with its score on that profile")

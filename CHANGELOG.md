@@ -5,6 +5,8 @@
 - With **Everything I can use** ticked, what adds to your character stands at the top of each
   heading, the highest score first. Food, drink and potions that only restore come after it.
   Before, they came first.
+- The headings with something scored under them come first, and the ones with nothing scored
+  after them. With everything listed, the list no longer opens with healing potions.
 
 ## 2.9.0
 
