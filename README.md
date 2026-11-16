@@ -2,7 +2,7 @@
 
 **Finds the gear upgrades and consumables on the auction house that you can use and afford.** An addon for World of Warcraft Forever.
 
-![Upgrade Scout: gear and consumables worth buying. One scan of the auction house shows what you can use and afford.](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/cover.png)
+![Upgrade Scout: gear and consumables worth buying. One scan of the auction house shows what you can use and afford.](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-cover.png)
 
 **Download on [CurseForge](https://www.curseforge.com/wow/addons/upgrade-scout) or [Wago](https://addons.wago.io/addons/upgrade-scout)**
 
@@ -20,27 +20,27 @@ each kind: the one that gives you the most, at its lowest price.
 Away from the auction house, the tooltip of any item shows how much better it is than what you
 wear: in your bags, in loot, in a quest reward and in a chat link.
 
-![One scan shows what to buy: the Upgrades tab at the auction house](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/1-scan.png)
+![One scan shows what to buy: the Upgrades tab at the auction house](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-1-scan.png)
 
-![Buy right from the list: the box that asks before a purchase](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/2-buy.png)
+![Buy right from the list: the box that asks before a purchase](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-2-buy.png)
 
-![Consumables too: the Consumables tab at the auction house](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/3-consumables.png)
+![Consumables too: the Consumables tab at the auction house](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-3-consumables.png)
 
-![Every spec in the tooltip](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/4-tooltip.png)
+![Every spec in the tooltip](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-4-tooltip.png)
 
-![A green arrow in your bags](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/5-bags.png)
+![A green arrow in your bags](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-5-bags.png)
 
-![What gear costs you in the end: the buyout and the net cost side by side](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/6-prices.png)
+![What gear costs you in the end: the buyout and the net cost side by side](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-6-prices.png)
 
-![Only upgrades worth a look: the Filters menu](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/7-filters.png)
+![Only upgrades worth a look: the Filters menu](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-7-filters.png)
 
-![Shop for your other characters: the Profile dropdown](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/8-characters.png)
+![Shop for your other characters: the Profile dropdown](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-8-characters.png)
 
-![Mail your purchases in two clicks](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/9-mail.png)
+![Mail your purchases in two clicks](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-9-mail.png)
 
-![One window to set it up: the addon's window](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/10-setup.png)
+![One window to set it up: the addon's window](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-10-setup.png)
 
-![Use Pawn? Keep your scales: Pawn chosen in the addon's window, and its lines in a tooltip](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/11-pawn.png)
+![Use Pawn? Keep your scales: Pawn chosen in the addon's window, and its lines in a tooltip](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/v2-6-0-11-pawn.png)
 
 ## What it does
 
