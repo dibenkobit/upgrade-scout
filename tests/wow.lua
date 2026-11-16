@@ -2277,6 +2277,10 @@ end
 --     about the character being played, while its two options for that are on
 --     (scales_enabled, scale_tooltip; an option never set counts as on). Here it writes only
 --     where a scenario asks (W.companion.writes).
+--   * Before that line it writes its lists of the best gear into the same two tooltips, for
+--     the talent trees the player follows in it, while its option for that is on
+--     (bis_tooltip). Here one line stands for them, where a scenario asks
+--     (W.companion.lists).
 --   * After any change made in its options it calls its own RefreshScaleOverlays
 --     (W.CompanionChanged).
 -- An item's stats are made the way its game stats are (C_Item.GetItemStats): one named after
@@ -2437,11 +2441,13 @@ function W.CompanionChanged()
     ForeverCompanion:RefreshScaleOverlays()
 end
 
--- Its line in a tooltip the game has just filled in (M:SetHyperlink).
+-- Its lines in a tooltip the game has just filled in (M:SetHyperlink).
 function W.CompanionWrites(tooltip, link)
     local C = W.companion
-    if not C or not C.writes or (tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip) then return end
+    if not C or (tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip) then return end
     local options = ForeverCompanion.db.global
+    if C.lists and options.bis_tooltip ~= false then tooltip:AddLine("Companion best: Warrior") end
+    if not C.writes then return end
     if options.scales_enabled == false or options.scale_tooltip == false then return end
     local item = ParseItem(link)
     if not item or not COMPANION_GEAR[item.equipLoc or ""] then return end

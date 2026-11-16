@@ -497,28 +497,36 @@ function C.DrawsArrows()
         and options.scale_badges_more ~= false
 end
 
--- Forever Companion writes its line into every item tooltip, and means the character being
--- played: it knows of no other. Under an item picked for another character of the account
--- (a row of a list made for one, and what that one wears beside it) that reads as if it
--- were said of that character, which it is not.
--- C.Hushed fills such a tooltip in with that line left out: for the length of the call its
--- option for the line is off, and it is put back before anything else runs, whatever
--- happens in the call. This is asked whoever scores: the line is Forever Companion's to
--- write with the addon's own weights chosen as well. Without Forever Companion the tooltip
--- is filled in and no more.
+-- Forever Companion writes into every item tooltip, and means the character being played:
+-- it knows of no other. Its line of the scale says what the item is worth to that one and
+-- how much better it is than what that one wears; its lists of the best gear say where the
+-- item stands for the talent trees that one's player follows. Under an item picked for
+-- another character of the account (a row of a list made for one, and what that one wears
+-- beside it) both read as if they were said of that character, which they are not.
+-- C.Hushed fills such a tooltip in with both left out: for the length of the call its two
+-- options for them are off, and they are put back before anything else runs, whatever
+-- happens in the call. What it writes of the item itself stays: its price at the auction
+-- house, how many of it the player's characters have. This is asked whoever scores: the
+-- lines are Forever Companion's to write with the addon's own weights chosen as well.
+-- Without Forever Companion the tooltip is filled in and no more.
 -- fill: what fills the tooltip in; it is called with the arguments that follow it.
+local ABOUT_ME = { "scale_tooltip", "bis_tooltip" }
+
 function C.Hushed(fill, ...)
     local options = Options()
     if not options then
         fill(...)
         return
     end
-    -- (As it is written down, not as it reads: an option that was never set reads as its
-    -- default, and is to be left unset.)
-    local kept = rawget(options, "scale_tooltip")
-    options.scale_tooltip = false
+    -- (As they are written down, not as they read: an option that was never set reads as
+    -- its default, and is to be left unset.)
+    local kept = {}
+    for i = 1, #ABOUT_ME do
+        kept[i] = rawget(options, ABOUT_ME[i])
+        options[ABOUT_ME[i]] = false
+    end
     local ok, problem = pcall(fill, ...)
-    rawset(options, "scale_tooltip", kept)
+    for i = 1, #ABOUT_ME do rawset(options, ABOUT_ME[i], kept[i]) end
     if not ok then error(problem, 0) end
 end
 

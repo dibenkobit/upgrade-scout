@@ -6791,6 +6791,14 @@ local function CompanionLine(tooltip)
     return false
 end
 
+-- Has it Forever Companion's lists of the best gear?
+local function CompanionList(tooltip)
+    for _, line in ipairs(tooltip._lines) do
+        if line.text:find("Companion best:", 1, true) then return true end
+    end
+    return false
+end
+
 -- The road of a player who has Forever Companion: the addon scores by itself until it is
 -- chosen, then on the scale it has in use, and the lists are made the same way from its
 -- numbers.
@@ -7632,6 +7640,22 @@ function scenarios.companion_alt()
     eq(rawget(options, "scale_tooltip"), nil, "and its option for the line is afterwards as it was: never set")
     jerkin:GetScript("OnLeave")(jerkin)
     eq(Elsewhere(), true, "anywhere else it writes its line")
+    -- Its lists of the best gear, for the talent trees the player follows in it, are about
+    -- the character being played as well, and are kept out the same way.
+    W.companion.lists = true
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(CompanionList(GameTooltip), false, "Forever Companion's lists of the best gear are kept out of a row for another character")
+    eq(CompanionLine(GameTooltip), false, "with its line")
+    eq(rawget(options, "bis_tooltip"), nil, "and its option for the lists is afterwards as it was: never set")
+    jerkin:GetScript("OnLeave")(jerkin)
+    Elsewhere()
+    eq(CompanionList(GameTooltip), true, "anywhere else it writes its lists")
+    options.bis_tooltip = true
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(CompanionList(GameTooltip), false, "kept out the same for a player who has set that option")
+    eq(rawget(options, "bis_tooltip"), true, "which is as they have it")
+    jerkin:GetScript("OnLeave")(jerkin)
+    options.bis_tooltip = nil
     -- A player who has set that option: it is put back as they have it.
     options.scale_tooltip = true
     jerkin:GetScript("OnEnter")(jerkin)
@@ -7644,6 +7668,7 @@ function scenarios.companion_alt()
     local ok, problem = pcall(ns.Companion.Hushed, function(what) passed = what error("no such item", 0) end, "a link")
     eq(ok, false, "an error in filling the tooltip in passes on"); eq(problem, "no such item", "as it was")
     eq(passed, "a link", "what fills it in is called with what it was given"); eq(rawget(options, "scale_tooltip"), nil, "and the option is put back all the same")
+    eq(rawget(options, "bis_tooltip"), nil, "the one for its lists too")
     -- Our lines are all that says the score there, so they do not go by their box.
     UpgradeScoutDB.rowTooltip = false
     ns.Fire("SETTING_CHANGED", "rowTooltip")
@@ -7670,6 +7695,7 @@ function scenarios.companion_alt()
     check(chest ~= nil, "a better chest for the warrior is in the list")
     chest:GetScript("OnEnter")(chest)
     eq(CompanionLine(GameTooltip), true, "a row of the player's own list: its line, as anywhere")
+    eq(CompanionList(GameTooltip), true, "and its lists of the best gear")
     chest:GetScript("OnLeave")(chest)
     CheckCompanionAsked("another character")
 
@@ -7684,6 +7710,7 @@ function scenarios.companion_alt()
     check(jerkin ~= nil, "the jerkin is in the druid's list by the addon's own weights")
     jerkin:GetScript("OnEnter")(jerkin)
     eq(CompanionLine(GameTooltip), false, "the addon scoring: its line is kept out of a row for another character")
+    eq(CompanionList(GameTooltip), false, "and so are its lists of the best gear")
     local ours, marked = false, false
     for _, line in ipairs(GameTooltip._lines) do
         if line.right == ALTY then ours = true end
