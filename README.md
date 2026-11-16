@@ -22,19 +22,25 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
 
 ![One scan shows what to buy: the Upgrades tab at the auction house](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/1-scan.png)
 
-![Every talent tree in the tooltip](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/2-tooltip.png)
+![Buy right from the list: the box that asks before a purchase](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/2-buy.png)
 
-![A green arrow in your bags](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/3-bags.png)
+![Consumables too: the Consumables tab at the auction house](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/3-consumables.png)
 
-![Consumables too: the Consumables tab at the auction house](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/4-consumables.png)
+![Every spec in the tooltip](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/4-tooltip.png)
 
-![Shop for your other characters: the Profile dropdown](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/5-characters.png)
+![A green arrow in your bags](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/5-bags.png)
 
-![Mail your purchases in two clicks](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/6-mail.png)
+![What gear costs you in the end: the buyout and the net cost side by side](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/6-prices.png)
 
-![What gear costs you in the end: the Net cost box](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/7-netcost.png)
+![Only upgrades worth a look: the Filters menu](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/7-filters.png)
 
-![One window to set it up: the welcome window](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/8-welcome.png)
+![Shop for your other characters: the Profile dropdown](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/8-characters.png)
+
+![Mail your purchases in two clicks](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/9-mail.png)
+
+![One window to set it up: the addon's window](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/10-setup.png)
+
+![Use Pawn? Keep your scales: Pawn chosen in the addon's window, and its lines in a tooltip](https://raw.githubusercontent.com/dibenkobit/upgrade-scout/main/docs/img/11-pawn.png)
 
 ## What it does
 
