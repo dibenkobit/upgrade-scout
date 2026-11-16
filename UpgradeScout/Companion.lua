@@ -22,6 +22,19 @@ local _, ns = ...
 --   * It writes one line into an item's tooltip, for the scale in use, and draws an arrow of
 --     its own on an upgrade: on quest rewards and loot, and in the bags, the bank and a
 --     merchant's window. Each of those has a switch in its options.
+--   * It writes its lists of the best gear into an item's tooltip as well: where the item
+--     stands in them for each talent tree the player follows there. That has a switch too.
+--
+-- Its reading of an item is scored as it stands, also where it is known to be off. It reads
+-- a chance as percent from the words of the tooltip, which it knows in English and in
+-- French; in the other languages of the game it takes the game's count of rating in their
+-- place and scores that as percent, fourteen times too much for a chance to crit. (Seen in
+-- the game in Russian, with 0.5.1: gloves with 1% to crit at 406 points on a scale that
+-- gives a percent 29.) That is not put right here, on purpose. A player who chose Forever
+-- Companion to score sees its number in its own line of a tooltip, and a list of this addon
+-- that said another for the same item would not be trusted: they are shown what it shows.
+-- It is Forever Companion's to put right. (The owner's decision, 2026-11-16; a correction
+-- was written and taken back, commits 7183c4e and its revert.)
 --
 -- What Forever Companion is asked: which scales a class has, which one the character being
 -- played has in use, and what it reads of an item. Where an item goes and what it would
