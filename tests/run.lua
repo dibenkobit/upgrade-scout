@@ -4260,6 +4260,24 @@ function scenarios.alt()
     eq(ShoppingTooltip1._lines[1].text, "Alt's Jerkin", "in the game's second tooltip")
     jerkin:GetScript("OnLeave")(jerkin)
     eq(ShoppingTooltip1:IsShown(), false, "and goes with the tooltip")
+    -- The game's own comparison is on (Shift is held, or the player has the game compare
+    -- always): as the tooltip is filled in the game puts up what the warrior wears, and a
+    -- second item beside it where it compares with two. Neither stays under a row for the
+    -- druid.
+    W.comparing = { W.Link(100), W.Link(200) }
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(ShoppingTooltip1:IsShown(), true, "the game comparing by itself: there is still one tooltip beside the row")
+    eq(ShoppingTooltip1._lines[1].text, "Alt's Jerkin", "with the druid's chest, not the warrior's")
+    eq(ShoppingTooltip2:IsShown(), false, "and the game's second item, which would lie under it, is taken down")
+    jerkin:GetScript("OnLeave")(jerkin)
+    local belt = Row("Hide Belt")
+    check(belt ~= nil, "the belt is in the list")
+    check(not (belt.entry.replaced and belt.entry.replaced[1]), "the druid has no belt on")
+    belt:GetScript("OnEnter")(belt)
+    eq(ShoppingTooltip1:IsShown(), false, "a slot the druid has nothing in: nothing beside the row, and not what the warrior wears")
+    eq(ShoppingTooltip2:IsShown(), false, "in neither of the game's tooltips")
+    belt:GetScript("OnLeave")(belt)
+    W.comparing = nil
     -- With "Only my talent tree" ticked the row's tooltip has one line of ours: whose list
     -- it is and the profile it is made on, then the gain.
     UpgradeScoutDB.ownTree = true

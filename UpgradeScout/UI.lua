@@ -128,6 +128,12 @@ end
 -- in the slot is put there, in the game's own second tooltip. Pawn and Forever Companion,
 -- where the player has them, are kept from writing there what the item would be to the
 -- character being played (Score.Hushed).
+-- The game may have put its own comparison up by then, as the item's tooltip was filled
+-- in: it does with Shift held, and always for a player who has set it so. That is what the
+-- character being played wears, in that second tooltip, and at times in a third beside it
+-- (with a two-hander worn and an item for one hand looked at, the game adds what could go
+-- into the other hand). Both are taken down first: they are about the wrong character, and
+-- the third would lie under the item put up here.
 local wornShown = false
 
 local function HideWorn()
@@ -137,6 +143,9 @@ end
 
 local function ShowWorn(links)
     local tip = ShoppingTooltip1
+    tip:Hide()
+    if ShoppingTooltip2 then ShoppingTooltip2:Hide() end
+    wornShown = false
     if not links or not links[1] then return end
     tip:SetOwner(GameTooltip, "ANCHOR_NONE")
     tip:ClearAllPoints()

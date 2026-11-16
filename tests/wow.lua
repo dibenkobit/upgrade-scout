@@ -420,6 +420,20 @@ function M:SetHyperlink(link)
         self:AddLine(line.leftText, line.leftColor:GetRGB())
     end
     self._link = link
+    -- The game's own comparison, where it is on: with Shift held, or for a player who has
+    -- the game compare always. As it fills the main tooltip in it puts what the character
+    -- being played wears into its two tooltips for that: W.comparing lists it, one item or
+    -- two.
+    if self == GameTooltip and W.comparing then
+        for place, tip in ipairs({ ShoppingTooltip1, ShoppingTooltip2 }) do
+            tip:SetOwner(self, "ANCHOR_NONE")
+            if W.comparing[place] then
+                tip:SetHyperlink(W.comparing[place])
+            else
+                tip:Hide()
+            end
+        end
+    end
     for _, call in ipairs(W.tooltipPostCalls[Enum.TooltipDataType.Item] or {}) do
         call(self, { type = Enum.TooltipDataType.Item, hyperlink = link })
     end
@@ -1002,6 +1016,9 @@ GameTooltip = Widget("GameTooltip", "GameTooltip")
 -- The tooltip the game puts beside the main one, for the item that is worn.
 ShoppingTooltip1 = Widget("GameTooltip", "ShoppingTooltip1")
 ShoppingTooltip1._shown = false
+-- And the one beside that, where the game compares with two items.
+ShoppingTooltip2 = Widget("GameTooltip", "ShoppingTooltip2")
+ShoppingTooltip2._shown = false
 -- The one for an item link clicked in the chat.
 ItemRefTooltip = Widget("GameTooltip", "ItemRefTooltip")
 -- Where a frame's right edge is on the screen: unknown unless a test says (frame._right).

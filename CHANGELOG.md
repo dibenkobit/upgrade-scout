@@ -18,6 +18,9 @@
   addon scores by its own weights as before.
 - If you have Forever Companion, the window comes up once after the update to show you the
   choice.
+- In a list for another of your characters, the game's own comparison no longer lies under
+  the tooltip of what that character wears. It did with Shift held, or with the game set to
+  always compare items.
 
 ## 2.7.0
 
