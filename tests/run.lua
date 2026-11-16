@@ -18,6 +18,7 @@ local names = {
     "tooltip_settings",
     "wants", "wants_ui", "gain_ui",
     "buy_refused", "prices",
+    "pawn_effects",
 }
 
 if not scenario then
@@ -6398,6 +6399,74 @@ function scenarios.pawn_unread()
     eq(arrow ~= nil and arrow:IsShown(), false, "no arrow on an item Pawn cannot read")
     eq(Arrow(), true, "the others keep theirs")
     CheckPawnAsked("gear that Pawn cannot read")
+end
+
+-- With Pawn scoring, an effect the score leaves out is a line the game gives the item for a
+-- spell of its own which Pawn could not turn into a number. A line another addon wrote into
+-- the tooltip Pawn reads is none, though Pawn could not read it either.
+function scenarios.pawn_effects()
+    StandardWorld()
+    PawnWorld()
+    UpgradeScoutDB = { engine = "pawn" }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score = ns.Score
+    local good = W.items["200:0"]
+    local function Effects(id) return Score.HasUnscoredEffects(Score.Item(W.Link(id))) end
+    eq(Score.Engine(), "pawn", "Pawn scores")
+    eq(Effects(201), true, "a use Pawn could not read"); eq(Effects(200), false, "an item of plain stats")
+
+    -- Another addon puts the item's number under every item, in Pawn's tooltip as well.
+    W.pawn.foreign = { "ItemID", "IconID" }
+    check(Score.Item(W.Link(200)).pawn.UnknownLines.ItemID ~= nil, "(Pawn could not read the other addon's line)")
+    eq(Effects(200), false, "a line of another addon's is no effect of the item")
+    eq(Effects(201), true, "the item's own use still is one")
+
+    -- What the item does while worn: counted where Pawn read the line.
+    good.equipLine, good.pawnCounts = true, true
+    eq(Effects(200), false, "a line of what it does while worn, read by Pawn")
+    good.pawnCounts = nil
+    eq(Effects(200), true, "the same line, not read by Pawn")
+    good.equipLine, good.procLine = nil, true
+    eq(Effects(200), true, "a chance on hit")
+    good.procLine = nil
+
+    -- Pawn keeps the piece it stumbled on where it took a line apart, and has taken the
+    -- colour off the line it read.
+    local great = W.items["201:0"]
+    great.pawnUnknown = { "Does something." }
+    eq(Effects(201), true, "a piece of the item's line")
+    great.pawnUnknown = { "|cffffffffUse: Does something.|r" }
+    eq(Effects(201), true, "the line in a colour")
+    great.pawnUnknown = { "Use: Does nothing." }
+    eq(Effects(201), false, "a line the item does not have")
+    -- In French the game writes a space that does not break, and Pawn a plain one.
+    local use = ITEM_SPELL_TRIGGER_ONUSE
+    ITEM_SPELL_TRIGGER_ONUSE = "Utiliser\194\160:"
+    great.pawnUnknown = { "Utiliser : Does something." }
+    eq(Effects(201), true, "the line with Pawn's plain space")
+    ITEM_SPELL_TRIGGER_ONUSE = use
+    great.pawnUnknown = nil
+
+    -- Without a tooltip to read, the game's tables, as for the addon's own weights.
+    local tooltip = C_TooltipInfo.GetHyperlink
+    C_TooltipInfo.GetHyperlink = function() return nil end
+    eq(Effects(201), false, "no tooltip, and the item is not in the tables")
+    ns.GearData.newest, ns.GearData.effects[201] = 1000, true
+    eq(Effects(201), true, "no tooltip: the tables' list")
+    ns.GearData.newest, ns.GearData.effects[201] = 0, nil
+    C_TooltipInfo.GetHyperlink = tooltip
+
+    -- The list: the mark stands on the robe and on nothing else.
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    ScanToEnd()
+    eq(Offer("Great Chest").effects, true, "the robe is marked")
+    for _, name in ipairs({ "Good Chest", "New Ring", "Helm", "Big Axe", "Shield" }) do
+        eq(Offer(name).effects, false, name .. " is not, with the other addon's lines under it")
+    end
+    CheckPawnAsked("effects with another addon's lines")
 end
 
 -- What a consumable adds, scored on a Pawn scale: the game's names for stats put into

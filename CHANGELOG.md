@@ -5,6 +5,9 @@
 - **One-Hand** and **Two-Hand** stand in one column in a weapon slot. Before, the word moved
   to the right in the rows without a **Best upgrade** or **Best value** badge.
 - **Best set for** no longer says that no upgrade fits the sum while a scan is still running.
+- With Pawn chosen, the yellow `*` and **Has effects the score does not count** no longer stand
+  on an item that has no effects. A line another addon adds to tooltips, an item's ID for one,
+  was taken for an effect.
 
 ## 2.6.0
 

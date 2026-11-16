@@ -296,18 +296,24 @@ end
 -- what it adds (GearData.extra). Only without a tooltip to read are the game's tables asked
 -- (GearData.effects): checked against a whole auction house, they were out of date for some
 -- items, which the game no longer shows an effect for, or which they did not have at all.
+-- With Pawn scoring the lines are the same ones, and Pawn says of each whether it turned it
+-- into a number (Pawn.Unread).
 local LINE = Enum.TooltipDataLineType
 local USE, EQUIP, PROC = LINE.ItemSpellTriggerOnUse or -1, LINE.ItemSpellTriggerOnEquip or -2, LINE.ItemSpellTriggerOnProc or -3
 function Score.HasUnscoredEffects(item)
-    -- For Pawn, the lines of the tooltip it could not turn into a number.
-    if item.pawn ~= nil then return ns.Pawn.HasUnscoredEffects(item) end
     local data = ns.GearData
     local lines = TooltipLines(item.link)
     if not lines then return item.itemID <= data.newest and data.effects[item.itemID] == true end
     local counted = data.extra[item.itemID] ~= nil
     for i = 2, #lines do
         local kind = lines[i].type
-        if kind == USE or kind == PROC or (kind == EQUIP and not counted) then return true end
+        if kind == USE or kind == PROC or kind == EQUIP then
+            if item.pawn ~= nil then
+                if ns.Pawn.Unread(item, lines[i].leftText) then return true end
+            elseif kind ~= EQUIP or not counted then
+                return true
+            end
+        end
     end
     return false
 end

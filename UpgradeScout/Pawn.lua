@@ -209,11 +209,32 @@ function P.Value(item, scale)
     return base or value or 0
 end
 
--- True when Pawn found lines in the item's tooltip that it cannot turn into a number: a
--- use, a chance on hit and the like.
-function P.HasUnscoredEffects(item)
+-- A line of a tooltip as two of them are compared: Pawn takes the colour off some lines
+-- before it reads them, and in French puts plain spaces for the ones that do not break.
+local function Plain(text)
+    text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("\194\160", " ")
+    return (text:gsub("^[ \t\r\n]+", ""):gsub("[ \t\r\n]+$", ""))
+end
+
+-- Is this line of the item's tooltip one Pawn could not turn into a number? `text` is a line
+-- the game gives the item for a spell of its own: a use, a chance on hit, what it does while
+-- worn (Score.HasUnscoredEffects). Pawn keeps what it did not understand: the line, or the
+-- piece it stumbled on where it took the line apart at its commas.
+-- That list alone does not tell an effect. Pawn reads a tooltip of its own, and the game
+-- lets every addon write in it as in any other: one that puts an item's number under each
+-- item (EllesmereUI's "ItemID" and "IconID") leaves lines there that Pawn cannot read, and by
+-- the list every item would have an effect. So the question is asked of the game's lines.
+function P.Unread(item, text)
     local unknown = item.pawn and item.pawn.UnknownLines
-    return type(unknown) == "table" and next(unknown) ~= nil
+    if type(unknown) ~= "table" or type(text) ~= "string" then return false end
+    local line = Plain(text)
+    for part in pairs(unknown) do
+        if type(part) == "string" then
+            part = Plain(part)
+            if part ~= "" and line:find(part, 1, true) then return true end
+        end
+    end
+    return false
 end
 
 -- The sum stat by stat, for /upscout stats: { { name, amount, weight, points }, ... } with

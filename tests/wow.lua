@@ -2118,10 +2118,24 @@ local function PawnFunctions(P)
             for name, amount in pairs(item.pawn or {}) do stats[name] = amount end
         end
         if next(stats) == nil then return nil end
+        -- The lines Pawn could not turn into a number, by their text: what the item does
+        -- (its lines in the tooltip above), unless the scenario says what Pawn stumbled on
+        -- (pawnUnknown, a list of texts; pawnCounts: it read the line of what the item does
+        -- while worn). And what another addon wrote into the tooltip Pawn reads
+        -- (W.pawn.foreign, a list of texts): Pawn cannot read that either. None: no table.
+        local unknown = {}
+        if item.pawnUnknown then
+            for _, text in ipairs(item.pawnUnknown) do unknown[text] = 1 end
+        else
+            if item.effects then unknown[ITEM_SPELL_TRIGGER_ONUSE .. " Does something."] = 1 end
+            if item.equipLine and not item.pawnCounts then unknown["Equip: Does something else."] = 1 end
+            if item.procLine then unknown["Chance on hit: Does something rare."] = 1 end
+        end
+        for _, text in ipairs(P.foreign or {}) do unknown[text] = 1 end
         return {
             Link = link, ID = id, InvType = kind, Name = item.name, Level = item.level + 5,
             Stats = stats, UnenchantedStats = stats,
-            UnknownLines = item.effects and { ["Use: Does something."] = 1 } or {},
+            UnknownLines = next(unknown) ~= nil and unknown or nil,
         }
     end
 
