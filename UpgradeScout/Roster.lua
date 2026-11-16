@@ -25,6 +25,8 @@ local _, ns = ...
 --               scored on while none is chosen
 --   armorOnly, minGain, minGainOn
 --               what it wants of its gear: the list's filters that are its own (see Wants.lua)
+--   maxPrice, maxPriceOn
+--               the most to pay for one item for it: "Buyout up to" (see Wants.lua)
 --   seen        when it was last written down (time())
 local Roster = {}
 ns.Roster = Roster

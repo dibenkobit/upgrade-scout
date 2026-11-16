@@ -150,22 +150,27 @@ end
 
 -- The offers the list can show, as entries per slot group (unsorted): one entry for every
 -- slot an offer is an upgrade in, unless a filter leaves it out: the character's own
--- (Wants.lua), which may also leave out one slot of two, or the price filter.
+-- (Wants.lua), which may also leave out one slot of two, or one of the two price filters.
 -- opts: { money = copper the player has, affordableOnly = bool, net = bool (see Results.Cost),
+--         cap = the most an offer may cost, in copper ("Buyout up to", Wants.Price), nil for any sum,
 --         wants = what the character wants of its gear (Wants.Of), nil for anything }
 -- Returns byGroup, hidden (upgrades left out for their price), unwanted (upgrades the
 -- character's own filters leave out; one of those is not counted for its price as well)
+-- What a price filter leaves out is out before the picks are chosen: under a sum, the best
+-- upgrade of a slot is the best one for that sum.
 function Results.Collect(offers, ctx, opts)
     local byGroup, hidden, unwanted = {}, 0, 0
     local money = opts.money or 0
+    local cap = opts.cap
     for _, offer in pairs(offers) do
         local placements = ns.Compare.Place(offer, ctx)
         if #placements > 0 then
             placements = ns.Wants.Keep(opts.wants, offer, placements)
+            -- (Whether it can be paid for is a matter of the purse alone: a row says so.)
             local affordable = offer.buyout <= money
             if #placements == 0 then
                 unwanted = unwanted + 1
-            elseif opts.affordableOnly and not affordable then
+            elseif (opts.affordableOnly and not affordable) or (cap and offer.buyout > cap) then
                 hidden = hidden + 1
             else
                 for i = 1, #placements do
@@ -186,6 +191,7 @@ end
 -- offers: offer id -> offer (see Scanner)
 -- ctx:    comparison context (see Score.Context)
 -- opts:   { money = copper the player has, affordableOnly = bool,
+--             cap = the most an offer may cost ("Buyout up to", see Results.Collect),
 --             net = the offers are priced at their net cost (see Results.Cost),
 --             wants = what the character wants of its gear (Wants.Of),
 --             limit = nil for everything, or the most rows a slot may take (see Shortlist),

@@ -13,6 +13,14 @@ local _, ns = ...
 --   minGainOn   true while that is asked for. The number stays when its box is unticked.
 -- ("Only what I can afford" and "Top N per slot" are about the buyer: those are in ns.db.)
 --
+-- A third filter is kept on the card and is not one of the wants: "Buyout up to", the most to
+-- pay for one item. It is about the purchase, as "Only what I can afford" is, and like that
+-- one it has no say in the best set for a budget or in the arrows of the bags. But what is a
+-- fair price for an item depends on whom the item is for (a rich character shops for an alt
+-- of level 20), so the sum goes with the character, as the other two do.
+--   maxPrice    that sum, in copper;
+--   maxPriceOn  true while it is asked for. The sum stays when its box is unticked.
+--
 -- What is asked of a character's gear right now is its "wants": { armor = the one kind of
 -- armor to offer (an item subclass: 2 leather, 3 mail, 4 plate), gain = the least percent },
 -- either of them nil when it is not asked for. Nothing asked for is nil, and every function
@@ -122,4 +130,33 @@ function Wants.SetGain(card, on, percent)
     if percent then card.minGain = Clamp(math.floor(percent), 1, Wants.MAX_GAIN) end
     card.minGainOn = on and true or nil
     ns.Fire("WANTS_CHANGED", card)
+end
+
+---------------------------------------------------------------------------
+-- "Buyout up to"
+---------------------------------------------------------------------------
+local SILVER, GOLD = 100, 10000
+
+Wants.DEFAULT_PRICE = GOLD                          -- the sum in the fields before one is typed
+Wants.MAX_PRICE = 99999 * GOLD + 99 * SILVER        -- what its two fields can hold
+
+-- The sum typed for a character, asked for or not: whole silver, and no less than one.
+function Wants.PriceTyped(card)
+    local price = card and card.maxPrice
+    if type(price) ~= "number" or price < SILVER then return Wants.DEFAULT_PRICE end
+    return math.min(math.floor(price / SILVER) * SILVER, Wants.MAX_PRICE)
+end
+
+-- The most to pay for one item for the character of a card, in copper; nil when no sum is
+-- asked for.
+function Wants.Price(card)
+    if not card or card.maxPriceOn ~= true then return nil end
+    return Wants.PriceTyped(card)
+end
+
+-- copper: the sum that was typed; nil leaves the one there is. Nobody but the list shows
+-- what the sum changes, and the menu that sets it tells the list itself (Filters.lua).
+function Wants.SetPrice(card, on, copper)
+    if copper then card.maxPrice = Clamp(math.floor(copper / SILVER) * SILVER, SILVER, Wants.MAX_PRICE) end
+    card.maxPriceOn = on and true or nil
 end

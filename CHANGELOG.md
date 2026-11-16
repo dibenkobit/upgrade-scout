@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.7.0
+
+- **Buyout up to**, a new filter on the Upgrades tab. Type a sum in gold and silver, and the
+  list leaves out every item that costs more. The **Best upgrade** in each slot is then the
+  best one for that price.
+- It stands under **Only what I can afford** in the **Filters** menu. With both ticked, the
+  smaller of the two limits counts.
+- A scan with it on does not look up prices over the sum, so it takes less time.
+- Each character has its own sum. When you shop for another character, you see and set that
+  character's.
+- **Best set for** has its own budget and does not use it.
+
 ## 2.6.1
 
 - **One-Hand** and **Two-Hand** stand in one column in a weapon slot. Before, the word moved

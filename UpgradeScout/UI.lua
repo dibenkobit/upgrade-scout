@@ -942,10 +942,21 @@ local function StatusText()
         if summary.upgrades == 0 and (summary.unwanted or 0) > 0 then
             -- There are upgrades, and the character's own filters leave every one out.
             parts[#parts + 1] = L.ST_NONE_WANTED:format(summary.unwanted)
-        elseif summary.upgrades == 0 then
-            parts[#parts + 1] = summary.hidden > 0 and L.ST_NONE_AFFORD:format(summary.hidden) or L.ST_NONE
         elseif summary.hidden > 0 then
-            parts[#parts + 1] = L.ST_DONE_HIDDEN:format(summary.upgrades, summary.slots, summary.hidden)
+            -- Upgrades are left out for their price: by the sum typed ("Buyout up to"), which
+            -- the line then names, or by the purse.
+            local ceiling, typed = S.Ceiling()
+            if typed and summary.upgrades == 0 then
+                parts[#parts + 1] = L.ST_NONE_OVER:format(summary.hidden, ns.Money(ceiling))
+            elseif typed then
+                parts[#parts + 1] = L.ST_DONE_OVER:format(summary.upgrades, summary.slots, summary.hidden, ns.Money(ceiling))
+            elseif summary.upgrades == 0 then
+                parts[#parts + 1] = L.ST_NONE_AFFORD:format(summary.hidden)
+            else
+                parts[#parts + 1] = L.ST_DONE_HIDDEN:format(summary.upgrades, summary.slots, summary.hidden)
+            end
+        elseif summary.upgrades == 0 then
+            parts[#parts + 1] = L.ST_NONE
         else
             parts[#parts + 1] = L.ST_DONE:format(summary.upgrades, summary.slots)
         end
@@ -1062,9 +1073,10 @@ end
 ---------------------------------------------------------------------------
 -- A strip along the bottom of the list's plate, in the Upgrades view once there is a scan: a
 -- tick box, the budget in gold and silver, and what the set comes to. With the box ticked
--- the list shows that set and nothing else (see Plan.lua). The price filter and "Top N per
--- slot" then have no say, and their lines of the Filters menu are grey (Filters.lua); what
--- the character wants of its gear (Wants.lua) holds for a set as it does for the list.
+-- the list shows that set and nothing else (see Plan.lua). The two price filters ("Only what
+-- I can afford", "Buyout up to") and "Top N per slot" then have no say, and their lines of
+-- the Filters menu are grey (Filters.lua); what the character wants of its gear (Wants.lua)
+-- holds for a set as it does for the list.
 local PLAN_HEIGHT = 30
 local planCache = {}
 
@@ -1150,6 +1162,7 @@ function UI.Refresh()
         all, summary = ns.Results.Build(S.offers, S.ctx, {
             money = GetMoney(),
             affordableOnly = ns.db.affordableOnly,
+            cap = ns.Wants.Price(ns.Roster.Target() or ns.Roster.Me()),
             net = ns.db.net,
             wants = Wanted(),
             limit = ns.db.topOnly and ns.Results.TOP_COUNT or nil,

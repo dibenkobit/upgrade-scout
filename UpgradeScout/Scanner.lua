@@ -323,17 +323,36 @@ local function Wanted()
     return ns.Wants.Of(ctx.who or ns.Roster.Me())
 end
 
+-- The most to pay for one item for that character ("Buyout up to", see Wants.lua), in copper;
+-- nil when no sum is asked for.
+local function Cap()
+    local ctx = S.ctx
+    if not ctx then return nil end
+    return ns.Wants.Price(ctx.who or ns.Roster.Me())
+end
+
+-- The most a row of the list may cost, by the two price filters: the sum typed for the
+-- character ("Buyout up to") and what the buyer has ("Only what I can afford"), whichever is
+-- less; nil when neither is on. Also returns whether it is the sum typed and not the purse:
+-- the status line says which of them left upgrades out.
+function S.Ceiling()
+    local cap = Cap()
+    local money = ns.db.affordableOnly and GetMoney() or nil
+    if cap and (not money or cap < money) then return cap, true end
+    return money, false
+end
+
 -- The verified offers as the list groups them (see Results.Collect), rebuilt when they change.
 local front = {}
 local function Front()
     local money = GetMoney()
     local afford = ns.db.affordableOnly and true or false
-    local wants = Wanted()
+    local wants, cap = Wanted(), Cap()
     if front.dirty or front.offers ~= S.offers or front.ctx ~= S.ctx
-        or front.money ~= money or front.afford ~= afford or front.wants ~= wants then
-        front.groups = ns.Results.Collect(S.offers, S.ctx, { money = money, affordableOnly = afford, wants = wants })
+        or front.money ~= money or front.afford ~= afford or front.wants ~= wants or front.cap ~= cap then
+        front.groups = ns.Results.Collect(S.offers, S.ctx, { money = money, affordableOnly = afford, cap = cap, wants = wants })
         front.offers, front.ctx, front.money, front.afford, front.dirty = S.offers, S.ctx, money, afford, false
-        front.wants = wants
+        front.wants, front.cap = wants, cap
     end
     return front.groups
 end
@@ -393,7 +412,8 @@ end
 --   unwanted   the character's own filters leave it out (Wants.lua): it is armor lighter than
 --              the character is to be offered, or it adds less than was asked for in every
 --              slot it fits
---   price      "only what I can afford" is on and even the row's lowest price is too high
+--   price      a price filter is on ("only what I can afford", "buyout up to") and even the
+--              row's lowest price is more than it lets through (see S.Ceiling)
 --   dominated  "top N per slot" is on and, in every slot it fits, an offer already verified
 --              is stronger and no dearer per point than this could possibly be. That must
 --              hold both by buyout and by net cost (Results.Cost), where the least the
@@ -403,14 +423,15 @@ end
 -- The last two rest on the row's lowest price being a floor under its buyouts. ReadJob checks
 -- that against every row it reads; if the server turns out to mean something else by that
 -- number (scan.floorBroken), nothing is skipped for its price any more.
--- With the best set for a budget on, the list shows that set, and the price filter and "top N"
+-- With the best set for a budget on, the list shows that set, and the price filters and "top N"
 -- have no say.
 -- A set can need an offer that "top N" would hide: the strongest chest may leave no money for
 -- anything else. So the reasons are then, after the first two:
 --   price      even the row's lowest price is more than the budget
 --   outdone    no set can need it (see Outdone)
--- `wants` is what the character wants of its gear (Wanted), asked once for all the candidates.
-local function SkipReason(cand, wants)
+-- `wants` is what the character wants of its gear (Wanted) and `ceiling` the most a row of
+-- the list may cost (S.Ceiling), both asked once for all the candidates.
+local function SkipReason(cand, wants, ceiling)
     if not cand.eval or scan.bucketsVary then return nil end
     local placements = Placements(cand)
     if #placements == 0 then return "worse" end
@@ -423,7 +444,7 @@ local function SkipReason(cand, wants)
         if Outdone(cand) then return "outdone" end
         return nil
     end
-    if ns.db.affordableOnly and cand.minPrice > GetMoney() then return "price" end
+    if ceiling and cand.minPrice > ceiling then return "price" end
     if ns.db.topOnly then
         local groups = Front()
         local least, leastNet = cand.minPrice, ns.Results.Net(cand.minPrice, cand.eval.sell)
@@ -445,10 +466,10 @@ end
 local function PickCandidate()
     local first, left = nil, 0
     local list = scan.candidates
-    local wants = Wanted()
+    local wants, ceiling = Wanted(), (S.Ceiling())
     for i = 1, #list do
         local cand = list[i]
-        if not cand.status and not SkipReason(cand, wants) then
+        if not cand.status and not SkipReason(cand, wants, ceiling) then
             left = left + 1
             first = first or cand
         end
@@ -477,13 +498,12 @@ end
 
 -- Candidates whose price has not been looked up, as the list counts them:
 --   groups[slot group] = how many would go into that slot
---   tooDear            = how many cost more than the player has ("only what I can afford")
+--   tooDear            = how many cost more than a price filter lets through (S.Ceiling)
 --   unwanted           = how many the character's own filters leave out (Wants.lua)
 function S.Unchecked()
     local out = { groups = {}, tooDear = 0, unwanted = 0 }
     if not scan or scan.bucketsVary or not S.ctx then return out end
-    local money = GetMoney()
-    local afford = ns.db.affordableOnly and not scan.floorBroken
+    local ceiling = not scan.floorBroken and S.Ceiling() or nil
     local wants = Wanted()
     local list = scan.candidates
     for i = 1, #list do
@@ -494,7 +514,7 @@ function S.Unchecked()
                 placements = ns.Wants.Keep(wants, cand.eval, placements)
                 if #placements == 0 then
                     out.unwanted = out.unwanted + 1
-                elseif afford and cand.minPrice > money then
+                elseif ceiling and cand.minPrice > ceiling then
                     out.tooDear = out.tooDear + 1
                 else
                     for p = 1, #placements do

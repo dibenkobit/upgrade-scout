@@ -19,6 +19,7 @@ local names = {
     "wants", "wants_ui", "gain_ui",
     "buy_refused", "prices",
     "pawn_effects",
+    "price_max", "price_max_ui",
 }
 
 if not scenario then
@@ -1922,7 +1923,7 @@ function scenarios.ui()
         "and hangs from the field's right end: the field stands at the window's edge")
     eq(frame.AffordCheck, nil, "no filter's tick box in the strip"); eq(frame.TopCheck, nil, "not one")
     -- A warrior of level 10 wears mail, and plate from 40: the line that is its own names mail.
-    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
         "the lines of the menu, the one that is no filter under a rule")
     local checkbox, topBox = FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
     eq(topBox:GetChecked(), true, "top five on by default")
@@ -1930,7 +1931,7 @@ function scenarios.ui()
     eq(checkbox:GetChecked(), true, "afford filter on by default")
     -- A line of the menu is the game's, dressed as the tab's own tick boxes are.
     filters:Open()
-    local ticked, unticked = filters.lines[2], filters.lines[5]
+    local ticked, unticked = filters.lines[filters:Find("Top 5 per slot")], filters.lines[filters:Find("Value by net cost")]
     eq(ticked.leftTexture1:GetAlpha(), 0, "the game's square is see-through")
     eq(Pictures(ticked, "Inset"), 9, "under our recess, cut in nine"); eq(Pictures(ticked, "RowGlow"), 1, "with the light of a row under the mouse")
     eq(Pictures(ticked, "Check"), 1, "our gold tick"); eq(ticked.Tick:IsShown(), true, "which shows on a line that is ticked")
@@ -2949,7 +2950,7 @@ function scenarios.net_ui()
 
     -- The box: the last line of the Filters menu, under a rule, off until it is ticked.
     eq(frame.NetCheck, nil, "no tick box of its own above the list")
-    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
         "the last line of the menu, under a rule: what the best value goes by, not a filter")
     eq(net:IsShown(), true, "in the menu of the Upgrades tab")
     eq(net:GetChecked(), false, "not ticked")
@@ -6982,7 +6983,7 @@ function scenarios.wants_ui()
     W.AddAuction(310, 2000)
     W.AddAuction(311, 1000)
     local LABEL, SHORT = "Best armor type for the class", "Best armor"
-    local MENU = "Only what I can afford | Top 5 per slot | " .. LABEL .. " | Upgrade at least | / | Value by net cost"
+    local MENU = "Only what I can afford | Buyout up to | Top 5 per slot | " .. LABEL .. " | Upgrade at least | / | Value by net cost"
     -- The box of the menu in view, and the last line of its tooltip: which type it keeps for
     -- the character the list is for.
     local best = FilterBox(LABEL)
@@ -7140,7 +7141,7 @@ function scenarios.wants_ui()
     frame.ProfileDropdown:Pick(5)
     W.Run(0.5)
     eq(ns.Roster.Target(), UpgradeScoutDB.chars["Magey-Testrealm"], "the lists are for the mage")
-    eq(FilterMenu(), "Only what I can afford | Top 5 per slot | Upgrade at least | / | Value by net cost", "a mage's menu has no line about armor")
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Upgrade at least | / | Value by net cost", "a mage's menu has no line about armor")
 
     -- Back to the warrior: its box is as it was.
     frame.ProfileDropdown:Pick(1)
@@ -7359,6 +7360,397 @@ function scenarios.gain_ui()
 
     -- The number is the character's own, kept with the account.
     eq(UpgradeScoutDB.chars[me.key].minGain, 25, "the number is saved on the character's card"); eq(UpgradeScoutDB.chars[me.key].minGainOn, true, "with its tick")
+end
+
+---------------------------------------------------------------------------
+-- "Buyout up to": the most to pay for one item, a price filter with a sum of its own that is
+-- kept with the character the list is for (Wants.lua)
+---------------------------------------------------------------------------
+-- The world of the wants, and one chest more: weaker than the good chest (+60% against +80%)
+-- and dearer per point, so "top five" has no use for it while the good chest is in the list.
+--   chest   Great Chest 9g, Good Chest 40s, Plain Chest 35s, Fine Chest 15s, Fair Chest 3s
+--   head    Helm 25s, Hide Cap 3s, Silk Hood 2s
+--   others  Big Axe 30s, New Ring 8s, Shield 7s, Wool Cloak 1s 50c
+local function PriceWorld()
+    WantsWorld()
+    W.AddItem({ id = 245, name = "Plain Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 16, level = 9 })
+    W.AddAuction(245, 3500)
+end
+
+-- The sum itself, and what it does to the list, to its picks and to a scan.
+function scenarios.price_max()
+    PriceWorld()
+    LoadAddon()
+    local Wants, S = ns.Wants, ns.Scanner
+    local SILVER, GOLD = 100, 10000
+
+    -- The sum on a card.
+    local card = { class = "WARRIOR", level = 10 }
+    eq(Wants.Price(card), nil, "nothing typed and nothing ticked: no sum is asked for")
+    eq(Wants.PriceTyped(card), GOLD, "one gold stands in the fields before a sum is typed")
+    card.maxPrice = 5 * GOLD
+    eq(Wants.Price(card), nil, "a sum alone asks for nothing")
+    card.maxPriceOn = true
+    eq(Wants.Price(card), 5 * GOLD, "ticked: no more than that")
+    local told = 0
+    ns.Listen("WANTS_CHANGED", function() told = told + 1 end)
+    Wants.SetPrice(card, true, 2 * GOLD + 50 * SILVER + 99)
+    eq(card.maxPrice, 2 * GOLD + 50 * SILVER, "a sum is in whole silver")
+    Wants.SetPrice(card, true, 12)
+    eq(card.maxPrice, SILVER, "and no less than one")
+    Wants.SetPrice(card, true, 1e12)
+    eq(card.maxPrice, 99999 * GOLD + 99 * SILVER, "nor more than its two fields hold")
+    Wants.SetPrice(card, false)
+    eq(card.maxPriceOn, nil, "unticked"); eq(card.maxPrice, 99999 * GOLD + 99 * SILVER, "the sum stays")
+    eq(Wants.Price(card), nil, "and is not asked for")
+    eq(told, 0, "the arrows in the bags are not told: a price is no matter of theirs")
+    card.maxPriceOn = true
+    eq(Wants.Of(card), nil, "nor is the sum one of the wants: a set for a budget goes without it")
+    card.maxPrice = "much"
+    eq(Wants.Price(card), GOLD, "a card with no number for a sum has the first one")
+    eq(Wants.Price(nil), nil, "no character, no sum")
+
+    -- A scan.
+    W.OpenAuctionHouse()
+    local me = ns.Roster.Me()
+    local function Scan()
+        W.RunUntil(function() return W.AH.ready end, 5)
+        local before = W.AH.calls.search
+        ScanToEnd()
+        return W.AH.calls.search - before
+    end
+    local function More()
+        local before = W.AH.calls.search
+        if not S.Demand() then return 0 end
+        W.RunUntil(function() return S.state == "idle" end, 600)
+        return W.AH.calls.search - before
+    end
+    -- The list as the tab makes it.
+    local function Rows()
+        return ns.Results.Build(S.offers, S.ctx, {
+            money = GetMoney(), affordableOnly = ns.db.affordableOnly, cap = Wants.Price(me),
+            limit = ns.db.topOnly and ns.Results.TOP_COUNT or nil, unchecked = S.Unchecked(),
+        })
+    end
+    -- The upgrades it shows, by name, and how many it leaves out for their price.
+    local function Shown()
+        local rows, summary = Rows()
+        local out, seen = {}, {}
+        for _, row in ipairs(rows) do
+            local name = row.kind == "item" and row.entry.offer.name
+            if name and not seen[name] then
+                seen[name] = true
+                out[#out + 1] = name
+            end
+        end
+        table.sort(out)
+        return table.concat(out, ", "), summary.hidden
+    end
+    -- The rows under a heading, top to bottom, each with its pick.
+    local function Under(group)
+        local out, inside = {}, false
+        for _, row in ipairs((Rows())) do
+            if row.kind == "header" then
+                inside = row.group == group
+            elseif inside then
+                out[#out + 1] = row.entry.offer.name .. (row.entry.pick and " (" .. row.entry.pick .. ")" or "")
+            end
+        end
+        return table.concat(out, ", ")
+    end
+    local EVERYTHING = "Big Axe, Fair Chest, Fine Chest, Good Chest, Great Chest, Helm, Hide Cap, New Ring, Plain Chest, Shield, Silk Hood, Wool Cloak"
+    local CHEAP = "Fair Chest, Fine Chest, Hide Cap, New Ring, Shield, Silk Hood, Wool Cloak"
+
+    -- Reference: no sum, and the tab's own filters off, so every price is looked up.
+    SetView(false, false)
+    local all = Scan()
+    local list, hidden = Shown()
+    eq(OfferCount(), 12, "twelve upgrades for sale"); eq(list, EVERYTHING, "all of them listed"); eq(hidden, 0, "none left out")
+    eq(S.Ceiling(), nil, "no price filter is on: a row may cost anything")
+    eq(Under("CHEST"), "Great Chest (UPGRADE), Good Chest, Plain Chest, Fine Chest (VALUE), Fair Chest", "the chests, the dearest the best")
+
+    -- No more than 20 silver, with every price known: what costs more is out, and the picks
+    -- are chosen among what is left. The best upgrade of a slot is the best one for that sum.
+    Wants.SetPrice(me, true, 20 * SILVER)
+    list, hidden = Shown()
+    eq(list, CHEAP, "seven upgrades for 20 silver or less"); eq(hidden, 5, "five left out for their price")
+    eq(Under("CHEST"), "Fine Chest (UPGRADE), Fair Chest (VALUE)", "the best chest for that sum is the best upgrade")
+    eq(Under("HEAD"), "Hide Cap (UPGRADE), Silk Hood (VALUE)", "and the helm, at 25 silver, is not among the head's")
+    local ceiling, typed = S.Ceiling()
+    eq(ceiling, 20 * SILVER, "a row may cost the sum typed"); eq(typed, true, "which is said to be that sum, and not the purse")
+    -- What the buyer can pay for is a matter of the purse, with the sum or without it.
+    W.player.money = 10 * SILVER
+    local fine
+    for _, row in ipairs((Rows())) do
+        if row.kind == "item" and row.entry.offer.name == "Fine Chest" then fine = row.entry end
+    end
+    check(fine ~= nil, "ten silver in the purse: the fine chest, at 15, is still under the sum")
+    eq(fine.affordable, false, "and its row says that it cannot be paid for")
+    -- Both price filters: the less of the two is what a row may cost.
+    ns.db.affordableOnly = true
+    ceiling, typed = S.Ceiling()
+    eq(ceiling, 10 * SILVER, "the purse is the less"); eq(typed, false, "and is named as such")
+    list, hidden = Shown()
+    eq(list, "Fair Chest, Hide Cap, New Ring, Shield, Silk Hood, Wool Cloak", "nothing over ten silver"); eq(hidden, 6, "the fine chest is out as well")
+    W.player.money = 10 * GOLD
+    ceiling, typed = S.Ceiling()
+    eq(ceiling, 20 * SILVER, "ten gold in the purse: the sum is the less"); eq(typed, true, "and is named")
+    ns.db.affordableOnly = false
+
+    -- A scan with the sum on looks up no price for what costs more. That is known of a row
+    -- whose lowest price is over the sum. The good chest's row starts with an auction that
+    -- only takes bids, under the sum, so its buyout is looked up: it is out of the list all
+    -- the same.
+    eq(Scan(), all - 4, "four item searches fewer")
+    eq(Offer("Great Chest"), nil, "no price for the robe"); eq(Offer("Plain Chest"), nil, "the plain chest")
+    eq(Offer("Helm"), nil, "the helm"); eq(Offer("Big Axe"), nil, "or the axe")
+    eq(S.Unchecked().tooDear, 4, "which are counted without one")
+    eq(Offer("Good Chest").buyout, 40 * SILVER, "the good chest's buyout is known, and over the sum")
+    list, hidden = Shown()
+    eq(list, CHEAP, "the same list"); eq(hidden, 5, "and the same count")
+    eq(S.Demand(), false, "nothing more is needed for the list as it is")
+    -- A bigger sum asks for the prices it lets in, and for no others.
+    Wants.SetPrice(me, true, 30 * SILVER)
+    eq(More(), 2, "30 silver: two searches, for the helm and the axe")
+    check(Offer("Helm") ~= nil and Offer("Big Axe") ~= nil, "which have their prices now"); eq(Offer("Plain Chest"), nil, "the plain chest still costs more")
+    Wants.SetPrice(me, true, 10 * SILVER)
+    eq(More(), 0, "a smaller sum asks for nothing")
+    eq(Shown(), "Fair Chest, Hide Cap, New Ring, Shield, Silk Hood, Wool Cloak", "and leaves out more")
+    Wants.SetPrice(me, false)
+    eq(More(), 2, "unticked: the two prices still missing are looked up, the robe's and the plain chest's")
+    eq(OfferCount(), 12, "and every upgrade has its price"); eq(Shown(), EVERYTHING, "and is listed")
+
+    -- "Top 5 per slot" is judged among what the sum lets through. The good chest outdoes the
+    -- plain one; with no more than 36 silver to pay the good chest is out, and the plain one
+    -- is the best chest there is.
+    SetView(false, true)
+    Scan()
+    eq(Offer("Plain Chest"), nil, "top five: no price for the plain chest"); check(Offer("Good Chest") ~= nil, "the good chest outdoes it")
+    Wants.SetPrice(me, true, 36 * SILVER)
+    check(More() >= 1, "no more than 36 silver: the plain chest's price is asked for")
+    check(Offer("Plain Chest") ~= nil, "and found")
+    eq(Under("CHEST"), "Plain Chest (UPGRADE), Fine Chest, Fair Chest (VALUE)", "it is the best upgrade for that sum")
+    Scan()
+    check(Offer("Plain Chest") ~= nil, "a scan with both on looks it up as well"); eq(Offer("Great Chest"), nil, "and not the robe")
+    SetView(false, false)
+
+    -- The best set for a budget goes by its budget, and the sum has no say in it: the robe,
+    -- at nine gold, is looked up for a set of ten.
+    ns.db.plan = true
+    check(More() >= 1, "a set: prices over the sum are asked for")
+    check(Offer("Great Chest") ~= nil, "the robe's among them")
+    ns.db.plan = nil
+
+    -- The sum is kept with the character, in the account's file.
+    eq(UpgradeScoutDB.chars[me.key].maxPrice, 36 * SILVER, "the sum is saved on the character's card"); eq(UpgradeScoutDB.chars[me.key].maxPriceOn, true, "with its tick")
+end
+
+-- "Buyout up to" in the Filters menu: a tick box with a field for the gold and one for the
+-- silver, a coin after each.
+function scenarios.price_max_ui()
+    PriceWorld()
+    LoadAddon()
+    -- A druid of the account, to shop for.
+    UpgradeScoutDB.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm",
+        faction = "Alliance", class = "DRUID", level = 20, gear = {} }
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    local frame = UpgradeScoutFrame
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local filters, me = frame.FilterField, ns.Roster.Me()
+    local box
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then box = w end
+    end
+    local function Row(name)
+        for _, at in ipairs({ 0, 1 }) do
+            box:SetScrollPercentage(at)
+            for _, w in ipairs(box:GetFrames()) do
+                if w._shown and w._kind == "Button" and w.entry and w.entry.offer.name == name then return w end
+            end
+        end
+    end
+    local function Settle()
+        W.RunUntil(function() return S.state == "idle" end, 300)
+        W.Run(0.5)
+    end
+    local function Status() return frame.Status:GetText() or "" end
+    -- The line of the open menu, and its two fields.
+    local function Line()
+        local line = filters.lines[filters:Find("Buyout up to")]
+        return line, line.Gold, line.Silver
+    end
+    SetView(false, false)
+    ScanToEnd()
+    W.Run(0.5)
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
+        "the line stands under the other price filter")
+    eq(Row("Great Chest").Pick.Text:GetText(), "Best upgrade", "the robe, at nine gold, is the best chest there is")
+    check(Status():find("12 upgrades in 6 slots.", 1, true) ~= nil, "twelve upgrades: " .. Status())
+
+    -- The line: a tick box, its words, a field for the gold and one for the silver, a coin
+    -- after each.
+    filters:Open()
+    local line, gold, silver = Line()
+    check(gold ~= nil and gold._kind == "EditBox", "the line has a field for the gold"); check(silver ~= nil and silver._kind == "EditBox", "and one for the silver")
+    eq(gold:GetText(), "1", "one gold in them before a sum is typed"); eq(silver:GetText(), "00", "and no silver"); eq(line.Tick:IsShown(), false, "and no tick")
+    eq(gold:GetWidth(), 46, "wide enough for five digits"); eq(silver:GetWidth(), 30, "and for two")
+    for _, field in ipairs({ gold, silver }) do
+        eq(field:IsVisible(), true, "a field is in view")
+        eq(field:GetFrameStrata(), "FULLSCREEN_DIALOG", "in the menu's layer, not under its plate")
+        check(field:GetFrameLevel() > line:GetFrameLevel(), "above its line")
+        eq(field._mouse, true, "and in reach of the mouse")
+        eq(Pictures(field, "Inset"), 9, "in a recess of ours")
+    end
+    eq(gold.Coin:GetTexture(), "Interface\\MoneyFrame\\UI-GoldIcon", "the game's gold coin after the one")
+    eq(silver.Coin:GetTexture(), "Interface\\MoneyFrame\\UI-SilverIcon", "its silver coin after the other")
+    check(line._size ~= nil, "the line says how big it is with its fields")
+    eq(line._size[1], 16 + 7 + line.fontString:GetStringWidth() + 6 + 46 + 3 + 13 + 6 + 30 + 3 + 13, "the box, the words, and two fields with their coins in a row")
+    eq(line._size[2], 20, "as tall as the other lines")
+
+    -- A sum typed is asked for at once, and ticks the box. On the way to a sum in silver alone
+    -- the gold is emptied: nothing is asked for a sum of nothing.
+    local sounds = #W.sounds
+    W.Type(gold, "")
+    eq(me.maxPriceOn, nil, "no sum yet: nothing is asked"); eq(line.Tick:IsShown(), false, "and nothing ticked")
+    W.Type(silver, "20")
+    eq(me.maxPrice, 2000, "20 silver is written on the character's card"); eq(me.maxPriceOn, true, "and asked for")
+    eq(line.Tick:IsShown(), true, "the typing ticked the box"); eq(#W.sounds, sounds, "without a click")
+    eq(filters._open, true, "the menu stays up"); check(Line() == line, "and its line is the one that was typed into")
+    W.Run(0.5)
+    eq(Row("Great Chest"), nil, "the robe's nine gold are out"); eq(Row("Good Chest"), nil, "the good chest's 40 silver"); eq(Row("Plain Chest"), nil, "the plain one's 35")
+    eq(Row("Helm"), nil, "the helm's 25"); eq(Row("Big Axe"), nil, "and the axe's 30")
+    check(Row("Fair Chest") ~= nil and Row("Hide Cap") ~= nil and Row("New Ring") ~= nil, "what costs less stays")
+    eq(Row("Fine Chest").Pick.Text:GetText(), "Best upgrade", "the best chest for 20 silver is the best upgrade now")
+    eq(Row("Fair Chest").Pick.Text:GetText(), "Best value", "and the best value is chosen beside it")
+    eq(frame.FilterNames:GetText(), "Up to 20s", "the filter is named beside the field, with its sum")
+    check(Status():find("7 upgrades in 5 slots. 5 more cost more than 20s.", 1, true) ~= nil, "the status line says what the sum leaves out: " .. Status())
+    filters:Close()
+    filters._tooltip(GameTooltip)
+    eq(GameTooltip._lines[2].text, "Buyout up to 20s", "and the field's tooltip names it in full")
+    GameTooltip:Hide()
+
+    -- The menu opened again has the sum and the tick. A bigger sum lets more in.
+    filters:Open()
+    line, gold, silver = Line()
+    eq(gold:GetText(), "0", "no gold in the sum"); eq(silver:GetText(), "20", "and 20 silver"); eq(line.Tick:IsShown(), true, "and the box is ticked")
+    W.Type(gold, "1")
+    eq(me.maxPrice, 12000, "one gold and 20 silver")
+    W.Run(0.5)
+    check(Row("Good Chest") ~= nil and Row("Helm") ~= nil and Row("Big Axe") ~= nil, "everything but the robe again")
+    eq(Row("Great Chest"), nil, "which costs nine")
+    eq(Row("Good Chest").Pick.Text:GetText(), "Best upgrade", "the best chest for that sum")
+    check(Status():find("11 upgrades in 6 slots. 1 more cost more than 1g 20s.", 1, true) ~= nil, "and the one left out: " .. Status())
+    -- A field emptied leaves what the other holds: the silver gone, the sum is one gold.
+    W.Type(silver, "")
+    eq(me.maxPrice, 10000, "no silver: one gold")
+    -- No sum asks for nothing while the player types. Enter on it unticks the box and shows
+    -- the last sum again.
+    W.Type(gold, "")
+    eq(me.maxPrice, 10000, "two empty fields change nothing yet"); eq(me.maxPriceOn, true, "the box stays ticked")
+    W.PressEnter(gold)
+    eq(me.maxPriceOn, nil, "Enter on no sum: unticked"); eq(line.Tick:IsShown(), false, "the tick goes")
+    eq(gold:GetText(), "1", "and the last sum is back in the fields"); eq(silver:GetText(), "00", "both of them"); eq(me.maxPrice, 10000, "kept for the next time")
+    W.Run(0.5)
+    check(Row("Great Chest") ~= nil, "everything is listed again")
+    eq(frame.FilterNames:GetText(), "", "and nothing stands beside the field")
+    W.Type(gold, "0")
+    eq(me.maxPriceOn, nil, "nought is no sum to ask for")
+    W.PressEnter(gold)
+    eq(gold:GetText(), "1", "and gives way to the last one"); eq(silver:GetText(), "00", "in both fields")
+    filters:Close()
+
+    -- The tick box itself: a click asks for the sum that is in the fields.
+    local price = FilterBox("Buyout up to")
+    price:Tooltip()
+    eq(GameTooltip._lines[1].text, "Buyout up to", "its tooltip is titled with its words"); eq(GameTooltip._lines[2].text, ns.L.PRICE_MAX_TIP, "and says what it leaves out")
+    GameTooltip:Hide()
+    price:Click()
+    eq(me.maxPriceOn, true, "ticked"); eq(me.maxPrice, 10000, "with the sum that was there")
+    W.Run(0.5)
+    eq(Row("Great Chest"), nil, "the list is cut at once")
+    price:Click()
+    eq(me.maxPriceOn, nil, "unticked"); eq(me.maxPrice, 10000, "the sum stays")
+
+    -- A scan with the sum on looks up no price for what costs more; a bigger sum sends for
+    -- the prices it lets in.
+    filters:Open()
+    gold, silver = select(2, Line())
+    W.Type(silver, "20")
+    W.Type(gold, "0")
+    filters:Close()
+    eq(me.maxPrice, 2000, "20 silver again"); eq(me.maxPriceOn, true, "and on")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    ScanToEnd()
+    W.Run(0.5)
+    eq(Offer("Helm"), nil, "no price for the helm"); eq(Offer("Plain Chest"), nil, "or for the plain chest")
+    check(Status():find("7 upgrades in 5 slots. 5 more cost more than 20s.", 1, true) ~= nil, "the status line counts them all the same: " .. Status())
+    local searches = W.AH.calls.search
+    filters:Open()
+    W.Type(select(3, Line()), "30")
+    filters:Close()
+    eq(S.mode, "more", "a bigger sum: the missing prices are asked for")
+    Settle()
+    eq(W.AH.calls.search, searches + 2, "two item searches, for the helm and the axe")
+    check(Row("Helm") ~= nil and Row("Big Axe") ~= nil, "which are listed"); eq(Row("Plain Chest"), nil, "the plain chest still costs more")
+
+    -- Beside the other price filter the less of the two decides, and the status line names
+    -- the one that did.
+    FilterBox("Only what I can afford"):Click()
+    Settle()
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Up to 30s", "both are named beside the field")
+    check(Status():find("more cost more than 30s.", 1, true) ~= nil, "ten gold in the purse: the sum is the less: " .. Status())
+    W.player.money = 1000
+    ns.UI.Refresh()
+    eq(Row("Helm"), nil, "ten silver in the purse: the helm is out again")
+    check(Status():find("more cost more than you have.", 1, true) ~= nil, "and it is the purse that leaves it out: " .. Status())
+    W.player.money = 100000
+    FilterBox("Only what I can afford"):Click()
+    Settle()
+
+    -- The best set for a budget goes by its budget: the sum has no say in it, and its line
+    -- of the menu is grey, as the other price filter's is.
+    local bar = frame.PlanBar
+    bar.Check:SetChecked(true)
+    bar.Check:Click()
+    Settle()
+    check(Row("Great Chest") ~= nil, "the set for ten gold has the robe, for nine")
+    eq(price:IsEnabled(), false, "the line is grey"); eq(price:GetChecked(), true, "with its tick")
+    price:Click()
+    eq(me.maxPriceOn, true, "a grey line takes no click")
+    eq(frame.FilterNames:GetText(), "", "and is not named beside the field while the list is a set")
+    filters:Open()
+    gold, silver = select(2, Line())
+    eq(gold._mouse, false, "its fields are only read: out of reach of the mouse"); eq(silver._mouse, false, "both of them")
+    eq(silver:GetText(), "30", "with the sum in them")
+    filters:Close()
+    bar.Check:SetChecked(false)
+    bar.Check:Click()
+    Settle()
+    eq(Row("Great Chest"), nil, "the list again: the sum has its say"); eq(frame.FilterNames:GetText(), "Up to 30s", "and its name")
+
+    -- The sum is the character's own, kept with the account. Another character of the
+    -- account has its own: shopping for the druid, the fields are the druid's.
+    eq(UpgradeScoutDB.chars[me.key].maxPrice, 3000, "the sum is saved on the character's card"); eq(UpgradeScoutDB.chars[me.key].maxPriceOn, true, "with its tick")
+    local druid = UpgradeScoutDB.chars["Alty-Testrealm"]
+    W.RunUntil(function() return W.AH.ready end, 5)
+    frame.ProfileDropdown:Pick(3)
+    W.Run(0.5)
+    eq(ns.Roster.Target(), druid, "the lists are for the druid")
+    eq(price:GetChecked(), false, "its box is not ticked: the warrior's sum is the warrior's")
+    eq(frame.FilterNames:GetText(), "", "and nothing is named beside the field")
+    filters:Open()
+    gold, silver = select(2, Line())
+    eq(gold:GetText(), "1", "one gold in its fields, as before any sum is typed"); eq(silver:GetText(), "00", "and no silver")
+    W.Type(gold, "5")
+    filters:Close()
+    eq(druid.maxPrice, 50000, "five gold, typed while shopping for the druid, is the druid's"); eq(druid.maxPriceOn, true, "and asked for it")
+    eq(me.maxPrice, 3000, "the warrior's own sum is where it was")
+    eq(frame.FilterNames:GetText(), "Up to 5g", "the druid's is named beside the field")
+    frame.ProfileDropdown:Pick(1)
+    W.Run(0.5)
+    eq(ns.Roster.Target(), nil, "the lists are the warrior's own again")
+    eq(price:GetChecked(), true, "and its box is ticked, as it was"); eq(frame.FilterNames:GetText(), "Up to 30s", "with its own sum")
 end
 
 local function CheckLocale(locale, language, scan)

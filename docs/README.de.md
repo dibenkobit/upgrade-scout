@@ -35,7 +35,9 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
   für einen Betrag, den du eintippst.
 - Das Menü **Filter** grenzt die Liste ein. **Beste Rüstungsart für die Klasse** lässt Rüstung
   weg, die leichter ist als die schwerste, die dein Charakter trägt. **Verbesserung ab** lässt
-  Verbesserungen weg, die kleiner sind als der Prozentwert, den du eintippst.
+  Verbesserungen weg, die kleiner sind als der Prozentwert, den du eintippst. **Sofortkauf bis**
+  lässt Gegenstände weg, die mehr kosten als der Betrag, den du eintippst: **Beste
+  Verbesserung** ist dann in jedem Slot die beste für diesen Preis.
 - Kauft auch für deine anderen Charaktere ein. Ein Button am Briefkasten legt die gekaufte
   Ausrüstung in einen Brief an sie.
 - Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden
@@ -101,9 +103,11 @@ Von Hand:
   Stoff und haben dieses Häkchen nicht.
 - **Verbesserung ab** richtet sich nach dem Prozentwert in der Spalte **Verbesserung**. Ein
   Gegenstand für einen leeren Slot bleibt immer.
-- Jeder Charakter hat sein eigenes Häkchen **Beste Rüstungsart für die Klasse** und seine eigene
-  Zahl bei **Verbesserung ab**. Kaufst du für einen anderen Charakter ein, siehst und änderst du
-  dessen Einstellungen.
+- **Sofortkauf bis** ist die Obergrenze für einen einzelnen Gegenstand. **Bestes Set für** hat
+  sein eigenes Budget und richtet sich nicht danach.
+- Jeder Charakter hat sein eigenes Häkchen **Beste Rüstungsart für die Klasse**, seine eigene
+  Zahl bei **Verbesserung ab** und seinen eigenen Betrag bei **Sofortkauf bis**. Kaufst du für
+  einen anderen Charakter ein, siehst und änderst du dessen Einstellungen.
 - Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die die Wertung nicht mitzählt.
 - Heil- und Manatränke haben keine Wertung: Kein Gewicht macht aus „stellt 700 Gesundheit wieder her“
   eine Zahl.

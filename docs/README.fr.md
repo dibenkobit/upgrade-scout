@@ -36,7 +36,9 @@ chat.
   or, ou pour une somme que vous saisissez.
 - Le menu **Filtres** resserre la liste. **Meilleur type d'armure pour la classe** écarte les
   armures plus légères que la plus lourde que porte votre personnage. **Amélioration d'au moins**
-  écarte les améliorations inférieures au pourcentage que vous saisissez.
+  écarte les améliorations inférieures au pourcentage que vous saisissez. **Achat immédiat
+  jusqu'à** écarte les objets qui coûtent plus que la somme que vous saisissez : la **Meilleure
+  amélioration** de chaque emplacement est alors la meilleure à ce prix.
 - Sert aussi à acheter pour vos autres personnages. Un bouton à la boîte aux lettres met
   l'équipement acheté dans une lettre pour eux.
 - L'infobulle de chaque objet montre de combien il est meilleur que ce que vous portez, pour chaque
@@ -103,9 +105,11 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
   portent que du tissu et n'ont pas cette case.
 - **Amélioration d'au moins** suit le pourcentage de la colonne **Amélioration**. Un objet pour un
   emplacement vide reste toujours.
-- Chaque personnage a sa propre case **Meilleur type d'armure pour la classe** et son propre
-  nombre pour **Amélioration d'au moins**. Quand vous achetez pour un autre personnage, vous
-  voyez et réglez les siens.
+- **Achat immédiat jusqu'à** est le prix maximum d'un seul objet. **Meilleur ensemble pour** a
+  son propre budget et n'en tient pas compte.
+- Chaque personnage a sa propre case **Meilleur type d'armure pour la classe**, son propre
+  nombre pour **Amélioration d'au moins** et sa propre somme pour **Achat immédiat jusqu'à**.
+  Quand vous achetez pour un autre personnage, vous voyez et réglez les siens.
 - Un `*` jaune après un nom : l'objet a des effets que le score ne compte pas.
 - Les potions de vie et de mana n'ont pas de score : aucun poids ne chiffre « rend 700 points
   de vie ».

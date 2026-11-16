@@ -219,6 +219,18 @@ local L = {
     GAIN_MIN_FULL = "Upgrade at least %d%%",
     GAIN_MIN_TIP = "Leaves out upgrades smaller than this. An item for an empty slot always stays. Each character has a number of its own.",
     ST_NONE_WANTED = "No upgrade passes your filters. They leave out %d.",
+    -- "Buyout up to" (Filters.lua): a price filter with a sum of its own, the most to pay for
+    -- one item, kept with the character the list is for (Wants.lua). PRICE_MAX stands before a
+    -- field for gold and one for silver. PRICE_MAX_SHORT names the filter beside the Filters
+    -- field and PRICE_MAX_FULL in that field's tooltip, both with the sum as the game writes
+    -- money. ST_DONE_OVER and ST_NONE_OVER are the status line when it is that sum, and not
+    -- the purse, that leaves upgrades out: how many it leaves out, and the sum.
+    PRICE_MAX = "Buyout up to",
+    PRICE_MAX_SHORT = "Up to %s",
+    PRICE_MAX_FULL = "Buyout up to %s",
+    PRICE_MAX_TIP = "Leaves out items that cost more than this. The best upgrade in each slot is then the best one for that price. Each character has a sum of its own.",
+    ST_DONE_OVER = "%d upgrades in %d slots. %d more cost more than %s.",
+    ST_NONE_OVER = "Nothing at that price. %d upgrades cost more than %s.",
 }
 
 if GetLocale() == "ruRU" then
@@ -415,6 +427,12 @@ if GetLocale() == "ruRU" then
         GAIN_MIN_FULL = "Улучшение от %d%%",
         GAIN_MIN_TIP = "Убирает улучшения слабее этого. Вещь в пустой слот остаётся всегда. У каждого персонажа своё число.",
         ST_NONE_WANTED = "Под твои фильтры ничего не подходит. Скрыто улучшений: %d.",
+        PRICE_MAX = "Выкуп до",
+        PRICE_MAX_SHORT = "До %s",
+        PRICE_MAX_FULL = "Выкуп до %s",
+        PRICE_MAX_TIP = "Убирает вещи дороже этой суммы. Лучшее улучшение в каждом слоте тогда лучшее за эти деньги. У каждого персонажа своя сумма.",
+        ST_DONE_OVER = "Улучшений: %d, слотов: %d. Ещё %d стоят больше %s.",
+        ST_NONE_OVER = "За эту цену ничего нет. Улучшений: %d, и все дороже %s.",
     }
     for k, v in pairs(R) do L[k] = v end
 end
@@ -613,6 +631,12 @@ if GetLocale() == "deDE" then
         GAIN_MIN_FULL = "Verbesserung ab %d%%",
         GAIN_MIN_TIP = "Lässt kleinere Verbesserungen weg. Ein Gegenstand für einen leeren Slot bleibt immer. Jeder Charakter hat seine eigene Zahl.",
         ST_NONE_WANTED = "Keine Verbesserung besteht deine Filter. Ausgeblendet: %d.",
+        PRICE_MAX = "Sofortkauf bis",
+        PRICE_MAX_SHORT = "Bis %s",
+        PRICE_MAX_FULL = "Sofortkauf bis %s",
+        PRICE_MAX_TIP = "Lässt Gegenstände weg, die mehr kosten. Die beste Verbesserung in jedem Slot ist dann die beste für diesen Preis. Jeder Charakter hat seine eigene Summe.",
+        ST_DONE_OVER = "Verbesserungen: %d, Slots: %d. Weitere %d kosten mehr als %s.",
+        ST_NONE_OVER = "Nichts zu diesem Preis. Verbesserungen: %d, alle teurer als %s.",
     }
     for k, v in pairs(D) do L[k] = v end
 end
@@ -812,6 +836,12 @@ if GetLocale() == "frFR" then
         GAIN_MIN_FULL = "Amélioration d'au moins %d %%",
         GAIN_MIN_TIP = "Écarte les améliorations plus faibles. Un objet pour un emplacement vide reste toujours. Chaque personnage a son propre nombre.",
         ST_NONE_WANTED = "Aucune amélioration ne passe vos filtres. Écartées : %d.",
+        PRICE_MAX = "Achat immédiat jusqu'à",
+        PRICE_MAX_SHORT = "Jusqu'à %s",
+        PRICE_MAX_FULL = "Achat immédiat jusqu'à %s",
+        PRICE_MAX_TIP = "Écarte les objets qui coûtent plus cher. La meilleure amélioration de chaque emplacement est alors la meilleure à ce prix. Chaque personnage a sa propre somme.",
+        ST_DONE_OVER = "Améliorations : %d, emplacements : %d. %d de plus coûtent plus de %s.",
+        ST_NONE_OVER = "Rien à ce prix. Améliorations : %d, toutes à plus de %s.",
     }
     for k, v in pairs(F) do L[k] = v end
 end
@@ -1011,6 +1041,12 @@ if GetLocale() == "zhCN" then
         GAIN_MIN_FULL = "提升至少 %d%%",
         GAIN_MIN_TIP = "不显示低于这个数值的提升。空部位的物品始终保留。每个角色各有自己的数值。",
         ST_NONE_WANTED = "没有符合你筛选条件的提升装备。被筛掉的有%d件。",
+        PRICE_MAX = "一口价不超过",
+        PRICE_MAX_SHORT = "不超过 %s",
+        PRICE_MAX_FULL = "一口价不超过 %s",
+        PRICE_MAX_TIP = "不显示价格高于这个数目的物品。每个部位的最大提升就是这个价位内提升最多的一件。每个角色各有自己的数目。",
+        ST_DONE_OVER = "找到%d件提升装备，涉及%d个部位。另有%d件价格高于 %s。",
+        ST_NONE_OVER = "这个价位内没有提升装备。有%d件价格高于 %s。",
     }
     for k, v in pairs(Z) do L[k] = v end
 end
@@ -1211,6 +1247,12 @@ if GetLocale() == "ptBR" then
         GAIN_MIN_FULL = "Melhoria de pelo menos %d%%",
         GAIN_MIN_TIP = "Deixa de fora as melhorias menores que isso. Um item para um espaço vazio sempre fica. Cada personagem tem o seu próprio número.",
         ST_NONE_WANTED = "Nenhuma melhoria passa pelos seus filtros. Deixadas de fora: %d.",
+        PRICE_MAX = "Arremate de até",
+        PRICE_MAX_SHORT = "Até %s",
+        PRICE_MAX_FULL = "Arremate de até %s",
+        PRICE_MAX_TIP = "Deixa de fora os itens que custam mais que isso. A maior melhoria de cada espaço passa a ser a maior por esse preço. Cada personagem tem a sua própria quantia.",
+        ST_DONE_OVER = "Melhorias: %d, espaços: %d. Mais %d custam mais de %s.",
+        ST_NONE_OVER = "Nada por esse preço. Melhorias: %d, todas por mais de %s.",
     }
     for k, v in pairs(P) do L[k] = v end
 end
@@ -1410,6 +1452,12 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         GAIN_MIN_FULL = "Mejora de al menos %d%%",
         GAIN_MIN_TIP = "Omite las mejoras menores que esta. Un objeto para una ranura vacía se queda siempre. Cada personaje tiene su propio número.",
         ST_NONE_WANTED = "Ninguna mejora pasa tus filtros. Omitidas: %d.",
+        PRICE_MAX = "Compra hasta",
+        PRICE_MAX_SHORT = "Hasta %s",
+        PRICE_MAX_FULL = "Compra hasta %s",
+        PRICE_MAX_TIP = "Omite los objetos que cuestan más que esto. La mayor mejora de cada ranura es entonces la mayor por ese precio. Cada personaje tiene su propia suma.",
+        ST_DONE_OVER = "Mejoras: %d, ranuras: %d. %d más cuestan más de %s.",
+        ST_NONE_OVER = "Nada por ese precio. Mejoras: %d, todas por más de %s.",
     }
     for k, v in pairs(E) do L[k] = v end
 end
@@ -1611,6 +1659,12 @@ if GetLocale() == "koKR" then
         GAIN_MIN_FULL = "최소 향상 %d%%",
         GAIN_MIN_TIP = "이보다 작은 향상은 목록에서 뺍니다. 빈 부위에 들어갈 아이템은 항상 남습니다. 캐릭터마다 숫자를 따로 둡니다.",
         ST_NONE_WANTED = "필터에 맞는 향상이 없습니다. 필터로 빠진 것: %d개.",
+        PRICE_MAX = "즉시 구입가 상한",
+        PRICE_MAX_SHORT = "%s 이하",
+        PRICE_MAX_FULL = "즉시 구입가 %s 이하",
+        PRICE_MAX_TIP = "이보다 비싼 아이템은 목록에서 뺍니다. 그러면 부위마다 최고 향상은 이 가격 안에서 가장 좋은 것입니다. 캐릭터마다 금액을 따로 둡니다.",
+        ST_DONE_OVER = "향상 %d개, 부위 %d곳. %d개는 %s보다 비쌉니다.",
+        ST_NONE_OVER = "이 가격에는 없습니다. 향상 %d개가 %s보다 비쌉니다.",
     }
     for k, v in pairs(K) do L[k] = v end
 end
@@ -1811,6 +1865,12 @@ if GetLocale() == "zhTW" then
         GAIN_MIN_FULL = "提升至少 %d%%",
         GAIN_MIN_TIP = "不顯示低於這個數值的提升。空部位的物品始終保留。每個角色各有自己的數值。",
         ST_NONE_WANTED = "沒有符合你篩選條件的提升裝備。被篩掉的有%d件。",
+        PRICE_MAX = "直購價不超過",
+        PRICE_MAX_SHORT = "不超過 %s",
+        PRICE_MAX_FULL = "直購價不超過 %s",
+        PRICE_MAX_TIP = "不顯示價格高於這個數目的物品。每個部位的最大提升就是這個價位內提升最多的一件。每個角色各有自己的數目。",
+        ST_DONE_OVER = "找到%d件提升裝備，涵蓋%d個部位。另有%d件價格高於 %s。",
+        ST_NONE_OVER = "這個價位內沒有提升裝備。有%d件價格高於 %s。",
     }
     for k, v in pairs(T) do L[k] = v end
 end

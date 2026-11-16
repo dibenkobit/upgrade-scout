@@ -55,7 +55,8 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
 - **Best set for** picks the upgrades that give the most together for your gold, or for a sum you type.
 - The **Filters** menu narrows the list. **Best armor type for the class** leaves out armor
   lighter than the heaviest your character wears. **Upgrade at least** leaves out upgrades
-  smaller than the percent you type.
+  smaller than the percent you type. **Buyout up to** leaves out items that cost more than the
+  sum you type: the **Best upgrade** in each slot is then the best one for that price.
 - Shops for your other characters too. A button at the mailbox puts the gear you bought into a
   letter to them.
 - Any item's tooltip shows how much better it is than what you wear, for every spec of your class,
@@ -113,8 +114,11 @@ To install by hand:
   stay in the list. A mage, a priest and a warlock wear cloth alone and have no such box.
 - **Upgrade at least** goes by the percent in the **Upgrade** column. An item for an empty slot
   always stays.
-- Each character has its own **Best armor type for the class** box and its own **Upgrade at
-  least** number. When you shop for another character, you see and set that character's.
+- **Buyout up to** is the most to pay for one item. **Best set for** has its own budget and
+  does not use it.
+- Each character has its own **Best armor type for the class** box, its own **Upgrade at
+  least** number and its own **Buyout up to** sum. When you shop for another character, you
+  see and set that character's.
 - A yellow `*` after a name means the item has effects the score does not count, such as procs.
 - Health and mana potions have no score: no weight puts a number on "restores 700 health".
 - Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The
