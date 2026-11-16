@@ -18,13 +18,10 @@ local _, ns = ...
 --     or, with none chosen, the one for the tree its talents are in.
 --   * An item's value is the sum of its stats times the weights. The stats are Forever
 --     Companion's own reading of the item: a chance to hit or to crit as percent, where the
---     game counts rating. (In most languages of the game it takes the game's count for
---     percent all the same, which is put right here: see InPercent.)
+--     game counts rating.
 --   * It writes one line into an item's tooltip, for the scale in use, and draws an arrow of
 --     its own on an upgrade: on quest rewards and loot, and in the bags, the bank and a
 --     merchant's window. Each of those has a switch in its options.
---   * It writes its lists of the best gear into an item's tooltip as well: where the item
---     stands in them for each talent tree the player follows there. That has a switch too.
 --
 -- What Forever Companion is asked: which scales a class has, which one the character being
 -- played has in use, and what it reads of an item. Where an item goes and what it would
@@ -261,65 +258,9 @@ end
 ---------------------------------------------------------------------------
 -- Items
 ---------------------------------------------------------------------------
--- The game's name for a stat of gear, as C_Item.GetItemStats gives it.
-local function Mod(name)
-    return "ITEM_MOD_" .. name .. "_SHORT"
-end
-
--- The points of rating in one percent of a chance, at level 60.
-local PER = { CRIT = 14, HIT = 10, DODGE = 12, PARRY = 15, BLOCK = 5 }
-
--- A chance (to crit, to hit, to dodge, to parry, to block) is a percentage to Forever
--- Companion: a weight of its scales is for one percent, and percent is what it reads from
--- the words of an item's tooltip, which it knows in English and in French. In the other
--- languages of the game it takes the game's own count of the item in their place
--- (GetItemStats), and that is in points of rating: fourteen for one percent to crit. It
--- scores them as so many percent, and the item comes out at many times what the scale
--- gives it in English. (Seen in the game in Russian, with Forever Companion 0.5.1: gloves
--- with 1% to crit at 406 points, on a scale that weighs a percent at 29.)
--- So a chance in its reading that is the game's count of rating, to the point, is taken
--- for that count and made percent. Read as percent the two are never the same number, and
--- the reading is left as it is; so it is once Forever Companion counts rating right by
--- itself. The reading is its own to keep (it hands the same one out each time): what is
--- changed is a copy.
--- The price: in those languages its own line in a tooltip, and its own arrows, go on by
--- its count, and say more of such an item than a list of this addon does.
--- Its name for a chance -> the game's name for the rating behind it, and the points of
--- that in one percent.
-local CHANCES = {
-    CritRating = { Mod("CRIT_RATING"), PER.CRIT },
-    SpellCritRating = { Mod("CRIT_SPELL_RATING"), PER.CRIT },
-    HitRating = { Mod("HIT_RATING"), PER.HIT },
-    SpellHitRating = { Mod("HIT_SPELL_RATING"), PER.HIT },
-    DodgeRating = { Mod("DODGE_RATING"), PER.DODGE },
-    ParryRating = { Mod("PARRY_RATING"), PER.PARRY },
-    BlockRating = { Mod("BLOCK_RATING"), PER.BLOCK },
-}
-
--- read: Forever Companion's reading of the item whose link, without an enchantment, is
--- `bare`. Returns it, or a copy with every chance in percent.
-local function InPercent(read, bare)
-    local counted = C_Item.GetItemStats(bare)
-    if type(counted) ~= "table" then return read end
-    local stats
-    for name, chance in pairs(CHANCES) do
-        local amount = read.stats[name]
-        if type(amount) == "number" and amount ~= 0 and amount == tonumber(counted[chance[1]]) then
-            if not stats then
-                stats = {}
-                for stat, value in pairs(read.stats) do stats[stat] = value end
-            end
-            stats[name] = amount / chance[2]
-        end
-    end
-    if not stats then return read end
-    return { loc = read.loc, usable = read.usable, stats = stats }
-end
-
 -- What there is to score about an item link, in the shape Score.Item gives it, with Forever
 -- Companion's reading of the item (`companion`: { stats = { [its name for a stat] = amount } })
--- in place of the stats, a chance in percent whatever it read (InPercent). The item is read
--- as it would be for sale, without an enchantment.
+-- in place of the stats. The item is read as it would be for sale, without an enchantment.
 -- nil while there is no answer yet: the client has not loaded the item.
 -- An item of a kind that is not gear (a shirt, a tabard) has nothing to read: `companion`
 -- is false and the item scores nothing. That is an answer, and it stands: such an item is
@@ -340,7 +281,7 @@ function C.Item(link)
         if type(lines) ~= "table" or #lines < 2 then return nil end
         local got, wait = ForeverCompanion.Scales.ReadItem(bare)
         if type(got) == "table" and type(got.stats) == "table" then
-            read = InPercent(got, bare)
+            read = got
         elseif wait then
             return nil
         end
@@ -423,6 +364,10 @@ end
 -- (`with`): that counts on a scale of the kind that would use it (see Caster). A chance
 -- with spells has a name of its own as well (`own`), which a scale the player made may
 -- weigh: on such a scale it counts under that name.
+local function Mod(name)
+    return "ITEM_MOD_" .. name .. "_SHORT"
+end
+
 local NAMES = {
     [Mod("STRENGTH")] = { to = "Strength" },
     [Mod("AGILITY")] = { to = "Agility" },
@@ -442,15 +387,15 @@ local NAMES = {
     [Mod("ARCANE_DAMAGE_DONE")] = { to = "ArcaneSpellDamage" },
     [Mod("SPELL_PENETRATION")] = { to = "SpellPenetration" },
     RESISTANCE0_NAME = { to = "Armor" },
-    [Mod("CRIT_RATING")] = { to = "CritRating", per = PER.CRIT },
-    [Mod("CRIT_MELEE_RATING")] = { to = "CritRating", per = PER.CRIT, with = "weapons" },
-    [Mod("CRIT_SPELL_RATING")] = { to = "CritRating", per = PER.CRIT, with = "spells", own = "SpellCritRating" },
-    [Mod("HIT_RATING")] = { to = "HitRating", per = PER.HIT },
-    [Mod("HIT_MELEE_RATING")] = { to = "HitRating", per = PER.HIT, with = "weapons" },
-    [Mod("HIT_SPELL_RATING")] = { to = "HitRating", per = PER.HIT, with = "spells", own = "SpellHitRating" },
-    [Mod("DODGE_RATING")] = { to = "DodgeRating", per = PER.DODGE },
-    [Mod("PARRY_RATING")] = { to = "ParryRating", per = PER.PARRY },
-    [Mod("BLOCK_RATING")] = { to = "BlockRating", per = PER.BLOCK },
+    [Mod("CRIT_RATING")] = { to = "CritRating", per = 14 },
+    [Mod("CRIT_MELEE_RATING")] = { to = "CritRating", per = 14, with = "weapons" },
+    [Mod("CRIT_SPELL_RATING")] = { to = "CritRating", per = 14, with = "spells", own = "SpellCritRating" },
+    [Mod("HIT_RATING")] = { to = "HitRating", per = 10 },
+    [Mod("HIT_MELEE_RATING")] = { to = "HitRating", per = 10, with = "weapons" },
+    [Mod("HIT_SPELL_RATING")] = { to = "HitRating", per = 10, with = "spells", own = "SpellHitRating" },
+    [Mod("DODGE_RATING")] = { to = "DodgeRating", per = 12 },
+    [Mod("PARRY_RATING")] = { to = "ParryRating", per = 15 },
+    [Mod("BLOCK_RATING")] = { to = "BlockRating", per = 5 },
 }
 local SPELL_DAMAGE, SPELL_HEALING = Mod("SPELL_DAMAGE_DONE"), Mod("SPELL_HEALING_DONE")
 local HEALTH, MANA = Mod("HEALTH"), Mod("MANA")

@@ -15,9 +15,6 @@
   only the one you are playing, so in such a list the tooltip has the addon's lines, and
   neither Forever Companion's line nor its BiS lists. The addon's lines say whose score it is:
   **Upgrade Scout (Forever Companion score)**.
-- A chance to crit or to hit counts in percent in every language. In languages other than
-  English and French, Forever Companion itself takes rating for percent and scores such an
-  item many times too high, so its own line and arrows can show more for it than the lists do.
 - The choice is for the whole account. Without Forever Companion, or with it switched off, the
   addon scores by its own weights as before.
 - If you have Forever Companion, the window comes up once after the update to show you the

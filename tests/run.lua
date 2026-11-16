@@ -21,7 +21,6 @@ local names = {
     "pawn_effects",
     "price_max", "price_max_ui",
     "companion_scan", "companion_absent", "companion_tooltips", "companion_welcome", "companion_supplies", "companion_alt",
-    "companion_chance",
 }
 
 if not scenario then
@@ -7727,61 +7726,6 @@ function scenarios.companion_alt()
     local filled
     ns.Companion.Hushed(function(what) filled = what end, "a link")
     eq(filled, "a link", "no Forever Companion: what fills the tooltip in is called")
-end
-
--- A chance on an item. Forever Companion means it as percent, which is what its scales
--- weigh, and in most languages of the game takes the game's points of rating for it.
-function scenarios.companion_chance()
-    StandardWorld()
-    -- Two chests with 2% to crit, which the game counts as 28 points of rating, and 4
-    -- Strength. Forever Companion took the first's crit from the game's count, as it does in
-    -- Russian, and read the second's from the words of its tooltip, as it does in English.
-    local game = { ITEM_MOD_CRIT_RATING_SHORT = 28, ITEM_MOD_STRENGTH_SHORT = 4 }
-    W.AddItem({ id = 330, name = "Counted Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 0, level = 10,
-        game = game, companion = { CritRating = 28, Strength = 4 } })
-    W.AddItem({ id = 331, name = "Read Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 0, level = 10,
-        game = game, companion = { CritRating = 2, Strength = 4 } })
-    -- Every other chance it has a name for, taken from the game's count: 2% to hit and to
-    -- block, 1% of each of the rest.
-    W.AddItem({ id = 332, name = "Counted Shield", equipLoc = "INVTYPE_SHIELD", subClassID = 6, value = 0, level = 10,
-        game = { ITEM_MOD_HIT_RATING_SHORT = 20, ITEM_MOD_DODGE_RATING_SHORT = 12, ITEM_MOD_PARRY_RATING_SHORT = 15,
-            ITEM_MOD_BLOCK_RATING_SHORT = 10, ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14, ITEM_MOD_HIT_SPELL_RATING_SHORT = 10 },
-        companion = { HitRating = 20, DodgeRating = 12, ParryRating = 15, BlockRating = 10, SpellCritRating = 14, SpellHitRating = 10 } })
-    CompanionWorld()
-    local scale = W.AddCompanionCustom({ name = "Chances", class = "WARRIOR", w = { Strength = 1, CritRating = 30, HitRating = 20,
-        DodgeRating = 7, ParryRating = 5, BlockRating = 3, SpellCritRating = 11, SpellHitRating = 13 } })
-    local key = "my:" .. scale.id
-    ForeverCompanion.db.char.scale = key
-    UpgradeScoutDB = { engine = "companion" }
-    LoadAddon()
-    W.Fire("PLAYER_ENTERING_WORLD")
-    W.Run(1.5)
-    local Score = ns.Score
-    eq(Score.Engine(), "companion", "Forever Companion scores"); eq(Score.Current().name, key, "on the scale chosen in it")
-
-    -- What Forever Companion hands out is watched: it is its own to keep.
-    local handed = {}
-    local read = ForeverCompanion.Scales.ReadItem
-    ForeverCompanion.Scales.ReadItem = function(link)
-        local got, wait = read(link)
-        handed[tonumber(link:match("item:(%d+)"))] = got
-        return got, wait
-    end
-    local counted = Score.Item(W.Link(330))
-    near(Score.Value(counted, key), 64, "a chance it took from the game's count of rating is scored as the percent it is: 2 × 30, and 4")
-    eq(handed[330].stats.CritRating, 28, "its own reading is left as it was")
-    eq(counted.companion.stats.Strength, 4, "and the rest of it is taken as it is")
-    local worded = Score.Item(W.Link(331))
-    near(Score.Value(worded, key), 64, "a chance it read as percent is scored as it read it")
-    eq(worded.companion, handed[331], "that reading is used as it stands")
-    near(Score.Value(Score.Item(W.Link(332)), key), 2 * 20 + 7 + 5 + 2 * 3 + 11 + 13,
-        "to hit, to dodge, to parry, to block, and with spells: each in percent")
-    local at = #W.printed + 1
-    SlashCmdList.UPGRADESCOUT("stats " .. W.Link(330))
-    local said = Said(at)
-    check(said:find("score 64", 1, true) ~= nil, "/upscout stats has the score: " .. said)
-    check(said:find("Crit %: 2 × 30 = 60", 1, true) ~= nil, "and the chance in percent")
-    eq(#W.errors, 0, "nothing of it is an error")
 end
 
 ---------------------------------------------------------------------------
