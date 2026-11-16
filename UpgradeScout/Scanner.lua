@@ -1297,8 +1297,9 @@ function S.Start()
     local who = ns.Roster.Target()
     local profile = ns.Score.Current(who)
     if not profile then
-        -- (With Pawn scoring: the character has no Pawn scale switched on.)
-        S.message = ns.Score.Engine() and L.ERR_NO_SCALE or L.ERR_NO_PROFILE
+        -- (With another addon scoring: the character has no scale there, as with no Pawn
+        -- scale switched on.)
+        S.message = ns.Score.Text("NO_SCALE") or L.ERR_NO_PROFILE
         ns.Fire("SCAN_STATE")
         return false
     end

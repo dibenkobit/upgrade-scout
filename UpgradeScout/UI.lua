@@ -125,9 +125,9 @@ end
 
 -- The game puts the tooltip of the worn item beside an item's by itself, but it knows only
 -- what the character being played wears. For another character the item its card remembers
--- in the slot is put there, in the game's own second tooltip. Pawn, where the player has it,
--- is kept from writing there what the item would be to the character being played
--- (Pawn.Hushed).
+-- in the slot is put there, in the game's own second tooltip. Pawn and Forever Companion,
+-- where the player has them, are kept from writing there what the item would be to the
+-- character being played (Score.Hushed).
 local wornShown = false
 
 local function HideWorn()
@@ -141,7 +141,7 @@ local function ShowWorn(links)
     tip:SetOwner(GameTooltip, "ANCHOR_NONE")
     tip:ClearAllPoints()
     tip:SetPoint("TOPLEFT", GameTooltip, "TOPRIGHT", 0, -10)
-    ns.Pawn.Hushed(tip.SetHyperlink, tip, links[1])
+    ns.Score.Hushed(tip.SetHyperlink, tip, links[1])
     tip:Show()
     -- To the right of the item's tooltip where the screen has room, otherwise to its left.
     local right, edge, width = GameTooltip:GetRight(), UIParent:GetRight(), tip:GetWidth()
@@ -261,11 +261,14 @@ end
 -- that one's scales, class, level and what it wears, and its lines are kept out of such a
 -- row: ShowItemTooltip), so ours are all there is to say it, and a player who has Pawn
 -- score counts on finding the score there.
+-- The same with Forever Companion scoring, while it writes its own line into tooltips
+-- (Score.Writes): that line is about the character being played. With its line switched
+-- off in its options the score is ours to write again, by the box, on its scales.
 -- Notes without the score stand under the addon's name. With nothing to note, nothing is
 -- written at all.
 local function AddOfferLines(entry, who)
     local score = ns.Shows("rowTooltip")
-    if ns.Score.Engine() then score = who ~= nil end
+    if ns.Score.Writes() then score = who ~= nil end
     local notes = ns.Shows("rowNotes") and HasNotes(entry)
     if score and ns.OwnTree() and S.ctx then
         -- The tree in use alone: one line, for the profile the list is made on, which reads
@@ -297,11 +300,11 @@ local function ShowItemTooltip(row)
     -- No vendor price, as on the Buy tab: this is something to buy, not to sell.
     local hideVendorPrice = true
     if who then
-        -- A list for another character. Pawn, where the player has it, would write here how
-        -- much of an upgrade the item is for the character being played, which is no part of
-        -- a tooltip about someone else: it is kept from it (Pawn.Hushed). What the item is
-        -- to that character is in our lines below.
-        ns.Pawn.Hushed(GameTooltip.SetHyperlink, GameTooltip, offer.link, nil, nil, hideVendorPrice)
+        -- A list for another character. Pawn or Forever Companion, where the player has
+        -- one, would write here how much of an upgrade the item is for the character being
+        -- played, which is no part of a tooltip about someone else: they are kept from it
+        -- (Score.Hushed). What the item is to that character is in our lines below.
+        ns.Score.Hushed(GameTooltip.SetHyperlink, GameTooltip, offer.link, nil, nil, hideVendorPrice)
     else
         GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
     end
@@ -980,7 +983,7 @@ local function ProfileKey()
     local current, profiles = ns.Score.Current(who)
     local names = {}
     for i = 1, #profiles do names[i] = profiles[i].name end
-    -- (And who scores: with Pawn the profiles are Pawn's scales.)
+    -- (And who scores: with another addon the profiles are its scales.)
     return (ns.Score.Engine() or "") .. "\n" .. (who and who.key or "") .. "\n" .. #ns.Roster.List() .. "\n"
         .. (current and current.name or "") .. "=" .. table.concat(names, "\n")
 end
@@ -1292,8 +1295,9 @@ function UI.ChooseProfile(id)
     ns.Fire("PROFILE_CHANGED", me)
 end
 
--- Another one scores (the addon or Pawn: the choice in the welcome window), or Pawn's
--- scales changed while Pawn scores. As when another profile is chosen: what a scan for gear
+-- Another one scores (the addon, Pawn or Forever Companion: the choice in the welcome
+-- window), or the scales of the one that does changed. As when another profile is chosen:
+-- what a scan for gear
 -- found means nothing now, and a view that had a list of gear, or was making one, gets it
 -- made again. Consumables are scored as their list is drawn.
 ns.Listen("SCORING_CHANGED", function()
@@ -1969,7 +1973,7 @@ local function Build()
         local who = ns.Roster.Target()
         GameTooltip_SetTitle(tooltip, who and L.ST_WHO:format(WhoName(who), ProfileTitle()) or ProfileTitle())
         -- Only what helps to choose. Where the weights come from is in the README.
-        GameTooltip_AddNormalLine(tooltip, ns.Score.Engine() and L.PROFILE_TIP_PAWN or L.PROFILE_TIP)
+        GameTooltip_AddNormalLine(tooltip, ns.Score.Text("TIP") or L.PROFILE_TIP)
         local _, profiles = ns.Score.Current(who)
         for i = 1, #profiles do
             if ns.Score.IsApprox(profiles[i].name) then

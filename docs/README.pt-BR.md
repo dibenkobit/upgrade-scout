@@ -54,6 +54,9 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
 - Usa o Pawn? Escolha **Pawn** na janela do addon e os equipamentos passam a ser avaliados pelas suas
   escalas do Pawn, e não pelos pesos do addon. As listas e as setas nas bolsas seguem essas escalas,
   e as linhas na dica de contexto são as do próprio Pawn.
+- Usa o Forever Companion? Escolha **Forever Companion** no mesmo lugar e os equipamentos passam a
+  ser avaliados pelas escalas dele. As listas seguem essas escalas, e a linha na dica de contexto e
+  as setas nas bolsas são as do próprio Forever Companion.
 
 Qualquer classe, qualquer nível. Inglês, chinês (simplificado e tradicional), alemão, russo,
 francês, espanhol, português do Brasil e coreano.

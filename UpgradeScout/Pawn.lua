@@ -17,6 +17,24 @@ local _, ns = ...
 local P = {}
 ns.Pawn = P
 
+-- The addon by its own name, as the welcome window and the tooltips write it.
+P.NAME = "Pawn"
+
+-- The words of ours that are about this addon, by what they are for (Score.Text).
+P.TEXT = {
+    SCORE = "TT_PAWN_SCORE",
+    TIP = "PROFILE_TIP_PAWN",
+    NO_SCALE = "ERR_NO_SCALE",
+    ABSENT = "WELCOME_NO_PAWN",
+    ASK = "WELCOME_SCALE",
+    NONE = "WELCOME_NO_SCALE",
+    WRITES = "WELCOME_TOOLTIP_PAWN",
+    WRITES_OTHERS = "WELCOME_TOOLTIP_PAWN_OTHERS",
+    NEW = "WELCOME_PAWN_NEW",
+}
+-- What the account remembers of having seen the choice of who scores with this addon there.
+P.OFFERED = "pawnOffered"
+
 -- Everything asked of Pawn is one of its own functions, named here, so that a Pawn that
 -- renames one is taken for a Pawn that cannot be asked, not for an error in the middle of
 -- a scan.
@@ -162,6 +180,12 @@ function P.Current(who)
     return byTalents or list[1], list
 end
 
+-- The scale chosen for a character (its card): written on the card, apart from the profile
+-- chosen for it among the addon's own.
+function P.Choose(card, scale)
+    card.scale = scale
+end
+
 ---------------------------------------------------------------------------
 -- Items
 ---------------------------------------------------------------------------
@@ -176,9 +200,9 @@ end
 
 -- What there is to score about an item link, in the shape Score.Item gives it, with Pawn's
 -- own record of the item in place of the stats: { link, itemID, invType, classID,
--- subClassID, pawn }. The item is read as it would be for sale, without an enchantment, as
--- Pawn's own upgrade arrows read it. nil while there is no answer yet: the client has not
--- loaded the item, or Pawn could not read it this time.
+-- subClassID, pawn, scorer = this file }. The item is read as it would be for sale, without
+-- an enchantment, as Pawn's own upgrade arrows read it. nil while there is no answer yet:
+-- the client has not loaded the item, or Pawn could not read it this time.
 -- Pawn keeps no record of an item that adds nothing (a trinket that is only used), nor of a
 -- kind it never reads (a shirt, a tabard). That is its answer, and it stands: `pawn` is
 -- false and the item scores nothing. Such an item is often worn, and taken for one still to
@@ -197,7 +221,7 @@ function P.Item(link)
     end
     return {
         link = link, itemID = itemID, invType = invType, classID = classID, subClassID = subClassID,
-        pawn = record,
+        scorer = P, pawn = record,
     }
 end
 
@@ -385,6 +409,11 @@ end
 ---------------------------------------------------------------------------
 -- Pawn's own lines in a tooltip
 ---------------------------------------------------------------------------
+-- Pawn writes the score into the game's item tooltips itself, always (Score.Writes).
+function P.WritesTooltip()
+    return true
+end
+
 -- Pawn writes into every item tooltip how much of an upgrade the item is, and means the
 -- character being played: it knows of no other. Under an item picked for another character
 -- of the account (a row of a list made for one, and what that one wears beside it) that

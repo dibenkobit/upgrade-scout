@@ -59,6 +59,9 @@ chat.
 - Vous utilisez Pawn ? Choisissez **Pawn** dans la fenêtre de l'addon : l'équipement est alors évalué
   selon vos échelles Pawn, et non selon les poids de l'addon. Les listes et les flèches des sacs les
   suivent, et les lignes de l'infobulle sont celles de Pawn.
+- Vous utilisez Forever Companion ? Choisissez **Forever Companion** au même endroit : l'équipement
+  est alors évalué selon ses échelles. Les listes les suivent, et la ligne de l'infobulle et les
+  flèches des sacs sont celles de Forever Companion.
 
 Toutes les classes, tous les niveaux. Anglais, chinois (simplifié et traditionnel), allemand,
 russe, français, espagnol, portugais du Brésil et coréen.

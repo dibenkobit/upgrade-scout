@@ -20,6 +20,7 @@ local names = {
     "buy_refused", "prices",
     "pawn_effects",
     "price_max", "price_max_ui",
+    "companion_scan", "companion_absent", "companion_tooltips", "companion_welcome", "companion_supplies", "companion_alt",
 }
 
 if not scenario then
@@ -6734,6 +6735,952 @@ function scenarios.pawn_alt()
     local filled
     ns.Pawn.Hushed(function(what) filled = what end, "a link")
     eq(filled, "a link", "no Pawn: what fills the tooltip in is called")
+end
+
+---------------------------------------------------------------------------
+-- Forever Companion in place of the addon's own weights (Companion.lua), for a player who
+-- chose it
+---------------------------------------------------------------------------
+-- The keys of the scales it comes with here: a warrior's two and a druid's two, one for each
+-- of the two talent trees the tests' classes have profiles for.
+local FURY, TANK, MOON, CAT = "wh:1", "wh:2", "wh:3", "wh:4"
+
+-- Forever Companion is installed, with those four scales. The warrior's first weighs an
+-- item's first score, as the addon's own first profile does, and its second the second; the
+-- druid's weigh the scores the tests give an item for a druid.
+local function CompanionWorld()
+    W.InstallCompanion()
+    W.AddCompanionScale("WARRIOR", { id = 1, label = "Fury DPS", tab = 1,
+        w = { TEST_S1 = 1, Strength = 1.5, Agility = 1, Stamina = 0.5, Ap = 0.4, CritRating = 8 } })
+    W.AddCompanionScale("WARRIOR", { id = 2, label = "Mitigation Tank", tab = 2, w = { TEST_S2 = 1, Stamina = 1 } })
+    W.AddCompanionScale("DRUID", { id = 3, label = "Balance DPS", tab = 1,
+        w = { TEST_D1 = 1, Intellect = 1, SpellPower = 1, CritRating = 6 } })
+    W.AddCompanionScale("DRUID", { id = 4, label = "Feral DPS", tab = 2, w = { TEST_D2 = 1, Agility = 1 } })
+end
+
+-- Forever Companion was asked about no item with its enchantment on.
+local function CheckCompanionAsked(label)
+    for _, link in ipairs(W.companion.asked) do
+        check(not link:match("item:%d+:%d"), label .. ": Forever Companion is asked about an item without its enchantment")
+    end
+end
+
+-- Has the tooltip Forever Companion's own line?
+local function CompanionLine(tooltip)
+    for _, line in ipairs(tooltip._lines) do
+        if line.text:find("Companion:", 1, true) then return true end
+    end
+    return false
+end
+
+-- The road of a player who has Forever Companion: the addon scores by itself until it is
+-- chosen, then on the scale it has in use, and the lists are made the same way from its
+-- numbers.
+function scenarios.companion_scan()
+    StandardWorld()
+    -- The worn chest is enchanted. On the second score: the two chests 9 (for sale) and 12
+    -- (worn), a helm, a two-hander and a shield.
+    W.equipped[5] = (W.Link(100):gsub("item:100:", "item:100:66", 1))
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.items["211:0"].value2, W.items["212:0"].value2, W.items["213:0"].value2 = 5, 40, 8
+    W.player.talents = { { name = "Arms", points = 7 }, { name = "Fury", points = 0 }, { name = "Protection", points = 1 } }
+    CompanionWorld()
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score, S, me = ns.Score, ns.Scanner, ns.Roster.Me()
+    local companion = ForeverCompanion
+    local function Idle() return S.state == "idle" end
+
+    -- It is there and not chosen: the addon scores by itself and asks it nothing.
+    eq(ns.Companion.Usable(), true, "Forever Companion is there to be asked"); eq(Score.Engine(), nil, "and is not, until chosen")
+    eq(Score.Current().name, "S1", "the profiles are the addon's own")
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local frame = UpgradeScoutFrame
+    local dropdown = frame.ProfileDropdown
+    ScanToEnd()
+    CheckStandardOffers("the addon's own weights, with Forever Companion installed")
+    eq(#W.companion.asked, 0, "Forever Companion is asked about no item")
+    eq(#dropdown.radios, 2, "the field lists the addon's profiles"); eq(dropdown:GetText(), "Arms", "the one in use")
+
+    -- Chosen, as the welcome window does it: for the whole account, and at once.
+    local told = 0
+    ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
+    Score.SetEngine("companion")
+    eq(UpgradeScoutDB.engine, "companion", "the choice is written down for the account"); eq(Score.Engine(), "companion", "and Forever Companion scores")
+    eq(told, 1, "what keeps scores is told")
+    local current, list = Score.Current()
+    eq(#list, 2, "the profiles are the scales Forever Companion has for the class")
+    eq(list[1].name, FURY, "by its keys, in its order"); eq(list[1].title, "Fury DPS", "each by the name it shows it by")
+    eq(list[2].name, TANK, "the second"); eq(list[2].title, "Mitigation Tank", "by its name")
+    eq(current.name, FURY, "the one in use: the one Forever Companion has for the talents")
+    eq(Score.Title(TANK), "Mitigation Tank", "a scale's title by its key"); eq(Score.IsApprox(FURY), false, "no scale is marked as an estimate")
+    eq(#Score.Trees(), 2, "the addon's own profiles are still there to be asked for")
+
+    -- The list that was there is made again, on the scale.
+    check(S.state ~= "idle", "a list that was made on the addon's weights is made again")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, FURY, "on the scale in use")
+    CheckStandardOffers("Forever Companion's scale for the first tree")
+    near(S.ctx.equipped[5].value, 10, "what is worn is scored on it, without its enchantment")
+    near(S.ctx.equipped[16].value, 20, "every piece of it")
+    eq(S.ctx.show1H, true, "the scale is offered one-handed weapons"); eq(S.ctx.show2H, true, "and two-handed ones")
+    CheckCompanionAsked("a scan")
+    eq(#dropdown.radios, 2, "the field lists the scales"); eq(dropdown.radios[1].text, "Fury DPS", "by their names")
+    eq(dropdown:GetText(), "Fury DPS", "and shows the one in use")
+    dropdown._tooltip(GameTooltip)
+    local tip = {}
+    for _, line in ipairs(GameTooltip._lines) do tip[#tip + 1] = line.text end
+    check(table.concat(tip, " | "):find(ns.L.PROFILE_TIP_COMPANION, 1, true) ~= nil, "its tooltip is about Forever Companion's scales")
+
+    -- Another scale chosen in the field: it is chosen in Forever Companion, whose own line
+    -- in a tooltip and whose own arrows go by the scale it has in use.
+    local refreshes = W.companion.refreshes
+    dropdown:Pick(2)
+    eq(companion.db.char.scale, TANK, "the scale chosen in the field is chosen in Forever Companion")
+    eq(W.companion.refreshes, refreshes + 1, "which is told to draw its marks again")
+    eq(me.companion, nil, "nothing of it is written on the card of the character being played")
+    eq(me.profile, nil, "the addon's own profile is left alone"); eq(me.scale, nil, "and so is the Pawn scale")
+    W.RunUntil(Idle, 600)
+    W.Run(0.5)
+    eq(told, 1, "a choice made here is no news from Forever Companion: the list is made once")
+    eq(S.ctx.profile, TANK, "the list is on the scale chosen")
+    check(Offer("Helm") ~= nil, "a helm for the empty head, by its score on that scale")
+    check(Offer("Shield") ~= nil, "a shield for the empty off hand")
+    check(Offer("Big Axe") ~= nil, "and a two-hander: a scale of Forever Companion's rules no weapon out")
+    eq(Offer("Good Chest"), nil, "the chest is no upgrade on it: 9 against 12")
+    eq(OfferCount(), 3, "and nothing else")
+
+    -- /upscout stats: the stats as Forever Companion reads them and the scale's weights.
+    W.items["200:0"].companion = { Strength = 5 }
+    local at = #W.printed + 1
+    SlashCmdList.UPGRADESCOUT("stats " .. W.Link(200))
+    local said = Said(at)
+    check(said:find('on the profile "Mitigation Tank": score 9', 1, true) ~= nil, "the scale in use and the score on it: " .. said)
+    check(said:find("TEST_S2: 9 × 1 = 9", 1, true) ~= nil, "a stat by Forever Companion's name for it, with the scale's weight")
+    check(said:find("Strength", 1, true) == nil, "a stat the scale does not weigh is left out")
+    W.items["200:0"].companion = nil
+
+    -- The scale's weights are changed in Forever Companion's own window: the addon hears of
+    -- it, and the list is made again.
+    local tank = W.companion.data.WARRIOR[2].w
+    tank.TEST_S2 = 3
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(told, 2, "its scales changed: what keeps scores is told")
+    W.RunUntil(Idle, 600)
+    near(Offer("Helm").value, 15, "the list is on the new weights")
+    -- It draws its marks again for other reasons too (the gear changed): no scale changed.
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(told, 2, "its marks drawn again with its scales as they were: nothing is told"); eq(S.state, "idle", "and the list stays")
+    tank.TEST_S2 = 4
+    W.CompanionChanged()
+    tank.TEST_S2, tank.Stamina = 1, 2
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(told, 3, "a burst of changes is one telling")
+    W.RunUntil(Idle, 600)
+
+    -- Another scale chosen in Forever Companion's own options: the list follows.
+    companion.db.char.scale = FURY
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(told, 4, "another scale chosen there: what keeps scores is told")
+    eq(Score.Current().name, FURY, "the scale in use is the one it has in use")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, FURY, "the list follows"); eq(dropdown:GetText(), "Fury DPS", "and so does the field")
+
+    -- A scale the player made there, for the account.
+    W.AddCompanionCustom({ name = "Leveling", class = "WARRIOR", w = { TEST_S1 = 2 } })
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(told, 5, "a scale made: the scales changed")
+    W.RunUntil(Idle, 600)
+    eq(#dropdown.radios, 3, "the field lists it"); eq(dropdown.radios[3].text, "Leveling", "after the ones that come with the addon")
+    dropdown:Pick(3)
+    eq(companion.db.char.scale, "my:1", "chosen, by its own key")
+    W.RunUntil(Idle, 600)
+    near(Offer("Good Chest").value, 36, "its own weights: 18 twice over"); near(S.ctx.equipped[5].value, 20, "for what is worn as well")
+    -- Taken away while in use: the one for the talents takes its place.
+    table.remove(companion.db.global.custom_scales, 1)
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(told, 6, "a scale taken away")
+    eq(Score.Current().name, FURY, "a scale that is gone gives way to the one for the talents")
+    eq(#dropdown.radios, 2, "and is no longer in the field"); eq(dropdown:GetText(), "Fury DPS", "which shows the one in use")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, FURY, "the list follows")
+
+    -- With no scale chosen there, Forever Companion picks the one for the talents: other
+    -- talents, another scale.
+    W.player.talents = { { name = "Arms", points = 1 }, { name = "Fury", points = 9 }, { name = "Protection", points = 0 } }
+    W.Fire("TRAIT_CONFIG_UPDATED")
+    W.Run(1.5)
+    eq(Score.Current().name, TANK, "other talents: the scale Forever Companion picks for them"); eq(told, 7, "and what keeps scores is told")
+    W.RunUntil(Idle, 600)
+    -- The same found out with nobody saying so: its answer is asked for again after a moment.
+    W.player.talents = { { name = "Arms", points = 9 }, { name = "Fury", points = 1 }, { name = "Protection", points = 0 } }
+    local counted = W.companion.counted
+    for _ = 1, 20 do Score.Current() end
+    eq(W.companion.counted, counted, "asked many times in a moment, the talents are not counted each time")
+    W.Run(3)
+    eq(Score.Current().name, FURY, "an answer grown old is asked for again")
+    W.Run(0.5)
+    eq(told, 8, "and, being new, told")
+    W.RunUntil(Idle, 600)
+
+    -- No scale for the class: no scan, and the reason.
+    local kept = W.companion.data.WARRIOR
+    W.companion.data.WARRIOR = {}
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(Score.Current(), nil, "no scale for the class: none in use")
+    eq(S.Start(), false, "and no scan"); eq(S.message, ns.L.ERR_NO_SCALE_COMPANION, "which says why")
+    W.companion.data.WARRIOR = kept
+    W.CompanionChanged()
+    W.Run(0.5)
+    W.RunUntil(Idle, 600)
+    CheckCompanionAsked("scales coming and going")
+
+    -- Back to the addon's own weights: its profile is where it was left.
+    Score.SetEngine(nil)
+    eq(UpgradeScoutDB.engine, nil, "the addon's own weights chosen again: nothing is left written")
+    eq(Score.Current().name, "S1", "the addon's profile as it was")
+    W.RunUntil(Idle, 600)
+    eq(#dropdown.radios, 2, "the field lists the addon's profiles again")
+    local asked = #W.companion.asked
+    ScanToEnd()
+    CheckStandardOffers("the addon's own weights again")
+    eq(#W.companion.asked, asked, "and Forever Companion is asked nothing")
+
+    -- Another character of the account: the scale chosen for it in the addon's field, then
+    -- the one chosen for it in Forever Companion, then the one for its talents.
+    Score.SetEngine("companion")
+    eq(Score.Current({ key = "P", class = "DRUID", talents = "D2" }).title, "Feral DPS", "another character: the scale for the tree its talents are in")
+    eq(Score.Current({ key = "P", class = "DRUID" }).title, "Balance DPS", "without talents known: the first for dealing damage")
+    eq(Score.Current({ key = "P", class = "DRUID", talents = "D2", companion = MOON }).title, "Balance DPS", "under the scale chosen for it in the addon's field")
+    companion.db.sv.char["Alty - PvE"] = { scale = CAT }
+    local alt = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", class = "DRUID", talents = "D1" }
+    eq(Score.Current(alt).title, "Feral DPS", "the scale chosen for it in Forever Companion's own options comes before its talents")
+    alt.realm = "Elsewhere"
+    eq(Score.Current(alt).title, "Balance DPS", "which cannot be told of a character of another realm")
+    -- A priest has three trees and two profiles here, and Forever Companion no scale for the first.
+    ns.Weights.classes.PRIEST = { "PRIEST_HEALER", "PRIEST_SHADOW" }
+    W.AddCompanionScale("PRIEST", { id = 5, label = "Healer", tab = 2, w = { Healing = 1 } })
+    W.AddCompanionScale("PRIEST", { id = 6, label = "Shadow DPS", tab = 3, w = { SpellPower = 1 } })
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(Score.Current({ key = "P", class = "PRIEST", talents = "PRIEST_SHADOW" }).title, "Shadow DPS", "a priest's Shadow is the third tree")
+    eq(Score.Current({ key = "P", class = "PRIEST", talents = "PRIEST_HEALER" }).title, "Healer", "its healer the second")
+    eq(Score.Current({ key = "P", class = "PRIEST" }).title, "Shadow DPS", "without talents known: the first for dealing damage")
+    eq(Score.Current({ key = "P", class = "MAGE" }), nil, "a class it has no scale for: none")
+    CheckCompanionAsked("another character's scales")
+end
+
+-- Forever Companion chosen and not there: the addon scores by itself, and the choice stands.
+function scenarios.companion_absent()
+    StandardWorld()
+    UpgradeScoutDB = { engine = "companion" }
+    LoadAddon()
+    local Score = ns.Score
+    eq(ns.Companion.Usable(), false, "Forever Companion is not installed"); eq(Score.Engine(), nil, "so the addon scores, though it was chosen")
+    eq(Score.Current().name, "S1", "on its own profiles")
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    CheckStandardOffers("Forever Companion chosen and not installed")
+    eq(UpgradeScoutDB.engine, "companion", "the choice stands for when it is back")
+
+    -- It is there but has not opened what it keeps yet, as while it loads.
+    CompanionWorld()
+    local db = ForeverCompanion.db
+    ForeverCompanion.db = nil
+    eq(ns.Companion.Usable(), false, "before it has opened what it keeps it cannot be asked"); eq(Score.Engine(), nil, "and is not")
+    eq(Score.Current().name, "S1", "the addon's profiles meanwhile")
+    ForeverCompanion.db = db
+    eq(Score.Engine(), "companion", "once it has, it scores, as chosen")
+    eq(Score.Current().name, FURY, "on the first of its scales for dealing damage, with no talents to go by")
+
+    -- One without a function the addon calls is one that cannot be asked.
+    local kept = ForeverCompanion.Scales.ReadItem
+    ForeverCompanion.Scales.ReadItem = nil
+    eq(ns.Companion.Usable(), false, "a Forever Companion that lacks a function the addon calls"); eq(Score.Engine(), nil, "leaves the scoring to the addon")
+    ForeverCompanion.Scales.ReadItem = kept
+    local scales = ForeverCompanion.Scales
+    ForeverCompanion.Scales = nil
+    eq(ns.Companion.Usable(), false, "and so does one without its scales")
+    ForeverCompanion.Scales = scales
+    eq(Score.Engine(), "companion", "with everything in place it scores")
+
+    -- Switched off for the next session: the addon's weights again, without a word.
+    Relog(W.player, W.equipped)
+    W.RemoveCompanion()
+    eq(ns.Score.Engine(), nil, "Forever Companion switched off: the addon scores")
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    CheckStandardOffers("Forever Companion switched off")
+    eq(UpgradeScoutDB.engine, "companion", "and the choice still stands")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- With Forever Companion scoring: while it writes its own line and draws its own arrows, none
+-- of ours beside them; with either switched off in its options, ours in its place, on its scales.
+function scenarios.companion_tooltips()
+    StandardWorld()
+    W.AddItem({ id = 220, name = "Oak Wand", equipLoc = "INVTYPE_RANGEDRIGHT", classID = 2, subClassID = 19, value = 9, level = 5 })
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.items["212:0"].value2 = 40
+    W.player.talents = { { name = "Arms", points = 7 }, { name = "Fury", points = 0 }, { name = "Protection", points = 1 } }
+    -- A shirt and a trinket that is only used, as most characters wear.
+    W.AddItem({ id = 230, name = "Lucky Charm", equipLoc = "INVTYPE_TRINKET", value = 0, level = 1, noStats = true })
+    W.equipped[4] = W.Link(207)
+    W.equipped[13] = W.Link(230)
+    CompanionWorld()
+    W.companion.writes = true
+    -- It was chosen in an earlier session.
+    UpgradeScoutDB = { engine = "companion" }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score = ns.Score
+    local options = ForeverCompanion.db.global
+    eq(ns.Companion.Item(W.Link(207)).companion, false, "a shirt is not gear: there is nothing to read, and that is an answer")
+    eq(Score.Context(FURY).unread, nil, "wearing one, the gear is whole")
+    eq(Score.Engine(), "companion", "Forever Companion scores, as chosen before"); eq(Score.Current().name, FURY, "on the scale for the talents")
+
+    -- What an item does beyond its stats: a use and a chance on hit it reads none of; what
+    -- the item does while worn it reads where it knows the words.
+    local function Effects(id) return Score.HasUnscoredEffects(Score.Item(W.Link(id))) end
+    local good = W.items["200:0"]
+    eq(Effects(201), true, "a use: not counted"); eq(Effects(200), false, "an item of plain stats")
+    good.equipLine = true
+    eq(Effects(200), true, "what it does while worn, in words Forever Companion does not know")
+    good.equipText = "+14 Attack Power."
+    eq(Effects(200), false, "the same in words it knows: counted")
+    good.equipLine, good.equipText, good.procLine = nil, nil, true
+    eq(Effects(200), true, "a chance on hit")
+    good.procLine = nil
+
+    -- Does the tooltip have lines of ours? Our header, then what is under it, joined by " | ".
+    local function Ours(tooltip)
+        local header
+        for i, line in ipairs(tooltip._lines) do
+            if line.text:find("Upgrade Scout", 1, true) then header = i end
+        end
+        if not header then return nil end
+        local out = {}
+        for i = header + 1, #tooltip._lines do
+            local line = tooltip._lines[i]
+            out[#out + 1] = line.text .. (line.right and " " .. line.right or "")
+        end
+        return table.concat(out, " | ")
+    end
+    local function Shown(tooltip, id)
+        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:SetHyperlink(W.Link(id))
+        return Ours(tooltip)
+    end
+    eq(Shown(GameTooltip, 200), nil, "no lines of ours for an item in the bags: Forever Companion writes its own")
+    eq(CompanionLine(GameTooltip), true, "which is there")
+    eq(Shown(ItemRefTooltip, 200), nil, "nor for a link in the chat")
+
+    -- The arrows in the bags are Forever Companion's own: none of ours beside them.
+    local function Bag(slot)
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    local function Grey(slot) return ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow._grey end
+    local slot = {}
+    for _, id in ipairs({ 200, 202, 203, 204, 208, 212, 214, 220 }) do slot[id] = W.PutInBags(W.Link(id)) end
+    W.OpenBags()
+    W.Run(1)
+    eq(Bag(slot[200]), false, "a better chest: no arrow of ours, Forever Companion draws its own")
+    eq(Bag(slot[203]), false, "nor on one of a higher level"); eq(Bag(slot[212]), false, "nor on a two-hander")
+
+    -- Its arrows in the bags switched off in its options: ours are drawn, by its scale.
+    options.scale_badges_more = false
+    W.CompanionChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), true, "its own arrows in the bags switched off: ours, on a better chest, 18 against 10 on its scale")
+    eq(Grey(slot[200]), false, "green: it can be put on now")
+    eq(Bag(slot[203]), true, "a better chest of a higher level"); eq(Grey(slot[203]), true, "grey")
+    eq(Bag(slot[212]), true, "a two-hander against the sword")
+    eq(Bag(slot[202]), false, "not a weaker chest"); eq(Bag(slot[204]), false, "not mail the character has not learned")
+    eq(Bag(slot[208]), false, "not a chest with nothing to read"); eq(Bag(slot[220]), false, "not a wand: a warrior never uses one")
+    eq(Bag(slot[214]), false, "not a potion")
+    -- They can be switched off and on as ever.
+    UpgradeScoutDB.arrows = false
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(Bag(slot[200]), false, "ours switched off in the welcome window")
+    UpgradeScoutDB.arrows = nil
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(Bag(slot[200]), true, "and on again")
+
+    -- Another scale chosen, as in the welcome window: it is chosen in Forever Companion, and
+    -- the arrows follow.
+    ns.UI.ChooseProfile(TANK)
+    W.Run(1)
+    eq(ForeverCompanion.db.char.scale, TANK, "a scale chosen in the welcome window is chosen in Forever Companion")
+    eq(Bag(slot[200]), false, "on the tank's scale the chest is no upgrade: 9 against 12")
+    eq(Bag(slot[212]), true, "and the two-hander is one: 40 against nothing")
+    ns.UI.ChooseProfile(FURY)
+    W.Run(1)
+    eq(Bag(slot[200]), true, "back on the first scale the chest has its arrow")
+
+    -- The scale's weights change in Forever Companion's own window.
+    local fury = W.companion.data.WARRIOR[1].w
+    fury.TEST_S1 = 0
+    W.CompanionChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), false, "a scale that weighs nothing: no arrows")
+    fury.TEST_S1 = 1
+    W.CompanionChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), true, "the weights back, the arrow back")
+
+    -- Its own arrows switched on again, by any of its three options for them: ours go.
+    options.scale_badges_more = nil
+    W.CompanionChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), false, "its arrows in the bags switched on again: ours go")
+    options.scale_arrows = false
+    W.CompanionChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), true, "its arrows switched off altogether: ours are back")
+    options.scale_arrows = nil
+    W.CompanionChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), false, "and on: ours go")
+
+    -- Its gear scales switched off altogether in its options: it writes no line and draws
+    -- no arrow, and ours stand in for both, on its scales.
+    options.scales_enabled = false
+    W.CompanionChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), true, "its gear scales switched off: our arrows")
+    eq(Shown(GameTooltip, 200), "Fury DPS +80% | Mitigation Tank -25%", "and our lines in a tooltip, a line for each of its scales")
+    eq(CompanionLine(GameTooltip), false, "with none of its own")
+    local heading
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.text:find("Upgrade Scout", 1, true) then heading = line.text end
+    end
+    check(heading:find("Upgrade Scout (Forever Companion score)", 1, true) ~= nil, "under a heading that says whose score it is: " .. heading)
+    UpgradeScoutDB.ownTree = true
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    Shown(GameTooltip, 200)
+    local single = GameTooltip._lines[#GameTooltip._lines]
+    check(single.text:find("Fury DPS (Forever Companion score)", 1, true) ~= nil, "\"Only my spec\": one line, with whose score it is: " .. single.text)
+    eq(single.right, "+80%", "and the gain")
+    UpgradeScoutDB.ownTree = nil
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    UpgradeScoutDB.tooltip = false
+    ns.Fire("SETTING_CHANGED", "tooltip")
+    eq(Shown(GameTooltip, 200), nil, "they go by their box in the welcome window, as with the addon scoring")
+    UpgradeScoutDB.tooltip = nil
+    ns.Fire("SETTING_CHANGED", "tooltip")
+    options.scales_enabled = nil
+    W.CompanionChanged()
+    W.Run(1)
+    eq(Shown(GameTooltip, 200), nil, "its gear scales switched on again: its line, and none of ours")
+    eq(CompanionLine(GameTooltip), true, "its own is back"); eq(Bag(slot[200]), false, "and so are its arrows, for ours")
+
+    -- A row of the list at the auction house.
+    W.player.money = 50000
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    SetView(false, false)
+    ScanToEnd()
+    W.Run(1)
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            local entry = w._shown and w._kind == "Button" and w.entry or nil
+            if entry and entry.offer and entry.offer.name == name then return w end
+        end
+    end
+    local function Under(name)
+        local row = Row(name)
+        check(row ~= nil, name .. " is in the list")
+        W.compared = nil
+        row:GetScript("OnEnter")(row)
+        local ours, theirs = Ours(GameTooltip), CompanionLine(GameTooltip)
+        row:GetScript("OnLeave")(row)
+        return ours, theirs
+    end
+    local ours, theirs = Under("Good Chest")
+    eq(ours, nil, "a row with nothing to add: no lines of ours, not even the addon's name")
+    eq(theirs, true, "Forever Companion's line stands there, as anywhere"); eq(W.compared, GameTooltip, "and the worn item beside it as ever")
+    eq(Under("Great Chest"), "Has effects the score does not count | You are 4g short",
+        "a row with something to say about buying: that, under the addon's name, and no gains")
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(Under("Great Chest"), "Has effects the score does not count | You are 4g short", "the score's box unticked: the notes stay")
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    -- Its line switched off in its options: the gains under a row are ours to write, by their box.
+    options.scale_tooltip = false
+    W.CompanionChanged()
+    W.Run(1)
+    ours, theirs = Under("Good Chest")
+    check(ours ~= nil and ours:find("Fury DPS +80%", 1, true) ~= nil, "its line switched off: the gains are ours to write under a row")
+    eq(theirs, false, "with none of its own")
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(Under("Good Chest"), nil, "and they go by their box")
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    options.scale_tooltip = nil
+    W.CompanionChanged()
+    W.Run(1)
+    CheckCompanionAsked("tooltips and arrows")
+
+    -- The addon's own weights chosen again: its lines are back, and its arrows, which then
+    -- stand beside Forever Companion's own: they are by other weights.
+    Score.SetEngine(nil)
+    W.Run(1)
+    eq(Shown(GameTooltip, 200), "Arms +80% | Protection ~ -25% | Companion: value",
+        "the addon scores again: its lines in the tooltip, and Forever Companion's own after them")
+    eq(Bag(slot[200]), true, "and its arrows, by its own profile")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- The welcome window with Forever Companion: the third answer to who scores, its scales in
+-- place of the trees, the tooltip's block and the arrows' card out of use while it writes
+-- and draws its own, and the window coming up once for a player who has it.
+function scenarios.companion_welcome()
+    StandardWorld()
+    W.AddItem({ id = 16999, name = "Royal Seal", equipLoc = "INVTYPE_FINGER", quality = 3, level = 54 })
+    W.AddItem({ id = 5000, name = "Coral Band", equipLoc = "INVTYPE_FINGER", level = 21 })
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.player.talents = { { name = "Arms", points = 7 }, { name = "Fury", points = 0 }, { name = "Protection", points = 1 } }
+    local L
+
+    -- Without it: the answer is there, and out of reach.
+    LoadAddon()
+    L = ns.L
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome ~= nil end, 10)
+    local window = UpgradeScoutWelcome
+    eq(#window.Engines, 3, "who scores: three answers")
+    local own, pawn, theirs = window.Engines[1], window.Engines[2], window.Engines[3]
+    eq(own.Label:GetText(), "Upgrade Scout", "the addon"); eq(pawn.Label:GetText(), "Pawn", "Pawn")
+    eq(theirs.Label:GetText(), "Forever Companion", "and Forever Companion, each by its name")
+    eq(own.Mark:IsShown(), true, "the addon is the one that does"); eq(theirs.Mark:IsShown(), false, "Forever Companion is not")
+    eq(theirs:GetAlpha(), 0.45, "it cannot be chosen while it is not there: its button is grey")
+    eq(theirs.Glow.parts[1]:IsShown(), false, "and does not light up under the mouse")
+    local function Hint(button)
+        GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        button:GetScript("OnEnter")(button)
+        local said = GameTooltip._lines[1] and GameTooltip._lines[1].text or nil
+        button:GetScript("OnLeave")(button)
+        return said
+    end
+    eq(Hint(theirs), L.WELCOME_NO_COMPANION, "the mouse on its grey button: a tooltip says why")
+    eq(Hint(pawn), L.WELCOME_NO_PAWN, "each grey button with its own reason"); eq(Hint(own), nil, "the addon's own has nothing to explain")
+    theirs:Click()
+    eq(UpgradeScoutDB.engine, nil, "a click on the grey button does nothing")
+    check(own._points[1].x < pawn._points[1].x and pawn._points[1].x < theirs._points[1].x, "the three side by side")
+    eq(own._points[1].y, theirs._points[1].y, "in one row"); near(own:GetWidth(), theirs:GetWidth(), "each as wide as the others")
+    check(theirs._points[1].x + theirs:GetWidth() <= window:GetWidth() - 20 + 0.01, "and all of them inside the window")
+    local height = window:GetHeight()
+    window.Done:Click()
+    eq(UpgradeScoutDB.welcomed, true, "seen"); eq(UpgradeScoutDB.companionOffered, nil, "but not with Forever Companion there to choose")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(window:IsShown(), false, "without it the window does not come up by itself again")
+
+    -- The player installs Forever Companion. The window comes up once more, and says why.
+    CompanionWorld()
+    Relog(W.player, W.equipped)
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome:IsShown() end, 10)
+    L = ns.L
+    window = UpgradeScoutWelcome
+    eq(window.About:GetText(), L.WELCOME_COMPANION_NEW, "it is there now: the window comes up to say that it can be chosen")
+    own, pawn, theirs = window.Engines[1], window.Engines[2], window.Engines[3]
+    eq(theirs:GetAlpha(), 1, "its button is no longer grey"); eq(theirs.Glow.parts[1]:IsShown(), true, "and lights up under the mouse")
+    eq(Hint(theirs), nil, "with nothing left to explain in a tooltip")
+    eq(pawn:GetAlpha(), 0.45, "Pawn's is still grey: Pawn is not there")
+    eq(own.Mark:IsShown(), true, "the addon scores until another is chosen")
+    eq(window:GetHeight(), height, "the window is as tall as without it")
+
+    -- Chosen.
+    local told = 0
+    ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
+    theirs:Click()
+    eq(UpgradeScoutDB.engine, "companion", "a click chooses Forever Companion, for the account"); eq(told, 1, "and what keeps scores is told")
+    eq(theirs.Mark:IsShown(), true, "its button is lit"); eq(own.Mark:IsShown(), false, "the addon's goes dark")
+    eq(pawn.Mark:IsShown(), false, "and Pawn's stays so")
+    local trees = window.Trees
+    eq(trees[1].Label:GetText(), "Fury DPS", "the buttons are Forever Companion's scales for the class now")
+    eq(trees[2].Label:GetText(), "Mitigation Tank", "by their names"); eq(trees[2]:IsShown(), true, "two of them")
+    eq(trees[1].Mark:IsShown(), true, "the one in use is lit")
+    eq(window.Ask:GetText(), L.WELCOME_SCALE_COMPANION:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")),
+        "the question is about its scale, names the character, and stands alone")
+    theirs:Click()
+    eq(told, 1, "the one that scores clicked again: nothing changes")
+
+    -- The score in a tooltip is Forever Companion's to write: the block says so, and what
+    -- it asks of the score is out of use. The notes are still ours.
+    local block, arrows = window.Tips, window.Pair[2]
+    local tip, tabs, elsewhere, notes = block.Picture.Tip, block.Tabs, block.Elsewhere, block.Notes
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_COMPANION, "the tooltip's block says that Forever Companion writes there")
+    for name, box in pairs({ ["the addon's tabs"] = tabs, ["the rest of the game"] = elsewhere }) do
+        eq(box:IsEnabled(), false, "the score's box for " .. name .. " is out of use"); eq(box:GetChecked(), false, "and empty: " .. name)
+        eq(box:GetAlpha(), 0.4, "and dim: " .. name)
+    end
+    eq(block.All:IsEnabled(), false, "the two buttons are out of use"); eq(block.All:GetAlpha(), 0.35, "and dim")
+    eq(notes:IsEnabled(), true, "the box of the notes is in use"); eq(notes:GetChecked(), true, "and ticked")
+    eq(tip.Note:IsShown(), true, "the picture has the note"); eq(tip.Lines[1].Title:IsShown(), false, "and no line of the score")
+
+    -- The arrows in the bags are Forever Companion's own too: the card says so, and its box
+    -- is empty, dim and out of use.
+    local options = ForeverCompanion.db.global
+    local slot = W.PutInBags(W.Link(200))
+    W.OpenBags()
+    W.Run(1)
+    local function Arrow()
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    eq(arrows.Body:GetText(), L.WELCOME_ARROWS_COMPANION, "the arrows' card says that Forever Companion draws them")
+    eq(arrows.Switch:IsEnabled(), false, "its box is out of use"); eq(arrows.Switch:GetChecked(), false, "and empty")
+    eq(arrows.Switch.Tick:IsShown(), false, "without its tick"); eq(arrows.Switch:GetAlpha(), 0.4, "and dim")
+    eq(arrows.Title:GetAlpha(), 0.5, "as its name is"); eq(arrows.Picture:GetAlpha(), 0.3, "and the picture is faded")
+    arrows.Switch:Click()
+    eq(UpgradeScoutDB.arrows, nil, "a click on it changes nothing"); eq(Arrow(), false, "no arrow of ours in the bags")
+    -- Its own arrows switched off in its options: the card is ours again.
+    options.scale_arrows = false
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(arrows.Body:GetText(), L.WELCOME_ARROWS_TEXT, "its own arrows switched off: the card has its own sentence")
+    eq(arrows.Switch:IsEnabled(), true, "its box is in use"); eq(arrows.Switch:GetChecked(), true, "and ticked, as it was left")
+    eq(arrows.Switch:GetAlpha(), 1, "at full strength"); eq(arrows.Title:GetAlpha(), 1, "as its name is")
+    eq(arrows.Picture:GetAlpha(), 1, "and the picture whole"); eq(Arrow(), true, "with an arrow of ours on the better chest, by its scale")
+    arrows.Switch:SetChecked(false)
+    arrows.Switch:Click()
+    eq(UpgradeScoutDB.arrows, false, "the arrows switched off"); eq(Arrow(), false, "go at once")
+    arrows.Switch:SetChecked(true)
+    arrows.Switch:Click()
+    eq(Arrow(), true, "and come back")
+    options.scale_arrows = nil
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(arrows.Switch:IsEnabled(), false, "its own switched on again: the card is out of use"); eq(Arrow(), false, "and ours are gone")
+    eq(UpgradeScoutDB.arrows, nil, "what the box was left at is kept")
+
+    -- Its line in a tooltip switched off in its options: the block is ours again.
+    options.scale_tooltip = false
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "its line switched off: the tooltip's block has its own sentence")
+    for name, box in pairs({ ["the addon's tabs"] = tabs, ["the rest of the game"] = elsewhere }) do
+        eq(box:IsEnabled(), true, "the score's box for " .. name .. " is in use"); eq(box:GetChecked(), true, "and ticked: " .. name)
+        eq(box:GetAlpha(), 1, "and whole: " .. name)
+    end
+    eq(block.All:IsEnabled(), true, "the two buttons in use"); eq(tip.Lines[1].Title:IsShown(), true, "the picture with the score's lines")
+    eq(tip.Lines[1].Title:GetText(), "Arms", "which are the addon's own profiles, as in every picture")
+    options.scale_tooltip = nil
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_COMPANION, "switched on again: Forever Companion writes there")
+    eq(told, 1, "none of that is news about the scores")
+
+    -- Another character of the account: the lists for it have our lines, always.
+    UpgradeScoutDB.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", class = "DRUID", level = 20 }
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_COMPANION_OTHERS, "with another character the block says where our lines are left")
+    eq(tabs:IsEnabled(), false, "the box of the tabs is not the player's to change"); eq(tabs:GetChecked(), true, "it is held ticked")
+    eq(block.All:IsEnabled(), true, "and the two buttons are in use")
+    UpgradeScoutDB.chars["Alty-Testrealm"] = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_COMPANION, "without the other character the block is as it was")
+
+    -- A scale chosen in the window is chosen in Forever Companion.
+    trees[2]:Click()
+    eq(ForeverCompanion.db.char.scale, TANK, "a click on a scale chooses it in Forever Companion")
+    eq(trees[2].Mark:IsShown(), true, "its button lights up"); eq(trees[1].Mark:IsShown(), false, "the other goes dark")
+    eq(ns.Roster.Me().companion, nil, "nothing is written on the card"); eq(ns.Roster.Me().profile, nil, "the addon's own profile is left alone")
+    W.Run(0.5)
+    eq(told, 1, "which is no news from it")
+    -- And one chosen in its own options shows here.
+    ForeverCompanion.db.char.scale = FURY
+    W.CompanionChanged()
+    W.Run(0.5)
+    eq(trees[1].Mark:IsShown(), true, "a scale chosen in Forever Companion's options is the one lit here"); eq(told, 2, "and what keeps scores is told")
+
+    -- Closed: seen with Forever Companion there, so it does not come up by itself again.
+    window.Done:Click()
+    eq(UpgradeScoutDB.companionOffered, true, "the choice has been seen with it"); eq(UpgradeScoutDB.pawnOffered, nil, "and not with Pawn, which was not there")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(window:IsShown(), false, "it does not come up by itself again")
+    ns.Welcome.Show()
+    eq(window.About:GetText(), L.WELCOME_ABOUT, "asked for, it has its usual first words")
+
+    -- The addon chosen again: the trees, the block and the card as they were.
+    own:Click()
+    eq(UpgradeScoutDB.engine, nil, "a click on the addon's button: nothing is left written"); eq(own.Mark:IsShown(), true, "its button is lit")
+    eq(trees[1].Label:GetText(), "Arms", "the trees are back"); eq(trees[1].Mark:IsShown(), true, "the one for the talents in use")
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "the tooltip's block has its sentence"); eq(tabs:IsEnabled(), true, "and its boxes in use")
+    eq(arrows.Body:GetText(), L.WELCOME_ARROWS_TEXT, "the arrows' card has its sentence"); eq(arrows.Switch:IsEnabled(), true, "and its box in use")
+    eq(arrows.Switch:GetChecked(), true, "ticked"); eq(arrows.Picture:GetAlpha(), 1, "with its picture whole")
+    W.Run(0.5)
+    eq(Arrow(), true, "and the arrows in the bags are ours, by the addon's own profile")
+    CheckCompanionAsked("the welcome window")
+
+    -- A new player who has both Pawn and Forever Companion: one window, with the welcome,
+    -- and it counts for both.
+    window.Done:Click()
+    UpgradeScoutDB = nil
+    PawnWorld()
+    Relog(W.player, W.equipped)
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome ~= window and UpgradeScoutWelcome:IsShown() end, 10)
+    eq(UpgradeScoutWelcome.About:GetText(), ns.L.WELCOME_FIRST, "a new player with both: the welcome")
+    eq(UpgradeScoutWelcome.Engines[2]:GetAlpha(), 1, "with Pawn there to choose"); eq(UpgradeScoutWelcome.Engines[3]:GetAlpha(), 1, "and Forever Companion")
+    UpgradeScoutWelcome.Done:Click()
+    eq(UpgradeScoutDB.welcomed, true, "seen"); eq(UpgradeScoutDB.pawnOffered, true, "with Pawn")
+    eq(UpgradeScoutDB.companionOffered, true, "and with Forever Companion")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(UpgradeScoutWelcome:IsShown(), false, "it comes up once, not three times")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- What a consumable adds, scored on a scale of Forever Companion's: the game's names for
+-- stats put into its own, and a chance into the percentage it reads.
+function scenarios.companion_supplies()
+    StandardWorld()
+    SuppliesWorld()
+    CompanionWorld()
+    UpgradeScoutDB = { engine = "companion" }
+    LoadAddon()
+    SupplyFacts()
+    local Score = ns.Score
+    eq(Score.Engine(), "companion", "Forever Companion scores")
+
+    near(Score.StatsValue({ ITEM_MOD_STRENGTH_SHORT = 8, ITEM_MOD_AGILITY_SHORT = 4 }, FURY), 8 * 1.5 + 4, "stats under its names, by the scale's weights")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_RATING_SHORT = 28 }, FURY), 2 * 8, "a chance: 28 points of rating are the 2% it reads")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_MELEE_RATING_SHORT = 28 }, FURY), 2 * 8, "a chance with weapons counts on a fighter's scale")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_MELEE_RATING_SHORT = 28 }, MOON), 0, "and not on a caster's")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, MOON), 6, "a chance with spells counts on a caster's scale")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, FURY), 0, "and not on a fighter's")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_RATING_SHORT = 14, ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, MOON), 12, "both kinds add up for the one who uses both")
+    near(Score.StatsValue({ ITEM_MOD_ATTACK_POWER_SHORT = 10 }, FURY), 4, "attack power")
+    -- What adds to spells: to damage and healing alike it is spell power; damage alone counts
+    -- as spell power on a scale that weighs that for its damage, and for nothing on a healer's.
+    near(Score.StatsValue({ ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 36 }, MOON), 36, "spell damage alone, on a scale that weighs spell power for its damage")
+    near(Score.StatsValue({ ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 20, ITEM_MOD_SPELL_HEALING_DONE_SHORT = 20 }, MOON), 20, "damage and healing alike are spell power, counted once")
+    near(Score.StatsValue({ ITEM_MOD_SPELL_HEALING_DONE_SHORT = 20 }, MOON), 0, "healing alone is nothing to a scale without a weight for it")
+    W.AddCompanionScale("DRUID", { id = 7, label = "Healer", tab = 3, w = { Healing = 2, SpellPower = 2, Intellect = 1 } })
+    local mine = W.AddCompanionCustom({ name = "Mine", class = "WARRIOR", w = { Strength = 1, SpellCritRating = 5 } })
+    W.CompanionChanged()
+    W.Run(0.5)
+    near(Score.StatsValue({ ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 36 }, "wh:7"), 0, "damage alone is nothing to a healer's scale")
+    near(Score.StatsValue({ ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 20, ITEM_MOD_SPELL_HEALING_DONE_SHORT = 20 }, "wh:7"), 40, "damage and healing alike: spell power")
+    near(Score.StatsValue({ ITEM_MOD_SPELL_HEALING_DONE_SHORT = 10 }, "wh:7"), 20, "healing alone: healing")
+    near(Score.StatsValue({ ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 30, ITEM_MOD_SPELL_HEALING_DONE_SHORT = 40 }, "wh:7"), 30 * 2 + 10 * 2, "more of the one than of the other: each part under its name")
+    near(Score.StatsValue({ ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, "my:" .. mine.id), 5, "a chance with spells under its own name, on a scale that weighs that")
+    near(Score.StatsValue({ ITEM_MOD_HEALTH_SHORT = 25 }, FURY), 2.5 * 0.5, "health as the Stamina that gives it: Forever Companion has no stat for it")
+    near(Score.StatsValue({ ITEM_MOD_MANA_SHORT = 30 }, MOON), 2, "mana as Intellect")
+    near(Score.StatsValue({ ITEM_MOD_UNHEARD_OF_SHORT = 99 }, FURY), 0, "a stat it has no name for counts for nothing")
+    near(Score.StatsValue({ ITEM_MOD_SPIRIT_SHORT = 8 }, FURY), 0, "nor does one the scale does not weigh")
+    eq(Score.StatsValue({ ITEM_MOD_STRENGTH_SHORT = 8 }, "wh:99"), nil, "no answer for a scale there is not")
+    eq(Score.StatsValue({ ITEM_MOD_STRENGTH_SHORT = 8 }, "S1"), nil, "nor for one of the addon's own profiles")
+
+    -- The list of consumables is scored on the scale.
+    W.OpenAuctionHouse()
+    ScanSupplies()
+    local rows = ns.Supplies.Build(ns.Scanner.supplies, SupplyOpts(FURY, { mana = false }))
+    local function Value(name)
+        for _, row in ipairs(rows) do
+            if row.kind == "supply" and row.entry.supply.name == name then return row.entry.value end
+        end
+    end
+    near(Value("Elixir of Giants"), 25 * 1.5, "an elixir of Strength on a fighter's scale"); near(Value("Elixir of Agility"), 15, "one of Agility")
+    eq(Value("Elixir of Wisdom"), nil, "Intellect is of no use on that scale")
+    rows = ns.Supplies.Build(ns.Scanner.supplies, SupplyOpts(MOON, { mana = true }))
+    near(Value("Elixir of Wisdom"), 6, "and worth its weight on a caster's")
+    -- The heading over a consumable's score says whose score it is.
+    GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    ns.Tooltip.AddHeader(GameTooltip, "Fury DPS", true)
+    local heading = GameTooltip._lines[#GameTooltip._lines]
+    check(heading.text:find("Upgrade Scout (Forever Companion score)", 1, true) ~= nil, "a heading over a score, with Forever Companion scoring: " .. heading.text)
+    eq(heading.right, "Fury DPS", "with what stands on its right")
+    ns.Tooltip.AddHeader(GameTooltip)
+    heading = GameTooltip._lines[#GameTooltip._lines]
+    eq(heading.text:find("Forever Companion", 1, true), nil, "a heading over notes alone names no other addon")
+    CheckCompanionAsked("consumables")
+end
+
+-- Another character of the account: the scales of its class, its own choice among them
+-- written on its card, and Forever Companion's line, which is about the character being
+-- played, kept out of the rows of its list.
+function scenarios.companion_alt()
+    StandardWorld()
+    local warrior, warriorGear = W.player, W.equipped
+    W.AddItem({ id = 300, name = "Alt's Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, values = { D1 = 12, D2 = 3 }, level = 15 })
+    W.AddItem({ id = 310, name = "Druid Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, values = { D1 = 20, D2 = 2 }, level = 18 })
+    W.AddAuction(310, 2000)
+    CompanionWorld()
+    W.companion.writes = true
+    UpgradeScoutDB = { engine = "companion" }
+
+    -- The druid is played once.
+    W.Login(Druid())
+    W.equipped = { [5] = W.Link(300) }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    eq(ns.Score.Current().name, MOON, "the druid, played: the scale Forever Companion has in use for it")
+    Relog(warrior, warriorGear)
+    local Score, S = ns.Score, ns.Scanner
+    local options = ForeverCompanion.db.global
+    local card = UpgradeScoutDB.chars["Alty-Testrealm"]
+    check(card ~= nil, "the druid is remembered")
+
+    local _, theirs = Score.Current(card)
+    eq(#theirs, 2, "another character: the scales Forever Companion has for its class")
+    eq(theirs[1].name, MOON, "by their keys"); eq(theirs[1].title, "Balance DPS", "and their names")
+    eq(theirs[2].title, "Feral DPS", "each of them")
+    eq(#Score.Profiles(ns.Roster.Me()), 2, "the card of the character being played is that character")
+
+    -- At the auction house the field lists them under the warrior's own.
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local frame = UpgradeScoutFrame
+    local dropdown = frame.ProfileDropdown
+    local ALTY = "|cffff7c0aAlty|r"
+    eq(#dropdown.radios, 4, "two scales of the warrior and two of the druid")
+    eq(dropdown.radios[3].text, ALTY .. ": Balance DPS", "the druid's by its name and the scale's")
+    eq(dropdown.radios[4].text, ALTY .. ": Feral DPS", "each of them")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    dropdown:Pick(4)
+    eq(ns.Roster.Target(), card, "the lists are for the druid"); eq(card.companion, CAT, "on the scale chosen, written on its card")
+    eq(ForeverCompanion.db.char.scale, nil, "and not chosen in Forever Companion, where the choice is the warrior's")
+    eq(card.profile, nil, "apart from the addon's own profile"); eq(card.scale, nil, "and from the Pawn scale")
+    dropdown:Pick(3)
+    eq(card.companion, MOON, "another of its scales chosen")
+    frame.ScanButton:Click()
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    W.Run(1)
+    eq(S.ctx.who, card, "the scan was for the druid"); eq(S.ctx.profile, MOON, "on its scale")
+    near(S.ctx.equipped[5].value, 12, "its chest by Forever Companion's reading, on that scale")
+    check(Offer("Druid Jerkin") ~= nil, "a jerkin better than the druid's"); near(Offer("Druid Jerkin").value, 20, "by the same reading")
+    eq(Offer("Good Chest"), nil, "the warrior's upgrades are not the druid's")
+
+    -- A row's tooltip has our lines here: Forever Companion's is about the character being
+    -- played, and is kept out.
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            local entry = w._shown and w._kind == "Button" and w.entry or nil
+            if entry and entry.offer and entry.offer.name == name then return w end
+        end
+    end
+    local function ListFor(index)
+        dropdown:Pick(index)
+        W.Run(0.5)
+        if S.state == "idle" then frame.ScanButton:Click() end
+        W.RunUntil(function() return S.state == "idle" end, 300)
+        W.Run(1)
+    end
+    local function Elsewhere()
+        GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        GameTooltip:SetHyperlink(W.Link(310))
+        return CompanionLine(GameTooltip)
+    end
+    local jerkin = Row("Druid Jerkin")
+    check(jerkin ~= nil, "the jerkin is in the list")
+    jerkin:GetScript("OnEnter")(jerkin)
+    local doubles = {}
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right then doubles[#doubles + 1] = line end
+    end
+    eq(doubles[1].right, ALTY, "a list for another character: our header, which says whose")
+    check(doubles[1].text:find("Upgrade Scout (Forever Companion score)", 1, true) ~= nil, "and that the score in our lines is Forever Companion's: " .. doubles[1].text)
+    eq(doubles[2].text, "Balance DPS", "then the druid's scales"); eq(doubles[2].right, "+67%", "with the gain on each: 20 against 12")
+    eq(doubles[3].text, "Feral DPS", "on the other one"); eq(doubles[3].right, "-33%", "2 against 3")
+    eq(ShoppingTooltip1:IsShown(), true, "and the druid's chest beside it")
+    eq(CompanionLine(GameTooltip), false, "Forever Companion's line is kept out of a row for another character")
+    eq(rawget(options, "scale_tooltip"), nil, "and its option for the line is afterwards as it was: never set")
+    jerkin:GetScript("OnLeave")(jerkin)
+    eq(Elsewhere(), true, "anywhere else it writes its line")
+    -- A player who has set that option: it is put back as they have it.
+    options.scale_tooltip = true
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(CompanionLine(GameTooltip), false, "kept out the same way"); eq(rawget(options, "scale_tooltip"), true, "and the option is as that player has it")
+    jerkin:GetScript("OnLeave")(jerkin)
+    options.scale_tooltip = nil
+    -- Something goes wrong while the tooltip is filled in: the error passes on, with the
+    -- option put back.
+    local passed
+    local ok, problem = pcall(ns.Companion.Hushed, function(what) passed = what error("no such item", 0) end, "a link")
+    eq(ok, false, "an error in filling the tooltip in passes on"); eq(problem, "no such item", "as it was")
+    eq(passed, "a link", "what fills it in is called with what it was given"); eq(rawget(options, "scale_tooltip"), nil, "and the option is put back all the same")
+    -- Our lines are all that says the score there, so they do not go by their box.
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(GameTooltip._lines[#GameTooltip._lines].right, "-33%", "our lines unticked for the tabs: they still stand in a list for another character")
+    jerkin:GetScript("OnLeave")(jerkin)
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    -- One line for the scale in use says whose score it is after the scale's name.
+    UpgradeScoutDB.ownTree = true
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    jerkin:GetScript("OnEnter")(jerkin)
+    local single = GameTooltip._lines[#GameTooltip._lines]
+    check(single.text:find(ALTY .. ": Balance DPS (Forever Companion score)", 1, true) ~= nil, "\"Only my spec\": one line, with whose score it is: " .. single.text)
+    eq(single.right, "+67%", "and the gain")
+    jerkin:GetScript("OnLeave")(jerkin)
+    UpgradeScoutDB.ownTree = nil
+    ns.Fire("SETTING_CHANGED", "ownTree")
+
+    -- The warrior's own list: Forever Companion writes there as everywhere.
+    ListFor(1)
+    eq(ns.Roster.Target(), nil, "the lists are the warrior's own again")
+    local chest = Row("Good Chest")
+    check(chest ~= nil, "a better chest for the warrior is in the list")
+    chest:GetScript("OnEnter")(chest)
+    eq(CompanionLine(GameTooltip), true, "a row of the player's own list: its line, as anywhere")
+    chest:GetScript("OnLeave")(chest)
+    CheckCompanionAsked("another character")
+
+    -- The addon's own weights chosen, with Forever Companion still installed: it writes into
+    -- tooltips as before, and is kept out of a list for another character the same way.
+    Score.SetEngine(nil)
+    W.Run(1)
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    ListFor(3)
+    eq(ns.Roster.Target(), card, "the addon scores, and the lists are for the druid")
+    jerkin = Row("Druid Jerkin")
+    check(jerkin ~= nil, "the jerkin is in the druid's list by the addon's own weights")
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(CompanionLine(GameTooltip), false, "the addon scoring: its line is kept out of a row for another character")
+    local ours, marked = false, false
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right == ALTY then ours = true end
+        if line.text:find("Forever Companion score", 1, true) then marked = true end
+    end
+    eq(ours, true, "under our header, which says whose list it is")
+    eq(marked, false, "and names no other addon: the score is the addon's own")
+    jerkin:GetScript("OnLeave")(jerkin)
+    eq(Elsewhere(), true, "and it writes on everywhere else")
+
+    -- Without Forever Companion there is nobody to keep out: the tooltip is filled in and no more.
+    W.RemoveCompanion()
+    local filled
+    ns.Companion.Hushed(function(what) filled = what end, "a link")
+    eq(filled, "a link", "no Forever Companion: what fills the tooltip in is called")
 end
 
 ---------------------------------------------------------------------------

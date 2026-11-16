@@ -54,6 +54,9 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
 - ¿Usas Pawn? Elige **Pawn** en la ventana del addon y el equipo se puntúa con tus escalas de Pawn,
   no con los pesos del addon. Las listas y las flechas de las bolsas se guían por ellas, y las líneas
   de la descripción son las de Pawn.
+- ¿Usas Forever Companion? Elige **Forever Companion** ahí mismo y el equipo se puntúa con sus
+  escalas. Las listas se guían por ellas, y la línea de la descripción y las flechas de las bolsas
+  son las de Forever Companion.
 
 Cualquier clase, cualquier nivel. Inglés, chino (simplificado y tradicional), alemán, ruso,
 francés, español, portugués de Brasil y coreano.

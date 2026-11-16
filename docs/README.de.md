@@ -57,6 +57,9 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
 - Du nutzt Pawn? Wähle im Fenster des Addons **Pawn**, dann wird Ausrüstung nach deinen
   Bewertungsprofilen in Pawn bewertet statt nach den Gewichten des Addons. Die Listen und die Pfeile
   in den Taschen richten sich danach, die Zeilen im Tooltip schreibt Pawn selbst.
+- Du nutzt Forever Companion? Wähle dort **Forever Companion**, dann wird Ausrüstung nach seinen
+  Bewertungsprofilen bewertet. Die Listen richten sich danach, die Zeile im Tooltip und die Pfeile
+  in den Taschen kommen von Forever Companion selbst.
 
 Jede Klasse, jede Stufe. Englisch, Chinesisch (vereinfacht und traditionell), Deutsch, Russisch,
 Französisch, Spanisch, brasilianisches Portugiesisch und Koreanisch.

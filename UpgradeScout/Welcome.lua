@@ -10,19 +10,22 @@ local L = ns.L
 -- been seen.
 --
 -- It comes up by itself once more for a player who has Pawn, the first time since Pawn could
--- be chosen in it (see Due).
+-- be chosen in it, and likewise for one who has Forever Companion (see Due).
 --
 -- Top to bottom:
 --   what the addon is, in a sentence
---   who scores gear: the addon by its own weights, or Pawn by the player's Pawn scales
---     (Score.Engine). Two buttons side by side; Pawn's is grey while Pawn is not there, and
---     says why in a tooltip of its own
+--   who scores gear: the addon by its own weights, Pawn by the player's Pawn scales, or
+--     Forever Companion by its gear scales (Score.Engine). A button for each, side by side;
+--     another addon's is grey while that addon is not there, and says why in a tooltip of
+--     its own
 --   the talent tree the character is played with, a button for each profile of its class
---     (the one in use is lit: see Score.Current). With Pawn scoring, its Pawn scales
+--     (the one in use is lit: see Score.Current). With another addon scoring, the
+--     character's scales there
 --   what the addon puts into the game. Two cards side by side: the tabs at the auction house
 --     and the arrows in the bags, each with a picture of the thing as it looks in the game,
 --     its name and a sentence. The arrows can be switched off, by the tick box before the
---     name (ns.Shows).
+--     name (ns.Shows). With Forever Companion scoring and drawing its own arrows, ours give
+--     way to them: the card says so, and its box is out of use.
 --   under them, as wide as both, the block of the lines in an item's tooltip, which has more
 --     to ask. On its left the picture of a tooltip; on its right the name, a sentence and
 --     what is asked.
@@ -36,7 +39,8 @@ local L = ns.L
 --     The picture shows what the answers come to, and fades when nothing shows.
 --     With Pawn scoring, the score in a tooltip is Pawn's to write: the block says so in
 --     place of its sentence, and what is asked of the score is out of use. The notes are
---     ours whoever scores, and their box stays.
+--     ours whoever scores, and their box stays. The same with Forever Companion scoring,
+--     while it writes its own line into tooltips.
 --   how to get the window back, and the button that closes it
 -- Everything is laid out from the height its texts turn out to have (see Layout): a language
 -- with longer words gets a taller window, not a cut sentence.
@@ -86,8 +90,9 @@ local PICKS = {
 
 local frame                     -- the window, made when it is first shown
 local greeting = false          -- it is up for the first time: its first words are a welcome
-local offering = false          -- it is up for the first time since Pawn could be chosen in it,
-                                -- for a player who has Pawn: its first words say so
+local offering                  -- it is up for the first time since another addon could be chosen
+                                -- in it to score, for a player who has that addon (Pawn, Forever
+                                -- Companion): the words that say so, which come first
 
 -- A part of a line in the softer colour: what is said in passing after what is asked.
 local SOFT_CODE = string.format("|cff%02x%02x%02x", SOFT[1] * 255, SOFT[2] * 255, SOFT[3] * 255)
@@ -544,11 +549,13 @@ end
 ---------------------------------------------------------------------------
 -- Who scores
 ---------------------------------------------------------------------------
--- The two answers are buttons of the same make as the trees', side by side: the addon
--- itself, and Pawn. `engine` is what a click on one makes of Score.Engine: nil or "pawn".
--- Pawn's cannot be chosen while Pawn is not there (`off`, see Paint): it is grey, a click
--- does nothing, and with the mouse on it a tooltip says why. (The button is not switched off
--- the game's way: one that is hears nothing of the mouse.)
+-- The answers are buttons of the same make as the trees', side by side: the addon itself,
+-- and each of the addons that can score in its place (Score.Others: Pawn, Forever
+-- Companion). `engine` is what a click on one makes of Score.Engine: nil, "pawn" or
+-- "companion". Another addon's cannot be chosen while that addon is not there (`off`, see
+-- Paint): it is grey, a click does nothing, and with the mouse on it a tooltip says why
+-- (`absent`). (The button is not switched off the game's way: one that is hears nothing of
+-- the mouse.)
 local function EngineOnClick(self)
     if self.off then return end
     PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
@@ -560,7 +567,7 @@ end
 local function EngineOnEnter(self)
     if not self.off then return end
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip_AddNormalLine(GameTooltip, L.WELCOME_NO_PAWN)
+    GameTooltip_AddNormalLine(GameTooltip, self.absent)
     GameTooltip:Show()
 end
 
@@ -586,16 +593,17 @@ local function Layout()
     frame.TopRule:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -(EDGE - 4), -down)
     down = down + 13
 
-    -- Who scores: the question, and its two answers side by side.
+    -- Who scores: the question, and its answers side by side, each as wide as the others.
     frame.Who:ClearAllPoints()
     frame.Who:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + 2, -down)
     down = down + frame.Who:GetStringHeight() + 9
-    local half = (WIDTH - 2 * EDGE - GAP) / 2
-    for i = 1, #frame.Engines do
+    local answers = #frame.Engines
+    local each = (WIDTH - 2 * EDGE - (answers - 1) * GAP) / answers
+    for i = 1, answers do
         local button = frame.Engines[i]
-        button:SetWidth(half)
+        button:SetWidth(each)
         button:ClearAllPoints()
-        button:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + (i - 1) * (half + GAP), -down)
+        button:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + (i - 1) * (each + GAP), -down)
     end
     down = down + TREE_HEIGHT + 15
 
@@ -716,39 +724,43 @@ Paint = function()
 
     frame.About:SetText(greeting and L.WELCOME_FIRST or L.WELCOME_ABOUT)
     frame.Shows:SetText(L.WELCOME_SHOWS .. Aside(L.WELCOME_OFF))
-    -- Up to say that Pawn can be chosen now: that comes first.
-    if offering then frame.About:SetText(L.WELCOME_PAWN_NEW) end
+    -- Up to say that another addon can be chosen now: that comes first.
+    if offering then frame.About:SetText(offering) end
 
-    -- Who scores: the one that does is lit. The question stands alone: the two names on the
-    -- buttons are the answer. Pawn cannot be chosen while it is not there: its button is
-    -- grey then and does not light up under the mouse, a click on it does nothing, and its
-    -- tooltip says why (EngineOnEnter).
-    local pawn = ns.Score.Engine() == "pawn"
-    local usable = ns.Pawn.Usable()
+    -- Who scores: the one that does is lit. The question stands alone: the names on the
+    -- buttons are the answer. Another addon cannot be chosen while it is not there: its
+    -- button is grey then and does not light up under the mouse, a click on it does
+    -- nothing, and its tooltip says why (EngineOnEnter).
+    local engine = ns.Score.Engine()
+    local other = engine ~= nil
+    local facts = {}
+    for _, addon in ipairs(ns.Score.Others()) do facts[addon.engine] = addon end
     frame.Who:SetText(L.WELCOME_ENGINE)
     for i = 1, #frame.Engines do
         local button = frame.Engines[i]
-        local there = button.engine == nil or usable
-        PaintTree(button, (button.engine == "pawn") == pawn)
+        local addon = button.engine and facts[button.engine] or nil
+        local there = addon == nil or addon.usable
+        PaintTree(button, button.engine == engine)
         button.off = not there
+        button.absent = addon and addon.absent or nil
         button.Glow:SetShown(there)
         button:SetAlpha(there and 1 or 0.45)
     end
-    -- The pictures show the addon's own lines, whoever scores: its profiles, not Pawn's scales.
-    if pawn then about.profiles = ns.Score.Trees() end
+    -- The pictures show the addon's own lines, whoever scores: its profiles, not the scales
+    -- of another addon.
+    if other then about.profiles = ns.Score.Trees() end
 
-    -- A button for each profile of the class, the one in use lit. With Pawn scoring they are
-    -- the character's Pawn scales; a character that has none switched on is told so.
+    -- A button for each profile of the class, the one in use lit. With another addon
+    -- scoring they are the character's scales there; a character that has none (no Pawn
+    -- scale switched on) is told so.
     frame.treeCount = #profiles
-    frame.asks = me ~= nil and (pawn or #profiles > 0)
+    frame.asks = me ~= nil and (other or #profiles > 0)
     if frame.asks then
         local name = ns.Roster.Colored(me, me.name or "")
-        if not pawn then
+        if not other then
             frame.Ask:SetText(L.WELCOME_TREE:format(name))
-        elseif #profiles > 0 then
-            frame.Ask:SetText(L.WELCOME_SCALE:format(name))
         else
-            frame.Ask:SetText(L.WELCOME_NO_SCALE:format(name))
+            frame.Ask:SetText(ns.Score.Text(#profiles > 0 and "ASK" or "NONE"):format(name))
         end
     end
     for i = 1, math.max(#profiles, #frame.Trees) do
@@ -768,11 +780,29 @@ Paint = function()
         end
     end
     -- (The pictures then count places among the addon's own profiles: the first.)
-    if pawn then about.place = 1 end
+    if other then about.place = 1 end
 
+    -- The two cards. The arrows in the bags are ours whoever scores, but for one case: the
+    -- addon that scores draws its own there (Forever Companion, while its options say so:
+    -- Score.DrawsArrows), and ours give way to them (Bags.lua). The card then says who
+    -- draws them, and its box is empty, dim and out of the mouse's reach. What the box was
+    -- left at is kept for when ours are drawn again.
+    local theirs = ns.Score.DrawsArrows()
     for i = 1, #frame.Pair do
         local card = frame.Pair[i]
         local on = not card.Switch or PaintSwitch(card.Switch)
+        if card.part == "arrows" then
+            if theirs then
+                on = false
+                card.Switch:SetChecked(false)
+                card.Switch.Tick:SetShown(false)
+            end
+            card.Switch:SetEnabled(not theirs)
+            card.Switch:EnableMouse(not theirs)
+            card.Switch:SetAlpha(theirs and 0.4 or 1)
+            card.Title:SetAlpha(theirs and 0.5 or 1)
+            card.Body:SetText(theirs and ns.Score.Text("ARROWS") or L.WELCOME_ARROWS_TEXT)
+        end
         -- What is switched off is still shown, faded: it is what would come back.
         card.Picture:SetAlpha(on and 1 or 0.3)
         card.Picture:Paint(about)
@@ -793,26 +823,28 @@ Paint = function()
     -- empty, and the two buttons dim. What a box was left at is kept for when the addon
     -- scores again.
     -- The notes under a row of our tabs are ours whoever scores: their box is always in use.
-    -- So are the arrows in the bags, on their card.
+    -- All of that goes for Forever Companion scoring as for Pawn, while it writes its own
+    -- line into tooltips (Score.Writes). With that line switched off in its options the
+    -- score in a tooltip is ours to write, on its scales, and the block is in use as ever.
     local block = frame.Tips
     local tabs, elsewhere, notes = PaintSwitch(block.Tabs), PaintSwitch(block.Elsewhere), PaintSwitch(block.Notes)
     local others = #ns.Roster.List() > (me and 1 or 0)
-    block.Body:SetText(not pawn and L.WELCOME_TOOLTIP_TEXT or others and L.WELCOME_TOOLTIP_PAWN_OTHERS
-        or L.WELCOME_TOOLTIP_PAWN)
-    -- (Each box with what it is held at while Pawn scores.)
+    local writes = ns.Score.Writes()
+    block.Body:SetText(not writes and L.WELCOME_TOOLTIP_TEXT or ns.Score.Text(others and "WRITES_OTHERS" or "WRITES"))
+    -- (Each box with what it is held at while the addon that scores writes the score.)
     for _, case in ipairs({ { block.Tabs, others }, { block.Elsewhere, false } }) do
         local switch, held = case[1], case[2]
-        if pawn then
+        if writes then
             switch:SetChecked(held)
             switch.Tick:SetShown(held)
         end
-        switch:SetEnabled(not pawn)
-        switch:EnableMouse(not pawn)
-        switch:SetAlpha(pawn and 0.4 or 1)
-        switch.Label:SetAlpha(pawn and 0.5 or 1)
+        switch:SetEnabled(not writes)
+        switch:EnableMouse(not writes)
+        switch:SetAlpha(writes and 0.4 or 1)
+        switch.Label:SetAlpha(writes and 0.5 or 1)
     end
     local score = tabs or elsewhere
-    if pawn then score = others end
+    if writes then score = others end
     PaintTree(block.All, not about.own)
     PaintTree(block.Own, about.own)
     for _, button in ipairs({ block.All, block.Own }) do
@@ -848,9 +880,12 @@ local function Build()
     frame:SetScript("OnHide", function()
         ns.account.welcomed = true
         greeting = false
-        -- And, with Pawn there, the choice of who scores has been seen with it.
-        if ns.Pawn.Usable() then ns.account.pawnOffered = true end
-        offering = false
+        -- And the choice of who scores has been seen with every addon that was there to
+        -- be chosen.
+        for _, addon in ipairs(ns.Score.Others()) do
+            if addon.usable then ns.account[addon.offered] = true end
+        end
+        offering = nil
     end)
 
     local logo = frame:CreateTexture(nil, "ARTWORK")
@@ -880,12 +915,15 @@ local function Build()
 
     frame.TopRule, frame.BottomRule = NewRule(frame), NewRule(frame)
 
-    -- Who scores: the question and its two answers, each by its own name.
+    -- Who scores: the question and its answers, each by its own name.
     frame.Who = NewText(frame, 12, CREAM)
     frame.Who:SetWordWrap(true)
     frame.Who:SetSpacing(3)
     frame.Who:SetWidth(WIDTH - 2 * EDGE - 4)
-    frame.Engines = { NewEngine("Upgrade Scout", nil), NewEngine("Pawn", "pawn") }
+    frame.Engines = { NewEngine("Upgrade Scout", nil) }
+    for _, addon in ipairs(ns.Score.Others()) do
+        frame.Engines[#frame.Engines + 1] = NewEngine(addon.name, addon.engine)
+    end
 
     frame.Ask = NewText(frame, 12, CREAM)
     frame.Ask:SetWordWrap(true)
@@ -917,13 +955,22 @@ local function Build()
     frame.Again:SetText(L.WELCOME_AGAIN)
 end
 
+-- An addon that is there to be chosen to score, and with which the choice has not been
+-- seen yet: our words for its being new. nil when there is none.
+local function Unseen()
+    for _, addon in ipairs(ns.Score.Others()) do
+        if addon.usable and not ns.account[addon.offered] then return addon.new end
+    end
+    return nil
+end
+
 function Welcome.Show()
     if not frame then Build() end
     -- The first words are a welcome until the window has been seen once.
     greeting = not ns.account.welcomed
-    -- Seen before, but not since Pawn could be chosen in it, by a player who has Pawn: the
-    -- first words are about that.
-    offering = not greeting and not ns.account.pawnOffered and ns.Pawn.Usable()
+    -- Seen before, but not since Pawn or Forever Companion could be chosen in it, by a
+    -- player who has that addon: the first words are about that.
+    offering = not greeting and Unseen() or nil
     Paint()
     frame:Show()
 end
@@ -943,7 +990,7 @@ local function Repaint()
 end
 ns.Listen("PROFILE_CHANGED", Repaint)
 ns.Listen("SETTING_CHANGED", Repaint)
--- Pawn's scales changed, in Pawn's own window, while Pawn scores.
+-- The scales of the addon that scores changed, in that addon's own window.
 ns.Listen("SCORING_CHANGED", Repaint)
 
 local function OnItemLoaded(itemID)
@@ -961,13 +1008,23 @@ ns.On("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
 -- what it wears, and the card is written (Roster.Update), its talent tree with it. Not in the
 -- middle of a fight: the window waits for the end of it.
 -- The same once more for a player who has Pawn and saw the window before Pawn could be
--- chosen in it (2.6.0): nothing else would tell them of the choice.
+-- chosen in it (2.6.0): nothing else would tell them of the choice. And once more for one
+-- who has Forever Companion, which could be chosen from 2.8.0.
 local waiting = false
 
 -- Has the window a reason to come up by itself?
 local function Due()
     if not ns.account.welcomed then return true end
-    return not ns.account.pawnOffered and ns.Pawn.Usable()
+    return Unseen() ~= nil
+end
+
+-- Has the choice been seen with every addon that can score, there or not? Then nothing can
+-- bring the window up by itself.
+local function AllSeen()
+    for _, addon in ipairs(ns.Score.Others()) do
+        if not ns.account[addon.offered] then return false end
+    end
+    return true
 end
 
 local function Greet()
@@ -982,9 +1039,9 @@ local function Greet()
 end
 
 ns.On("PLAYER_ENTERING_WORLD", function()
-    -- (Whether Pawn is there is asked when the wait is over: it reads its scales as the
-    -- character logs in.)
-    if waiting or (ns.account.welcomed and ns.account.pawnOffered) then return end
+    -- (Whether another addon is there is asked when the wait is over: Pawn reads its scales
+    -- as the character logs in.)
+    if waiting or (ns.account.welcomed and AllSeen()) then return end
     waiting = true
     C_Timer.After(GREET_AFTER, Greet)
 end)

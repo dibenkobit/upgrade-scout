@@ -73,6 +73,8 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
   [wowsims/forever](https://github.com/wowsims/forever) simulator. No other addon is needed.
 - Use Pawn? Choose **Pawn** in the addon's window, and gear is scored on your Pawn scales, not on
   the addon's weights. The lists and the bag arrows go by them, and the tooltip lines are Pawn's own.
+- Use Forever Companion? Choose **Forever Companion** there, and gear is scored on its scales. The
+  lists go by them, and the tooltip line and the bag arrows are Forever Companion's own.
 
 Any class, any level. English, Chinese (Simplified and Traditional), German, Russian, French,
 Spanish, Brazilian Portuguese and Korean.

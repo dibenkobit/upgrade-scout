@@ -8,9 +8,10 @@ local _, ns = ...
 -- are in Weights.lua, which also says where they come from. The player chooses a profile and
 -- nothing else: there are no weights to edit.
 --
--- A player who would sooner go by Pawn can say so in the welcome window (Welcome.lua). Then
--- Pawn scores (Pawn.lua), and the rest of the addon notices nothing: it asks this file the
--- same questions, and a "profile" is one of the character's Pawn scales. See Score.Engine.
+-- A player who would sooner go by another addon's scales can say so in the welcome window
+-- (Welcome.lua): by Pawn's (Pawn.lua) or by Forever Companion's (Companion.lua). Then that
+-- addon scores, and the rest of this one notices nothing: it asks this file the same
+-- questions, and a "profile" is one of the character's scales there. See Score.Engine.
 --
 -- Throughout this file `who` is the character the question is about: a card from Roster for
 -- one that is not being played, nil for the one that is.
@@ -20,30 +21,100 @@ ns.Score = Score
 ---------------------------------------------------------------------------
 -- Who scores
 ---------------------------------------------------------------------------
--- nil: this addon, by its own weights. "pawn": Pawn, by the player's Pawn scales. Pawn does
--- only while it was chosen (ns.account.engine, for the whole account) and is there to be
--- asked: switched off or taken away, it leaves the addon scoring by itself, and the choice
--- stands for when it is back.
+-- The addons that can score in this one's place, in the order the welcome window names
+-- them: what the choice of one is written down as (ns.account.engine), and the file of ours
+-- that asks it, by its name in `ns`. Each such file answers the same questions (Usable,
+-- Scales, Current, Choose, Title, Item, Value, Parts, StatsValue, Unread, ShowsWeapons,
+-- WritesTooltip, Hushed), and says how the addon is named (NAME), which of our words are
+-- about it (TEXT) and what the account remembers of having seen it offered (OFFERED).
+local OTHERS = { { engine = "pawn", file = "Pawn" }, { engine = "companion", file = "Companion" } }
+local FILE = {}
+for i = 1, #OTHERS do FILE[OTHERS[i].engine] = OTHERS[i].file end
+
+-- nil: this addon, by its own weights. "pawn": Pawn, by the player's Pawn scales.
+-- "companion": Forever Companion, by its gear scales. Another addon scores only while it
+-- was chosen (ns.account.engine, for the whole account) and is there to be asked: switched
+-- off or taken away, it leaves this one scoring by itself, and the choice stands for when
+-- it is back.
 function Score.Engine()
-    if ns.account.engine == "pawn" and ns.Pawn.Usable() then return "pawn" end
+    local chosen = ns.account.engine
+    local file = chosen ~= nil and FILE[chosen] or nil
+    if file and ns[file].Usable() then return chosen end
     return nil
 end
 
--- The choice made in the welcome window: "pawn", or nil for the addon's own weights. Every
--- score there is was made by the other one, so everything that keeps scores hears
--- SCORING_CHANGED and makes them again. (The same is said when Pawn's scales change while
--- Pawn scores: see Pawn.lua.)
+-- The file of ours that asks the addon that scores; nil while this one scores by itself.
+local function Other()
+    local engine = Score.Engine()
+    return engine and ns[FILE[engine]] or nil
+end
+
+-- Those addons for the welcome window, each as { engine, name, usable = it is there to be
+-- chosen, offered = the key under which the account remembers having seen it offered,
+-- absent = our words for why it cannot be chosen, new = our words for its being new }.
+function Score.Others()
+    local out = {}
+    for i = 1, #OTHERS do
+        local file = ns[OTHERS[i].file]
+        out[i] = {
+            engine = OTHERS[i].engine, name = file.NAME, usable = file.Usable(), offered = file.OFFERED,
+            absent = ns.L[file.TEXT.ABSENT], new = ns.L[file.TEXT.NEW],
+        }
+    end
+    return out
+end
+
+-- Our words about the addon that scores, by what they are for: "SCORE" (whose score a line
+-- of ours is), "TIP" (the profile field's tooltip), "NO_SCALE" (why there is no scan), "ASK"
+-- and "NONE" (the welcome window's question about the scale, and its answer with none to
+-- choose from), "WRITES" and "WRITES_OTHERS" (who writes the score into a tooltip). nil
+-- while this addon scores by itself.
+function Score.Text(what)
+    local other = Other()
+    return other and ns.L[other.TEXT[what]] or nil
+end
+
+-- The choice made in the welcome window: "pawn", "companion", or nil for the addon's own
+-- weights. Every score there is was made by another, so everything that keeps scores hears
+-- SCORING_CHANGED and makes them again. (The same is said when the scales of the addon that
+-- scores change: see Pawn.lua and Companion.lua.)
 function Score.SetEngine(engine)
     local before = Score.Engine()
-    ns.account.engine = engine == "pawn" and "pawn" or nil
+    ns.account.engine = engine ~= nil and FILE[engine] and engine or nil
     if Score.Engine() ~= before then ns.Fire("SCORING_CHANGED") end
     ns.Fire("SETTING_CHANGED", "engine")
 end
 
--- Writes down the profile chosen for a character (its card): each of the two that score
--- remembers a choice of its own, so going over to Pawn and back loses neither.
+-- Writes down the profile chosen for a character (its card): each of those that score
+-- remembers a choice of its own, so going over to another and back loses none.
 function Score.Choose(card, id)
-    if Score.Engine() then card.scale = id else card.profile = id end
+    local other = Other()
+    if other then other.Choose(card, id) else card.profile = id end
+end
+
+-- Does the addon that scores write the score into the game's item tooltips itself, about
+-- the character being played? Pawn does; Forever Companion does while its own option for
+-- that is on. This addon then leaves its lines about the score out of them: they would say
+-- it twice (Tooltip.lua, AddOfferLines in UI.lua).
+function Score.Writes()
+    local other = Other()
+    return other ~= nil and other.WritesTooltip()
+end
+
+-- Does the addon that scores draw its own arrow on an upgrade in the bags? Forever
+-- Companion does while its own options say so; Pawn's arrow does not reach the bags of this
+-- game. This addon then draws none (Bags.lua).
+function Score.DrawsArrows()
+    local other = Other()
+    return other ~= nil and other.DrawsArrows ~= nil and other.DrawsArrows()
+end
+
+-- Fills a tooltip in for another character of the account, with what the other addons
+-- would write there about the character being played left out (Pawn.Hushed,
+-- Companion.Hushed), whoever scores: each of them writes while it is installed.
+-- fill: what fills the tooltip in; it is called with the arguments that follow it.
+function Score.Hushed(fill, ...)
+    ns.Pawn.Hushed(ns.Companion.Hushed, fill, ...)
 end
 
 local WEAPON_CLASS = Enum.ItemClass.Weapon
@@ -101,9 +172,11 @@ local function OwnTitle(id)
     return title
 end
 
--- The name a profile is shown by, whoever scores: with Pawn, the name Pawn shows the scale by.
+-- The name a profile is shown by, whoever scores: with another addon scoring, the name that
+-- addon shows the scale by.
 function Score.Title(id)
-    if Score.Engine() then return ns.Pawn.Title(id) end
+    local other = Other()
+    if other then return other.Title(id) end
     return OwnTitle(id)
 end
 
@@ -120,9 +193,10 @@ function Score.Trees(who)
 end
 
 -- The profiles to choose from for a character, in the same form: those the addon has for
--- its class or, with Pawn scoring, the Pawn scales the character has.
+-- its class or, with another addon scoring, the scales the character has there.
 function Score.Profiles(who)
-    if Score.Engine() then return ns.Pawn.Scales(who) end
+    local other = Other()
+    if other then return other.Scales(who) end
     return Score.Trees(who)
 end
 
@@ -131,7 +205,8 @@ end
 -- see Roster.Update); otherwise the one its class starts with. Returns it, and the profiles
 -- it was chosen from.
 function Score.Current(who)
-    if Score.Engine() then return ns.Pawn.Current(who) end
+    local other = Other()
+    if other then return other.Current(who) end
     local list = Score.Profiles(who)
     local owner = who or ns.Roster.Me()
     local chosen = owner and owner.profile
@@ -187,10 +262,12 @@ end
 -- stats = { [the game's name for a stat] = amount } }. The stats are those of the item as
 -- it would be for sale, without an enchantment, so that an enchanted piece that is worn is
 -- not unfairly hard to beat. nil when the game has no answer yet.
--- With Pawn scoring, the same with Pawn's record of the item (`pawn`) in place of `stats`:
--- the functions below tell by it whose item they were given.
+-- With another addon scoring, the same with that addon's reading of the item in place of
+-- `stats`, and `scorer`, the file of ours that asked for it: the functions below tell by it
+-- whose item they were given.
 function Score.Item(link)
-    if Score.Engine() then return ns.Pawn.Item(link) end
+    local other = Other()
+    if other then return other.Item(link) end
     local itemID, _, _, invType, _, classID, subClassID = C_Item.GetItemInfoInstant(link)
     if not itemID then return nil end
     local stats = ns.Stats.Read(ns.Stats.Bare(link))
@@ -247,7 +324,7 @@ end
 
 -- An item's score on a profile, for a character of the level. 0 for a profile there is not.
 function Score.Value(item, id, level)
-    if item.pawn ~= nil then return ns.Pawn.Value(item, id) end
+    if item.scorer then return item.scorer.Value(item, id) end
     local profile = ns.Weights.profiles[id]
     if not profile then return 0 end
     local total = 0
@@ -260,7 +337,7 @@ end
 -- The same sum, stat by stat, for /upscout stats: { { name, amount, weight, points }, ... }
 -- with the heaviest first, and the total.
 function Score.Parts(item, id, level)
-    if item.pawn ~= nil then return ns.Pawn.Parts(item, id) end
+    if item.scorer then return item.scorer.Parts(item, id) end
     local profile = ns.Weights.profiles[id]
     local parts, total = {}, 0
     for name, amount in pairs(item.stats) do
@@ -279,7 +356,8 @@ end
 -- has them under the game's names). The same sum as for an item, so the number is in the
 -- points gear is scored in. nil for a profile there is not.
 function Score.StatsValue(stats, id, level)
-    if Score.Engine() then return ns.Pawn.StatsValue(stats, id) end
+    local other = Other()
+    if other then return other.StatsValue(stats, id) end
     local profile = ns.Weights.profiles[id]
     if not profile then return nil end
     local total = 0
@@ -296,8 +374,9 @@ end
 -- what it adds (GearData.extra). Only without a tooltip to read are the game's tables asked
 -- (GearData.effects): checked against a whole auction house, they were out of date for some
 -- items, which the game no longer shows an effect for, or which they did not have at all.
--- With Pawn scoring the lines are the same ones, and Pawn says of each whether it turned it
--- into a number (Pawn.Unread).
+-- With another addon scoring the lines are the same ones, and the file of ours that asks
+-- it says of each whether the addon turned it into a number (Pawn.Unread, Companion.Unread:
+-- the line, and whether it is what the item does while worn).
 local LINE = Enum.TooltipDataLineType
 local USE, EQUIP, PROC = LINE.ItemSpellTriggerOnUse or -1, LINE.ItemSpellTriggerOnEquip or -2, LINE.ItemSpellTriggerOnProc or -3
 function Score.HasUnscoredEffects(item)
@@ -308,8 +387,8 @@ function Score.HasUnscoredEffects(item)
     for i = 2, #lines do
         local kind = lines[i].type
         if kind == USE or kind == PROC or kind == EQUIP then
-            if item.pawn ~= nil then
-                if ns.Pawn.Unread(item, lines[i].leftText) then return true end
+            if item.scorer then
+                if item.scorer.Unread(item, lines[i].leftText, kind == EQUIP) then return true end
             elseif kind ~= EQUIP or not counted then
                 return true
             end
@@ -345,14 +424,16 @@ end
 -- right after login the game knows what is worn but not what it adds (a link to it then has
 -- an empty name). Those items are asked for and named in `pending` (item id -> true), and
 -- until they come their slots score 0. The scanner makes the context again when they do.
--- `unread` counts the items the client has and still gave no stats for (or which Pawn could
--- not read); the scanner asks again a few times for those, and so do the arrows in the bags
--- (Tooltip.lua).
--- With Pawn scoring the context also says what the scale wants no upgrades of: show1H and
--- show2H, false for the one-handed or the two-handed weapons it is not to be offered.
+-- `unread` counts the items the client has and still gave no stats for (or which the addon
+-- that scores could not read); the scanner asks again a few times for those, and so do the
+-- arrows in the bags (Tooltip.lua).
+-- With another addon scoring the context also says what the scale wants no upgrades of:
+-- show1H and show2H, false for the one-handed or the two-handed weapons it is not to be
+-- offered (a Pawn scale can say so).
 local function Finish(ctx)
-    if Score.Engine() then
-        ctx.show1H, ctx.show2H = ns.Pawn.ShowsWeapons(ctx.profile)
+    local other = Other()
+    if other then
+        ctx.show1H, ctx.show2H = other.ShowsWeapons(ctx.profile)
     end
     return ctx
 end

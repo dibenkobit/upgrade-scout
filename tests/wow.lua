@@ -26,6 +26,7 @@ W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dua
 --        values = { [profile] = score } for profiles other than the two the tests began with,
 --        game = { ITEM_MOD_STRENGTH_SHORT = 5, ... }: stats as the game itself counts them,
 --        pawn = { Strength = 5, ... }: stats as Pawn reads them, where it is installed,
+--        companion = { Strength = 5, ... }: the same for Forever Companion,
 --        classes = "Druid, Shaman" (the classes it is for), races = "Orc, Troll",
 --        skill = { "Engineering", 150 } (the profession it asks for), reputation = true }
 function W.AddItem(def)
@@ -388,13 +389,14 @@ local function TooltipLines(link)
         lines[#lines + 1] = { leftText = SHIELD_BLOCK_TEMPLATE:format(item.block), leftColor = HIGHLIGHT_FONT_COLOR, type = 0 }
     end
     -- effects: something the item does that is not a stat. The game marks such a line: when
-    -- used (effects), while worn (equipLine), on a hit (procLine).
+    -- used (effects), while worn (equipLine; equipText: its words, where a test has its
+    -- own), on a hit (procLine).
     if item.effects then
         lines[#lines + 1] = { leftText = ITEM_SPELL_TRIGGER_ONUSE .. " Does something.", leftColor = GREEN_FONT_COLOR,
             type = Enum.TooltipDataLineType.ItemSpellTriggerOnUse }
     end
     if item.equipLine then
-        lines[#lines + 1] = { leftText = "Equip: Does something else.", leftColor = GREEN_FONT_COLOR,
+        lines[#lines + 1] = { leftText = "Equip: " .. (item.equipText or "Does something else."), leftColor = GREEN_FONT_COLOR,
             type = Enum.TooltipDataLineType.ItemSpellTriggerOnEquip }
     end
     if item.procLine then
@@ -426,6 +428,8 @@ function M:SetHyperlink(link)
     if PawnUpdateTooltip and (self == GameTooltip or self == ShoppingTooltip1 or self == ItemRefTooltip) then
         PawnUpdateTooltip(self:GetName(), "SetHyperlink", link)
     end
+    -- Forever Companion, where it is installed, writes its line the same way.
+    W.CompanionWrites(self, link)
     self._shown = true
 end
 
@@ -1209,6 +1213,7 @@ function GameTooltip_AddErrorLine(tooltip, text) GameTooltip_AddColoredLine(tool
 
 RETRIEVING_ITEM_INFO = "Retrieving item information"
 ITEM_SPELL_TRIGGER_ONUSE = "Use:"
+ITEM_SPELL_TRIGGER_ONEQUIP = "Equip:"
 SHIELD_BLOCK_TEMPLATE = "%s Block"
 ITEM_UNIQUE_EQUIPPABLE = "Unique-Equipped"
 CANCEL, NONE = "Cancel", "None"
@@ -1332,6 +1337,7 @@ function W.Logout()
     W.equipped = {}
     W.ResetBags()
     W.ResetPawn()
+    W.ResetCompanion()
 end
 
 -- Another character of the account comes into the world: `player` as W.player, `equipped`
@@ -1340,6 +1346,7 @@ function W.Login(player, equipped)
     W.player = player
     W.equipped = equipped or {}
     UpgradeScoutCharDB = W.charSaved[player.name]
+    W.EnterCompanion()
 end
 HEADSLOT, CHESTSLOT, FINGER0SLOT, MAINHANDSLOT, SECONDARYHANDSLOT = "Head", "Chest", "Finger", "Main Hand", "Off Hand"
 -- The game's text for two of the weapon kinds; the addon has its own for the rest.
@@ -2230,6 +2237,208 @@ end
 -- A new session has Pawn's own functions, with nothing hooked into them (see W.Logout).
 function W.ResetPawn()
     if W.pawn then PawnFunctions(W.pawn) end
+end
+
+---------------------------------------------------------------------------
+-- Forever Companion, for the scenarios that have it installed (W.InstallCompanion). Written
+-- after Forever Companion 0.5.1 (its Scales.lua, ScalesOverlay.lua and Tooltip.lua): what
+-- the addon asks of it, each with what matters of how it behaves there.
+--   * The addon is a global table, ForeverCompanion, with what it keeps under `db`: `char`
+--     for the character being played (its `scale` is the key of the scale chosen for it, nil
+--     for the one its talents call for), `global` for the account (its options, and the
+--     scales the player made), `sv.char` every character's by "Name - kind of realm", and
+--     `keys.realm` that kind for the one being played.
+--   * A scale has a key ("wh:2" for one that comes with the addon, "my:1" for one the player
+--     made), a name it is shown by, the place of the talent tree it is for, and weights.
+--     Scales.ForClass lists a class's, the ones that come with it first.
+--   * Scales.Active is the scale the character being played has in use: the one chosen, if
+--     there still is one by that key, otherwise the one for the tree its talents are in,
+--     otherwise the first for dealing damage.
+--   * Scales.ReadItem gives an item's stats under its own names: nothing for what is not
+--     gear, and nothing with a second value of true for an item the client has not loaded.
+--   * It writes one line into the game's main tooltip and the one for a link in the chat,
+--     about the character being played, while its two options for that are on
+--     (scales_enabled, scale_tooltip; an option never set counts as on). Here it writes only
+--     where a scenario asks (W.companion.writes).
+--   * After any change made in its options it calls its own RefreshScaleOverlays
+--     (W.CompanionChanged).
+-- An item's stats are made the way its game stats are (C_Item.GetItemStats): one named after
+-- each profile it was given a score on ("TEST_S1"), which a scale of the tests weighs as it
+-- likes, and whatever its `companion` table adds under Forever Companion's own names.
+---------------------------------------------------------------------------
+local COMPANION_GEAR = {
+    INVTYPE_HEAD = true, INVTYPE_NECK = true, INVTYPE_SHOULDER = true, INVTYPE_CHEST = true, INVTYPE_ROBE = true,
+    INVTYPE_WAIST = true, INVTYPE_LEGS = true, INVTYPE_FEET = true, INVTYPE_WRIST = true, INVTYPE_HAND = true,
+    INVTYPE_FINGER = true, INVTYPE_TRINKET = true, INVTYPE_CLOAK = true, INVTYPE_WEAPON = true, INVTYPE_2HWEAPON = true,
+    INVTYPE_WEAPONMAINHAND = true, INVTYPE_WEAPONOFFHAND = true, INVTYPE_SHIELD = true, INVTYPE_HOLDABLE = true,
+    INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_THROWN = true, INVTYPE_RELIC = true,
+}
+
+local function CompanionFunctions(C)
+    local addon = ForeverCompanion
+    local Scales = {}
+    addon.Scales = Scales
+    Scales.LABEL = { Strength = "Strength", Stamina = "Stamina", CritRating = "Crit %" }
+
+    function Scales.ForClass(token)
+        token = token or W.player.class
+        local out = {}
+        for _, scale in ipairs(C.data[token] or {}) do
+            out[#out + 1] = { key = "wh:" .. scale.id, label = scale.label, tab = scale.tab, w = scale.w, wowhead = true }
+        end
+        for _, custom in ipairs(addon.db.global.custom_scales) do
+            if not custom.class or custom.class == token then
+                out[#out + 1] = { key = "my:" .. custom.id, label = custom.name, tab = custom.tab, w = custom.w, custom = custom }
+            end
+        end
+        return out
+    end
+
+    local function Role(label)
+        label = label:lower()
+        if label:find("heal") then return "heal" end
+        if label:find("tank") then return "tank" end
+        return "dps"
+    end
+
+    -- The scale for the tree with the most points in it, as W.player.talents lists them.
+    function Scales.Auto(token)
+        local list = {}
+        for _, scale in ipairs(Scales.ForClass(token)) do
+            if scale.wowhead then list[#list + 1] = scale end
+        end
+        if #list == 0 then return nil end
+        local tab, most = nil, 0
+        for place, tree in ipairs(W.player.talents or {}) do
+            if tree.points > most then tab, most = place, tree.points end
+        end
+        C.counted = C.counted + 1
+        if tab then
+            for _, scale in ipairs(list) do
+                if scale.tab == tab then return scale end
+            end
+        end
+        for _, scale in ipairs(list) do
+            if Role(scale.label) == "dps" then return scale end
+        end
+        return list[1]
+    end
+
+    function Scales.Active()
+        local key = addon.db.char.scale
+        for _, scale in ipairs(Scales.ForClass()) do
+            if key ~= nil and scale.key == key then return scale, false end
+        end
+        return Scales.Auto(), true
+    end
+
+    function Scales.ReadItem(link)
+        C.asked[#C.asked + 1] = link
+        local item = ParseItem(link)
+        if not item then return nil end
+        if not COMPANION_GEAR[item.equipLoc or ""] then return nil end
+        if not item.cached then return nil, true end
+        local stats = {}
+        if not item.noStats then
+            if item.value then stats.TEST_S1 = item.value end
+            if item.value2 then stats.TEST_S2 = item.value2 end
+            for profile, value in pairs(item.values or {}) do stats["TEST_" .. profile] = value end
+            for name, amount in pairs(item.companion or {}) do stats[name] = amount end
+            -- An enchantment adds a thousand, as to the game's own count: a score that reads
+            -- an enchanted link is found out.
+            if link:match("item:%d+:%d") then stats.TEST_S1 = (stats.TEST_S1 or 0) + 1000 end
+        end
+        return { loc = item.equipLoc, stats = stats, usable = not item.red }
+    end
+
+    function Scales.Score(stats, weights)
+        local total = 0
+        for name, amount in pairs(stats or {}) do
+            if weights and weights[name] then total = total + weights[name] * amount end
+        end
+        return total
+    end
+
+    -- What an item does while worn, in small letters and without "Equip:": the stat it reads
+    -- there and the amount, where it knows the words. Here it knows attack power.
+    function Scales.ParseEquip(text)
+        local amount = tonumber(text:match("(%d+)"))
+        if amount and text:find("attack power", 1, true) then return "Ap", amount end
+        return nil
+    end
+
+    function addon:RefreshScaleOverlays() C.refreshes = C.refreshes + 1 end
+
+    ForeverCompanionAPI = { SearchNorm = function(text) return tostring(text or ""):lower() end }
+end
+
+-- What it keeps for the character being played is that character's own.
+local function CompanionEnter()
+    local db = ForeverCompanion.db
+    local key = W.player.name .. " - " .. db.keys.realm
+    db.sv.char[key] = db.sv.char[key] or {}
+    db.char = db.sv.char[key]
+end
+
+-- Forever Companion is installed. Its scales are added with W.AddCompanionScale (the ones
+-- that come with it) and W.AddCompanionCustom (the player's own).
+function W.InstallCompanion()
+    W.companion = { asked = {}, data = {}, refreshes = 0, counted = 0, nextCustom = 0 }
+    ForeverCompanion = { db = { global = { custom_scales = {} }, sv = { char = {} }, keys = { realm = "PvE" } } }
+    CompanionEnter()
+    CompanionFunctions(W.companion)
+end
+
+-- Forever Companion is taken away, or switched off: the next session has none of it.
+function W.RemoveCompanion()
+    W.companion = nil
+    ForeverCompanion, ForeverCompanionAPI = nil, nil
+end
+
+-- A scale that comes with the addon. def: { id, label, tab = the place of its talent tree,
+-- w = { [stat] = weight } }
+function W.AddCompanionScale(class, def)
+    local data = W.companion.data
+    data[class] = data[class] or {}
+    table.insert(data[class], def)
+    return def
+end
+
+-- A scale the player made, for the whole account. def: { name, class (nil: for every class),
+-- tab, w }. Returns it, with its number: its key is "my:" and that number.
+function W.AddCompanionCustom(def)
+    W.companion.nextCustom = W.companion.nextCustom + 1
+    def.id = W.companion.nextCustom
+    def.w = def.w or {}
+    table.insert(ForeverCompanion.db.global.custom_scales, def)
+    return def
+end
+
+-- The player changed something in Forever Companion's own options: it then draws its marks
+-- again, which is how an addon can tell.
+function W.CompanionChanged()
+    ForeverCompanion:RefreshScaleOverlays()
+end
+
+-- Its line in a tooltip the game has just filled in (M:SetHyperlink).
+function W.CompanionWrites(tooltip, link)
+    local C = W.companion
+    if not C or not C.writes or (tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip) then return end
+    local options = ForeverCompanion.db.global
+    if options.scales_enabled == false or options.scale_tooltip == false then return end
+    local item = ParseItem(link)
+    if not item or not COMPANION_GEAR[item.equipLoc or ""] then return end
+    tooltip:AddLine("Companion: value")
+end
+
+-- A new session has Forever Companion's own functions, with nothing hooked into them, and
+-- what it keeps for the character that comes into the world (see W.Logout and W.Login).
+function W.ResetCompanion()
+    if W.companion then CompanionFunctions(W.companion) end
+end
+
+function W.EnterCompanion()
+    if W.companion then CompanionEnter() end
 end
 
 return W

@@ -231,6 +231,21 @@ local L = {
     PRICE_MAX_TIP = "Leaves out items that cost more than this. The best upgrade in each slot is then the best one for that price. Each character has a sum of its own.",
     ST_DONE_OVER = "%d upgrades in %d slots. %d more cost more than %s.",
     ST_NONE_OVER = "Nothing at that price. %d upgrades cost more than %s.",
+    -- Forever Companion in place of the addon's own weights (Companion.lua), as Pawn above:
+    -- the choice in the welcome window, and what the tab says of its scales.
+    -- WELCOME_SCALE_COMPANION and WELCOME_NO_SCALE_COMPANION take the character's name.
+    -- WELCOME_ARROWS_COMPANION stands on the card of the arrows in the bags while Forever
+    -- Companion draws its own there and ours give way to them.
+    TT_COMPANION_SCORE = "Forever Companion score",
+    WELCOME_NO_COMPANION = "Forever Companion is not installed or is switched off.",
+    WELCOME_SCALE_COMPANION = "Which Forever Companion scale does %s use?",
+    WELCOME_NO_SCALE_COMPANION = "Forever Companion has no scale for %s.",
+    WELCOME_TOOLTIP_COMPANION = "Here Forever Companion writes its own line.",
+    WELCOME_TOOLTIP_COMPANION_OTHERS = "Here Forever Companion writes its own line. In the lists for your other characters the addon writes it.",
+    WELCOME_COMPANION_NEW = "New: the addon can score gear by your Forever Companion scales. Choose below who scores.",
+    WELCOME_ARROWS_COMPANION = "Here Forever Companion draws its own arrows.",
+    ERR_NO_SCALE_COMPANION = "Forever Companion has no scale for this character's class.",
+    PROFILE_TIP_COMPANION = "Choose the Forever Companion scale to score by.",
 }
 
 if GetLocale() == "ruRU" then
@@ -433,6 +448,17 @@ if GetLocale() == "ruRU" then
         PRICE_MAX_TIP = "Убирает вещи дороже этой суммы. Лучшее улучшение в каждом слоте тогда лучшее за эти деньги. У каждого персонажа своя сумма.",
         ST_DONE_OVER = "Улучшений: %d, слотов: %d. Ещё %d стоят больше %s.",
         ST_NONE_OVER = "За эту цену ничего нет. Улучшений: %d, и все дороже %s.",
+        -- Forever Companion in place of the addon's own weights
+        TT_COMPANION_SCORE = "оценка Forever Companion",
+        WELCOME_NO_COMPANION = "Forever Companion не установлен или выключен.",
+        WELCOME_SCALE_COMPANION = "Какую шкалу Forever Companion использует %s?",
+        WELCOME_NO_SCALE_COMPANION = "%s: в Forever Companion нет шкалы для этого класса.",
+        WELCOME_TOOLTIP_COMPANION = "Здесь свою строку пишет Forever Companion.",
+        WELCOME_TOOLTIP_COMPANION_OTHERS = "Здесь свою строку пишет Forever Companion. В списках для других твоих персонажей её пишет аддон.",
+        WELCOME_COMPANION_NEW = "Новое: аддон умеет оценивать вещи по твоим шкалам Forever Companion. Ниже выбери, кто оценивает.",
+        WELCOME_ARROWS_COMPANION = "Здесь свои стрелки рисует Forever Companion.",
+        ERR_NO_SCALE_COMPANION = "В Forever Companion нет шкалы для класса этого персонажа.",
+        PROFILE_TIP_COMPANION = "Выбери шкалу Forever Companion, по которой оценивать вещи.",
     }
     for k, v in pairs(R) do L[k] = v end
 end
@@ -637,6 +663,17 @@ if GetLocale() == "deDE" then
         PRICE_MAX_TIP = "Lässt Gegenstände weg, die mehr kosten. Die beste Verbesserung in jedem Slot ist dann die beste für diesen Preis. Jeder Charakter hat seine eigene Summe.",
         ST_DONE_OVER = "Verbesserungen: %d, Slots: %d. Weitere %d kosten mehr als %s.",
         ST_NONE_OVER = "Nichts zu diesem Preis. Verbesserungen: %d, alle teurer als %s.",
+        -- Forever Companion in place of the addon's own weights
+        TT_COMPANION_SCORE = "Forever-Companion-Wertung",
+        WELCOME_NO_COMPANION = "Forever Companion ist nicht installiert oder deaktiviert.",
+        WELCOME_SCALE_COMPANION = "Welches Bewertungsprofil von Forever Companion nutzt %s?",
+        WELCOME_NO_SCALE_COMPANION = "Forever Companion hat kein Bewertungsprofil für %s.",
+        WELCOME_TOOLTIP_COMPANION = "Hier schreibt Forever Companion seine eigene Zeile.",
+        WELCOME_TOOLTIP_COMPANION_OTHERS = "Hier schreibt Forever Companion seine eigene Zeile. In den Listen für deine anderen Charaktere schreibt sie das Addon.",
+        WELCOME_COMPANION_NEW = "Neu: Das Addon kann Ausrüstung nach deinen Bewertungsprofilen in Forever Companion bewerten. Wähle unten, wer bewertet.",
+        WELCOME_ARROWS_COMPANION = "Hier zeichnet Forever Companion seine eigenen Pfeile.",
+        ERR_NO_SCALE_COMPANION = "Forever Companion hat kein Bewertungsprofil für die Klasse dieses Charakters.",
+        PROFILE_TIP_COMPANION = "Wähle das Bewertungsprofil von Forever Companion, nach dem bewertet wird.",
     }
     for k, v in pairs(D) do L[k] = v end
 end
@@ -842,6 +879,17 @@ if GetLocale() == "frFR" then
         PRICE_MAX_TIP = "Écarte les objets qui coûtent plus cher. La meilleure amélioration de chaque emplacement est alors la meilleure à ce prix. Chaque personnage a sa propre somme.",
         ST_DONE_OVER = "Améliorations : %d, emplacements : %d. %d de plus coûtent plus de %s.",
         ST_NONE_OVER = "Rien à ce prix. Améliorations : %d, toutes à plus de %s.",
+        -- Forever Companion in place of the addon's own weights
+        TT_COMPANION_SCORE = "score Forever Companion",
+        WELCOME_NO_COMPANION = "Forever Companion n'est pas installé ou est désactivé.",
+        WELCOME_SCALE_COMPANION = "Quelle échelle Forever Companion utilise %s ?",
+        WELCOME_NO_SCALE_COMPANION = "Forever Companion n'a aucune échelle pour %s.",
+        WELCOME_TOOLTIP_COMPANION = "Ici, Forever Companion écrit sa propre ligne.",
+        WELCOME_TOOLTIP_COMPANION_OTHERS = "Ici, Forever Companion écrit sa propre ligne. Dans les listes de vos autres personnages, c'est l'addon qui l'écrit.",
+        WELCOME_COMPANION_NEW = "Nouveau : l'addon peut évaluer l'équipement selon vos échelles Forever Companion. Choisissez ci-dessous qui évalue.",
+        WELCOME_ARROWS_COMPANION = "Ici, Forever Companion dessine ses propres flèches.",
+        ERR_NO_SCALE_COMPANION = "Forever Companion n'a aucune échelle pour la classe de ce personnage.",
+        PROFILE_TIP_COMPANION = "Choisissez l'échelle Forever Companion qui sert à évaluer.",
     }
     for k, v in pairs(F) do L[k] = v end
 end
@@ -1047,6 +1095,17 @@ if GetLocale() == "zhCN" then
         PRICE_MAX_TIP = "不显示价格高于这个数目的物品。每个部位的最大提升就是这个价位内提升最多的一件。每个角色各有自己的数目。",
         ST_DONE_OVER = "找到%d件提升装备，涉及%d个部位。另有%d件价格高于 %s。",
         ST_NONE_OVER = "这个价位内没有提升装备。有%d件价格高于 %s。",
+        -- Forever Companion in place of the addon's own weights
+        TT_COMPANION_SCORE = "Forever Companion 评分",
+        WELCOME_NO_COMPANION = "Forever Companion 未安装或未启用。",
+        WELCOME_SCALE_COMPANION = "%s 用哪个 Forever Companion 属性权重？",
+        WELCOME_NO_SCALE_COMPANION = "Forever Companion 没有适用于 %s 的属性权重。",
+        WELCOME_TOOLTIP_COMPANION = "这里由 Forever Companion 写它自己的内容。",
+        WELCOME_TOOLTIP_COMPANION_OTHERS = "这里由 Forever Companion 写它自己的内容。在你其他角色的列表里，由插件来写。",
+        WELCOME_COMPANION_NEW = "新功能：插件可以按你的 Forever Companion 属性权重给装备评分。在下面选择由谁评分。",
+        WELCOME_ARROWS_COMPANION = "这里由 Forever Companion 画它自己的箭头。",
+        ERR_NO_SCALE_COMPANION = "Forever Companion 没有适用于这个角色职业的属性权重。",
+        PROFILE_TIP_COMPANION = "选择用来评分的 Forever Companion 属性权重。",
     }
     for k, v in pairs(Z) do L[k] = v end
 end
@@ -1253,6 +1312,17 @@ if GetLocale() == "ptBR" then
         PRICE_MAX_TIP = "Deixa de fora os itens que custam mais que isso. A maior melhoria de cada espaço passa a ser a maior por esse preço. Cada personagem tem a sua própria quantia.",
         ST_DONE_OVER = "Melhorias: %d, espaços: %d. Mais %d custam mais de %s.",
         ST_NONE_OVER = "Nada por esse preço. Melhorias: %d, todas por mais de %s.",
+        -- Forever Companion in place of the addon's own weights
+        TT_COMPANION_SCORE = "pontuação do Forever Companion",
+        WELCOME_NO_COMPANION = "O Forever Companion não está instalado ou está desativado.",
+        WELCOME_SCALE_COMPANION = "Qual escala do Forever Companion %s usa?",
+        WELCOME_NO_SCALE_COMPANION = "O Forever Companion não tem nenhuma escala para %s.",
+        WELCOME_TOOLTIP_COMPANION = "Aqui o Forever Companion escreve a própria linha.",
+        WELCOME_TOOLTIP_COMPANION_OTHERS = "Aqui o Forever Companion escreve a própria linha. Nas listas dos seus outros personagens, quem escreve é o addon.",
+        WELCOME_COMPANION_NEW = "Novidade: o addon pode avaliar o equipamento pelas suas escalas do Forever Companion. Escolha abaixo quem avalia.",
+        WELCOME_ARROWS_COMPANION = "Aqui o Forever Companion desenha as próprias setas.",
+        ERR_NO_SCALE_COMPANION = "O Forever Companion não tem nenhuma escala para a classe deste personagem.",
+        PROFILE_TIP_COMPANION = "Escolha a escala do Forever Companion usada na avaliação.",
     }
     for k, v in pairs(P) do L[k] = v end
 end
@@ -1458,6 +1528,17 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         PRICE_MAX_TIP = "Omite los objetos que cuestan más que esto. La mayor mejora de cada ranura es entonces la mayor por ese precio. Cada personaje tiene su propia suma.",
         ST_DONE_OVER = "Mejoras: %d, ranuras: %d. %d más cuestan más de %s.",
         ST_NONE_OVER = "Nada por ese precio. Mejoras: %d, todas por más de %s.",
+        -- Forever Companion in place of the addon's own weights
+        TT_COMPANION_SCORE = "puntuación de Forever Companion",
+        WELCOME_NO_COMPANION = "Forever Companion no está instalado o está desactivado.",
+        WELCOME_SCALE_COMPANION = "¿Qué escala de Forever Companion usa %s?",
+        WELCOME_NO_SCALE_COMPANION = "Forever Companion no tiene ninguna escala para %s.",
+        WELCOME_TOOLTIP_COMPANION = "Aquí Forever Companion escribe su propia línea.",
+        WELCOME_TOOLTIP_COMPANION_OTHERS = "Aquí Forever Companion escribe su propia línea. En las listas de tus otros personajes la escribe el addon.",
+        WELCOME_COMPANION_NEW = "Novedad: el addon puede puntuar el equipo con tus escalas de Forever Companion. Elige abajo quién puntúa.",
+        WELCOME_ARROWS_COMPANION = "Aquí Forever Companion dibuja sus propias flechas.",
+        ERR_NO_SCALE_COMPANION = "Forever Companion no tiene ninguna escala para la clase de este personaje.",
+        PROFILE_TIP_COMPANION = "Elige la escala de Forever Companion con la que se puntúa.",
     }
     for k, v in pairs(E) do L[k] = v end
 end
@@ -1665,6 +1746,17 @@ if GetLocale() == "koKR" then
         PRICE_MAX_TIP = "이보다 비싼 아이템은 목록에서 뺍니다. 그러면 부위마다 최고 향상은 이 가격 안에서 가장 좋은 것입니다. 캐릭터마다 금액을 따로 둡니다.",
         ST_DONE_OVER = "향상 %d개, 부위 %d곳. %d개는 %s보다 비쌉니다.",
         ST_NONE_OVER = "이 가격에는 없습니다. 향상 %d개가 %s보다 비쌉니다.",
+        -- Forever Companion in place of the addon's own weights
+        TT_COMPANION_SCORE = "Forever Companion 점수",
+        WELCOME_NO_COMPANION = "Forever Companion이 설치되어 있지 않거나 꺼져 있습니다.",
+        WELCOME_SCALE_COMPANION = "%s의 Forever Companion 능력치 비율은 무엇인가요?",
+        WELCOME_NO_SCALE_COMPANION = "Forever Companion에 %s에게 맞는 능력치 비율이 없습니다.",
+        WELCOME_TOOLTIP_COMPANION = "여기에는 Forever Companion이 자체 내용을 씁니다.",
+        WELCOME_TOOLTIP_COMPANION_OTHERS = "여기에는 Forever Companion이 자체 내용을 씁니다. 다른 캐릭터를 위한 목록에는 애드온이 씁니다.",
+        WELCOME_COMPANION_NEW = "새 기능: 애드온이 내 Forever Companion 능력치 비율로 장비 점수를 매길 수 있습니다. 누가 매길지 아래에서 고르세요.",
+        WELCOME_ARROWS_COMPANION = "여기에는 Forever Companion이 자체 화살표를 그립니다.",
+        ERR_NO_SCALE_COMPANION = "Forever Companion에 이 캐릭터의 직업에 맞는 능력치 비율이 없습니다.",
+        PROFILE_TIP_COMPANION = "점수를 매길 Forever Companion 능력치 비율을 고르세요.",
     }
     for k, v in pairs(K) do L[k] = v end
 end
@@ -1871,6 +1963,17 @@ if GetLocale() == "zhTW" then
         PRICE_MAX_TIP = "不顯示價格高於這個數目的物品。每個部位的最大提升就是這個價位內提升最多的一件。每個角色各有自己的數目。",
         ST_DONE_OVER = "找到%d件提升裝備，涵蓋%d個部位。另有%d件價格高於 %s。",
         ST_NONE_OVER = "這個價位內沒有提升裝備。有%d件價格高於 %s。",
+        -- Forever Companion in place of the addon's own weights
+        TT_COMPANION_SCORE = "Forever Companion 評分",
+        WELCOME_NO_COMPANION = "Forever Companion 未安裝或未啟用。",
+        WELCOME_SCALE_COMPANION = "%s 用哪個 Forever Companion 權重？",
+        WELCOME_NO_SCALE_COMPANION = "Forever Companion 沒有適用於 %s 的權重。",
+        WELCOME_TOOLTIP_COMPANION = "這裡由 Forever Companion 寫它自己的內容。",
+        WELCOME_TOOLTIP_COMPANION_OTHERS = "這裡由 Forever Companion 寫它自己的內容。在你其他角色的列表裡，由插件來寫。",
+        WELCOME_COMPANION_NEW = "新功能：插件可以依你的 Forever Companion 權重給裝備評分。在下面選擇由誰評分。",
+        WELCOME_ARROWS_COMPANION = "這裡由 Forever Companion 畫它自己的箭頭。",
+        ERR_NO_SCALE_COMPANION = "Forever Companion 沒有適用於這個角色職業的權重。",
+        PROFILE_TIP_COMPANION = "選擇用來評分的 Forever Companion 權重。",
     }
     for k, v in pairs(T) do L[k] = v end
 end

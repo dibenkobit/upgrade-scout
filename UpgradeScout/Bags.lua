@@ -8,6 +8,10 @@ local _, ns = ...
 -- learned) and there is no arrow.
 -- With Pawn scoring (Score.Engine) the arrows stay, and go by the Pawn scale in use: Pawn's
 -- own arrow does not reach the bags of this game.
+-- With Forever Companion scoring they give way to its own: it draws an arrow on an upgrade
+-- in the bags and the bank itself, by the same scale, and two on one icon would say one
+-- thing twice. Where its arrows are switched off in its options, ours are drawn, by its
+-- scale in use (Score.DrawsArrows).
 -- The arrow is the game's own, the one its bag slots have a place for and Forever leaves
 -- unused. It is drawn on a texture of our own in that place: another addon that shows or
 -- hides the game's does not take ours with it.
@@ -64,6 +68,8 @@ end
 function B.Arrow(link)
     -- Switched off in the welcome window: no item gets one.
     if not ns.Shows("arrows") then return false end
+    -- The addon that scores draws its own: none of ours beside them.
+    if ns.Score.DrawsArrows() then return false end
     local upgrade = ns.Tooltip.Upgrade(link)
     if not upgrade then return upgrade end
     if TooLight(link) then return false end
@@ -210,9 +216,10 @@ ns.Listen("WANTS_CHANGED", function(card)
     MarkAllSoon()
 end)
 
--- The arrows switched on or off in the welcome window: they come or go at once.
+-- The arrows switched on or off in the welcome window: they come or go at once. So they do
+-- when Forever Companion's own are switched in its options, while it scores ("companion").
 ns.Listen("SETTING_CHANGED", function(part)
-    if part ~= "arrows" then return end
+    if part ~= "arrows" and part ~= "companion" then return end
     retries = 0
     MarkAll()
 end)

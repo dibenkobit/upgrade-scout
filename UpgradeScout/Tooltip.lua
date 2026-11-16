@@ -23,12 +23,14 @@ local ICON = "|TInterface\\AddOns\\" .. ADDON .. "\\icon.tga:0|t "
 local BRAND = ICON .. "Upgrade Scout"
 local BRAND_R, BRAND_G, BRAND_B = 0.53, 0.78, 0.96
 
--- With Pawn scoring (Score.Engine) the lines are ours and the score in them is Pawn's: what
--- an item is worth on a Pawn scale, measured our way against what is worn. Such lines say
--- so, lest they be taken for the addon's own weights or for Pawn's own lines: the heading
--- after the addon's name, "Upgrade Scout (Pawn score)", a single line after its scale's.
+-- With another addon scoring (Score.Engine) the lines are ours and the score in them is
+-- that addon's: what an item is worth on a scale of Pawn's or of Forever Companion's,
+-- measured our way against what is worn. Such lines say so, lest they be taken for the
+-- addon's own weights or for the other addon's own lines: the heading after the addon's
+-- name, "Upgrade Scout (Pawn score)", a single line after its scale's.
 local function WhoseScore()
-    return ns.Score.Engine() and " (" .. L.TT_PAWN_SCORE .. ")" or ""
+    local whose = ns.Score.Text("SCORE")
+    return whose and " (" .. whose .. ")" or ""
 end
 
 -- scored: the lines under the heading say a score. (A row of our tabs can have notes alone
@@ -97,12 +99,18 @@ ns.On("PLAYER_LEVEL_UP", function()
     -- The game may tell the new level a moment after the event.
     C_Timer.After(1, Forget)
 end)
--- Another one scores (the addon or Pawn), or Pawn's scales changed.
+-- Another one scores (the addon, Pawn or Forever Companion), or the scales of the one that
+-- does changed.
 ns.Listen("SCORING_CHANGED", Forget)
--- With Pawn scoring an answer is about the scale in use alone (see Answer): another scale
--- chosen, and it is to be made again.
+-- With another addon scoring an answer may be about the scale in use alone (see Answer):
+-- another scale chosen, and it is to be made again.
 ns.Listen("PROFILE_CHANGED", function()
     if ns.Score.Engine() then answers = {} end
+end)
+-- Forever Companion's own line in a tooltip switched on or off in its options, while it
+-- scores: an answer has a line for every scale or for the one in use by that (see Answer).
+ns.Listen("SETTING_CHANGED", function(part)
+    if part == "companion" then answers = {} end
 end)
 
 -- Returns the snapshot, and whether it is whole.
@@ -154,9 +162,9 @@ local function Answer(link)
         local level = UnitLevel("player")
         local unique = C_Item.GetItemUniquenessByID(scored.itemID) == true
         local lines, worth = {}, false
-        -- With Pawn scoring there are no lines to write (see OnItem), and the arrow in the
-        -- bags asks about the scale in use alone.
-        local profiles = ns.Score.Engine() and { (ns.Score.Current()) } or ns.Score.Profiles()
+        -- Where the addon that scores writes the score itself there are no lines to write
+        -- (see OnItem), and the arrow in the bags asks about the scale in use alone.
+        local profiles = ns.Score.Writes() and { (ns.Score.Current()) } or ns.Score.Profiles()
         for _, profile in ipairs(profiles) do
             local ctx, complete = Context(profile.name)
             whole = whole and complete
@@ -210,8 +218,9 @@ local function OnItem(tooltip)
     -- own there, "rowTooltip".)
     if not ns.Shows("tooltip") then return end
     -- With Pawn scoring, the lines in a tooltip are Pawn's own, which say the same of its
-    -- scales: ours would say it twice.
-    if ns.Score.Engine() then return end
+    -- scales: ours would say it twice. The same with Forever Companion scoring, while it
+    -- writes its own line; switched off there, ours are written, on its scales.
+    if ns.Score.Writes() then return end
     -- A row of our own list writes its lines itself.
     local owner = tooltip:GetOwner()
     if owner and owner.upgradeScoutRow then return end

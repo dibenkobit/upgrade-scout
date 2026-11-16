@@ -31,7 +31,8 @@ read_globals = {
     "GRAY_FONT_COLOR", "GREEN_FONT_COLOR", "HIGHLIGHT_FONT_COLOR", "NORMAL_FONT_COLOR", "RED_FONT_COLOR", "RAID_CLASS_COLORS",
     -- its words
     "CANCEL", "DAYS_ABBR", "HOURS_ABBR", "MINUTES_ABBR", "SECONDS_ABBR", "NONE",
-    "ITEM_CLASSES_ALLOWED", "ITEM_MIN_SKILL", "ITEM_RACES_ALLOWED", "ITEM_REQ_REPUTATION", "ITEM_SPELL_TRIGGER_ONUSE",
+    "ITEM_CLASSES_ALLOWED", "ITEM_MIN_SKILL", "ITEM_RACES_ALLOWED", "ITEM_REQ_REPUTATION", "ITEM_SPELL_TRIGGER_ONEQUIP",
+    "ITEM_SPELL_TRIGGER_ONUSE",
     "ITEM_UNIQUE_EQUIPPABLE", "LARGE_NUMBER_SEPERATOR", "LOCALIZED_CLASS_NAMES_FEMALE", "LOCALIZED_CLASS_NAMES_MALE",
     "RETRIEVING_ITEM_INFO", "SHIELD_BLOCK_TEMPLATE",
     -- its numbers
@@ -51,6 +52,17 @@ read_globals = {
         fields = {
             ShowUpgradesOnTooltips = { read_only = false },
             ShowValuesForUpgradesOnly = { read_only = false },
+        },
+    },
+    -- and Forever Companion, for a player who has it and chose it to score (Companion.lua):
+    -- its table of helpers, and the addon itself
+    "ForeverCompanionAPI",
+    -- (the scale it has in use for the character is set there when one is chosen in this
+    -- addon's field: Companion.Choose)
+    ForeverCompanion = {
+        other_fields = true,
+        fields = {
+            db = { other_fields = true, read_only = false },
         },
     },
 }

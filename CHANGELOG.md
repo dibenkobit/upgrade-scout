@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.8.0
+
+- **Forever Companion** can score your gear. In the addon's window, under **Who scores your
+  gear?**, choose **Forever Companion**: the lists at the auction house then go by its gear
+  scales, not by the addon's own weights. The **Profile** dropdown lists the scales, for your
+  other characters too.
+- The scale in use is the one Forever Companion has in use. Choose another in the **Profile**
+  dropdown or in the addon's window, and it is chosen in Forever Companion as well.
+- With Forever Companion chosen, its own line says what an item is worth and its own arrows
+  mark the upgrades in your bags, so the addon leaves its own out. Switch either off in Forever
+  Companion's options, and the addon's come back, on its scales.
+- A list made for another of your characters is about that character. Forever Companion knows
+  only the one you are playing, so in such a list the tooltip has the addon's lines and not
+  Forever Companion's. They say whose score it is: **Upgrade Scout (Forever Companion score)**.
+- The choice is for the whole account. Without Forever Companion, or with it switched off, the
+  addon scores by its own weights as before.
+- If you have Forever Companion, the window comes up once after the update to show you the
+  choice.
+
 ## 2.7.0
 
 - **Buyout up to**, a new filter on the Upgrades tab. Type a sum in gold and silver, and the
