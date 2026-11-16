@@ -4,6 +4,8 @@
 
 <p>Open the auction house, press <strong>Scan</strong> and see what is worth buying. It works right after you install it. No other addon is needed.</p>
 
+<p>Use Pawn? Choose <strong>Pawn</strong> in the addon's window, and gear is scored on your Pawn scales.</p>
+
 <p>&nbsp;</p>
 <p><a href="https://media.forgecdn.net/attachments/2209/882/1-scan-png.png"><img src="https://media.forgecdn.net/attachments/2209/882/1-scan-png.png" alt="One scan shows what to buy: the Upgrades tab at the auction house, gear upgrades slot by slot, each with its gain in percent, its buyout and a Buy button" width="760"></a></p>
 <p><a href="https://media.forgecdn.net/attachments/2209/883/2-tooltip-png.png"><img src="https://media.forgecdn.net/attachments/2209/883/2-tooltip-png.png" alt="Every talent tree in the tooltip: an item tooltip with the Upgrade Scout lines, the gain for Arms, Fury and Protection" width="760"></a></p>
@@ -22,14 +24,17 @@
 <h2><strong>Gear: the Upgrades tab</strong></h2>
 <ul>
 <li>Open the auction house, click the <strong>Upgrades</strong> tab and press <strong>Scan</strong>. You get a list of gear that is better than what you wear, slot by slot, with prices. Press <strong>Buy</strong> on the one you want.</li>
-<li>The scan shows only what you can equip right now. <strong>Only what I can afford</strong> leaves out what costs more than your gold.</li>
+<li><strong>Buy</strong> asks before it pays: a box shows the gain, the buyout and the net cost. If the price has changed since the scan, the box shows the <strong>old price</strong> and the <strong>new price</strong>. If someone else bought the item, the box shows the next price, or says that it is <strong>no longer for sale</strong>.</li>
+<li>The scan shows only what you can equip right now.</li>
 <li><strong>Upgrade</strong> is how much better an item is than the one it replaces, in percent. <strong>New</strong> means the slot is empty.</li>
 <li>Marks two items in every slot: the <strong>Best upgrade</strong> is the strongest, the <strong>Best value</strong> is the cheapest per point of improvement. One item can be both.</li>
-<li><strong>Top 5 per slot</strong> keeps the list short. Turn it off to see every upgrade; the scan then takes longer, up to a few minutes on a busy auction house.</li>
-<li>Every row has two prices: the <strong>Buyout</strong> and the <strong>Net cost</strong>, what the item costs you in the end. That is the buyout less what a vendor pays for it when you are done with it. Bought for 4 silver and sold for 3, it cost you 1. Tick <strong>Value by net cost</strong>, and <strong>Best value</strong> goes by that cost. What you can afford, and <strong>Best set for</strong>, still go by the buyout: that is what you pay.</li>
+<li>Every row has two prices: the <strong>Buyout</strong> and the <strong>Net cost</strong>, what the item costs you in the end. That is the buyout less what a vendor pays for it when you are done with it. Bought for 4 silver and sold for 3, it cost you 1.</li>
 <li><strong>Best set for</strong> picks the upgrades that give the most together for your gold, or for a sum you type.</li>
-<li>The <strong>Filters</strong> menu narrows the list. <strong>Best armor type for the class</strong> leaves out armor lighter than the heaviest your character wears. Cloaks, rings, weapons and shields stay.</li>
+<li>The <strong>Filters</strong> menu narrows the list. <strong>Only what I can afford</strong> leaves out what costs more than your gold.</li>
+<li><strong>Top 5 per slot</strong> keeps the list short. Turn it off to see every upgrade; the scan then takes longer, up to a few minutes on a busy auction house.</li>
+<li><strong>Best armor type for the class</strong> leaves out armor lighter than the heaviest your character wears. Cloaks, rings, weapons and shields stay.</li>
 <li><strong>Upgrade at least</strong> leaves out upgrades smaller than the percent you type. An item for an empty slot always stays. Each character has its own box and its own number.</li>
+<li><strong>Value by net cost</strong> has <strong>Best value</strong> go by the net cost, not the buyout. What you can afford, and <strong>Best set for</strong>, still go by the buyout: that is what you pay.</li>
 <li>Prices are buyouts. Auctions that only take bids are skipped.</li>
 <li>A yellow <code>*</code> after a name means the item has effects the score does not count, such as procs.</li>
 </ul>
@@ -43,11 +48,23 @@
 
 <h2><strong>Tooltips and bags</strong></h2>
 <ul>
-<li>Any item's tooltip shows how much better it is than what you wear, for every talent tree of your class, such as Arms, Fury and Protection for a warrior: in your bags, in loot, in a quest reward and in a chat link.</li>
+<li>Any item's tooltip shows how much better it is than what you wear, for every spec of your class, such as Arms, Fury and Protection for a warrior: in your bags, in loot, in a quest reward and in a chat link.</li>
 <li>A green arrow on the icon of an item in your bags or bank means it is an upgrade you can put on now. A grey one: an upgrade once you reach its level.</li>
-<li>In the addon's window, <strong>Only my spec</strong> keeps one line in the tooltip: the one for the tree you play.</li>
+<li>In the addon's window, <strong>Only my spec</strong> keeps one line in the tooltip: the one for the spec you play.</li>
 <li>Two boxes there say where the lines show: on the addon's tabs at the auction house, and elsewhere in the game. Untick both and the addon writes nothing into tooltips.</li>
 <li>The bag arrows can be switched off as well.</li>
+</ul>
+
+<h2><strong>Scores: the addon's own or Pawn's</strong></h2>
+<ul>
+<li>The addon scores gear with its own stat weights for every spec, worked out with the <a href="https://github.com/wowsims/forever">wowsims/forever</a> simulator. No other addon is needed.</li>
+<li>Use Pawn? In the addon's window, under <strong>Who scores your gear?</strong>, choose <strong>Pawn</strong>. Gear is then scored on your Pawn scales, not on the addon's weights. The lists and the bag arrows go by them, the <strong>Profile</strong> dropdown lists your scales, and the tooltip lines are Pawn's own.</li>
+<li>The choice is for the whole account. Without Pawn, or with Pawn switched off, the addon scores by its own weights.</li>
+<li>With Pawn chosen, a list made for another of your characters goes by that character's Pawn scales. Its tooltips have the addon's lines, and they say so: <strong>Upgrade Scout (Pawn score)</strong>.</li>
+<li>A profile says what each stat is worth for one spec. An item's score is the sum of its stats, each times its weight in the profile.</li>
+<li>The addon starts on the talent tree you have the most points in; you can pick another in the <strong>Profile</strong> dropdown.</li>
+<li>The weights are for a level 60 character, so they are an approximation. Below 60, hit, crit, haste and expertise count for less, as simulations of leveling characters show. Stamina (except for tanks), and a healer's Intellect, Spirit and mana regeneration, are set by hand. Armor, shield block, defense, dodge and parry count on every profile: against Stamina, as much as they help the simulator's tank. A <code>~</code> marks a profile whose weights are estimated because no simulation covers its tree yet.</li>
+<li><code>/upscout stats</code> and an item shows how the item gets its score, stat by stat.</li>
 </ul>
 
 <h2><strong>Other characters</strong></h2>
@@ -57,19 +74,9 @@
 <li>At a mailbox, take the gear you bought out of the mail. A button under the mail window then puts it into a letter to that character. Consumables you send yourself.</li>
 </ul>
 
-<h2><strong>Profiles and scores</strong></h2>
-<ul>
-<li>A profile says what each stat is worth for one talent tree. An item's score is the sum of its stats, each times its weight in the profile.</li>
-<li>The addon starts on the tree you have the most points in; you can pick another in the <strong>Profile</strong> dropdown.</li>
-<li>The addon scores gear with its own stat weights for every talent tree, worked out with the <a href="https://github.com/wowsims/forever">wowsims/forever</a> simulator.</li>
-<li>The weights are for a level 60 character, so they are an approximation. Below 60, hit, crit, haste and expertise count for less, as simulations of leveling characters show. Stamina (except for tanks), and a healer's Intellect, Spirit and mana regeneration, are set by hand. Armor, shield block, defense, dodge and parry count on every profile: against Stamina, as much as they help the simulator's tank. A <code>~</code> marks a profile whose weights are estimated because no simulation covers its tree yet.</li>
-<li><code>/upscout stats</code> and an item shows how the item gets its score, stat by stat.</li>
-<li>Use Pawn? Choose <strong>Pawn</strong> in the addon's window, and gear is scored on your Pawn scales, not on the addon's weights. The lists and the bag arrows go by them, and the tooltip lines are Pawn's own.</li>
-</ul>
-
 <h2><strong>Settings and commands</strong></h2>
 <ul>
-<li>A window on your first login shows what the addon does. There you choose your talent tree and can switch off the tooltip lines and the bag arrows. The addon's button at the minimap opens it again, and so does <code>/upscout</code>.</li>
+<li>A window on your first login shows what the addon does. There you choose who scores your gear and your spec, and can switch off the tooltip lines and the bag arrows. The addon's button at the minimap opens it again, and so does <code>/upscout</code>.</li>
 <li><code>/upscout stats</code> shows how long the last scan took.</li>
 <li><code>/upscout forget Name</code> removes a deleted character from the dropdown.</li>
 </ul>
