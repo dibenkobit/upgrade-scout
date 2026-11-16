@@ -2695,10 +2695,22 @@ function scenarios.plan_ui()
     -- A scan with the box ticked looks up what the set needs from the start.
     bar.Check:SetChecked(true)
     bar.Check:Click()
-    ScanToEnd()
+    -- While the scan runs nothing is known of the set, and the strip does not say that the sum
+    -- buys nothing: an empty set means that only once the scan has had its say.
+    check(S.Start(), "scan starts")
+    W.Run(0.3)
+    check(S.state ~= "idle", "the scan is at work: " .. S.state)
+    eq(Listed(), "", "with nothing listed yet")
+    eq(bar.Summary:GetText(), "", "and the strip does not call the sum too small")
+    W.RunUntil(function() return S.state == "idle" end, 600)
     W.Run(0.3)
     check(Offer("Plain Chest") ~= nil, "the plain chest is priced by the scan itself")
     eq(Listed(), "[CHEST] Great Chest [FINGER] New Ring [OFF HAND] Shield", "the set after a new scan: " .. Listed())
+    eq(bar.Summary:GetText(), "3 items, +33 points, 9g 15s, net cost 9g 12s", "and the strip sums it")
+    -- A scan that ends with nothing for the sum does say so.
+    W.Type(bar.Gold, "0")
+    W.Run(0.3)
+    eq(bar.Summary:GetText(), "No upgrade fits this sum.", "no gold, no scan at work: the strip says so")
 
     -- The Consumables view has no strip.
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScoutSupplies")

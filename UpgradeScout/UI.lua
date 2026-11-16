@@ -1117,7 +1117,10 @@ local function PaintPlan()
     if planned and summary.upgrades > 0 then
         -- What is paid for the set now, and what it costs in the end: as its rows have both.
         text = L.PLAN_SUM:format(summary.upgrades, ns.Num(summary.gain), ns.Money(summary.cost), ns.Money(summary.net))
-    elseif planned then
+    elseif planned and not S.IsScan() then
+        -- Said of a set that is made, and not while a scan is still finding what there is
+        -- or looking up its prices: an empty set means nothing then, and the status line
+        -- says what the scan is at.
         text = L.PLAN_NONE
     end
     planBar.Summary:SetText(text)

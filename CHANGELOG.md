@@ -4,6 +4,7 @@
 
 - **One-Hand** and **Two-Hand** stand in one column in a weapon slot. Before, the word moved
   to the right in the rows without a **Best upgrade** or **Best value** badge.
+- **Best set for** no longer says that no upgrade fits the sum while a scan is still running.
 
 ## 2.6.0
 
