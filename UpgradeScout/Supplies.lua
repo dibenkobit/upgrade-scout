@@ -136,32 +136,34 @@ end
 local PLAIN = string.char(255)
 
 -- Kinds come in this order within a subcategory:
---   1  what restores something (healing potions, food), health before mana
---   2  what has a score, the highest score first
+--   1  what has a score, the highest score first: what adds to the character stands at the
+--      top of its heading, whatever else the list has been asked for
+--   2  what restores something (healing potions, food), health before mana
 --   3  what the tables say nothing about, the highest level first
 --   4  what is of no use to this character (listed only when everything is)
 -- None of it depends on how much is for sale, so the list keeps its order from scan to scan.
+local SCORED, RESTORING, UNKNOWN, USELESS = 1, 2, 3, 4
 local RESTORES = { H = 1, HM = 2, M = 3 }
 
 local function Place(kind)
     local best = kind.entries[1]
     kind.best = best
     if best.useless then
-        kind.class = 4
+        kind.class = USELESS
     elseif best.value then
-        kind.class = 2
+        kind.class = SCORED
     elseif best.use then
-        kind.class = 1
+        kind.class = RESTORING
         kind.restores = RESTORES[best.supply.restores] or 4
     else
-        kind.class = 3
+        kind.class = UNKNOWN
     end
 end
 
 local function ByPlace(a, b)
     if a.class ~= b.class then return a.class < b.class end
-    if a.class == 2 and a.best.value ~= b.best.value then return a.best.value > b.best.value end
-    if a.class == 1 and a.restores ~= b.restores then return a.restores < b.restores end
+    if a.class == SCORED and a.best.value ~= b.best.value then return a.best.value > b.best.value end
+    if a.class == RESTORING and a.restores ~= b.restores then return a.restores < b.restores end
     local x, y = a.best.supply, b.best.supply
     if x.reqLevel ~= y.reqLevel then return x.reqLevel > y.reqLevel end
     if x.power ~= y.power then return x.power > y.power end

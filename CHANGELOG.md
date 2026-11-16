@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.1
+
+- With **Everything I can use** ticked, what adds to your character stands at the top of each
+  heading, the highest score first. Food, drink and potions that only restore come after it.
+  Before, they came first.
+
 ## 2.9.0
 
 - The **Consumables** tab now lists only what adds to your character: the consumables that have

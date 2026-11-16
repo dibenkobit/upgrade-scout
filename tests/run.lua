@@ -3243,7 +3243,7 @@ function scenarios.supplies()
     -- use, among what the character can pay for.
     rows, summary = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
     eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 1/2] e* [Bandages 1/2] g* [Other 1/1] h*",
-        "what restores first, health before health and mana; then by score, the higher first; then what has none")
+        "under a heading: by score, the higher first; then what restores, health before health and mana; then what has neither")
     eq(summary.items, 8, "rows counted"); eq(summary.groups, 5, "subcategories counted")
     eq(summary.useless, 2, "mana for a character without it and Intellect on a scale without it are left out")
     eq(summary.hidden, 0, "and are not counted among what costs too much"); eq(summary.scoreless, 0, "nothing is left out for having no score")
@@ -3263,6 +3263,14 @@ function scenarios.supplies()
         if row.entry and row.entry.useless then why[row.entry.supply.id] = row.entry.why end
     end
     eq(why.c, "MANA", "the mana potion says why it is of no use"); eq(why.k, "WEIGHT", "and so does the elixir")
+
+    -- What has a score stands at the top of its heading, above what only restores: a potion
+    -- that adds Strength, among the healing potions.
+    list.r = Make("r", 1, "Increases Strength by 4 for 2 min.", 5, 80, 3, { Strength = 4 })
+    rows = P.Build(list, { money = 20000, affordableOnly = false, bestOnly = false, all = true, value = Value, mana = false })
+    eq(Text(rows), "[Potions 5/5] r*=6 b* a n* c*!~ [Elixirs 5/5] j*=15 i=8 l*=12 m* k*~ [Food & Drink 2/2] e* d [Bandages 2/2] g* f [Other 1/1] h*",
+        "the potion with a score first, then the ones that restore, then the one of no use")
+    list.r = nil
 
     -- Other weights turn the elixirs around without another scan.
     weights = { Intellect = 1 }
@@ -3303,8 +3311,8 @@ function scenarios.supplies()
     -- With a weight for one of the bonuses, that food is scored and stands apart.
     weights = { Agility = 1, Strength = 1.5, Spirit = 0.5 }
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, all = true, value = Value, mana = false })
-    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 3/4] e* p* q*=4 [Bandages 1/2] g* [Other 1/1] h*",
-        "food with a bonus of use has its score")
+    eq(Text(rows), "[Potions 2/3] b* n* [Elixirs 3/4] j*=15 l*=12 m* [Food & Drink 3/4] q*=4 e* p* [Bandages 1/2] g* [Other 1/1] h*",
+        "food with a bonus of use has its score, and stands above the food that only restores")
     rows = P.Build(list, { money = 20000, affordableOnly = true, bestOnly = true, value = Value, mana = false })
     eq(Text(rows), "[Elixirs 2/3] j*=15 l*=12 [Food & Drink 1/1] q*=4", "and is the one meal in the list of what adds to the character")
     weights = { Agility = 1, Strength = 1.5 }
