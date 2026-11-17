@@ -1154,15 +1154,16 @@ function scenarios.scan_listed()
     eq(Unsure("Unlearned Mail"), nil, "nor what the character cannot wear")
     eq(S.Unchecked().groups.CHEST, nil, "no row is counted as one that waits: they are all in the list")
 
-    -- As the player sees it: the rows are there, their prices in a dimmer ink, and can be
-    -- bought from. The status line says what it always said.
+    -- As the player sees it: the rows are there, their prices written like any other, and
+    -- can be bought from. The status line says that the prices are looked up, and that some
+    -- of them may be bids; the tooltip of a row says it of that row.
     W.Run(0.1)
     local ring = Row("New Ring")
     check(ring ~= nil, "the ring has its row")
-    eq(ring.Price:GetAlpha(), 0.45, "its buyout in a dimmer ink"); eq(ring.Net:GetAlpha(), 0.45, "and its net cost")
+    eq(ring.Price:GetAlpha(), 1, "its buyout in full ink, though not looked up yet"); eq(ring.Net:GetAlpha(), 1, "and its net cost")
     eq(ring.Buy:IsEnabled(), true, "and it can be bought at once")
     check(Tooltip(ring):find(NOTE, 1, true) ~= nil, "its tooltip says where the price is from: " .. Tooltip(ring))
-    check(frame.Status:GetText():find("Checking buyout prices", 1, true) ~= nil, "the status line: " .. frame.Status:GetText())
+    check(frame.Status:GetText():find("Checking prices (some may be bids): ", 1, true) ~= nil, "the status line: " .. frame.Status:GetText())
 
     -- The searches put the list right: the same offers as ever.
     W.RunUntil(function() return S.state == "idle" end, 60)
@@ -1172,7 +1173,6 @@ function scenarios.scan_listed()
     eq(Offer("Good Chest").buyout, 4000, "the good chest at its cheapest buyout")
     eq(Row("Bid Only Chest"), nil, "the item that takes bids alone is out of the list")
     ring = Row("New Ring")
-    eq(ring.Price:GetAlpha(), 1, "a price that was looked up, in full ink"); eq(ring.Net:GetAlpha(), 1, "both of them")
     check(Tooltip(ring):find(NOTE, 1, true) == nil, "and the tooltip has nothing to add")
 
     -- A purchase during the price checks: they give way to it, the item is looked up as it is
@@ -1234,7 +1234,7 @@ function scenarios.scan_eta()
     local function Status()
         for _, text in ipairs(W.texts) do
             local said = text:GetText()
-            if said and said:find("Checking buyout prices", 1, true) then return said end
+            if said and said:find("Checking prices", 1, true) then return said end
         end
         return ""
     end
@@ -2119,7 +2119,7 @@ function scenarios.ui()
     -- The robe's price was not looked up while it was hidden; now it is.
     eq(ns.Scanner.mode, "more", "the list asks for the missing price")
     W.Run(0.2)
-    check(Status():find("Checking buyout prices", 1, true) ~= nil, "and says so")
+    check(Status():find("Checking prices", 1, true) ~= nil, "and says so")
     eq(scan.Label:GetText(), "STOP", "the lookup can be stopped")
     eq(frame.Progress:IsShown(), true, "its bar is beside the status line")
     eq(frame.Age:IsShown(), false, "in the place of the age")
