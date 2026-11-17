@@ -245,6 +245,11 @@ local function AddNotes(tooltip, entry, who)
     if offer.effects then
         GameTooltip_AddNormalLine(tooltip, L.TT_EFFECTS)
     end
+    -- A price that came with the item out of the auction list, and has not been looked up
+    -- yet (see ListCandidates in Scanner.lua): the row has it in a dimmer ink.
+    if offer.unsure then
+        GameTooltip_AddNormalLine(tooltip, L.TT_UNSURE)
+    end
     if not entry.affordable then
         GameTooltip_AddErrorLine(tooltip, L.TT_CANT_AFFORD:format(ns.Money(offer.buyout - GetMoney())))
     end
@@ -253,7 +258,7 @@ end
 -- Has AddNotes anything to say of this row?
 local function HasNotes(entry)
     local note = entry.note
-    return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or entry.offer.effects or not entry.affordable
+    return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or entry.offer.effects or entry.offer.unsure or not entry.affordable
 end
 
 -- Our lines under the tooltip of a row of gear. They are of two kinds, and each has a box
@@ -618,9 +623,13 @@ local function BuildHeaderRow(row)
     row.Toggle:SetScript("OnClick", HeaderOnClick)
 end
 
+-- (Also while a scan looks up its prices: the list is there to buy from by then.)
 local function CanBuy()
-    return S.state == "idle" and S.IsOpen()
+    return S.CanBuy()
 end
+
+-- The ink of a price that has not been looked up yet, next to one that has.
+local UNSURE_ALPHA = 0.45
 
 -- The gain in percent of what is worn. There is no percent of nothing: an empty slot says
 -- "New", and a slot whose item scores nothing on the profile (white armor with no stat but
@@ -667,6 +676,7 @@ local function InitSupplyRow(row, entry, share)
     end
 
     row.Price:SetFontObject(entry.affordable and PriceFontWhite or PriceFontRed)
+    row.Price:SetAlpha(1)               -- (the frame may have been a row of gear a moment ago)
     SetPrice(row.Price, supply.price, at.price - at.upgrade - PAD)
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
@@ -734,6 +744,12 @@ local function InitItemRow(row, element)
     SetPrice(row.Price, offer.buyout, PRICE_ROOM)
     row.Net:SetFontObject(byNet and PriceFontWhite or PriceFontGray)
     SetMoney(row.Net, ns.Results.Net(offer.buyout, offer.sell), PRICE_ROOM)
+    -- A price that has not been looked up yet stands in a dimmer ink until it has: the row
+    -- is in the list from the moment the item is known, at the lowest price the auction list
+    -- has for it, and that may turn out to be a bid (see ListCandidates in Scanner.lua).
+    local ink = offer.unsure and UNSURE_ALPHA or 1
+    row.Price:SetAlpha(ink)
+    row.Net:SetAlpha(ink)
 
     row.Buy:SetEnabled(CanBuy() and entry.affordable)
 end

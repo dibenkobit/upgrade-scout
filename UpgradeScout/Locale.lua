@@ -64,6 +64,7 @@ local L = {
     ITEM_STATS_HELP = "Type /upscout stats and shift-click an item into the chat line.",
 
     TT_EFFECTS = "Has effects the score does not count",
+    TT_UNSURE = "Price from the auction list, still being checked",
     TT_OFFHAND_EMPTY = "Your off hand will be empty",
     TT_BOTH_HANDS = "Takes both hands",
     TT_CANT_AFFORD = "You are %s short",
@@ -318,6 +319,7 @@ if GetLocale() == "ruRU" then
         ITEM_STATS_HELP = "Набери /upscout stats и вставь предмет в строку чата (Shift+щелчок по нему).",
 
         TT_EFFECTS = "Есть эффекты, которые оценка не учитывает",
+        TT_UNSURE = "Цена из списка лотов, ещё проверяется",
         TT_OFFHAND_EMPTY = "Левая рука останется пустой",
         TT_BOTH_HANDS = "Занимает обе руки",
         TT_CANT_AFFORD = "Не хватает %s",
@@ -538,6 +540,7 @@ if GetLocale() == "deDE" then
         ITEM_STATS_HELP = "Gib /upscout stats ein und füge einen Gegenstand per Umschalt-Klick in die Chatzeile ein.",
 
         TT_EFFECTS = "Hat Effekte, die die Wertung nicht mitzählt",
+        TT_UNSURE = "Preis aus der Auktionsliste, wird noch geprüft",
         TT_OFFHAND_EMPTY = "Deine Schildhand bleibt leer",
         TT_BOTH_HANDS = "Belegt beide Hände",
         TT_CANT_AFFORD = "Dir fehlen %s",
@@ -759,6 +762,7 @@ if GetLocale() == "frFR" then
         ITEM_STATS_HELP = "Tapez /upscout stats puis insérez un objet dans la ligne de discussion (Maj-clic).",
 
         TT_EFFECTS = "Possède des effets que le score ne compte pas",
+        TT_UNSURE = "Prix tiré de la liste des enchères, vérification en cours",
         TT_OFFHAND_EMPTY = "Votre main gauche sera vide",
         TT_BOTH_HANDS = "Occupe les deux mains",
         TT_CANT_AFFORD = "Il vous manque %s",
@@ -980,6 +984,7 @@ if GetLocale() == "zhCN" then
         ITEM_STATS_HELP = "输入 /upscout stats，再按住Shift点击物品，把它放进聊天输入框。",
 
         TT_EFFECTS = "带有未计入评分的效果",
+        TT_UNSURE = "价格来自拍卖列表，仍在核对",
         TT_OFFHAND_EMPTY = "你的副手将会空出",
         TT_BOTH_HANDS = "占用双手",
         TT_CANT_AFFORD = "还差 %s",
@@ -1202,6 +1207,7 @@ if GetLocale() == "ptBR" then
         ITEM_STATS_HELP = "Digite /upscout stats e Shift-clique em um item para colocá-lo na linha do chat.",
 
         TT_EFFECTS = "Tem efeitos que a pontuação não conta",
+        TT_UNSURE = "Preço da lista de leilões, ainda em verificação",
         TT_OFFHAND_EMPTY = "Sua mão secundária ficará vazia",
         TT_BOTH_HANDS = "Ocupa as duas mãos",
         TT_CANT_AFFORD = "Faltam %s",
@@ -1423,6 +1429,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         ITEM_STATS_HELP = "Escribe /upscout stats y haz Mayús-clic en un objeto para ponerlo en la línea de chat.",
 
         TT_EFFECTS = "Tiene efectos que la puntuación no cuenta",
+        TT_UNSURE = "Precio de la lista de subastas, aún por comprobar",
         TT_OFFHAND_EMPTY = "Tu mano izquierda quedará vacía",
         TT_BOTH_HANDS = "Ocupa ambas manos",
         TT_CANT_AFFORD = "Te faltan %s",
@@ -1646,6 +1653,7 @@ if GetLocale() == "koKR" then
         ITEM_STATS_HELP = "/upscout stats 를 입력한 뒤 아이템을 Shift+클릭해 대화 입력줄에 넣으세요.",
 
         TT_EFFECTS = "점수에 넣지 않은 효과가 있습니다",
+        TT_UNSURE = "경매 목록의 가격이며 아직 확인 중입니다",
         TT_OFFHAND_EMPTY = "보조장비 칸이 비게 됩니다",
         TT_BOTH_HANDS = "양손을 모두 씁니다",
         TT_CANT_AFFORD = "%s 부족합니다",
@@ -1868,6 +1876,7 @@ if GetLocale() == "zhTW" then
         ITEM_STATS_HELP = "輸入 /upscout stats，再按住Shift點擊物品，把它放進聊天輸入框。",
 
         TT_EFFECTS = "帶有未計入評分的效果",
+        TT_UNSURE = "價格來自拍賣列表，仍在核對",
         TT_OFFHAND_EMPTY = "你的副手將會空出",
         TT_BOTH_HANDS = "佔用雙手",
         TT_CANT_AFFORD = "還差 %s",

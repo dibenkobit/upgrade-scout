@@ -22,6 +22,7 @@ local names = {
     "price_max", "price_max_ui",
     "companion_scan", "companion_absent", "companion_tooltips", "companion_welcome", "companion_supplies", "companion_alt",
     "companion_chance",
+    "scan_listed",
 }
 
 if not scenario then
@@ -109,9 +110,18 @@ local function Relog(player, equipped)
     W.Run(1.5)
 end
 
+-- An offer by its item's name, once its price has been looked up. (An item is in the list
+-- before that, from the moment it is known, at the lowest price of its row: see Unsure.)
 local function Offer(name)
     for _, offer in pairs(ns.Scanner.offers) do
-        if offer.name == name then return offer end
+        if offer.name == name and not offer.unsure then return offer end
+    end
+end
+
+-- An item that is in the list at the lowest price of its row, which has not been looked up.
+local function Unsure(name)
+    for _, offer in pairs(ns.Scanner.offers) do
+        if offer.name == name and offer.unsure then return offer end
     end
 end
 
@@ -130,9 +140,22 @@ local function Asking()
     if box and box:IsShown() and box.offer then return box end
 end
 
+-- How many offers have had their price looked up.
 local function OfferCount()
     local n = 0
-    for _ in pairs(ns.Scanner.offers) do n = n + 1 end
+    for _, offer in pairs(ns.Scanner.offers) do
+        if not offer.unsure then n = n + 1 end
+    end
+    return n
+end
+
+-- And how many are in the list at a price that has not: all of them, or with `over` those
+-- that cost more than that many copper.
+local function UnsureCount(over)
+    local n = 0
+    for _, offer in pairs(ns.Scanner.offers) do
+        if offer.unsure and offer.buyout > (over or 0) then n = n + 1 end
+    end
     return n
 end
 
@@ -783,7 +806,7 @@ function scenarios.scan_lazy()
     local first = Scan({ true, true })
     eq(first, used[1], "the same scan costs the same")
     eq(S.Demand(), false, "nothing more is needed for the list as it is")
-    check(S.Unchecked().tooDear > 0, "rows that cost too much are counted without a search")
+    check(UnsureCount(GetMoney()) > 0, "rows that cost too much are counted at their lowest price, without a search")
     local before = W.AH.calls.search
     SetView(true, false)
     eq(S.Demand(), true, "'top five' off: the offers it was hiding get their prices looked up")
@@ -798,7 +821,7 @@ function scenarios.scan_lazy()
     eq(OfferCount(), offers, "the same offers as the full scan")
     eq(first + W.AH.calls.search - before, all, "and in all each candidate was searched exactly once")
     eq(S.Demand(), false, "nothing left to look up")
-    eq(S.Unchecked().tooDear, 0, "nothing left uncounted")
+    eq(UnsureCount(), 0, "no price in the list that was not looked up")
     eq(W.AH.calls.browse, 5, "five scans, five browse queries")
     realPrint(string.format("      item searches: %d with both filters off, %d by default, %d with only the price filter, %d with only top five",
         all, used[1], used[2], used[3]))
@@ -923,7 +946,8 @@ function scenarios.scan_unanswered()
     eq(S.partial, false, "the scan did not stop early"); eq(S.halted, false, "nor do its price checks wait")
     eq(S.message, nil, "it has no note of its own")
     eq(OfferCount(), 5, "the other five prices are in the list")
-    check(Status():find("5 upgrades in 5 slots.", 1, true) ~= nil, "which the status line counts: " .. Status())
+    eq(UnsureCount(), 1, "the sixth item stays in it at the lowest price of its row")
+    check(Status():find("6 upgrades in 5 slots.", 1, true) ~= nil, "the status line counts them all: " .. Status())
     check(Status():find(missing, 1, true) ~= nil, "and it says a price is missing: " .. Status())
     check(Status():find(ns.L.ST_PARTIAL, 1, true) == nil, "not that the scan stopped early")
     eq(S.Demand(), false, "the search is not sent again by itself")
@@ -1084,6 +1108,117 @@ function scenarios.fonts()
     eq(Member(words, "roman").file, STANDARD_TEXT_FONT, "Latin letters in the font the player chose")
     eq(Member(words, "russian").file, STANDARD_TEXT_FONT, "and Cyrillic, the client's own writing")
     eq(Member(words, "korean").file, "Fonts\\2002.TTF", "Korean still in the game's")
+end
+
+-- The list has its items from the moment they are known, each at the lowest price of its row,
+-- before any price is looked up. The searches that follow put the prices right, and a purchase
+-- does not wait for them.
+function scenarios.scan_listed()
+    StandardWorld()
+    LoadAddon()
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local S = ns.Scanner
+    local frame = UpgradeScoutFrame
+    local box
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then box = w end
+    end
+    -- The row of an item in the list, as it is drawn.
+    local function Row(name)
+        for _, w in ipairs(box:GetFrames()) do
+            local data = w._shown and w:GetElementData().data
+            if data and data.kind == "item" and data.entry.offer.name == name then return w end
+        end
+    end
+    -- What the tooltip of a row says, line by line.
+    local function Tooltip(row)
+        row:GetScript("OnEnter")(row)
+        local out = {}
+        for _, line in ipairs(GameTooltip._lines) do out[#out + 1] = line.text end
+        return table.concat(out, " | ")
+    end
+    local NOTE = "Price from the auction list, still being checked"
+
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return UnsureCount() > 0 end, 10)
+    eq(S.state, "verify", "the items are in the list as the price checks begin")
+    eq(OfferCount(), 0, "before any price has been looked up")
+    eq(Unsure("New Ring").buyout, 800, "the ring at the lowest price of its row")
+    eq(Unsure("Helm").buyout, 2500, "and the helm")
+    eq(Unsure("Good Chest").buyout, 1, "the good chest at the lowest number of its row, which is a bid")
+    check(Unsure("Bid Only Chest") ~= nil, "an item that takes bids alone is listed until its search says so")
+    check(Unsure("My Own Chest") ~= nil, "a row with an auction of the player's own is listed until its search says whose it is")
+    eq(Unsure("Weak Chest"), nil, "what is no upgrade is not listed")
+    eq(Unsure("Future Chest"), nil, "nor what asks for a higher level")
+    eq(Unsure("Unlearned Mail"), nil, "nor what the character cannot wear")
+    eq(S.Unchecked().groups.CHEST, nil, "no row is counted as one that waits: they are all in the list")
+
+    -- As the player sees it: the rows are there, their prices in a dimmer ink, and can be
+    -- bought from. The status line says what it always said.
+    W.Run(0.1)
+    local ring = Row("New Ring")
+    check(ring ~= nil, "the ring has its row")
+    eq(ring.Price:GetAlpha(), 0.45, "its buyout in a dimmer ink"); eq(ring.Net:GetAlpha(), 0.45, "and its net cost")
+    eq(ring.Buy:IsEnabled(), true, "and it can be bought at once")
+    check(Tooltip(ring):find(NOTE, 1, true) ~= nil, "its tooltip says where the price is from: " .. Tooltip(ring))
+    check(frame.Status:GetText():find("Checking buyout prices", 1, true) ~= nil, "the status line: " .. frame.Status:GetText())
+
+    -- The searches put the list right: the same offers as ever.
+    W.RunUntil(function() return S.state == "idle" end, 60)
+    W.Run(0.3)
+    CheckStandardOffers("listed first")
+    eq(UnsureCount(), 0, "no price is left that was not looked up")
+    eq(Offer("Good Chest").buyout, 4000, "the good chest at its cheapest buyout")
+    eq(Row("Bid Only Chest"), nil, "the item that takes bids alone is out of the list")
+    ring = Row("New Ring")
+    eq(ring.Price:GetAlpha(), 1, "a price that was looked up, in full ink"); eq(ring.Net:GetAlpha(), 1, "both of them")
+    check(Tooltip(ring):find(NOTE, 1, true) == nil, "and the tooltip has nothing to add")
+
+    -- A purchase during the price checks: they give way to it, the item is looked up as it is
+    -- before any purchase, and the box asks at the buyout that found, not at the bid the row
+    -- was listed at. The checks pick up again when the purchase is over.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    check(S.Start(), "second scan starts")
+    W.RunUntil(function() return UnsureCount() > 0 end, 10)
+    W.Run(0.1)
+    eq(S.CanBuy(), true, "a purchase can begin while the prices are looked up")
+    -- (For a moment the chest that takes bids alone, listed at a copper, is the one row of its
+    -- slot: no chest can stand beside it at that price. Its search comes first, the biggest
+    -- upgrade there is, and takes it out.)
+    check(Row("Bid Only Chest") ~= nil and Row("Good Chest") == nil, "the chest slot for now: the one listed at a bid")
+    local good = Unsure("Good Chest")
+    eq(good.buyout, 1, "the good chest is still at the bid")
+    S.Buy(good)
+    eq(S.mode, "buy", "the price checks give way to the purchase")
+    W.RunUntil(Asking, 30)
+    eq(Asking().offer.buyout, 4000, "the box asks at the buyout the search found")
+    check(UnsureCount() > 0, "with other prices still to be looked up")
+    Asking().Buy:Click()
+    W.RunUntil(function() return #S.acquired == 1 end, 30)
+    W.RunUntil(function() return S.state == "idle" and UnsureCount() == 0 end, 120)
+    eq(S.halted, false, "the price checks went on by themselves, to their end")
+    eq(Offer("Good Chest").buyout, 5000, "the next good chest is listed at its own price")
+    eq(OfferCount(), 6, "and the other offers are all there")
+    eq(S.stats.checked - S.stats.exact, 2, "statistics: of the rows searched, two were listed at a bid, the rest at their cheapest buyout")
+
+    -- A row listed at a bid, bought from: there is nothing to buy out. The chat says so, as
+    -- of any item that is gone by the time it is asked for, and the row leaves the list.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    check(S.Start(), "third scan starts")
+    W.RunUntil(function() return UnsureCount() > 0 end, 10)
+    W.Run(0.1)
+    local bids = Row("Bid Only Chest")
+    check(bids ~= nil, "the chest that takes bids alone has its row")
+    bids.Buy:Click()
+    eq(S.mode, "buy", "it is looked up")
+    W.RunUntil(function() return Unsure("Bid Only Chest") == nil end, 30)
+    eq(Asking(), nil, "nothing is asked: there is none to buy out")
+    check(W.printed[#W.printed]:find("Bid Only Chest", 1, true) ~= nil and W.printed[#W.printed]:find("no longer for sale", 1, true) ~= nil,
+        "the chat says it is gone: " .. W.printed[#W.printed])
+    W.RunUntil(function() return S.state == "idle" and UnsureCount() == 0 end, 120)
+    eq(Row("Bid Only Chest"), nil, "its row is gone")
+    eq(OfferCount(), 6, "and the price checks went on to their end")
 end
 
 -- With "top 5" off every remaining price is looked up, so the status line can say how long
@@ -2699,13 +2834,20 @@ function scenarios.plan_ui()
     -- A scan with the box ticked looks up what the set needs from the start.
     bar.Check:SetChecked(true)
     bar.Check:Click()
-    -- While the scan runs nothing is known of the set, and the strip does not say that the sum
-    -- buys nothing: an empty set means that only once the scan has had its say.
+    -- While the scan finds what there is, nothing is known of the set, and the strip does not
+    -- say that the sum buys nothing: an empty set means that only once the scan has had its say.
     check(S.Start(), "scan starts")
-    W.Run(0.3)
-    check(S.state ~= "idle", "the scan is at work: " .. S.state)
+    W.Run(0.1)
+    eq(S.state, "browse", "the auction list is being read")
     eq(Listed(), "", "with nothing listed yet")
     eq(bar.Summary:GetText(), "", "and the strip does not call the sum too small")
+    -- Once the items are known a set is drawn from the lowest prices of their rows, before
+    -- any of them is looked up.
+    W.RunUntil(function() return UnsureCount() > 0 end, 5)
+    W.Run(0.1)
+    check(S.state ~= "idle", "the scan is at work: " .. S.state)
+    check(Listed() ~= "", "a set is listed at once: " .. Listed())
+    check(bar.Summary:GetText() ~= "" and bar.Summary:GetText() ~= ns.L.PLAN_NONE, "and summed: " .. bar.Summary:GetText())
     W.RunUntil(function() return S.state == "idle" end, 600)
     W.Run(0.3)
     check(Offer("Plain Chest") ~= nil, "the plain chest is priced by the scan itself")
@@ -7983,7 +8125,7 @@ function scenarios.wants()
     -- A scan with it ticked looks up no price for those three.
     eq(Scan(), all - 3, "three item searches fewer")
     eq(Offer("Hide Cap"), nil, "no price for the cap"); eq(Offer("Silk Hood"), nil, "the hood"); eq(Offer("Great Chest"), nil, "or the robe")
-    eq(S.Unchecked().unwanted, 3, "which are counted without one")
+    check(Unsure("Hide Cap") ~= nil and Unsure("Silk Hood") ~= nil and Unsure("Great Chest") ~= nil, "which are counted at the lowest price of their rows")
     list, unwanted = Shown()
     eq(list, MAIL, "the same list"); eq(unwanted, 3, "and the same count")
     eq(S.Demand(), false, "nothing more is needed for the list as it is")
@@ -7999,7 +8141,7 @@ function scenarios.wants()
     eq(list, HALF, "the list of what adds a half or more"); eq(unwanted, 2, "two left out")
     eq(Scan(), all - 2, "a scan looks up no price for those two")
     eq(Offer("Fair Chest"), nil, "the fair chest"); eq(Offer("Big Axe"), nil, "and the axe")
-    eq(S.Unchecked().unwanted, 2, "counted without a search")
+    check(Unsure("Fair Chest") ~= nil and Unsure("Big Axe") ~= nil, "counted without a search")
     -- A smaller number asks for the prices it lets in.
     Wants.SetGain(me, true, 25)
     eq(More(), 1, "at least 25: one search, for the axe")
@@ -8610,7 +8752,8 @@ function scenarios.price_max()
     eq(Scan(), all - 4, "four item searches fewer")
     eq(Offer("Great Chest"), nil, "no price for the robe"); eq(Offer("Plain Chest"), nil, "the plain chest")
     eq(Offer("Helm"), nil, "the helm"); eq(Offer("Big Axe"), nil, "or the axe")
-    eq(S.Unchecked().tooDear, 4, "which are counted without one")
+    check(Unsure("Great Chest") ~= nil and Unsure("Plain Chest") ~= nil and Unsure("Helm") ~= nil and Unsure("Big Axe") ~= nil,
+        "which are counted at the lowest price of their rows")
     eq(Offer("Good Chest").buyout, 40 * SILVER, "the good chest's buyout is known, and over the sum")
     list, hidden = Shown()
     eq(list, CHEAP, "the same list"); eq(hidden, 5, "and the same count")

@@ -13,6 +13,9 @@ local AH = C_AuctionHouse
 -- searches the slow part, and the scan sends only those whose answer the list can show: see
 -- SkipReason. The candidates stay in memory after the scan, so when the list starts to need a
 -- skipped one (a filter is switched off, an offer is bought), S.Demand() looks it up then.
+-- The player does not wait for the third step: the candidates are in the list as soon as the
+-- second is over, each at its row's lowest price, and the third puts those prices right as
+-- it goes (see ListCandidates). A purchase can begin meanwhile (S.CanBuy).
 local S = {}
 ns.Scanner = S
 
@@ -162,7 +165,11 @@ local function NewStats()
         skipped = 0,                        -- candidates whose price the list did not need
         checked = 0,                        -- rows whose auctions were read
         belowFloor = 0,                     -- of those, rows with a buyout below the row's lowest price
+        exact = 0,                          -- and rows whose cheapest buyout was that price: the one an item
+                                            -- is listed at before its search (see ListCandidates)
         early = false,                      -- the browse stopped before the last page
+        listed = 0,                         -- candidates put into the list before their search
+        own = 0,                            -- candidates whose row holds an auction of the player's own
     }
 end
 
@@ -173,9 +180,11 @@ local function SaveStats()
     stats.candidates = scan and #scan.candidates or 0
     stats.skipped = 0
     if scan then
-        stats.checked, stats.belowFloor = scan.checked, scan.belowFloor
+        stats.checked, stats.belowFloor, stats.exact = scan.checked, scan.belowFloor, scan.exact
+        stats.listed, stats.own = scan.listed, 0
         for i = 1, #scan.candidates do
             if not scan.candidates[i].status then stats.skipped = stats.skipped + 1 end
+            if scan.candidates[i].own then stats.own = stats.own + 1 end
         end
     end
     stats.at = time()
@@ -297,6 +306,8 @@ local function AddCandidate(row, eval)
         expect = eval and eval.value or nil,
         -- A buyout at this price settles the search: see CheapestLoaded.
         stopAt = eval and minPrice > 0 and minPrice or nil,
+        -- One of the row's auctions is the player's own (counted for the statistics).
+        own = row.own,
         -- status: nil = price not looked up, "done", "failed"
     }
 end
@@ -342,6 +353,22 @@ function S.Ceiling()
     return money, false
 end
 
+-- The offers whose price has been looked up: id -> offer. A candidate is in the list from the
+-- moment it is known, at its row's lowest price (see ListCandidates), and that price proves
+-- nothing: whatever is reasoned from the offers about what a search can be spared goes by
+-- these alone.
+local checked = {}
+local function Checked()
+    if checked.changes ~= S.changes or checked.from ~= S.offers then
+        local list = {}
+        for id, offer in pairs(S.offers) do
+            if not offer.unsure then list[id] = offer end
+        end
+        checked = { changes = S.changes, from = S.offers, list = list }
+    end
+    return checked.list
+end
+
 -- The verified offers as the list groups them (see Results.Collect), rebuilt when they change.
 local front = {}
 local function Front()
@@ -350,7 +377,7 @@ local function Front()
     local wants, cap = Wanted(), Cap()
     if front.dirty or front.offers ~= S.offers or front.ctx ~= S.ctx
         or front.money ~= money or front.afford ~= afford or front.wants ~= wants or front.cap ~= cap then
-        front.groups = ns.Results.Collect(S.offers, S.ctx, { money = money, affordableOnly = afford, cap = cap, wants = wants })
+        front.groups = ns.Results.Collect(Checked(), S.ctx, { money = money, affordableOnly = afford, cap = cap, wants = wants })
         front.offers, front.ctx, front.money, front.afford, front.dirty = S.offers, S.ctx, money, afford, false
         front.wants, front.cap = wants, cap
     end
@@ -370,7 +397,7 @@ local function OffersWornAs(invType)
     local wants = Wanted()
     if byType.changes ~= S.changes or byType.offers ~= S.offers or byType.wants ~= wants then
         byType = { changes = S.changes, offers = S.offers, wants = wants, lists = {} }
-        for _, offer in pairs(S.offers) do
+        for _, offer in pairs(Checked()) do
             if ns.Wants.Fits(wants, offer) then
                 local list = byType.lists[offer.invType]
                 if not list then
@@ -508,7 +535,8 @@ function S.Unchecked()
     local list = scan.candidates
     for i = 1, #list do
         local cand = list[i]
-        if not cand.status and cand.eval then
+        -- (A candidate that is in the list at its row's lowest price is counted there.)
+        if not cand.status and cand.eval and not cand.listed then
             local placements = Placements(cand)
             if #placements > 0 then
                 placements = ns.Wants.Keep(wants, cand.eval, placements)
@@ -670,6 +698,40 @@ local function CountAuction(found, job, eval, info)
     }
 end
 
+-- Puts the candidates into the list as soon as they are known, each at its row's lowest
+-- price: the player has a list to read, and to buy from, while the prices are looked up.
+-- Such a price is provisional (`unsure` on the offer). It may be a bid and not a buyout, or
+-- the auction may be the player's own: the search that follows puts the row right, or takes
+-- it out. Nothing is reasoned from such an offer (see Checked), and a purchase looks the
+-- item up first, as it always does (S.Buy).
+-- A candidate without a sample, or a row without a price, has nothing to be listed by until
+-- its search.
+local function ListCandidates()
+    local list = scan.candidates
+    local found = {}
+    for i = 1, #list do
+        local cand = list[i]
+        if not cand.status and not cand.listed and cand.eval and cand.minPrice > 0 then
+            cand.listed = true
+            scan.listed = scan.listed + 1
+            CountAuction(found, cand, cand.eval, { buyoutAmount = cand.minPrice })
+        end
+    end
+    local any = false
+    for id, offer in pairs(found) do
+        if offer then
+            offer.unsure = true
+            S.offers[id] = offer
+            any = true
+        end
+    end
+    if any then
+        front.dirty = true
+        S.changes = S.changes + 1
+        ns.Fire("OFFERS_CHANGED")
+    end
+end
+
 local function ReadJob(job)
     local key = job.key
     local count = math.min(AH.GetNumItemSearchResults(key) or 0, MAX_AUCTIONS)
@@ -725,6 +787,8 @@ local function ReadJob(job)
     -- reports something else, and the scan stops relying on it.
     if scan and IsScanMode(run.mode) and (job.minPrice or 0) > 0 then
         scan.checked = scan.checked + 1
+        -- (How often the price an item is listed at before its search is the right one.)
+        if lowest and lowest == job.minPrice then scan.exact = scan.exact + 1 end
         if lowest and lowest < job.minPrice then
             scan.belowFloor = scan.belowFloor + 1
             if scan.belowFloor >= FLOOR_MISSES and scan.belowFloor > scan.checked * FLOOR_MISS_SHARE then
@@ -1007,6 +1071,7 @@ local function StepScore(now)
         return
     end
     scan.ready = true
+    ListCandidates()
     StartVerify()
 end
 
@@ -1096,7 +1161,7 @@ local function AddRow(result)
         return
     end
 
-    local row = { key = key, ks = ks, minPrice = result.minPrice }
+    local row = { key = key, ks = ks, minPrice = result.minPrice, own = result.containsOwnerItem or nil }
     run.rows[ks] = row
     run.toScore[#run.toScore + 1] = row
 end
@@ -1326,6 +1391,8 @@ function S.Start()
         requeued = false,
         checked = 0,        -- rows whose auctions were read
         belowFloor = 0,     -- of those, rows with a buyout below the row's lowest price
+        exact = 0,          -- and rows whose cheapest buyout was that price
+        listed = 0,         -- candidates put into the list before their search
         floorBroken = false,-- so many of them that the row's lowest price cannot be relied on
     }
     NewRun("scan")
@@ -1394,11 +1461,27 @@ local function SearchOne(mode, offer, onDone, stopAt)
     StartVerify()
 end
 
--- Before buying, look the item up again: the scan may be minutes old. Fires CONFIRM_BUY
--- with the fresh offer when it is still there, and with the price the list had when that
--- is no longer its price: the question then shows both.
+-- Can a purchase begin now? When nothing is under way, and also during the price checks of a
+-- scan: the list is there to buy from as soon as the candidates are known (ListCandidates),
+-- and a purchase is not made to wait for the rest of the prices.
+function S.CanBuy()
+    return ahOpen and (S.state == "idle" or (S.state == "verify" and IsScanMode(S.mode)))
+end
+
+-- The price checks of a scan give way to a purchase. They are picked up again when the list
+-- next asks for what it lacks (S.Demand), which it does once the purchase is over.
+local function GiveWay()
+    if S.state == "idle" then return end
+    S.Stop()
+    S.halted = false
+end
+
+-- Before buying, look the item up again: the scan may be minutes old, and a price that came
+-- with the candidate was never looked up at all. Fires CONFIRM_BUY with the fresh offer when
+-- it is still there, and with the price the list had when that is no longer its price: the
+-- question then shows both.
 function S.Buy(offer)
-    if S.state ~= "idle" then
+    if S.state ~= "idle" and not S.CanBuy() then
         ns.Print(L.ERR_BUSY)
         return
     end
@@ -1407,6 +1490,7 @@ function S.Buy(offer)
         ns.Print(L.MSG_CANT_AFFORD)
         return
     end
+    GiveWay()
     confirming, asking = false, nil
     local id, link, price = offer.id, offer.link, offer.buyout
     -- "Is it still there at this price" is answered by the first auction at that price.
@@ -1624,11 +1708,12 @@ end
 
 -- Step one of a purchase. Fires CONFIRM_SUPPLY with the consumable and its price list.
 function S.BuySupply(supply)
-    if S.state ~= "idle" then
+    if S.state ~= "idle" and not S.CanBuy() then
         ns.Print(L.ERR_BUSY)
         return
     end
     if not ahOpen then return end
+    GiveWay()
     S.CancelSupply()
     S.suppliesNote = nil
     NewRun("supply")

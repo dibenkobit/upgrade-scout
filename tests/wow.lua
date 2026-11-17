@@ -1555,6 +1555,7 @@ function C_AuctionHouse.SendBrowseQuery(query)
                 rows[#rows + 1] = row
             end
             row.totalQuantity = row.totalQuantity + auction.quantity
+            if auction.own then row.containsOwnerItem = true end
             -- By default the row shows the lowest number on any of its lots, bids included.
             -- With bidsIgnored it shows the cheapest buyout whenever there is one.
             if auction.buyout > 0 then

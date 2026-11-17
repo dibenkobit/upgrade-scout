@@ -199,8 +199,9 @@ end
 -- Returns rows, summary
 --   rows:    { { kind = "header", group = id, shown = n, total = n, approx = bool },
 --              { kind = "item", entry = {...} }, ... }
---            total counts unchecked upgrades too; approx says so, because some of them may
---            turn out to have no buyout price.
+--            total counts unchecked upgrades too; approx says that some of them, or of the
+--            offers, go by a price that was not looked up, and may turn out to have no
+--            buyout price.
 --   summary: { upgrades = offers listed, slots = blocks listed, hidden = upgrades left out for price,
 --              unwanted = upgrades the character's own filters leave out }
 -- The picks are chosen among everything found for the slot, so `limit` never changes them.
@@ -225,9 +226,18 @@ function Results.Build(offers, ctx, opts)
 
             local shown = opts.limit and Shortlist(entries, opts.limit) or entries
             local more = unchecked and unchecked.groups[group.id] or 0
+            -- How many there are is a guess while some go by a price that was not looked up
+            -- (an offer that is `unsure`, see ListCandidates in Scanner.lua).
+            local approx = more > 0
+            for i = 1, #entries do
+                if entries[i].offer.unsure then
+                    approx = true
+                    break
+                end
+            end
             rows[#rows + 1] = {
                 kind = "header", group = group.id,
-                shown = #shown, total = #entries + more, approx = more > 0,
+                shown = #shown, total = #entries + more, approx = approx,
             }
             for i = 1, #shown do
                 local entry = shown[i]
