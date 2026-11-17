@@ -91,9 +91,9 @@ A mano:
 - Un `~` tras el nombre de un perfil significa que esa rama aún no tiene
   simulación y sus pesos son estimados.
 - Los precios son de compra inmediata. Las subastas que solo admiten pujas se omiten.
-- La lista aparece antes de comprobar los precios. Un precio atenuado es el más bajo entre las
-  subastas del objeto y puede resultar ser una puja: una vez comprobado, se ve nítido. Puedes
-  comprar enseguida: el precio se comprueba antes de cada compra.
+- La lista aparece antes de comprobar los precios. Hasta que se comprueba un objeto, su precio
+  es el más bajo entre sus subastas y puede resultar ser una puja. Puedes comprar enseguida: el
+  precio se comprueba antes de cada compra.
 - Con **Rentabilidad por precio neto** marcado, **Más rentable** va por el precio neto y no por la
   compra inmediata. Lo que puedes pagar y **Mejor conjunto por** siguen yendo por la compra
   inmediata: es lo que pagas.

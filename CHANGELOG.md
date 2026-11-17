@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.10.1
+
+- Prices that are not checked yet are no longer dimmed. A dimmed row looked like one you could
+  not buy, and most of those prices are right.
+- While the prices are checked, the status line says that some of them may be bids. The row's
+  tooltip still says when its price is not checked yet.
+
 ## 2.10.0
 
 - The list no longer waits for the prices. It appears as soon as the scan knows the items,

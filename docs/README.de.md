@@ -94,9 +94,9 @@ Von Hand:
 - Ein `~` hinter dem Namen eines Profils heißt: Für diesen Baum gibt es noch
   keine Simulation, seine Gewichte sind geschätzt.
 - Die Preise sind Sofortkaufpreise. Auktionen, auf die man nur bieten kann, werden übersprungen.
-- Die Liste erscheint, bevor die Preise geprüft sind. Ein blasser Preis ist der niedrigste unter
-  den Auktionen des Gegenstands und kann sich als Gebot herausstellen: Nach der Prüfung wird er
-  hell. Du kannst sofort kaufen: Der Preis wird vor jedem Kauf geprüft.
+- Die Liste erscheint, bevor die Preise geprüft sind. Bis ein Gegenstand geprüft ist, zeigt er
+  den niedrigsten Preis unter seinen Auktionen, und der kann sich als Gebot herausstellen. Du
+  kannst sofort kaufen: Der Preis wird vor jedem Kauf geprüft.
 - Mit **Preis-Leistung nach Nettokosten** richtet sich **Beste Preis-Leistung** nach den
   Nettokosten statt nach dem Sofortkauf. Was du dir leisten kannst und **Bestes Set für** richten
   sich weiter nach dem Sofortkauf: Den zahlst du.
