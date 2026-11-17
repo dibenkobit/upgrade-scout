@@ -91,11 +91,15 @@ A mano:
 - Un `~` tras el nombre de un perfil significa que esa rama aún no tiene
   simulación y sus pesos son estimados.
 - Los precios son de compra inmediata. Las subastas que solo admiten pujas se omiten.
+- La lista aparece antes de comprobar los precios. Un precio atenuado es el más bajo entre las
+  subastas del objeto y puede resultar ser una puja: una vez comprobado, se ve nítido. Puedes
+  comprar enseguida: el precio se comprueba antes de cada compra.
 - Con **Rentabilidad por precio neto** marcado, **Más rentable** va por el precio neto y no por la
   compra inmediata. Lo que puedes pagar y **Mejor conjunto por** siguen yendo por la compra
   inmediata: es lo que pagas.
-- **Top 5 por ranura** mantiene la lista corta. Desactívalo para ver todas las mejoras. El escaneo
-  tarda entonces más, hasta unos minutos en una casa de subastas con mucho movimiento.
+- **Top 5 por ranura** mantiene la lista corta. Desactívalo para ver todas las mejoras. Comprobar
+  todos sus precios tarda entonces más, hasta unos minutos en una casa de subastas con mucho
+  movimiento.
 - **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **Nuevo**
   significa que la ranura está vacía. Los puntos, como `+6 pts`, significan que lo que llevas ahí
   no aporta nada a tu perfil.

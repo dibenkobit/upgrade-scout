@@ -92,11 +92,14 @@ Manualmente:
 - Um `~` depois do nome de um perfil quer dizer que essa árvore ainda não tem
   simulação e os pesos dela são estimados.
 - Os preços são de arremate. Leilões que só aceitam lances são ignorados.
+- A lista aparece antes da verificação dos preços. Um preço esmaecido é o mais baixo entre os
+  leilões do item e pode acabar sendo um lance: depois de verificado, ele fica nítido. Você pode
+  comprar na hora: o preço é verificado antes de cada compra.
 - Com **Custo-benefício pelo custo líquido** marcado, o **Melhor custo-benefício** segue o custo
   líquido, não o arremate. O que você pode pagar e o **Melhor conjunto por** continuam seguindo o
   arremate: é o que você paga.
-- **Top 5 por espaço** deixa a lista curta. Desative para ver todas as melhorias. O escaneamento
-  então demora mais, até alguns minutos em uma Casa de Leilões movimentada.
+- **Top 5 por espaço** deixa a lista curta. Desative para ver todas as melhorias. Verificar todos
+  os preços então demora mais, até alguns minutos em uma Casa de Leilões movimentada.
 - **Melhoria** diz quanto um item é melhor do que o que ele substitui, em porcentagem. **Novo**
   quer dizer que o espaço está vazio. Pontos, como `+6 pts`, querem dizer que o que você usa ali
   não acrescenta nada ao seu perfil.

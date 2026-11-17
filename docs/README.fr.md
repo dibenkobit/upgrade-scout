@@ -96,11 +96,15 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 - Un `~` après le nom d'un profil signifie qu'aucune simulation ne couvre encore cet
   arbre et que ses poids sont estimés.
 - Les prix sont des prix d'achat immédiat. Les enchères sans achat immédiat sont ignorées.
+- La liste s'affiche avant la vérification des prix. Un prix estompé est le plus bas parmi les
+  enchères de l'objet et peut se révéler être une simple mise : une fois vérifié, il devient net.
+  Vous pouvez acheter tout de suite : le prix est vérifié avant tout achat.
 - Avec **Meilleure affaire selon le coût net** coché, la **Meilleure affaire** suit le coût net et
   non l'achat immédiat. Ce que vous pouvez payer et **Meilleur ensemble pour** suivent toujours
   l'achat immédiat : c'est ce que vous payez.
 - **Top 5 par emplacement** garde la liste courte. Désactivez-le pour voir toutes les améliorations.
-  Le scan dure alors plus longtemps, jusqu'à quelques minutes dans un hôtel des ventes bien rempli.
+  Vérifier tous leurs prix dure alors plus longtemps, jusqu'à quelques minutes dans un hôtel des
+  ventes bien rempli.
 - **Amélioration** dit de combien l'objet est meilleur que celui qu'il remplace, en pour cent.
   **Nouveau** : l'emplacement est vide. Des points, comme `+6 pts` : ce que vous y portez
   n'apporte rien à votre profil.

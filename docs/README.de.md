@@ -94,11 +94,14 @@ Von Hand:
 - Ein `~` hinter dem Namen eines Profils heißt: Für diesen Baum gibt es noch
   keine Simulation, seine Gewichte sind geschätzt.
 - Die Preise sind Sofortkaufpreise. Auktionen, auf die man nur bieten kann, werden übersprungen.
+- Die Liste erscheint, bevor die Preise geprüft sind. Ein blasser Preis ist der niedrigste unter
+  den Auktionen des Gegenstands und kann sich als Gebot herausstellen: Nach der Prüfung wird er
+  hell. Du kannst sofort kaufen: Der Preis wird vor jedem Kauf geprüft.
 - Mit **Preis-Leistung nach Nettokosten** richtet sich **Beste Preis-Leistung** nach den
   Nettokosten statt nach dem Sofortkauf. Was du dir leisten kannst und **Bestes Set für** richten
   sich weiter nach dem Sofortkauf: Den zahlst du.
-- **Top 5 pro Slot** hält die Liste kurz. Schalte es aus, um jede Verbesserung zu sehen. Der Scan
-  dauert dann länger, in einem vollen Auktionshaus bis zu ein paar Minuten.
+- **Top 5 pro Slot** hält die Liste kurz. Schalte es aus, um jede Verbesserung zu sehen. Alle
+  Preise zu prüfen dauert dann länger, in einem vollen Auktionshaus bis zu ein paar Minuten.
 - **Verbesserung** zeigt in Prozent, wie viel besser ein Gegenstand ist als der, den er ersetzt.
   **Neu** heißt: Der Slot ist leer. Punkte wie `+6 Pkt.` heißen: Was du dort trägst, bringt
   deinem Profil nichts.

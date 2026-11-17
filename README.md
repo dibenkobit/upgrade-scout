@@ -107,10 +107,13 @@ To install by hand:
 - A `~` after a profile's name means no simulation covers that tree yet and its weights are
   estimated.
 - Prices are buyouts. Auctions that only take bids are skipped.
+- The list appears before the prices are checked. A dimmed price is the lowest among the item's
+  auctions and may turn out to be a bid: once checked, it turns bright. You can buy right away:
+  the price is checked before any purchase.
 - With **Value by net cost** ticked, **Best value** goes by the net cost, not the buyout. What you
   can afford, and **Best set for**, still go by the buyout: that is what you pay.
-- **Top 5 per slot** keeps the list short. Turn it off to see every upgrade. The scan then takes
-  longer, up to a few minutes on a busy auction house.
+- **Top 5 per slot** keeps the list short. Turn it off to see every upgrade. Checking all their
+  prices then takes longer, up to a few minutes on a busy auction house.
 - **Upgrade** is how much better an item is than the one it replaces, in percent. **New** means
   the slot is empty. Points, such as `+6 pts`, mean what you wear there adds nothing on your profile.
 - **Best armor type for the class** keeps the heaviest armor your character has learned to

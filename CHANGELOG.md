@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.10.0
+
+- The list no longer waits for the prices. It appears as soon as the scan knows the items,
+  each at the lowest price among its auctions, and the prices are checked after that.
+- A price that is not checked yet is dimmed, and the row's tooltip says so. Once checked it
+  turns bright or changes, or the row goes: the lowest price of an item can be a bid.
+- You can buy while the prices are being checked. The item is looked up first, as before any
+  purchase, and the box asks at its real price.
+
 ## 2.9.1
 
 - With **Everything I can use** ticked, what adds to your character stands at the top of each
