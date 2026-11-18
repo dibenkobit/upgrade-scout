@@ -35,7 +35,8 @@ local _, ns = ...
 -- its own way, would contradict it. A player who chose it to score is shown what it shows.
 -- (The owner's rule for every addon that scores: see Companion.lua.) So the profile field
 -- has one line for that character, and another spec is chosen where the addon has it
--- chosen: its API reads and does not write.
+-- chosen: its API reads and does not write. Beside that one line stands the way there
+-- (F.Open).
 --
 -- Another character of the account is out of ScoreItem's reach, which knows the one being
 -- played alone. Its items are scored here, from the weights GetWeights gives for its class,
@@ -72,6 +73,7 @@ F.TEXT = {
     ABSENT = "WELCOME_NO_LEVELING",
     ASK = "WELCOME_SCALE_LEVELING",
     NONE = "WELCOME_NO_SCALE_LEVELING",
+    CHANGE = "CHANGE_LEVELING",
     WRITES = "WELCOME_TOOLTIP_LEVELING",
     WRITES_OTHERS = "WELCOME_TOOLTIP_LEVELING_OTHERS",
     NEW = "WELCOME_LEVELING_NEW",
@@ -315,6 +317,25 @@ function F.Choose(card, id)
     if card == ns.Roster.Me() then return end
     local _, spec = Parse(id)
     card.leveling = spec
+end
+
+-- Where that main spec is chosen: the Settings panel of its window, which its own command
+-- opens (/bis settings, as its Commands.lua has it: what a player would type). A player
+-- who sees one spec where the other scorers have a choice is shown the way there: a button
+-- beside the spec in the welcome window, a line under it in the profile field's menu.
+-- F.Opens: is there such a place to open; F.Open: opens it.
+local COMMAND, PANEL = "FOREVERLEVELINGBIS", "settings"
+local function Command()
+    local run = type(SlashCmdList) == "table" and SlashCmdList[COMMAND] or nil
+    return type(run) == "function" and run or nil
+end
+
+function F.Opens()
+    return F.Usable() and Command() ~= nil
+end
+
+function F.Open()
+    if F.Opens() then Command()(PANEL) end
 end
 
 ---------------------------------------------------------------------------

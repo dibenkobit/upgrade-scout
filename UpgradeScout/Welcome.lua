@@ -455,6 +455,16 @@ local function NewTree()
     return NewChoice(frame, TREE_HEIGHT, 12, TreeOnClick)
 end
 
+-- The button beside a profile that is chosen in the scoring addon's own window: it opens
+-- that window (Score.OpenThere). This one closes first: it stands above every other window
+-- and would cover the one the player asked for. What was chosen in it holds as it is, and
+-- the button by the minimap brings it back.
+local function ThereOnClick()
+    PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+    frame:Hide()
+    ns.Score.OpenThere()
+end
+
 ---------------------------------------------------------------------------
 -- The tooltip's block
 ---------------------------------------------------------------------------
@@ -631,7 +641,10 @@ local function Layout()
     -- them than a row holds (a player may have many Pawn scales) stand in rows of equal
     -- number, a last row of fewer filling the width as well. With nothing to choose from
     -- the question's place has a sentence that says why (see Paint), and no buttons.
-    local count = frame.treeCount
+    -- Where the profile is chosen in the scoring addon's own window, the button that opens
+    -- it stands last in the row, after the profile (see Paint).
+    local trees = frame.treeCount
+    local count = trees + (frame.there and 1 or 0)
     frame.Ask:SetShown(frame.asks)
     if frame.asks then
         frame.Ask:ClearAllPoints()
@@ -645,7 +658,7 @@ local function Layout()
             local row, place = math.floor((i - 1) / inRow), (i - 1) % inRow
             local here = math.min(inRow, count - row * inRow)
             local width = (WIDTH - 2 * EDGE - (here - 1) * GAP) / here
-            local button = frame.Trees[i]
+            local button = i <= trees and frame.Trees[i] or frame.There
             button:SetWidth(width)
             -- A name too long for its button is cut short, not written over the next one.
             button.Label:SetWidth(math.min(button.Label:GetUnboundedStringWidth() + 2, width - 40))
@@ -801,6 +814,17 @@ Paint = function()
     end
     -- (The pictures then count places among the addon's own profiles: the first.)
     if other then about.place = 1 end
+    -- With Forever Leveling BiS scoring there is the one button, its main spec there, and
+    -- nothing to choose from: a player used to choosing here looks for the others. So the
+    -- way to where it is chosen stands beside it, a button that opens that addon's settings
+    -- (ThereOnClick). It is no answer of several: never lit, and its words are bright.
+    frame.there = me ~= nil and #profiles > 0 and ns.Score.ChosenThere()
+    frame.There:SetShown(frame.there)
+    if frame.there then
+        frame.There.Label:SetText(ns.Score.Text("CHANGE"))
+        PaintTree(frame.There, false)
+        frame.There.Label:SetTextColor(CREAM[1], CREAM[2], CREAM[3])
+    end
 
     -- The two cards. The arrows in the bags are ours whoever scores, but for one case: the
     -- addon that scores draws its own there (Forever Companion or Forever Leveling BiS,
@@ -952,6 +976,8 @@ local function Build()
     frame.Ask:SetSpacing(3)
     frame.Ask:SetWidth(WIDTH - 2 * EDGE - 4)
     frame.Trees, frame.treeCount = {}, 0
+    frame.There = NewChoice(frame, TREE_HEIGHT, 12, ThereOnClick)
+    frame.There:Hide()
 
     frame.Shows = NewText(frame, 12, CREAM)
     frame.Shows:SetWordWrap(true)

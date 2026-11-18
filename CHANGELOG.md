@@ -7,7 +7,7 @@
   not by the addon's weights.
 - Your character is scored for the main spec you chose in Forever Leveling BiS, with the numbers
   its own tooltip shows. To score for another spec, choose another main spec there: the lists
-  follow.
+  follow. **Change in Forever Leveling BiS**, beside the spec, opens its settings.
 - With Forever Leveling BiS chosen, its own tooltip lines say what an item is worth and its own
   arrows mark the upgrades in your bags, so the addon leaves its own out. Switch either off in
   its settings, and the addon's come back, by its scores. In the bank, where it draws no arrows,

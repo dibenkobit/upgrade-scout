@@ -827,6 +827,7 @@ end
 --   dropdown.radios   the lines of which one is chosen (root:CreateRadio), as the generator
 --                     last described them
 --   dropdown.checks   the lines with a tick box (root:CreateCheckbox)
+--   dropdown.buttons  the lines that do something when clicked (root:CreateButton)
 --   dropdown.lines    while the menu is open (dropdown:Open), the frames the game made for
 --                     the lines with a tick box, in their order: see MenuLine
 local function DropdownModel(dropdown)
@@ -860,7 +861,7 @@ local function DropdownModel(dropdown)
     end
     function dropdown:GenerateMenu()
         assert(not self._open, "the menu is not rebuilt while it is open")
-        local root = { radios = {}, checks = {}, dividers = 0, rules = {} }
+        local root = { radios = {}, checks = {}, buttons = {}, dividers = 0, rules = {} }
         -- What the game hands back for a line of the menu: it takes functions that dress the
         -- line's frame once the game has drawn it (the addon's Widgets.SkinMenuLine), a
         -- tooltip, and whether the line can be clicked.
@@ -892,6 +893,14 @@ local function DropdownModel(dropdown)
             self.checks[#self.checks + 1] = check
             return check
         end
+        -- A line that does something when clicked and is no choice of the menu; `after` says
+        -- which radio it follows.
+        function root:CreateButton(text, callback)
+            assert(type(text) == "string" and type(callback) == "function", "a label and a function")
+            local button = Description({ text = text, callback = callback, after = #self.radios })
+            self.buttons[#self.buttons + 1] = button
+            return button
+        end
         -- A line across the menu; `after` says which radio each one follows, `afterCheck`
         -- which tick box.
         function root:CreateDivider()
@@ -907,7 +916,7 @@ local function DropdownModel(dropdown)
             self.scroll = extent
         end
         self._generator(self, root)
-        self.radios, self.checks = root.radios, root.checks
+        self.radios, self.checks, self.buttons = root.radios, root.checks, root.buttons
         self.dividers, self.dividersAfter, self.scroll = root.dividers, root.after or {}, root.scroll
         self.rules = root.rules
         ShowSelection(self)
@@ -2532,6 +2541,10 @@ local function LevelingFunctions(L)
     local API = { version = L.version or 2 }
     ForeverLevelingBiS_API = API
     L.listeners = {}
+    -- Its own command, /bis: what it was given is kept in W.leveling.typed, in order
+    -- ("settings" opens its window on the Settings panel).
+    L.typed = {}
+    SlashCmdList.FOREVERLEVELINGBIS = function(msg) L.typed[#L.typed + 1] = msg end
 
     local function Mine()
         return ForeverLevelingBiSDB.chars[W.LevelingKey()] or {}
@@ -2653,6 +2666,7 @@ end
 function W.RemoveLeveling()
     W.leveling = nil
     ForeverLevelingBiS_API, ForeverLevelingBiSDB = nil, nil
+    SlashCmdList.FOREVERLEVELINGBIS = nil
 end
 
 function W.AddLevelingSpecs(class, specs)

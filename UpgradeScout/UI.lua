@@ -1361,6 +1361,13 @@ local function ProfileMenu(_, root)
         AddLine(root, profiles[i].title, { who = false, profile = profiles[i].name })
         lines = lines + 1
     end
+    -- With Forever Leveling BiS scoring that is one line, its main spec there, and the menu
+    -- has no other to offer for the character: under it, a line that opens the place where
+    -- it is chosen (Score.ChosenThere). Not a choice of the menu: it has no mark.
+    if #profiles > 0 and ns.Score.ChosenThere() then
+        root:CreateButton(ns.Score.Text("CHANGE"), ns.Score.OpenThere):AddInitializer(Widgets.SkinMenuLine)
+        lines = lines + 1
+    end
 
     local me = ns.Roster.Me()
     local cards = ns.Roster.List()

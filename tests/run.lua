@@ -8095,6 +8095,16 @@ function scenarios.leveling_scan()
     eq(told, 1, "the one line clicked: nothing changes"); eq(S.state, "idle", "and the list stays")
     eq(me.leveling, nil, "nothing is written on the card of the character being played")
     eq(me.profile, nil, "the addon's own profile is left alone")
+    -- Under the one line, the way to where another spec is chosen: a line that is no choice
+    -- of the menu, and opens Forever Leveling BiS on its settings.
+    eq(#dropdown.buttons, 1, "under the one line, a line that is no choice")
+    eq(dropdown.buttons[1].text, ns.L.CHANGE_LEVELING, "it says where the spec is changed"); eq(dropdown.buttons[1].after, 1, "right under the spec")
+    eq(#dropdown.buttons[1].initializers, 1, "dressed as the menu's other lines")
+    eq(#W.leveling.typed, 0, "Forever Leveling BiS has been asked to open nothing yet")
+    dropdown.buttons[1].callback()
+    eq(#W.leveling.typed, 1, "the line clicked: Forever Leveling BiS is asked for one thing"); eq(W.leveling.typed[1], "settings", "its settings")
+    W.Run(0.5)
+    eq(told, 1, "which is no news about the scores"); eq(S.state, "idle", "and the list stays")
 
     -- Another main spec chosen in Forever Leveling BiS: the addon hears of it, and the list
     -- follows.
@@ -8183,7 +8193,7 @@ function scenarios.leveling_scan()
     eq(UpgradeScoutDB.engine, nil, "the addon's own weights chosen again: nothing is left written")
     eq(Score.Current().name, "S1", "the addon's profile as it was")
     W.RunUntil(Idle, 600)
-    eq(#dropdown.radios, 2, "the field lists the addon's profiles again")
+    eq(#dropdown.radios, 2, "the field lists the addon's profiles again"); eq(#dropdown.buttons, 0, "and has no line for Forever Leveling BiS's settings")
     local before = #W.leveling.asked
     ScanToEnd()
     CheckStandardOffers("the addon's own weights again")
@@ -8678,6 +8688,15 @@ function scenarios.leveling_welcome()
     eq(told, 1, "a click on it changes nothing"); eq(ns.Roster.Me().leveling, nil, "and writes nothing")
     theirs:Click()
     eq(told, 1, "the one that scores clicked again: nothing changes")
+    -- Beside the one button, the way to where another spec is chosen: the two share the row.
+    local there = window.There
+    eq(there:IsShown(), true, "beside it, a button for the place where the spec is chosen")
+    eq(there.Label:GetText(), L.CHANGE_LEVELING, "which says so"); eq(there.Mark:IsShown(), false, "it is no answer of several: not lit")
+    eq(there._points[1].y, trees[1]._points[1].y, "in the spec's row"); near(there:GetWidth(), trees[1]:GetWidth(), "as wide as the spec's button")
+    near(there._points[1].x, trees[1]._points[1].x + trees[1]:GetWidth() + 11, "right after it")
+    near(there._points[1].x + there:GetWidth(), window:GetWidth() - 20, "up to the window's edge")
+    check(there.Label:GetUnboundedStringWidth() + 2 <= there:GetWidth() - 40, "its words have room on it")
+    eq(#W.leveling.typed, 0, "Forever Leveling BiS has been asked to open nothing yet")
 
     -- The score in a tooltip is Forever Leveling BiS's to write: the block says so, and what
     -- it asks of the score is out of use. The notes are still ours.
@@ -8756,8 +8775,12 @@ function scenarios.leveling_welcome()
     eq(trees[1].Label:GetText(), "Fury", "another main spec chosen there is the one on the button"); eq(told, 2, "and what keeps scores is told")
     eq(trees[2]:IsShown(), false, "still the one button")
 
-    -- Closed: seen with Forever Leveling BiS there, so it does not come up by itself again.
-    window.Done:Click()
+    -- The button beside it clicked: Forever Leveling BiS opens on its settings, where the
+    -- main spec is chosen, and this window, which would cover it, closes. Closed that way it
+    -- has been seen with Forever Leveling BiS there, and does not come up by itself again.
+    there:Click()
+    eq(#W.leveling.typed, 1, "the way there clicked: Forever Leveling BiS is asked for one thing"); eq(W.leveling.typed[1], "settings", "its settings")
+    eq(window:IsShown(), false, "and the window is out of its way"); eq(told, 2, "which is no news about the scores")
     eq(UpgradeScoutDB.levelingOffered, true, "the choice has been seen with it")
     eq(UpgradeScoutDB.pawnOffered, nil, "and not with Pawn, which was not there"); eq(UpgradeScoutDB.companionOffered, nil, "nor with Forever Companion")
     W.Fire("PLAYER_ENTERING_WORLD")
@@ -8770,6 +8793,8 @@ function scenarios.leveling_welcome()
     own:Click()
     eq(UpgradeScoutDB.engine, nil, "a click on the addon's button: nothing is left written"); eq(own.Mark:IsShown(), true, "its button is lit")
     eq(trees[1].Label:GetText(), "Arms", "the trees are back"); eq(trees[2]:IsShown(), true, "both of them")
+    eq(there:IsShown(), false, "and the button for Forever Leveling BiS's settings is gone")
+    near(trees[2]._points[1].x + trees[2]:GetWidth(), window:GetWidth() - 20, "the trees have the whole row again")
     eq(block.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "the tooltip's block has its sentence"); eq(tabs:IsEnabled(), true, "and its boxes in use")
     eq(arrows.Body:GetText(), L.WELCOME_ARROWS_TEXT, "the arrows' card has its sentence"); eq(arrows.Switch:IsEnabled(), true, "and its box in use")
     W.Run(0.5)
@@ -8908,6 +8933,7 @@ function scenarios.leveling_alt()
     eq(dropdown.radios[1].text, "Arms", "the warrior's own")
     eq(dropdown.radios[2].text, ALTY .. ": Balance", "the druid's by its name and the spec's")
     eq(dropdown.radios[3].text, ALTY .. ": Feral Combat (Cat)", "each of them")
+    eq(#dropdown.buttons, 1, "the way to the warrior's main spec in Forever Leveling BiS"); eq(dropdown.buttons[1].after, 1, "under the warrior's line, above the druid's")
     W.RunUntil(function() return W.AH.ready end, 5)
     dropdown:Pick(4)
     eq(ns.Roster.Target(), card, "the lists are for the druid"); eq(card.leveling, "bear", "on the spec chosen, written on its card by its key")

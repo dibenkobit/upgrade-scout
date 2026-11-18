@@ -250,13 +250,15 @@ local L = {
     -- Forever Leveling BiS in place of the addon's own weights (Leveling.lua), as Pawn and
     -- Forever Companion above. The character being played is scored on the "main spec" chosen
     -- in that addon and on no other: WELCOME_SCALE_LEVELING stands over its one button in the
-    -- welcome window and takes the character's name, and PROFILE_TIP_LEVELING says where it is
-    -- changed. "Main spec" is worded as Forever Leveling BiS words it in each language (it has
+    -- welcome window and takes the character's name, CHANGE_LEVELING is on the button beside
+    -- it that opens that addon's settings (and on a line of the profile field's menu), and
+    -- PROFILE_TIP_LEVELING says where it is changed. "Main spec" is worded as Forever Leveling BiS words it in each language (it has
     -- no French and no Portuguese: there its English is named beside ours). TREE_DISCIPLINE is
     -- the priest's first talent tree as the game names it, which no profile of ours is named by.
     TT_LEVELING_SCORE = "Forever Leveling BiS score",
     WELCOME_NO_LEVELING = "Forever Leveling BiS is not installed or is switched off.",
-    WELCOME_SCALE_LEVELING = "%s: main spec in Forever Leveling BiS",
+    WELCOME_SCALE_LEVELING = "%s: the main spec is chosen in Forever Leveling BiS",
+    CHANGE_LEVELING = "Change in Forever Leveling BiS",
     WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS has no spec for %s.",
     WELCOME_TOOLTIP_LEVELING = "Here Forever Leveling BiS writes its own lines.",
     WELCOME_TOOLTIP_LEVELING_OTHERS = "Here Forever Leveling BiS writes its own lines. In the lists for your other characters the addon writes them.",
@@ -490,7 +492,8 @@ if GetLocale() == "ruRU" then
         -- Forever Leveling BiS in place of the addon's own weights
         TT_LEVELING_SCORE = "оценка Forever Leveling BiS",
         WELCOME_NO_LEVELING = "Forever Leveling BiS не установлен или выключен.",
-        WELCOME_SCALE_LEVELING = "%s: основная специализация в Forever Leveling BiS",
+        WELCOME_SCALE_LEVELING = "%s: основную специализацию выбирают в Forever Leveling BiS",
+        CHANGE_LEVELING = "Сменить в Forever Leveling BiS",
         WELCOME_NO_SCALE_LEVELING = "%s: в Forever Leveling BiS нет специализации для этого класса.",
         WELCOME_TOOLTIP_LEVELING = "Здесь свои строки пишет Forever Leveling BiS.",
         WELCOME_TOOLTIP_LEVELING_OTHERS = "Здесь свои строки пишет Forever Leveling BiS. В списках для других твоих персонажей их пишет аддон.",
@@ -723,7 +726,8 @@ if GetLocale() == "deDE" then
         -- Forever Leveling BiS in place of the addon's own weights
         TT_LEVELING_SCORE = "Forever-Leveling-BiS-Wertung",
         WELCOME_NO_LEVELING = "Forever Leveling BiS ist nicht installiert oder deaktiviert.",
-        WELCOME_SCALE_LEVELING = "%s: primäre Spezialisierung in Forever Leveling BiS",
+        WELCOME_SCALE_LEVELING = "%s: Die primäre Spezialisierung wird in Forever Leveling BiS gewählt",
+        CHANGE_LEVELING = "In Forever Leveling BiS ändern",
         WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS hat keine Spezialisierung für %s.",
         WELCOME_TOOLTIP_LEVELING = "Hier schreibt Forever Leveling BiS seine eigenen Zeilen.",
         WELCOME_TOOLTIP_LEVELING_OTHERS = "Hier schreibt Forever Leveling BiS seine eigenen Zeilen. In den Listen für deine anderen Charaktere schreibt sie das Addon.",
@@ -957,7 +961,8 @@ if GetLocale() == "frFR" then
         -- Forever Leveling BiS in place of the addon's own weights
         TT_LEVELING_SCORE = "score Forever Leveling BiS",
         WELCOME_NO_LEVELING = "Forever Leveling BiS n'est pas installé ou est désactivé.",
-        WELCOME_SCALE_LEVELING = "%s : spé principale (Main spec) dans Forever Leveling BiS",
+        WELCOME_SCALE_LEVELING = "%s : la spé principale (Main spec) se choisit dans Forever Leveling BiS",
+        CHANGE_LEVELING = "Changer dans Forever Leveling BiS",
         WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS n'a aucune spé pour %s.",
         WELCOME_TOOLTIP_LEVELING = "Ici, Forever Leveling BiS écrit ses propres lignes.",
         WELCOME_TOOLTIP_LEVELING_OTHERS = "Ici, Forever Leveling BiS écrit ses propres lignes. Dans les listes de vos autres personnages, c'est l'addon qui les écrit.",
@@ -1191,7 +1196,8 @@ if GetLocale() == "zhCN" then
         -- Forever Leveling BiS in place of the addon's own weights
         TT_LEVELING_SCORE = "Forever Leveling BiS 评分",
         WELCOME_NO_LEVELING = "Forever Leveling BiS 未安装或未启用。",
-        WELCOME_SCALE_LEVELING = "%s：Forever Leveling BiS 里的主天赋",
+        WELCOME_SCALE_LEVELING = "%s：主天赋在 Forever Leveling BiS 里选",
+        CHANGE_LEVELING = "到 Forever Leveling BiS 里换",
         WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS 没有适用于 %s 的天赋。",
         WELCOME_TOOLTIP_LEVELING = "这里由 Forever Leveling BiS 写它自己的内容。",
         WELCOME_TOOLTIP_LEVELING_OTHERS = "这里由 Forever Leveling BiS 写它自己的内容。在你其他角色的列表里，由插件来写。",
@@ -1426,7 +1432,8 @@ if GetLocale() == "ptBR" then
         -- Forever Leveling BiS in place of the addon's own weights
         TT_LEVELING_SCORE = "pontuação do Forever Leveling BiS",
         WELCOME_NO_LEVELING = "O Forever Leveling BiS não está instalado ou está desativado.",
-        WELCOME_SCALE_LEVELING = "%s: spec principal (Main spec) no Forever Leveling BiS",
+        WELCOME_SCALE_LEVELING = "%s: a spec principal (Main spec) é escolhida no Forever Leveling BiS",
+        CHANGE_LEVELING = "Mudar no Forever Leveling BiS",
         WELCOME_NO_SCALE_LEVELING = "O Forever Leveling BiS não tem nenhuma spec para %s.",
         WELCOME_TOOLTIP_LEVELING = "Aqui o Forever Leveling BiS escreve as próprias linhas.",
         WELCOME_TOOLTIP_LEVELING_OTHERS = "Aqui o Forever Leveling BiS escreve as próprias linhas. Nas listas dos seus outros personagens, quem escreve é o addon.",
@@ -1660,7 +1667,8 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         -- Forever Leveling BiS in place of the addon's own weights
         TT_LEVELING_SCORE = "puntuación de Forever Leveling BiS",
         WELCOME_NO_LEVELING = "Forever Leveling BiS no está instalado o está desactivado.",
-        WELCOME_SCALE_LEVELING = "%s: especialización principal en Forever Leveling BiS",
+        WELCOME_SCALE_LEVELING = "%s: la especialización principal se elige en Forever Leveling BiS",
+        CHANGE_LEVELING = "Cambiar en Forever Leveling BiS",
         WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS no tiene ninguna especialización para %s.",
         WELCOME_TOOLTIP_LEVELING = "Aquí Forever Leveling BiS escribe sus propias líneas.",
         WELCOME_TOOLTIP_LEVELING_OTHERS = "Aquí Forever Leveling BiS escribe sus propias líneas. En las listas de tus otros personajes las escribe el addon.",
@@ -1896,7 +1904,8 @@ if GetLocale() == "koKR" then
         -- Forever Leveling BiS in place of the addon's own weights
         TT_LEVELING_SCORE = "Forever Leveling BiS 점수",
         WELCOME_NO_LEVELING = "Forever Leveling BiS가 설치되어 있지 않거나 꺼져 있습니다.",
-        WELCOME_SCALE_LEVELING = "%s: Forever Leveling BiS의 주 전문화",
+        WELCOME_SCALE_LEVELING = "%s: 주 전문화는 Forever Leveling BiS에서 고릅니다",
+        CHANGE_LEVELING = "Forever Leveling BiS에서 바꾸기",
         WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS에 %s에게 맞는 전문화가 없습니다.",
         WELCOME_TOOLTIP_LEVELING = "여기에는 Forever Leveling BiS가 자체 내용을 씁니다.",
         WELCOME_TOOLTIP_LEVELING_OTHERS = "여기에는 Forever Leveling BiS가 자체 내용을 씁니다. 다른 캐릭터를 위한 목록에는 애드온이 씁니다.",
@@ -2131,7 +2140,8 @@ if GetLocale() == "zhTW" then
         -- Forever Leveling BiS in place of the addon's own weights
         TT_LEVELING_SCORE = "Forever Leveling BiS 評分",
         WELCOME_NO_LEVELING = "Forever Leveling BiS 未安裝或未啟用。",
-        WELCOME_SCALE_LEVELING = "%s：Forever Leveling BiS 裡的主天賦",
+        WELCOME_SCALE_LEVELING = "%s：主天賦在 Forever Leveling BiS 裡選",
+        CHANGE_LEVELING = "到 Forever Leveling BiS 裡換",
         WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS 沒有適用於 %s 的天賦。",
         WELCOME_TOOLTIP_LEVELING = "這裡由 Forever Leveling BiS 寫它自己的內容。",
         WELCOME_TOOLTIP_LEVELING_OTHERS = "這裡由 Forever Leveling BiS 寫它自己的內容。在你其他角色的列表裡，由插件來寫。",

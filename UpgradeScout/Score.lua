@@ -28,7 +28,8 @@ ns.Score = Score
 -- Scales, Current, Choose, Title, Item, Value, Parts, StatsValue, Unread, ShowsWeapons,
 -- WritesTooltip, Hushed), and says how the addon is named (NAME), which of our words are
 -- about it (TEXT) and what the account remembers of having seen it offered (OFFERED). One
--- may answer a few more, which the others have no use for: DrawsArrows, OffValue, Refuses.
+-- may answer a few more, which the others have no use for: DrawsArrows, OffValue, Refuses,
+-- Opens and Open.
 local OTHERS = {
     { engine = "pawn", file = "Pawn" },
     { engine = "companion", file = "Companion" },
@@ -74,7 +75,7 @@ end
 -- Our words about the addon that scores, by what they are for: "SCORE" (whose score a line
 -- of ours is), "TIP" (the profile field's tooltip), "NO_SCALE" (why there is no scan), "ASK"
 -- and "NONE" (the welcome window's question about the scale, and its answer with none to
--- choose from), "WRITES" and "WRITES_OTHERS" (who writes the score into a tooltip). nil
+-- choose from), "CHANGE" (the way to where the scale is chosen: Score.ChosenThere), "WRITES" and "WRITES_OTHERS" (who writes the score into a tooltip). nil
 -- while this addon scores by itself.
 function Score.Text(what)
     local other = Other()
@@ -97,6 +98,21 @@ end
 function Score.Choose(card, id)
     local other = Other()
     if other then other.Choose(card, id) else card.profile = id end
+end
+
+-- Is the profile of the character being played chosen in the scoring addon's own window,
+-- and not here? So it is with Forever Leveling BiS, which scores for its main spec alone.
+-- Where that window can be opened from here: true, and Score.OpenThere opens it. The
+-- welcome window and the profile field's menu then have a way there beside the one profile
+-- (our words for it: Score.Text("CHANGE")).
+function Score.ChosenThere()
+    local other = Other()
+    return other ~= nil and other.Opens ~= nil and other.Opens()
+end
+
+function Score.OpenThere()
+    local other = Other()
+    if other and other.Open then other.Open() end
 end
 
 -- Does the addon that scores write the score into the game's item tooltips itself, about
