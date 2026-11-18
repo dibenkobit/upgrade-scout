@@ -62,6 +62,9 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
 - Du nutzt Forever Companion? Wähle dort **Forever Companion**, dann wird Ausrüstung nach seinen
   Bewertungsprofilen bewertet. Die Listen richten sich danach, die Zeile im Tooltip und die Pfeile
   in den Taschen kommen von Forever Companion selbst.
+- Du nutzt Forever Leveling BiS? Wähle dort **Forever Leveling BiS**, dann wird Ausrüstung so
+  bewertet, wie es sie bewertet: für die primäre Spezialisierung, die du dort gewählt hast. Die
+  Zeilen im Tooltip und die Pfeile in den Taschen kommen von Forever Leveling BiS selbst.
 
 Jede Klasse, jede Stufe. Englisch, Chinesisch (vereinfacht und traditionell), Deutsch, Russisch,
 Französisch, Spanisch, brasilianisches Portugiesisch und Koreanisch.

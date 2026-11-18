@@ -77,6 +77,8 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
   the addon's weights. The lists and the bag arrows go by them, and the tooltip lines are Pawn's own.
 - Use Forever Companion? Choose **Forever Companion** there, and gear is scored on its scales. The
   lists go by them, and the tooltip line and the bag arrows are Forever Companion's own.
+- Use Forever Leveling BiS? Choose **Forever Leveling BiS** there, and gear is scored the way it
+  scores it, for the main spec you chose in it. The tooltip lines and the bag arrows are its own.
 
 Any class, any level. English, Chinese (Simplified and Traditional), German, Russian, French,
 Spanish, Brazilian Portuguese and Korean.

@@ -30,6 +30,7 @@
 - 用自己的属性权重给装备评分，每个天赋系各有一套，由 [wowsims/forever](https://github.com/wowsims/forever) 模拟器算出。不需要其他插件。
 - 在用 Pawn？在插件窗口里选择 **Pawn**，装备就按你的 Pawn 属性权重评分，而不是按插件自带的权重。列表和背包里的箭头都以它为准，物品提示里的行则由 Pawn 自己来写。
 - 在用 Forever Companion？在同一处选择 **Forever Companion**，装备就按它的属性权重评分。列表以它为准，物品提示里的那一行和背包里的箭头则由 Forever Companion 自己来显示。
+- 在用 Forever Leveling BiS？在同一处选择 **Forever Leveling BiS**，装备就按它的方式评分，以你在它那里选的主天赋为准。物品提示里的内容和背包里的箭头则由 Forever Leveling BiS 自己来显示。
 
 支持所有职业和等级。支持英语、简体中文、繁体中文、德语、俄语、法语、西班牙语、巴西葡萄牙语和韩语。
 

@@ -59,6 +59,9 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
 - ¿Usas Forever Companion? Elige **Forever Companion** ahí mismo y el equipo se puntúa con sus
   escalas. Las listas se guían por ellas, y la línea de la descripción y las flechas de las bolsas
   son las de Forever Companion.
+- ¿Usas Forever Leveling BiS? Elige **Forever Leveling BiS** ahí mismo y el equipo se puntúa como
+  lo puntúa él, para la especialización principal que elegiste en él. Las líneas de la descripción
+  y las flechas de las bolsas son las de Forever Leveling BiS.
 
 Cualquier clase, cualquier nivel. Inglés, chino (simplificado y tradicional), alemán, ruso,
 francés, español, portugués de Brasil y coreano.

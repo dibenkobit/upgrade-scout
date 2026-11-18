@@ -64,6 +64,9 @@ chat.
 - Vous utilisez Forever Companion ? Choisissez **Forever Companion** au même endroit : l'équipement
   est alors évalué selon ses échelles. Les listes les suivent, et la ligne de l'infobulle et les
   flèches des sacs sont celles de Forever Companion.
+- Vous utilisez Forever Leveling BiS ? Choisissez **Forever Leveling BiS** au même endroit :
+  l'équipement est alors évalué comme il l'évalue, pour la spé principale que vous y avez choisie.
+  Les lignes de l'infobulle et les flèches des sacs sont celles de Forever Leveling BiS.
 
 Toutes les classes, tous les niveaux. Anglais, chinois (simplifié et traditionnel), allemand,
 russe, français, espagnol, portugais du Brésil et coréen.

@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.11.0
+
+- **Forever Leveling BiS** can score your gear. In the addon's window, under **Who scores your
+  gear?**, choose **Forever Leveling BiS**: the lists at the auction house then go by its scores,
+  not by the addon's weights.
+- Your character is scored for the main spec you chose in Forever Leveling BiS, with the numbers
+  its own tooltip shows. To score for another spec, choose another main spec there: the lists
+  follow.
+- With Forever Leveling BiS chosen, its own tooltip lines say what an item is worth and its own
+  arrows mark the upgrades in your bags, so the addon leaves its own out. Switch either off in
+  its settings, and the addon's come back, by its scores. In the bank, where it draws no arrows,
+  the addon's stay.
+- A weapon is scored for the hand it would go in: the main hand and the off hand count
+  differently, as they do in Forever Leveling BiS. A weapon it says your spec cannot use is not
+  listed.
+- A list made for another of your characters goes by Forever Leveling BiS's weights for that
+  character's class, spec and level. The **Profile** dropdown lists the specs. The addon's lines
+  say whose score it is: **Upgrade Scout (Forever Leveling BiS score)**.
+- The choice is for the whole account. Without Forever Leveling BiS, or with it switched off, the
+  addon scores by its own weights.
+- If you have Forever Leveling BiS, the window comes up once after the update to show you the
+  choice.
+
 ## 2.10.1
 
 - Prices that are not checked yet are no longer dimmed. A dimmed row looked like one you could

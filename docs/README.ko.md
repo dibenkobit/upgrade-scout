@@ -30,6 +30,7 @@
 - 특성 트리마다 따로 마련한 능력치 가중치로 장비 점수를 매깁니다. 가중치는 [wowsims/forever](https://github.com/wowsims/forever) 시뮬레이터로 계산했습니다. 다른 애드온은 필요 없습니다.
 - Pawn을 쓰시나요? 애드온 창에서 **Pawn**을 고르면 애드온의 가중치 대신 내 Pawn 능력치 비율로 장비 점수를 매깁니다. 목록과 가방의 화살표가 그 비율을 따르고, 툴팁의 줄은 Pawn이 직접 씁니다.
 - Forever Companion을 쓰시나요? 같은 곳에서 **Forever Companion**을 고르면 그 애드온의 능력치 비율로 장비 점수를 매깁니다. 목록이 그 비율을 따르고, 툴팁의 줄과 가방의 화살표는 Forever Companion이 직접 표시합니다.
+- Forever Leveling BiS를 쓰시나요? 같은 곳에서 **Forever Leveling BiS**를 고르면 그 애드온이 매기는 방식 그대로, 거기서 고른 주 전문화에 맞춰 장비 점수를 매깁니다. 툴팁의 줄과 가방의 화살표는 Forever Leveling BiS가 직접 표시합니다.
 
 모든 직업, 모든 레벨. 영어, 중국어(간체와 번체), 독일어, 러시아어, 프랑스어, 스페인어, 브라질 포르투갈어, 한국어.
 
