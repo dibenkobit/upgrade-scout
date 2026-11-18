@@ -15,7 +15,7 @@
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323
 ## X-Wago-ID: O67bPXN3
-## OptionalDeps: Pawn, ForeverCompanion
+## OptionalDeps: Pawn, ForeverCompanion, ForeverLevelingBiS
 ## SavedVariables: UpgradeScoutDB
 ## SavedVariablesPerCharacter: UpgradeScoutCharDB
 ## Category: Auctions
@@ -42,6 +42,7 @@ GearData.lua
 Score.lua
 Pawn.lua
 Companion.lua
+Leveling.lua
 Compare.lua
 Wants.lua
 Results.lua

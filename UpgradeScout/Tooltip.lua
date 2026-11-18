@@ -24,10 +24,10 @@ local BRAND = ICON .. "Upgrade Scout"
 local BRAND_R, BRAND_G, BRAND_B = 0.53, 0.78, 0.96
 
 -- With another addon scoring (Score.Engine) the lines are ours and the score in them is
--- that addon's: what an item is worth on a scale of Pawn's or of Forever Companion's,
--- measured our way against what is worn. Such lines say so, lest they be taken for the
--- addon's own weights or for the other addon's own lines: the heading after the addon's
--- name, "Upgrade Scout (Pawn score)", a single line after its scale's.
+-- that addon's: what an item is worth on a scale of Pawn's or of Forever Companion's, or
+-- to Forever Leveling BiS, measured our way against what is worn. Such lines say so, lest
+-- they be taken for the addon's own weights or for the other addon's own lines: the heading
+-- after the addon's name, "Upgrade Scout (Pawn score)", a single line after its scale's.
 local function WhoseScore()
     local whose = ns.Score.Text("SCORE")
     return whose and " (" .. whose .. ")" or ""
@@ -99,8 +99,8 @@ ns.On("PLAYER_LEVEL_UP", function()
     -- The game may tell the new level a moment after the event.
     C_Timer.After(1, Forget)
 end)
--- Another one scores (the addon, Pawn or Forever Companion), or the scales of the one that
--- does changed.
+-- Another one scores (the addon, Pawn, Forever Companion or Forever Leveling BiS), or the
+-- scales of the one that does changed.
 ns.Listen("SCORING_CHANGED", Forget)
 -- With another addon scoring an answer may be about the scale in use alone (see Answer):
 -- another scale chosen, and it is to be made again.
@@ -109,8 +109,9 @@ ns.Listen("PROFILE_CHANGED", function()
 end)
 -- Forever Companion's own line in a tooltip switched on or off in its options, while it
 -- scores: an answer has a line for every scale or for the one in use by that (see Answer).
+-- The same with the block of Forever Leveling BiS ("leveling").
 ns.Listen("SETTING_CHANGED", function(part)
-    if part == "companion" then answers = {} end
+    if part == "companion" or part == "leveling" then answers = {} end
 end)
 
 -- Returns the snapshot, and whether it is whole.
@@ -171,6 +172,7 @@ local function Answer(link)
             local item = {
                 link = link, itemID = scored.itemID, invType = scored.invType, unique = unique,
                 value = ns.Score.Value(scored, profile.name, level),
+                offValue = ns.Score.OffValue(scored, profile.name, level),
             }
             if item.value > 0 then worth = true end
             -- Where it gains the most: a one-hander of a dual wielder goes in either hand.
@@ -218,8 +220,9 @@ local function OnItem(tooltip)
     -- own there, "rowTooltip".)
     if not ns.Shows("tooltip") then return end
     -- With Pawn scoring, the lines in a tooltip are Pawn's own, which say the same of its
-    -- scales: ours would say it twice. The same with Forever Companion scoring, while it
-    -- writes its own line; switched off there, ours are written, on its scales.
+    -- scales: ours would say it twice. The same with Forever Companion or Forever Leveling
+    -- BiS scoring, while it writes its own lines; switched off there, ours are written, on
+    -- its scales.
     if ns.Score.Writes() then return end
     -- A row of our own list writes its lines itself.
     local owner = tooltip:GetOwner()

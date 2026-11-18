@@ -102,8 +102,10 @@ end
 
 -- Puts the item on in a snapshot of gear, the way the placement says: the item into its slot,
 -- and the off hand emptied by a two-hander. `equipped` is changed in place.
+-- (In the off hand a weapon for one hand is worth what it is there: see `offValue` at Places.)
 function C.Wear(equipped, item, placement)
-    equipped[placement.slot] = { link = item.link, itemID = item.itemID, invType = item.invType, value = item.value }
+    local value = placement.slot == OFF_HAND and item.offValue or item.value
+    equipped[placement.slot] = { link = item.link, itemID = item.itemID, invType = item.invType, value = value }
     if item.invType == "INVTYPE_2HWEAPON" then equipped[OFF_HAND] = nil end
 end
 
@@ -141,6 +143,9 @@ end
 
 -- Where the item can go and what it gains there. `beats(value, base)` says which of those
 -- places count.
+-- A weapon for one hand may come with two scores: `value`, which is what it is worth in the
+-- main hand, and `offValue`, what it is worth in the off hand, where the one who scores tells
+-- the two apart (Score.OffValue). Without the second the first holds for either hand.
 local function Places(item, ctx, beats)
     local out = {}
     local value = item.value
@@ -213,8 +218,9 @@ local function Places(item, ctx, beats)
 
     if invType ~= "INVTYPE_WEAPONMAINHAND" and not holdingTwoHander then
         local isWeapon = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONOFFHAND"
-        if (not isWeapon or ctx.dualWield) and beats(value, offValue) then
-            out[#out + 1] = Placement("OFFHAND", OFF_HAND, value, offValue, off and { off.link } or nil)
+        local there = item.offValue or value
+        if (not isWeapon or ctx.dualWield) and beats(there, offValue) then
+            out[#out + 1] = Placement("OFFHAND", OFF_HAND, there, offValue, off and { off.link } or nil)
         end
     end
 
@@ -225,7 +231,7 @@ local function Anywhere()
     return true
 end
 
--- item: { invType, value, itemID, unique }
+-- item: { invType, value, itemID, unique, offValue (see Places) }
 -- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield, show1H, show2H }
 -- Returns a list of placements; empty when the item is not an upgrade anywhere.
 -- A one-hand weapon can appear twice (main hand and off hand) for a dual wielder.

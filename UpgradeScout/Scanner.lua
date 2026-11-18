@@ -241,6 +241,9 @@ local function EvalLink(link)
                     itemID = itemID,
                     unique = IsUnique(itemID),
                     value = value,
+                    -- What it is worth in the off hand, where that is another number
+                    -- (Score.OffValue); nil for nearly everything.
+                    offValue = ns.Score.OffValue(item, ctx.profile, ctx.level),
                     -- Its kind of armor, where it has one: cloth, leather, mail or plate
                     -- (see Wants.lua).
                     armor = ns.Wants.ArmorOf(equipLoc, item.classID, item.subClassID),
@@ -685,6 +688,7 @@ local function CountAuction(found, job, eval, info)
         itemID = eval.itemID,
         unique = eval.unique,
         value = eval.value,
+        offValue = eval.offValue,
         armor = eval.armor,
         effects = eval.effects,
         sell = eval.sell,
@@ -1343,6 +1347,7 @@ local function Reacquire()
         local scored = not worn[ns.ItemKey(item.link) or ""] and ns.Score.Item(item.link) or nil
         if scored then
             item.value = ns.Score.Value(scored, ctx.profile, ctx.level)
+            item.offValue = ns.Score.OffValue(scored, ctx.profile, ctx.level)
         else
             table.remove(S.acquired, i)
         end
@@ -1929,6 +1934,7 @@ ns.On("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
     -- It is on its way by mail: until it is put on, a set is measured against it.
     S.acquired[#S.acquired + 1] = {
         link = offer.link, itemID = offer.itemID, invType = offer.invType, value = offer.value, unique = offer.unique,
+        offValue = offer.offValue,
     }
     -- A budget that was set is for what is still to be spent.
     if S.budget then S.budget = math.max(0, S.budget - offer.buyout) end

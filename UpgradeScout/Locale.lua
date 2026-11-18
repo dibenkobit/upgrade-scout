@@ -247,6 +247,24 @@ local L = {
     WELCOME_ARROWS_COMPANION = "Here Forever Companion draws its own arrows.",
     ERR_NO_SCALE_COMPANION = "Forever Companion has no scale for this character's class.",
     PROFILE_TIP_COMPANION = "Choose the Forever Companion scale to score by.",
+    -- Forever Leveling BiS in place of the addon's own weights (Leveling.lua), as Pawn and
+    -- Forever Companion above. The character being played is scored on the "main spec" chosen
+    -- in that addon and on no other: WELCOME_SCALE_LEVELING stands over its one button in the
+    -- welcome window and takes the character's name, and PROFILE_TIP_LEVELING says where it is
+    -- changed. "Main spec" is worded as Forever Leveling BiS words it in each language (it has
+    -- no French and no Portuguese: there its English is named beside ours). TREE_DISCIPLINE is
+    -- the priest's first talent tree as the game names it, which no profile of ours is named by.
+    TT_LEVELING_SCORE = "Forever Leveling BiS score",
+    WELCOME_NO_LEVELING = "Forever Leveling BiS is not installed or is switched off.",
+    WELCOME_SCALE_LEVELING = "%s: main spec in Forever Leveling BiS",
+    WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS has no spec for %s.",
+    WELCOME_TOOLTIP_LEVELING = "Here Forever Leveling BiS writes its own lines.",
+    WELCOME_TOOLTIP_LEVELING_OTHERS = "Here Forever Leveling BiS writes its own lines. In the lists for your other characters the addon writes them.",
+    WELCOME_LEVELING_NEW = "New: the addon can score gear the way Forever Leveling BiS does. Choose below who scores.",
+    WELCOME_ARROWS_LEVELING = "Here Forever Leveling BiS draws its own arrows.",
+    ERR_NO_SCALE_LEVELING = "Forever Leveling BiS has no spec for this character's class.",
+    PROFILE_TIP_LEVELING = "Your own character goes by its main spec in Forever Leveling BiS: change it there. For your other characters, choose a spec here.",
+    TREE_DISCIPLINE = "Discipline",
     -- "Everything I can use" (Filters.lua, Supplies.lua): unticked, the list of consumables
     -- has only what has a score; ticked, the rest of what the character can use as well.
     -- SUP_ALL_SHORT names it beside the Filters field. ST_SUP_NONE_SCORED is the status line
@@ -469,6 +487,18 @@ if GetLocale() == "ruRU" then
         WELCOME_ARROWS_COMPANION = "Здесь свои стрелки рисует Forever Companion.",
         ERR_NO_SCALE_COMPANION = "В Forever Companion нет шкалы для класса этого персонажа.",
         PROFILE_TIP_COMPANION = "Выбери шкалу Forever Companion, по которой оценивать вещи.",
+        -- Forever Leveling BiS in place of the addon's own weights
+        TT_LEVELING_SCORE = "оценка Forever Leveling BiS",
+        WELCOME_NO_LEVELING = "Forever Leveling BiS не установлен или выключен.",
+        WELCOME_SCALE_LEVELING = "%s: основная специализация в Forever Leveling BiS",
+        WELCOME_NO_SCALE_LEVELING = "%s: в Forever Leveling BiS нет специализации для этого класса.",
+        WELCOME_TOOLTIP_LEVELING = "Здесь свои строки пишет Forever Leveling BiS.",
+        WELCOME_TOOLTIP_LEVELING_OTHERS = "Здесь свои строки пишет Forever Leveling BiS. В списках для других твоих персонажей их пишет аддон.",
+        WELCOME_LEVELING_NEW = "Новое: аддон умеет оценивать вещи так же, как Forever Leveling BiS. Ниже выбери, кто оценивает.",
+        WELCOME_ARROWS_LEVELING = "Здесь свои стрелки рисует Forever Leveling BiS.",
+        ERR_NO_SCALE_LEVELING = "В Forever Leveling BiS нет специализации для класса этого персонажа.",
+        PROFILE_TIP_LEVELING = "Твой персонаж оценивается по основной специализации из Forever Leveling BiS: меняй её там. Для других персонажей выбери специализацию здесь.",
+        TREE_DISCIPLINE = "Послушание",
         -- "Everything I can use"
         SUP_ALL = "Всё, что могу использовать",
         SUP_ALL_SHORT = "Всё подряд",
@@ -690,6 +720,18 @@ if GetLocale() == "deDE" then
         WELCOME_ARROWS_COMPANION = "Hier zeichnet Forever Companion seine eigenen Pfeile.",
         ERR_NO_SCALE_COMPANION = "Forever Companion hat kein Bewertungsprofil für die Klasse dieses Charakters.",
         PROFILE_TIP_COMPANION = "Wähle das Bewertungsprofil von Forever Companion, nach dem bewertet wird.",
+        -- Forever Leveling BiS in place of the addon's own weights
+        TT_LEVELING_SCORE = "Forever-Leveling-BiS-Wertung",
+        WELCOME_NO_LEVELING = "Forever Leveling BiS ist nicht installiert oder deaktiviert.",
+        WELCOME_SCALE_LEVELING = "%s: primäre Spezialisierung in Forever Leveling BiS",
+        WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS hat keine Spezialisierung für %s.",
+        WELCOME_TOOLTIP_LEVELING = "Hier schreibt Forever Leveling BiS seine eigenen Zeilen.",
+        WELCOME_TOOLTIP_LEVELING_OTHERS = "Hier schreibt Forever Leveling BiS seine eigenen Zeilen. In den Listen für deine anderen Charaktere schreibt sie das Addon.",
+        WELCOME_LEVELING_NEW = "Neu: Das Addon kann Ausrüstung so bewerten wie Forever Leveling BiS. Wähle unten, wer bewertet.",
+        WELCOME_ARROWS_LEVELING = "Hier zeichnet Forever Leveling BiS seine eigenen Pfeile.",
+        ERR_NO_SCALE_LEVELING = "Forever Leveling BiS hat keine Spezialisierung für die Klasse dieses Charakters.",
+        PROFILE_TIP_LEVELING = "Dein eigener Charakter wird nach seiner primären Spezialisierung in Forever Leveling BiS bewertet: Ändere sie dort. Für deine anderen Charaktere wählst du die Spezialisierung hier.",
+        TREE_DISCIPLINE = "Disziplin",
         -- "Everything I can use"
         SUP_ALL = "Alles, was ich benutzen kann",
         SUP_ALL_SHORT = "Alles",
@@ -912,6 +954,18 @@ if GetLocale() == "frFR" then
         WELCOME_ARROWS_COMPANION = "Ici, Forever Companion dessine ses propres flèches.",
         ERR_NO_SCALE_COMPANION = "Forever Companion n'a aucune échelle pour la classe de ce personnage.",
         PROFILE_TIP_COMPANION = "Choisissez l'échelle Forever Companion qui sert à évaluer.",
+        -- Forever Leveling BiS in place of the addon's own weights
+        TT_LEVELING_SCORE = "score Forever Leveling BiS",
+        WELCOME_NO_LEVELING = "Forever Leveling BiS n'est pas installé ou est désactivé.",
+        WELCOME_SCALE_LEVELING = "%s : spé principale (Main spec) dans Forever Leveling BiS",
+        WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS n'a aucune spé pour %s.",
+        WELCOME_TOOLTIP_LEVELING = "Ici, Forever Leveling BiS écrit ses propres lignes.",
+        WELCOME_TOOLTIP_LEVELING_OTHERS = "Ici, Forever Leveling BiS écrit ses propres lignes. Dans les listes de vos autres personnages, c'est l'addon qui les écrit.",
+        WELCOME_LEVELING_NEW = "Nouveau : l'addon peut évaluer l'équipement comme le fait Forever Leveling BiS. Choisissez ci-dessous qui évalue.",
+        WELCOME_ARROWS_LEVELING = "Ici, Forever Leveling BiS dessine ses propres flèches.",
+        ERR_NO_SCALE_LEVELING = "Forever Leveling BiS n'a aucune spé pour la classe de ce personnage.",
+        PROFILE_TIP_LEVELING = "Votre propre personnage est évalué selon sa spé principale (Main spec) dans Forever Leveling BiS : changez-la là-bas. Pour vos autres personnages, choisissez la spé ici.",
+        TREE_DISCIPLINE = "Discipline",
         -- "Everything I can use"
         SUP_ALL = "Tout ce que je peux utiliser",
         SUP_ALL_SHORT = "Tout",
@@ -1134,6 +1188,18 @@ if GetLocale() == "zhCN" then
         WELCOME_ARROWS_COMPANION = "这里由 Forever Companion 画它自己的箭头。",
         ERR_NO_SCALE_COMPANION = "Forever Companion 没有适用于这个角色职业的属性权重。",
         PROFILE_TIP_COMPANION = "选择用来评分的 Forever Companion 属性权重。",
+        -- Forever Leveling BiS in place of the addon's own weights
+        TT_LEVELING_SCORE = "Forever Leveling BiS 评分",
+        WELCOME_NO_LEVELING = "Forever Leveling BiS 未安装或未启用。",
+        WELCOME_SCALE_LEVELING = "%s：Forever Leveling BiS 里的主天赋",
+        WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS 没有适用于 %s 的天赋。",
+        WELCOME_TOOLTIP_LEVELING = "这里由 Forever Leveling BiS 写它自己的内容。",
+        WELCOME_TOOLTIP_LEVELING_OTHERS = "这里由 Forever Leveling BiS 写它自己的内容。在你其他角色的列表里，由插件来写。",
+        WELCOME_LEVELING_NEW = "新功能：插件可以按 Forever Leveling BiS 的方式给装备评分。在下面选择由谁评分。",
+        WELCOME_ARROWS_LEVELING = "这里由 Forever Leveling BiS 画它自己的箭头。",
+        ERR_NO_SCALE_LEVELING = "Forever Leveling BiS 没有适用于这个角色职业的天赋。",
+        PROFILE_TIP_LEVELING = "你自己的角色按 Forever Leveling BiS 里的主天赋评分：要换就到那里换。其他角色的天赋在这里选。",
+        TREE_DISCIPLINE = "戒律",
         -- "Everything I can use"
         SUP_ALL = "所有我能用的",
         SUP_ALL_SHORT = "全部",
@@ -1357,6 +1423,18 @@ if GetLocale() == "ptBR" then
         WELCOME_ARROWS_COMPANION = "Aqui o Forever Companion desenha as próprias setas.",
         ERR_NO_SCALE_COMPANION = "O Forever Companion não tem nenhuma escala para a classe deste personagem.",
         PROFILE_TIP_COMPANION = "Escolha a escala do Forever Companion usada na avaliação.",
+        -- Forever Leveling BiS in place of the addon's own weights
+        TT_LEVELING_SCORE = "pontuação do Forever Leveling BiS",
+        WELCOME_NO_LEVELING = "O Forever Leveling BiS não está instalado ou está desativado.",
+        WELCOME_SCALE_LEVELING = "%s: spec principal (Main spec) no Forever Leveling BiS",
+        WELCOME_NO_SCALE_LEVELING = "O Forever Leveling BiS não tem nenhuma spec para %s.",
+        WELCOME_TOOLTIP_LEVELING = "Aqui o Forever Leveling BiS escreve as próprias linhas.",
+        WELCOME_TOOLTIP_LEVELING_OTHERS = "Aqui o Forever Leveling BiS escreve as próprias linhas. Nas listas dos seus outros personagens, quem escreve é o addon.",
+        WELCOME_LEVELING_NEW = "Novidade: o addon pode avaliar o equipamento como o Forever Leveling BiS avalia. Escolha abaixo quem avalia.",
+        WELCOME_ARROWS_LEVELING = "Aqui o Forever Leveling BiS desenha as próprias setas.",
+        ERR_NO_SCALE_LEVELING = "O Forever Leveling BiS não tem nenhuma spec para a classe deste personagem.",
+        PROFILE_TIP_LEVELING = "O seu próprio personagem é avaliado pela spec principal (Main spec) do Forever Leveling BiS: mude-a por lá. Para os outros personagens, escolha a spec aqui.",
+        TREE_DISCIPLINE = "Disciplina",
         -- "Everything I can use"
         SUP_ALL = "Tudo o que posso usar",
         SUP_ALL_SHORT = "Tudo",
@@ -1579,6 +1657,18 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         WELCOME_ARROWS_COMPANION = "Aquí Forever Companion dibuja sus propias flechas.",
         ERR_NO_SCALE_COMPANION = "Forever Companion no tiene ninguna escala para la clase de este personaje.",
         PROFILE_TIP_COMPANION = "Elige la escala de Forever Companion con la que se puntúa.",
+        -- Forever Leveling BiS in place of the addon's own weights
+        TT_LEVELING_SCORE = "puntuación de Forever Leveling BiS",
+        WELCOME_NO_LEVELING = "Forever Leveling BiS no está instalado o está desactivado.",
+        WELCOME_SCALE_LEVELING = "%s: especialización principal en Forever Leveling BiS",
+        WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS no tiene ninguna especialización para %s.",
+        WELCOME_TOOLTIP_LEVELING = "Aquí Forever Leveling BiS escribe sus propias líneas.",
+        WELCOME_TOOLTIP_LEVELING_OTHERS = "Aquí Forever Leveling BiS escribe sus propias líneas. En las listas de tus otros personajes las escribe el addon.",
+        WELCOME_LEVELING_NEW = "Novedad: el addon puede puntuar el equipo como lo hace Forever Leveling BiS. Elige abajo quién puntúa.",
+        WELCOME_ARROWS_LEVELING = "Aquí Forever Leveling BiS dibuja sus propias flechas.",
+        ERR_NO_SCALE_LEVELING = "Forever Leveling BiS no tiene ninguna especialización para la clase de este personaje.",
+        PROFILE_TIP_LEVELING = "Tu propio personaje se puntúa con su especialización principal de Forever Leveling BiS: cámbiala allí. Para tus otros personajes, elige la especialización aquí.",
+        TREE_DISCIPLINE = "Disciplina",
         -- "Everything I can use"
         SUP_ALL = "Todo lo que puedo usar",
         SUP_ALL_SHORT = "Todo",
@@ -1803,6 +1893,18 @@ if GetLocale() == "koKR" then
         WELCOME_ARROWS_COMPANION = "여기에는 Forever Companion이 자체 화살표를 그립니다.",
         ERR_NO_SCALE_COMPANION = "Forever Companion에 이 캐릭터의 직업에 맞는 능력치 비율이 없습니다.",
         PROFILE_TIP_COMPANION = "점수를 매길 Forever Companion 능력치 비율을 고르세요.",
+        -- Forever Leveling BiS in place of the addon's own weights
+        TT_LEVELING_SCORE = "Forever Leveling BiS 점수",
+        WELCOME_NO_LEVELING = "Forever Leveling BiS가 설치되어 있지 않거나 꺼져 있습니다.",
+        WELCOME_SCALE_LEVELING = "%s: Forever Leveling BiS의 주 전문화",
+        WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS에 %s에게 맞는 전문화가 없습니다.",
+        WELCOME_TOOLTIP_LEVELING = "여기에는 Forever Leveling BiS가 자체 내용을 씁니다.",
+        WELCOME_TOOLTIP_LEVELING_OTHERS = "여기에는 Forever Leveling BiS가 자체 내용을 씁니다. 다른 캐릭터를 위한 목록에는 애드온이 씁니다.",
+        WELCOME_LEVELING_NEW = "새 기능: 애드온이 Forever Leveling BiS와 같은 방식으로 장비 점수를 매길 수 있습니다. 누가 매길지 아래에서 고르세요.",
+        WELCOME_ARROWS_LEVELING = "여기에는 Forever Leveling BiS가 자체 화살표를 그립니다.",
+        ERR_NO_SCALE_LEVELING = "Forever Leveling BiS에 이 캐릭터의 직업에 맞는 전문화가 없습니다.",
+        PROFILE_TIP_LEVELING = "내 캐릭터는 Forever Leveling BiS의 주 전문화로 점수를 매깁니다. 바꾸려면 거기서 바꾸세요. 다른 캐릭터의 전문화는 여기서 고르세요.",
+        TREE_DISCIPLINE = "수양",
         -- "Everything I can use"
         SUP_ALL = "내가 쓸 수 있는 모든 것",
         SUP_ALL_SHORT = "전부",
@@ -2026,6 +2128,18 @@ if GetLocale() == "zhTW" then
         WELCOME_ARROWS_COMPANION = "這裡由 Forever Companion 畫它自己的箭頭。",
         ERR_NO_SCALE_COMPANION = "Forever Companion 沒有適用於這個角色職業的權重。",
         PROFILE_TIP_COMPANION = "選擇用來評分的 Forever Companion 權重。",
+        -- Forever Leveling BiS in place of the addon's own weights
+        TT_LEVELING_SCORE = "Forever Leveling BiS 評分",
+        WELCOME_NO_LEVELING = "Forever Leveling BiS 未安裝或未啟用。",
+        WELCOME_SCALE_LEVELING = "%s：Forever Leveling BiS 裡的主天賦",
+        WELCOME_NO_SCALE_LEVELING = "Forever Leveling BiS 沒有適用於 %s 的天賦。",
+        WELCOME_TOOLTIP_LEVELING = "這裡由 Forever Leveling BiS 寫它自己的內容。",
+        WELCOME_TOOLTIP_LEVELING_OTHERS = "這裡由 Forever Leveling BiS 寫它自己的內容。在你其他角色的列表裡，由插件來寫。",
+        WELCOME_LEVELING_NEW = "新功能：插件可以依 Forever Leveling BiS 的方式給裝備評分。在下面選擇由誰評分。",
+        WELCOME_ARROWS_LEVELING = "這裡由 Forever Leveling BiS 畫它自己的箭頭。",
+        ERR_NO_SCALE_LEVELING = "Forever Leveling BiS 沒有適用於這個角色職業的天賦。",
+        PROFILE_TIP_LEVELING = "你自己的角色依 Forever Leveling BiS 裡的主天賦評分：要換就到那裡換。其他角色的天賦在這裡選。",
+        TREE_DISCIPLINE = "戒律",
         -- "Everything I can use"
         SUP_ALL = "所有我能用的",
         SUP_ALL_SHORT = "全部",

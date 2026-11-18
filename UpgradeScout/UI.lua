@@ -125,9 +125,9 @@ end
 
 -- The game puts the tooltip of the worn item beside an item's by itself, but it knows only
 -- what the character being played wears. For another character the item its card remembers
--- in the slot is put there, in the game's own second tooltip. Pawn and Forever Companion,
--- where the player has them, are kept from writing there what the item would be to the
--- character being played (Score.Hushed).
+-- in the slot is put there, in the game's own second tooltip. Pawn, Forever Companion and
+-- Forever Leveling BiS, where the player has them, are kept from writing there what the item
+-- would be to the character being played (Score.Hushed).
 -- The game may have put its own comparison up by then, as the item's tooltip was filled
 -- in: it does with Shift held, and always for a player who has set it so. That is what the
 -- character being played wears, in that second tooltip, and at times in a third beside it
@@ -193,6 +193,7 @@ local function ProfileGains(entry)
                 local item = {
                     link = offer.link, itemID = offer.itemID, invType = offer.invType, unique = offer.unique,
                     value = ns.Score.Value(scored, profile.name, ctx.level),
+                    offValue = ns.Score.OffValue(scored, profile.name, ctx.level),
                 }
                 gain = ns.Compare.Gain(item, ns.Score.Rescore(ctx, profile.name), entry.group)
             end
@@ -277,9 +278,9 @@ end
 -- that one's scales, class, level and what it wears, and its lines are kept out of such a
 -- row: ShowItemTooltip), so ours are all there is to say it, and a player who has Pawn
 -- score counts on finding the score there.
--- The same with Forever Companion scoring, while it writes its own line into tooltips
--- (Score.Writes): that line is about the character being played. With its line switched
--- off in its options the score is ours to write again, by the box, on its scales.
+-- The same with Forever Companion or Forever Leveling BiS scoring, while it writes its own
+-- lines into tooltips (Score.Writes): they are about the character being played. With them
+-- switched off in its options the score is ours to write again, by the box, on its scales.
 -- Notes without the score stand under the addon's name. With nothing to note, nothing is
 -- written at all.
 local function AddOfferLines(entry, who)
@@ -316,10 +317,11 @@ local function ShowItemTooltip(row)
     -- No vendor price, as on the Buy tab: this is something to buy, not to sell.
     local hideVendorPrice = true
     if who then
-        -- A list for another character. Pawn or Forever Companion, where the player has
-        -- one, would write here how much of an upgrade the item is for the character being
-        -- played, which is no part of a tooltip about someone else: they are kept from it
-        -- (Score.Hushed). What the item is to that character is in our lines below.
+        -- A list for another character. Pawn, Forever Companion or Forever Leveling BiS,
+        -- where the player has one, would write here how much of an upgrade the item is for
+        -- the character being played, which is no part of a tooltip about someone else: they
+        -- are kept from it (Score.Hushed). What the item is to that character is in our
+        -- lines below.
         ns.Score.Hushed(GameTooltip.SetHyperlink, GameTooltip, offer.link, nil, nil, hideVendorPrice)
     else
         GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)
@@ -1317,8 +1319,9 @@ function UI.ChooseProfile(id)
     ns.Fire("PROFILE_CHANGED", me)
 end
 
--- Another one scores (the addon, Pawn or Forever Companion: the choice in the welcome
--- window), or the scales of the one that does changed. As when another profile is chosen:
+-- Another one scores (the addon, Pawn, Forever Companion or Forever Leveling BiS: the
+-- choice in the welcome window), or the scales of the one that does changed. As when
+-- another profile is chosen:
 -- what a scan for gear
 -- found means nothing now, and a view that had a list of gear, or was making one, gets it
 -- made again. Consumables are scored as their list is drawn.

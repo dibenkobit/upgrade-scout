@@ -9,9 +9,10 @@ local _, ns = ...
 -- nothing else: there are no weights to edit.
 --
 -- A player who would sooner go by another addon's scales can say so in the welcome window
--- (Welcome.lua): by Pawn's (Pawn.lua) or by Forever Companion's (Companion.lua). Then that
--- addon scores, and the rest of this one notices nothing: it asks this file the same
--- questions, and a "profile" is one of the character's scales there. See Score.Engine.
+-- (Welcome.lua): by Pawn's (Pawn.lua), by Forever Companion's (Companion.lua) or by the
+-- stat weights of Forever Leveling BiS (Leveling.lua). Then that addon scores, and the rest
+-- of this one notices nothing: it asks this file the same questions, and a "profile" is one
+-- of the character's scales there. See Score.Engine.
 --
 -- Throughout this file `who` is the character the question is about: a card from Roster for
 -- one that is not being played, nil for the one that is.
@@ -26,13 +27,19 @@ ns.Score = Score
 -- that asks it, by its name in `ns`. Each such file answers the same questions (Usable,
 -- Scales, Current, Choose, Title, Item, Value, Parts, StatsValue, Unread, ShowsWeapons,
 -- WritesTooltip, Hushed), and says how the addon is named (NAME), which of our words are
--- about it (TEXT) and what the account remembers of having seen it offered (OFFERED).
-local OTHERS = { { engine = "pawn", file = "Pawn" }, { engine = "companion", file = "Companion" } }
+-- about it (TEXT) and what the account remembers of having seen it offered (OFFERED). One
+-- may answer a few more, which the others have no use for: DrawsArrows, OffValue, Refuses.
+local OTHERS = {
+    { engine = "pawn", file = "Pawn" },
+    { engine = "companion", file = "Companion" },
+    { engine = "leveling", file = "Leveling" },
+}
 local FILE = {}
 for i = 1, #OTHERS do FILE[OTHERS[i].engine] = OTHERS[i].file end
 
 -- nil: this addon, by its own weights. "pawn": Pawn, by the player's Pawn scales.
--- "companion": Forever Companion, by its gear scales. Another addon scores only while it
+-- "companion": Forever Companion, by its gear scales. "leveling": Forever Leveling BiS, by
+-- the weights of the spec chosen in it. Another addon scores only while it
 -- was chosen (ns.account.engine, for the whole account) and is there to be asked: switched
 -- off or taken away, it leaves this one scoring by itself, and the choice stands for when
 -- it is back.
@@ -74,10 +81,10 @@ function Score.Text(what)
     return other and ns.L[other.TEXT[what]] or nil
 end
 
--- The choice made in the welcome window: "pawn", "companion", or nil for the addon's own
--- weights. Every score there is was made by another, so everything that keeps scores hears
--- SCORING_CHANGED and makes them again. (The same is said when the scales of the addon that
--- scores change: see Pawn.lua and Companion.lua.)
+-- The choice made in the welcome window: "pawn", "companion", "leveling", or nil for the
+-- addon's own weights. Every score there is was made by another, so everything that keeps
+-- scores hears SCORING_CHANGED and makes them again. (The same is said when the scales of
+-- the addon that scores change: see Pawn.lua, Companion.lua and Leveling.lua.)
 function Score.SetEngine(engine)
     local before = Score.Engine()
     ns.account.engine = engine ~= nil and FILE[engine] and engine or nil
@@ -93,28 +100,30 @@ function Score.Choose(card, id)
 end
 
 -- Does the addon that scores write the score into the game's item tooltips itself, about
--- the character being played? Pawn does; Forever Companion does while its own option for
--- that is on. This addon then leaves its lines about the score out of them: they would say
--- it twice (Tooltip.lua, AddOfferLines in UI.lua).
+-- the character being played? Pawn does; Forever Companion and Forever Leveling BiS do
+-- while their own option for that is on. This addon then leaves its lines about the score
+-- out of them: they would say it twice (Tooltip.lua, AddOfferLines in UI.lua).
 function Score.Writes()
     local other = Other()
     return other ~= nil and other.WritesTooltip()
 end
 
 -- Does the addon that scores draw its own arrow on an upgrade in the bags? Forever
--- Companion does while its own options say so; Pawn's arrow does not reach the bags of this
--- game. This addon then draws none (Bags.lua).
-function Score.DrawsArrows()
+-- Companion and Forever Leveling BiS do while their own options say so; Pawn's arrow does
+-- not reach the bags of this game. This addon then draws none (Bags.lua).
+-- where: "bank" when the question is about the bank, where Forever Leveling BiS draws none.
+function Score.DrawsArrows(where)
     local other = Other()
-    return other ~= nil and other.DrawsArrows ~= nil and other.DrawsArrows()
+    return other ~= nil and other.DrawsArrows ~= nil and other.DrawsArrows(where)
 end
 
 -- Fills a tooltip in for another character of the account, with what the other addons
 -- would write there about the character being played left out (Pawn.Hushed,
--- Companion.Hushed), whoever scores: each of them writes while it is installed.
+-- Companion.Hushed, Leveling.Hushed), whoever scores: each of them writes while it is
+-- installed.
 -- fill: what fills the tooltip in; it is called with the arguments that follow it.
 function Score.Hushed(fill, ...)
-    ns.Pawn.Hushed(ns.Companion.Hushed, fill, ...)
+    ns.Pawn.Hushed(ns.Companion.Hushed, ns.Leveling.Hushed, fill, ...)
 end
 
 local WEAPON_CLASS = Enum.ItemClass.Weapon
@@ -265,9 +274,9 @@ end
 -- With another addon scoring, the same with that addon's reading of the item in place of
 -- `stats`, and `scorer`, the file of ours that asked for it: the functions below tell by it
 -- whose item they were given.
-function Score.Item(link)
-    local other = Other()
-    if other then return other.Item(link) end
+-- Score.Own is this addon's own reading, whoever scores: where the addon that does has
+-- only weights to give, the stats they are put to are these (Leveling.lua).
+function Score.Own(link)
     local itemID, _, _, invType, _, classID, subClassID = C_Item.GetItemInfoInstant(link)
     if not itemID then return nil end
     local stats = ns.Stats.Read(ns.Stats.Bare(link))
@@ -280,6 +289,12 @@ function Score.Item(link)
     end
     if classID == ARMOR_CLASS and subClassID == SHIELD and not stats[BLOCK] then stats[BLOCK] = ShieldBlock(link) end
     return { link = link, itemID = itemID, invType = invType, classID = classID, subClassID = subClassID, stats = stats }
+end
+
+function Score.Item(link)
+    local other = Other()
+    if other then return other.Item(link) end
+    return Score.Own(link)
 end
 
 -- How much of its level 60 worth a rating has for a character of this level (1 at 60, and
@@ -323,8 +338,10 @@ local function Weight(profile, name, level, item)
 end
 
 -- An item's score on a profile, for a character of the level. 0 for a profile there is not.
-function Score.Value(item, id, level)
-    if item.scorer then return item.scorer.Value(item, id) end
+-- offHand: the item is held in the off hand. That is another number only where the one who
+-- scores tells the hands apart for a weapon that can go in either (see Score.OffValue).
+function Score.Value(item, id, level, offHand)
+    if item.scorer then return item.scorer.Value(item, id, level, offHand) end
     local profile = ns.Weights.profiles[id]
     if not profile then return 0 end
     local total = 0
@@ -334,10 +351,20 @@ function Score.Value(item, id, level)
     return total
 end
 
+-- What a weapon for one hand is worth in the off hand, where that is not what Score.Value
+-- says of it: Forever Leveling BiS scores a weapon by the hand it is in. nil where the two
+-- are one number: for every other item, and with anyone else scoring. A list item carries
+-- it as `offValue`, and Compare.lua offers the off hand by it.
+function Score.OffValue(item, id, level)
+    local scorer = item.scorer
+    if scorer and scorer.OffValue then return scorer.OffValue(item, id, level) end
+    return nil
+end
+
 -- The same sum, stat by stat, for /upscout stats: { { name, amount, weight, points }, ... }
 -- with the heaviest first, and the total.
 function Score.Parts(item, id, level)
-    if item.scorer then return item.scorer.Parts(item, id) end
+    if item.scorer then return item.scorer.Parts(item, id, level) end
     local profile = ns.Weights.profiles[id]
     local parts, total = {}, 0
     for name, amount in pairs(item.stats) do
@@ -357,7 +384,7 @@ end
 -- points gear is scored in. nil for a profile there is not.
 function Score.StatsValue(stats, id, level)
     local other = Other()
-    if other then return other.StatsValue(stats, id) end
+    if other then return other.StatsValue(stats, id, level) end
     local profile = ns.Weights.profiles[id]
     if not profile then return nil end
     local total = 0
@@ -401,7 +428,11 @@ end
 -- wand on a warrior), or not yet at its level (mail and plate come at 40). Whether the
 -- character has learned the kind of weapon is another question, answered where the item's
 -- tooltip is read.
+-- The addon that scores may have a say of its own on top: Forever Leveling BiS knows which
+-- weapons a spec's abilities cannot use (Leveling.Refuses).
 function Score.ClassCanUse(item, who)
+    local scorer = item.scorer
+    if scorer and scorer.Refuses and scorer.Refuses(item, who) then return false end
     local owner = who or ns.Roster.Me()
     if not owner then return true end
     return ns.Roster.Wields({ class = owner.class, level = owner.level }, item.classID, item.subClassID)
@@ -410,6 +441,8 @@ end
 ---------------------------------------------------------------------------
 -- What a character wears
 ---------------------------------------------------------------------------
+local OFF_HAND = 17             -- the inventory slot (Compare.OFF_HAND, which is made later)
+
 -- An item's number and the way it is worn ("INVTYPE_CHEST").
 local function ItemSlot(link)
     local itemID, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
@@ -457,7 +490,7 @@ function Score.Context(id, who)
             link = link,
             itemID = itemID,
             invType = equipLoc,
-            value = item and Score.Value(item, id, level) or 0,
+            value = item and Score.Value(item, id, level, slot == OFF_HAND) or 0,
         }
     end
 
@@ -507,7 +540,7 @@ function Score.Rescore(ctx, id)
             link = worn.link,
             itemID = worn.itemID,
             invType = worn.invType,
-            value = item and Score.Value(item, id, ctx.level) or 0,
+            value = item and Score.Value(item, id, ctx.level, slot == OFF_HAND) or 0,
         }
     end
     return Finish(out)

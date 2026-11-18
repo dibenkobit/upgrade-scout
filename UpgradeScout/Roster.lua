@@ -23,6 +23,8 @@ local _, ns = ...
 --   scale       the Pawn scale chosen for it, for when Pawn scores (see Pawn.lua)
 --   companion   the Forever Companion scale chosen for it while another character was
 --               played, for when Forever Companion scores (see Companion.lua)
+--   leveling    the spec of Forever Leveling BiS chosen for it while another character was
+--               played, for when that addon scores (see Leveling.lua)
 --   talents     the profile for the talent tree it has the most points in; what it is
 --               scored on while none is chosen
 --   armorOnly, minGain, minGainOn

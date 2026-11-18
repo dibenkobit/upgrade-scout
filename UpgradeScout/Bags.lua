@@ -11,7 +11,8 @@ local _, ns = ...
 -- With Forever Companion scoring they give way to its own: it draws an arrow on an upgrade
 -- in the bags and the bank itself, by the same scale, and two on one icon would say one
 -- thing twice. Where its arrows are switched off in its options, ours are drawn, by its
--- scale in use (Score.DrawsArrows).
+-- scale in use (Score.DrawsArrows). The same with Forever Leveling BiS scoring, in the bags:
+-- it draws none in the bank, and there ours stay.
 -- The arrow is the game's own, the one its bag slots have a place for and Forever leaves
 -- unused. It is drawn on a texture of our own in that place: another addon that shows or
 -- hides the game's does not take ours with it.
@@ -65,11 +66,12 @@ end
 
 -- "now" when the item gets the green arrow, "later" when it gets the grey one, false when it
 -- gets none, nil while that cannot be told yet.
-function B.Arrow(link)
+-- where: "bank" for an item in the bank; nil for one in the bags.
+function B.Arrow(link, where)
     -- Switched off in the welcome window: no item gets one.
     if not ns.Shows("arrows") then return false end
-    -- The addon that scores draws its own: none of ours beside them.
-    if ns.Score.DrawsArrows() then return false end
+    -- The addon that scores draws its own there: none of ours beside them.
+    if ns.Score.DrawsArrows(where) then return false end
     local upgrade = ns.Tooltip.Upgrade(link)
     if not upgrade then return upgrade end
     if TooLight(link) then return false end
@@ -84,10 +86,11 @@ local retries, retryQueued = 0, false
 local MarkAll
 
 -- Shows or hides the arrow on an item button for the item it holds (link nil: none).
-local function Mark(button, link)
+-- where: "bank" for a slot of the bank.
+local function Mark(button, link, where)
     local kind = false
     if link then
-        kind = B.Arrow(link)
+        kind = B.Arrow(link, where)
         if kind == nil then pending = true end
     end
     local arrow = button.UpgradeScoutArrow
@@ -124,7 +127,7 @@ end
 -- A slot of the bank holds what it read last (BankPanelItemButtonMixin:RefreshItemInfo).
 local function MarkBankButton(button)
     local info = button.itemInfo
-    Mark(button, info and info.hyperlink)
+    Mark(button, info and info.hyperlink, "bank")
 end
 
 -- The game's bag windows: one for all the bags, or one for each.
@@ -217,9 +220,10 @@ ns.Listen("WANTS_CHANGED", function(card)
 end)
 
 -- The arrows switched on or off in the welcome window: they come or go at once. So they do
--- when Forever Companion's own are switched in its options, while it scores ("companion").
+-- when Forever Companion's own are switched in its options, while it scores ("companion"),
+-- or those of Forever Leveling BiS in its settings ("leveling").
 ns.Listen("SETTING_CHANGED", function(part)
-    if part ~= "arrows" and part ~= "companion" then return end
+    if part ~= "arrows" and part ~= "companion" and part ~= "leveling" then return end
     retries = 0
     MarkAll()
 end)

@@ -84,8 +84,9 @@ ns.db = { affordableOnly = true, topOnly = true, bestOnly = true, collapsed = {}
 ns.account = { chars = {} }
 -- Also for the whole account, and chosen in the same window: engine, "pawn" when gear is to
 -- be scored by the player's Pawn scales and not by the addon's own weights, "companion"
--- when by Forever Companion's gear scales (Score.Engine). pawnOffered, companionOffered:
--- the window has been seen since that choice could be made in it, with that addon there.
+-- when by Forever Companion's gear scales, "leveling" when by Forever Leveling BiS
+-- (Score.Engine). pawnOffered, companionOffered, levelingOffered: the window has been seen
+-- since that choice could be made in it, with that addon there.
 
 -- Is this part of the addon on: "tooltip", "rowTooltip", "rowNotes" or "arrows"?
 function ns.Shows(part)

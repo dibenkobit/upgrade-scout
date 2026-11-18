@@ -27,6 +27,8 @@ W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dua
 --        game = { ITEM_MOD_STRENGTH_SHORT = 5, ... }: stats as the game itself counts them,
 --        pawn = { Strength = 5, ... }: stats as Pawn reads them, where it is installed,
 --        companion = { Strength = 5, ... }: the same for Forever Companion,
+--        leveling = { str = 5, ... }, dps, bonus, notFor: what Forever Leveling BiS knows of
+--                   it (see W.InstallLeveling), speed = 2.6: a weapon's, in its tooltip,
 --        classes = "Druid, Shaman" (the classes it is for), races = "Orc, Troll",
 --        skill = { "Engineering", 150 } (the profession it asks for), reputation = true }
 function W.AddItem(def)
@@ -384,6 +386,12 @@ local function TooltipLines(link)
     lines[#lines + 1] = { leftText = "Chest", leftColor = HIGHLIGHT_FONT_COLOR, rightText = "Mail",
         rightColor = item.red and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR }
     AddRequirements(lines, item)
+    -- speed: a weapon's, on the right of the line of its damage. (speedText: as another
+    -- language writes it.)
+    if item.speed then
+        lines[#lines + 1] = { leftText = "5 - 9 Damage", leftColor = HIGHLIGHT_FONT_COLOR,
+            rightText = item.speedText or ("Speed %.2f"):format(item.speed), rightColor = HIGHLIGHT_FONT_COLOR, type = 0 }
+    end
     -- block: a shield's, in a line of its own written from the game's text.
     if item.block then
         lines[#lines + 1] = { leftText = SHIELD_BLOCK_TEMPLATE:format(item.block), leftColor = HIGHLIGHT_FONT_COLOR, type = 0 }
@@ -444,6 +452,8 @@ function M:SetHyperlink(link)
     end
     -- Forever Companion, where it is installed, writes its line the same way.
     W.CompanionWrites(self, link)
+    -- And Forever Leveling BiS its block.
+    W.LevelingWrites(self, link)
     self._shown = true
 end
 
@@ -1229,6 +1239,8 @@ function GameTooltip_AddDisabledLine(tooltip, text) GameTooltip_AddColoredLine(t
 function GameTooltip_AddErrorLine(tooltip, text) GameTooltip_AddColoredLine(tooltip, text, RED_FONT_COLOR) end
 
 RETRIEVING_ITEM_INFO = "Retrieving item information"
+-- The game's words for the two ways of fighting.
+MELEE, RANGED = "Melee", "Ranged"
 ITEM_SPELL_TRIGGER_ONUSE = "Use:"
 ITEM_SPELL_TRIGGER_ONEQUIP = "Equip:"
 SHIELD_BLOCK_TEMPLATE = "%s Block"
@@ -1355,6 +1367,7 @@ function W.Logout()
     W.ResetBags()
     W.ResetPawn()
     W.ResetCompanion()
+    W.ResetLeveling()
 end
 
 -- Another character of the account comes into the world: `player` as W.player, `equipped`
@@ -1364,6 +1377,7 @@ function W.Login(player, equipped)
     W.equipped = equipped or {}
     UpgradeScoutCharDB = W.charSaved[player.name]
     W.EnterCompanion()
+    W.EnterLeveling()
 end
 HEADSLOT, CHESTSLOT, FINGER0SLOT, MAINHANDSLOT, SECONDARYHANDSLOT = "Head", "Chest", "Finger", "Main Hand", "Off Hand"
 -- The game's text for two of the weapon kinds; the addon has its own for the rest.
@@ -2463,6 +2477,223 @@ end
 
 function W.EnterCompanion()
     if W.companion then CompanionEnter() end
+end
+
+---------------------------------------------------------------------------
+-- Forever Leveling BiS, for the scenarios that have it installed (W.InstallLeveling). Written
+-- after Forever Leveling BiS 1.3.5 (its API.md and API.lua, Tooltip.lua and BagMarks.lua):
+-- what the addon asks of it, each with what matters of how it behaves there.
+--   * Other addons ask it through a global table, ForeverLevelingBiS_API, with a `version`
+--     (2). Before the character is known to it (PLAYER_LOGIN) every function answers nil
+--     (W.leveling.ready = false).
+--   * What it saves is a global table too, ForeverLevelingBiSDB: its switches (`tooltip` and
+--     `bagMarks`, each on until set to false) and, under `chars`, what each character chose,
+--     by "Full Name-Realm": the main spec (`spec`; none chosen is the class's first) and the
+--     weapon setup of a spec (`weapons`, by "CLASS:spec"; none chosen is "twohand" here).
+--   * GetSpec gives the main spec, its weapon setup and the class of the character being
+--     played. GetSpecs lists a class's specs.
+--   * GetWeights gives a copy of the weights of a class's spec at a level, with a weapon
+--     setup; what is left out is the character's own (class, main spec, level, and for
+--     that spec its setup). Here a spec's weights are a table, or a function of the level
+--     and the setup (W.SetLevelingWeights).
+--   * ScoreItem scores an item for the main spec of the character being played: nothing for
+--     what is not gear, and nothing with a second value of true for an item the client has
+--     not loaded. Here the score is the item's score on the first of the tests' profiles
+--     for the class's first spec and on the second for its second (`value`, `value2`), plus
+--     the spec's weights put to the stats the item has under the addon's own names
+--     (`leveling = { str = 5 }`), plus its damage per second (`dps`) by the weight of the
+--     hand asked about, plus what only it knows of the item (`bonus`).
+--   * GetGain says what an item gains the main spec; nothing for an item the character
+--     cannot wear now (here: `notFor`), and nothing with a second value of true for one it
+--     cannot tell of yet.
+--   * OnChanged takes a function to call whenever its answers may have changed
+--     (W.LevelingChanged calls them, as the addon does for many reasons).
+--   * It writes a block into the game's main tooltip and the one for a link in the chat,
+--     about the character being played, while its switch for that is on. Here one line
+--     stands for the block.
+---------------------------------------------------------------------------
+local LEVELING_GEAR = {
+    INVTYPE_HEAD = true, INVTYPE_NECK = true, INVTYPE_SHOULDER = true, INVTYPE_CHEST = true, INVTYPE_ROBE = true,
+    INVTYPE_WAIST = true, INVTYPE_LEGS = true, INVTYPE_FEET = true, INVTYPE_WRIST = true, INVTYPE_HAND = true,
+    INVTYPE_FINGER = true, INVTYPE_TRINKET = true, INVTYPE_CLOAK = true, INVTYPE_WEAPON = true, INVTYPE_2HWEAPON = true,
+    INVTYPE_WEAPONMAINHAND = true, INVTYPE_WEAPONOFFHAND = true, INVTYPE_SHIELD = true, INVTYPE_HOLDABLE = true,
+    INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_THROWN = true, INVTYPE_RELIC = true,
+}
+
+-- The key it keeps a character's choices under.
+function W.LevelingKey(player)
+    player = player or W.player
+    local name = player.name
+    if player.last then name = name .. Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_SEPARATOR .. player.last end
+    return name .. "-" .. GetRealmName()
+end
+
+local function LevelingFunctions(L)
+    local API = { version = L.version or 2 }
+    ForeverLevelingBiS_API = API
+    L.listeners = {}
+
+    local function Mine()
+        return ForeverLevelingBiSDB.chars[W.LevelingKey()] or {}
+    end
+    local function MainSpec()
+        local class = W.player.class
+        local specs = L.specs[class] or {}
+        local spec = Mine().spec or specs[1]
+        local weapons = Mine().weapons
+        local setup = weapons and weapons[class .. ":" .. tostring(spec)] or "twohand"
+        return spec, setup, class
+    end
+    local function Stats(class, spec, level, setup)
+        local weights = L.weights[class .. ":" .. tostring(spec)]
+        if type(weights) == "function" then weights = weights(level, setup) end
+        return weights
+    end
+
+    function API.GetSpec()
+        if not L.ready then return nil end
+        L.specAsked = L.specAsked + 1
+        local spec, setup, class = MainSpec()
+        if not spec then return nil end
+        return spec, setup, class
+    end
+
+    function API.GetSpecs(class)
+        local specs = L.specs[class]
+        if not specs then return nil end
+        local out = {}
+        for i, spec in ipairs(specs) do out[i] = spec end
+        return out
+    end
+
+    function API.GetWeights(class, spec, level, setup)
+        if not L.ready then return nil end
+        local mainSpec, mainSetup, mainClass = MainSpec()
+        class = class or mainClass
+        spec = spec or (class == mainClass and mainSpec) or (L.specs[class] and L.specs[class][1])
+        level = tonumber(level) or W.player.level
+        if not setup and class == mainClass and spec == mainSpec then setup = mainSetup end
+        local weights = Stats(class, spec, level, setup)
+        L.weighed[#L.weighed + 1] = { class = class, spec = spec, level = level, setup = setup }
+        if not weights then return nil end
+        local out = {}
+        for key, weight in pairs(weights) do out[key] = weight end
+        return out, { source = "model", profile = false, fromLevel = 1, toLevel = 60 }
+    end
+
+    function API.GetStatKeys()
+        return {
+            { key = "str", label = "Strength" }, { key = "agi", label = "Agility" }, { key = "sta", label = "Stamina" },
+            { key = "int", label = "Intellect" }, { key = "critPct", label = "+1% crit" }, { key = "dps", label = "Weapon DPS" },
+        }
+    end
+
+    function API.ScoreItem(link, offHand)
+        if not L.ready then return nil end
+        L.asked[#L.asked + 1] = { link = link, offHand = offHand and true or false }
+        local item = ParseItem(link)
+        if not item then return nil end
+        if not item.cached then return nil, true end
+        if not LEVELING_GEAR[item.equipLoc or ""] then return nil end
+        local spec, setup, class = MainSpec()
+        local weights = Stats(class, spec, W.player.level, setup)
+        if not weights then return nil end
+        local specs = L.specs[class] or {}
+        local score = 0
+        if not item.noStats then
+            if spec == specs[1] then score = item.value or 0 end
+            if spec == specs[2] then score = item.value2 or 0 end
+            for key, amount in pairs(item.leveling or {}) do score = score + amount * (weights[key] or 0) end
+            if item.dps then
+                local weight = offHand and (weights.ohDps or 0.5 * (weights.dps or 0)) or weights.dps or 0
+                score = score + item.dps * weight
+            end
+            score = score + (item.bonus or 0)
+            -- An enchantment adds a thousand, as to the game's own count: a score that reads
+            -- an enchanted link is found out.
+            if link:match("item:%d+:%d") then score = score + 1000 end
+        end
+        return score
+    end
+
+    function API.GetGain(link)
+        if not L.ready then return nil end
+        L.gains[#L.gains + 1] = link
+        local item = ParseItem(link)
+        if not item then return nil end
+        if not item.cached then return nil, true end
+        if item.notFor or not LEVELING_GEAR[item.equipLoc or ""] then return nil end
+        return 1
+    end
+
+    function API.IsUpgrade() return false end
+
+    function API.OnChanged(func)
+        if type(func) == "function" then L.listeners[#L.listeners + 1] = func end
+    end
+end
+
+-- What it keeps for the character being played is that character's own.
+local function LevelingEnter()
+    local chars = ForeverLevelingBiSDB.chars
+    local key = W.LevelingKey()
+    chars[key] = chars[key] or {}
+end
+
+-- Forever Leveling BiS is installed. Its specs are named with W.AddLevelingSpecs and given
+-- weights with W.SetLevelingWeights.
+function W.InstallLeveling()
+    W.leveling = { asked = {}, gains = {}, weighed = {}, specs = {}, weights = {}, ready = true, specAsked = 0 }
+    ForeverLevelingBiSDB = { chars = {} }
+    LevelingEnter()
+    LevelingFunctions(W.leveling)
+end
+
+-- Forever Leveling BiS is taken away, or switched off: the next session has none of it.
+function W.RemoveLeveling()
+    W.leveling = nil
+    ForeverLevelingBiS_API, ForeverLevelingBiSDB = nil, nil
+end
+
+function W.AddLevelingSpecs(class, specs)
+    W.leveling.specs[class] = specs
+end
+
+-- weights: { [its key for a stat] = weight }, or a function of the level and the weapon
+-- setup that gives such a table.
+function W.SetLevelingWeights(class, spec, weights)
+    W.leveling.weights[class .. ":" .. spec] = weights
+end
+
+-- What Forever Leveling BiS keeps for the character being played: its main spec, its weapon
+-- setups.
+function W.LevelingChar()
+    return ForeverLevelingBiSDB.chars[W.LevelingKey()]
+end
+
+-- Something changed in it, or may have (the gear, an item loaded, a setting): it calls the
+-- functions other addons gave it.
+function W.LevelingChanged()
+    for _, func in ipairs(W.leveling.listeners) do func() end
+end
+
+-- Its block in a tooltip the game has just filled in (M:SetHyperlink).
+function W.LevelingWrites(tooltip, link)
+    if not W.leveling or (tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip) then return end
+    if ForeverLevelingBiSDB.tooltip == false then return end
+    local item = ParseItem(link)
+    if not item or not LEVELING_GEAR[item.equipLoc or ""] then return end
+    tooltip:AddLine("Forever Leveling BiS: block")
+end
+
+-- A new session has its own functions, with nothing given to them, and what it keeps for
+-- the character that comes into the world (see W.Logout and W.Login).
+function W.ResetLeveling()
+    if W.leveling then LevelingFunctions(W.leveling) end
+end
+
+function W.EnterLeveling()
+    if W.leveling then LevelingEnter() end
 end
 
 return W

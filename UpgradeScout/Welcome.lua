@@ -10,22 +10,23 @@ local L = ns.L
 -- been seen.
 --
 -- It comes up by itself once more for a player who has Pawn, the first time since Pawn could
--- be chosen in it, and likewise for one who has Forever Companion (see Due).
+-- be chosen in it, and likewise for one who has Forever Companion or Forever Leveling BiS
+-- (see Due).
 --
 -- Top to bottom:
 --   what the addon is, in a sentence
---   who scores gear: the addon by its own weights, Pawn by the player's Pawn scales, or
---     Forever Companion by its gear scales (Score.Engine). A button for each, side by side;
---     another addon's is grey while that addon is not there, and says why in a tooltip of
---     its own
+--   who scores gear: the addon by its own weights, Pawn by the player's Pawn scales,
+--     Forever Companion by its gear scales, or Forever Leveling BiS by the spec chosen in it
+--     (Score.Engine). A button for each, side by side; another addon's is grey while that
+--     addon is not there, and says why in a tooltip of its own
 --   the talent tree the character is played with, a button for each profile of its class
 --     (the one in use is lit: see Score.Current). With another addon scoring, the
---     character's scales there
+--     character's scales there; with Forever Leveling BiS the one button, its main spec there
 --   what the addon puts into the game. Two cards side by side: the tabs at the auction house
 --     and the arrows in the bags, each with a picture of the thing as it looks in the game,
 --     its name and a sentence. The arrows can be switched off, by the tick box before the
---     name (ns.Shows). With Forever Companion scoring and drawing its own arrows, ours give
---     way to them: the card says so, and its box is out of use.
+--     name (ns.Shows). With Forever Companion or Forever Leveling BiS scoring and drawing
+--     its own arrows, ours give way to them: the card says so, and its box is out of use.
 --   under them, as wide as both, the block of the lines in an item's tooltip, which has more
 --     to ask. On its left the picture of a tooltip; on its right the name, a sentence and
 --     what is asked.
@@ -39,8 +40,8 @@ local L = ns.L
 --     The picture shows what the answers come to, and fades when nothing shows.
 --     With Pawn scoring, the score in a tooltip is Pawn's to write: the block says so in
 --     place of its sentence, and what is asked of the score is out of use. The notes are
---     ours whoever scores, and their box stays. The same with Forever Companion scoring,
---     while it writes its own line into tooltips.
+--     ours whoever scores, and their box stays. The same with Forever Companion or Forever
+--     Leveling BiS scoring, while it writes its own lines into tooltips.
 --   how to get the window back, and the button that closes it
 -- Everything is laid out from the height its texts turn out to have (see Layout): a language
 -- with longer words gets a taller window, not a cut sentence.
@@ -59,6 +60,9 @@ local PICTURE = 112             -- the height of a card's picture
 local TREE_HEIGHT = 28
 local TREES_IN_ROW = 4          -- more buttons than this (Pawn scales can be many) go in rows
 local TREE_ROW_GAP = 7          -- between two such rows
+-- A button of "who scores": the room the diamond of the one that is lit takes before its
+-- name, and the least room to spare beside the two on a button as wide as the others.
+local ENGINE_MARK, ENGINE_SPARE = 17, 8
 -- The tooltip's block: its width; the width of the tooltip in its picture and of the room that
 -- picture has on the left; where its words begin and how much room they have; the height of
 -- the two buttons, their least width, and the room between two things in a row.
@@ -92,7 +96,8 @@ local frame                     -- the window, made when it is first shown
 local greeting = false          -- it is up for the first time: its first words are a welcome
 local offering                  -- it is up for the first time since another addon could be chosen
                                 -- in it to score, for a player who has that addon (Pawn, Forever
-                                -- Companion): the words that say so, which come first
+                                -- Companion, Forever Leveling BiS): the words that say so, which
+                                -- come first
 
 -- A part of a line in the softer colour: what is said in passing after what is asked.
 local SOFT_CODE = string.format("|cff%02x%02x%02x", SOFT[1] * 255, SOFT[2] * 255, SOFT[3] * 255)
@@ -551,8 +556,9 @@ end
 ---------------------------------------------------------------------------
 -- The answers are buttons of the same make as the trees', side by side: the addon itself,
 -- and each of the addons that can score in its place (Score.Others: Pawn, Forever
--- Companion). `engine` is what a click on one makes of Score.Engine: nil, "pawn" or
--- "companion". Another addon's cannot be chosen while that addon is not there (`off`, see
+-- Companion, Forever Leveling BiS). `engine` is what a click on one makes of Score.Engine:
+-- nil, "pawn", "companion" or "leveling". Another addon's cannot be chosen while that addon
+-- is not there (`off`, see
 -- Paint): it is grey, a click does nothing, and with the mouse on it a tooltip says why
 -- (`absent`). (The button is not switched off the game's way: one that is hears nothing of
 -- the mouse.)
@@ -594,16 +600,30 @@ local function Layout()
     down = down + 13
 
     -- Who scores: the question, and its answers side by side, each as wide as the others.
+    -- That holds while every name has room on such a button with the diamond before it, as
+    -- on the one that is lit; in the game's own fonts the longest has some to spare. In a
+    -- wider font (a player may have another addon change the game's) the buttons share the
+    -- row by the length of their names instead, each with the same room around its name.
     frame.Who:ClearAllPoints()
     frame.Who:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + 2, -down)
     down = down + frame.Who:GetStringHeight() + 9
     local answers = #frame.Engines
-    local each = (WIDTH - 2 * EDGE - (answers - 1) * GAP) / answers
+    local room = WIDTH - 2 * EDGE - (answers - 1) * GAP
+    local each = room / answers
+    local needs, needed, alike = {}, 0, true
+    for i = 1, answers do
+        needs[i] = frame.Engines[i].Label:GetUnboundedStringWidth() + ENGINE_MARK
+        needed = needed + needs[i]
+        if needs[i] + ENGINE_SPARE > each then alike = false end
+    end
+    local across = EDGE
     for i = 1, answers do
         local button = frame.Engines[i]
-        button:SetWidth(each)
+        local width = alike and each or needs[i] + math.max(0, room - needed) / answers
+        button:SetWidth(width)
         button:ClearAllPoints()
-        button:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + (i - 1) * (each + GAP), -down)
+        button:SetPoint("TOPLEFT", frame, "TOPLEFT", across, -down)
+        across = across + width + GAP
     end
     down = down + TREE_HEIGHT + 15
 
@@ -783,8 +803,9 @@ Paint = function()
     if other then about.place = 1 end
 
     -- The two cards. The arrows in the bags are ours whoever scores, but for one case: the
-    -- addon that scores draws its own there (Forever Companion, while its options say so:
-    -- Score.DrawsArrows), and ours give way to them (Bags.lua). The card then says who
+    -- addon that scores draws its own there (Forever Companion or Forever Leveling BiS,
+    -- while its options say so: Score.DrawsArrows), and ours give way to them (Bags.lua).
+    -- The card then says who
     -- draws them, and its box is empty, dim and out of the mouse's reach. What the box was
     -- left at is kept for when ours are drawn again.
     local theirs = ns.Score.DrawsArrows()
@@ -823,9 +844,10 @@ Paint = function()
     -- empty, and the two buttons dim. What a box was left at is kept for when the addon
     -- scores again.
     -- The notes under a row of our tabs are ours whoever scores: their box is always in use.
-    -- All of that goes for Forever Companion scoring as for Pawn, while it writes its own
-    -- line into tooltips (Score.Writes). With that line switched off in its options the
-    -- score in a tooltip is ours to write, on its scales, and the block is in use as ever.
+    -- All of that goes for Forever Companion or Forever Leveling BiS scoring as for Pawn,
+    -- while it writes its own lines into tooltips (Score.Writes). With those switched off in
+    -- its options the score in a tooltip is ours to write, on its scales, and the block is in
+    -- use as ever.
     local block = frame.Tips
     local tabs, elsewhere, notes = PaintSwitch(block.Tabs), PaintSwitch(block.Elsewhere), PaintSwitch(block.Notes)
     local others = #ns.Roster.List() > (me and 1 or 0)
@@ -968,8 +990,8 @@ function Welcome.Show()
     if not frame then Build() end
     -- The first words are a welcome until the window has been seen once.
     greeting = not ns.account.welcomed
-    -- Seen before, but not since Pawn or Forever Companion could be chosen in it, by a
-    -- player who has that addon: the first words are about that.
+    -- Seen before, but not since Pawn, Forever Companion or Forever Leveling BiS could be
+    -- chosen in it, by a player who has that addon: the first words are about that.
     offering = not greeting and Unseen() or nil
     Paint()
     frame:Show()
@@ -1009,7 +1031,8 @@ ns.On("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
 -- middle of a fight: the window waits for the end of it.
 -- The same once more for a player who has Pawn and saw the window before Pawn could be
 -- chosen in it (2.6.0): nothing else would tell them of the choice. And once more for one
--- who has Forever Companion, which could be chosen from 2.8.0.
+-- who has Forever Companion, which could be chosen from 2.8.0, or Forever Leveling BiS, from
+-- 2.11.0.
 local waiting = false
 
 -- Has the window a reason to come up by itself?

@@ -65,6 +65,10 @@ read_globals = {
             db = { other_fields = true, read_only = false },
         },
     },
+    -- and Forever Leveling BiS, for a player who has it and chose it to score (Leveling.lua):
+    -- the table it keeps for other addons, and what it saves (its switch for its lines in a
+    -- tooltip is set there for the length of a call and put back: Leveling.Hushed)
+    "ForeverLevelingBiS_API", "ForeverLevelingBiSDB",
 }
 
 -- What the addon writes: its saved variables and its slash command.

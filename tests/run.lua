@@ -23,6 +23,7 @@ local names = {
     "companion_scan", "companion_absent", "companion_tooltips", "companion_welcome", "companion_supplies", "companion_alt",
     "companion_chance",
     "scan_listed",
+    "leveling_scan", "leveling_hands", "leveling_absent", "leveling_tooltips", "leveling_welcome", "leveling_supplies", "leveling_alt",
 }
 
 if not scenario then
@@ -7505,7 +7506,7 @@ function scenarios.companion_welcome()
     W.Fire("PLAYER_ENTERING_WORLD")
     W.RunUntil(function() return UpgradeScoutWelcome ~= nil end, 10)
     local window = UpgradeScoutWelcome
-    eq(#window.Engines, 3, "who scores: three answers")
+    eq(#window.Engines, 4, "who scores: four answers, Forever Companion's the third")
     local own, pawn, theirs = window.Engines[1], window.Engines[2], window.Engines[3]
     eq(own.Label:GetText(), "Upgrade Scout", "the addon"); eq(pawn.Label:GetText(), "Pawn", "Pawn")
     eq(theirs.Label:GetText(), "Forever Companion", "and Forever Companion, each by its name")
@@ -7981,6 +7982,1103 @@ function scenarios.companion_chance()
     local worded = Score.Item(W.Link(331))
     eq(worded.companion, handed[331], "the same for one it read as percent")
     near(Score.Value(worded, key), 2 * 30 + 4, "which scores what it reads")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+---------------------------------------------------------------------------
+-- Forever Leveling BiS as the one who scores (Leveling.lua)
+---------------------------------------------------------------------------
+-- The warrior's three specs and the druid's four, as that addon has them, each with weights
+-- under its own names for the stats. Of the warrior's, Arms scores an item of the tests as
+-- their first profile does and Fury as the second (see W.InstallLeveling), so the standard
+-- world reads by Arms as it does by the addon itself.
+local MAIN_ARMS, MAIN_FURY = "@WARRIOR:arms:twohand", "@WARRIOR:fury:twohand"
+
+local function LevelingWorld()
+    W.InstallLeveling()
+    W.AddLevelingSpecs("WARRIOR", { "arms", "fury", "protection" })
+    W.AddLevelingSpecs("DRUID", { "balance", "feral", "bear", "restoration" })
+    W.SetLevelingWeights("WARRIOR", "arms", { str = 1.5, agi = 1, sta = 0.5, atkpwr = 0.4, critPct = 8, dps = 2, ohDps = 1 })
+    W.SetLevelingWeights("WARRIOR", "fury", { str = 1, sta = 1, dps = 1 })
+    W.SetLevelingWeights("WARRIOR", "protection", { sta = 2, armor = 0.1, block = 0.5 })
+    W.SetLevelingWeights("DRUID", "balance", { int = 1, splpwr = 1, spldmg = 1, critPct = 6 })
+    W.SetLevelingWeights("DRUID", "feral", { agi = 1, str = 1, feratkpwr = 0.5, dps = 3 })
+    W.SetLevelingWeights("DRUID", "bear", { sta = 1.5, agi = 1, armor = 0.1 })
+    W.SetLevelingWeights("DRUID", "restoration", { splheal = 1, splpwr = 1, int = 0.5 })
+end
+
+-- The talent trees by the names the game has for them, as the addon's own table of them has
+-- in the game (the tests' own profiles are named otherwise: see TestWeights).
+local function TreeNames()
+    local trees = ns.Weights.titles.enUS
+    trees.DRUID_BALANCE, trees.DRUID_FERAL_CAT, trees.DRUID_FERAL_BEAR = "Balance", "Feral Combat", "Feral Combat"
+    trees.DRUID_RESTORATION, trees.HUNTER_SURVIVAL, trees.PALADIN_HOLY = "Restoration", "Survival", "Holy"
+end
+
+-- Forever Leveling BiS was asked about no item with its enchantment on.
+local function CheckLevelingAsked(label)
+    for _, ask in ipairs(W.leveling.asked) do
+        check(not ask.link:match("item:%d+:%d"), label .. ": Forever Leveling BiS is asked for the score of an item without its enchantment")
+    end
+    for _, link in ipairs(W.leveling.gains) do
+        check(not link:match("item:%d+:%d"), label .. ": and whether it is for the character the same way")
+    end
+end
+
+-- Has the tooltip Forever Leveling BiS's own block?
+local function LevelingBlock(tooltip)
+    for _, line in ipairs(tooltip._lines) do
+        if line.text:find("Forever Leveling BiS:", 1, true) then return true end
+    end
+    return false
+end
+
+-- The road of a player who has Forever Leveling BiS: the addon scores by itself until it is
+-- chosen, then by its score for the main spec chosen in it, and the lists are made the same
+-- way from its numbers.
+function scenarios.leveling_scan()
+    StandardWorld()
+    -- The worn chest is enchanted. On the second score: the two chests 9 (for sale) and 12
+    -- (worn), a helm, a two-hander and a shield.
+    W.equipped[5] = (W.Link(100):gsub("item:100:", "item:100:66", 1))
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.items["211:0"].value2, W.items["212:0"].value2, W.items["213:0"].value2 = 5, 40, 8
+    LevelingWorld()
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score, S, me = ns.Score, ns.Scanner, ns.Roster.Me()
+    local function Idle() return S.state == "idle" end
+
+    -- It is there and not chosen: the addon scores by itself and asks it about no item.
+    eq(ns.Leveling.Usable(), true, "Forever Leveling BiS is there to be asked"); eq(Score.Engine(), nil, "and is not, until chosen")
+    eq(Score.Current().name, "S1", "the profiles are the addon's own")
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local frame = UpgradeScoutFrame
+    local dropdown = frame.ProfileDropdown
+    ScanToEnd()
+    CheckStandardOffers("the addon's own weights, with Forever Leveling BiS installed")
+    eq(#W.leveling.asked, 0, "Forever Leveling BiS is asked about no item"); eq(#W.leveling.gains, 0, "in no way")
+    eq(#dropdown.radios, 2, "the field lists the addon's profiles"); eq(dropdown:GetText(), "Arms", "the one in use")
+
+    -- Chosen, as the welcome window does it: for the whole account, and at once.
+    local told = 0
+    ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
+    Score.SetEngine("leveling")
+    eq(UpgradeScoutDB.engine, "leveling", "the choice is written down for the account"); eq(Score.Engine(), "leveling", "and Forever Leveling BiS scores")
+    eq(told, 1, "what keeps scores is told")
+    local current, list = Score.Current()
+    eq(#list, 1, "the character being played has one profile: its main spec in Forever Leveling BiS")
+    eq(current.name, MAIN_ARMS, "with none chosen there, the first of its class, and the way it fills its hands")
+    eq(current.title, "Arms", "by the name of its talent tree")
+    eq(Score.Title(MAIN_ARMS), "Arms", "a spec's title by its profile"); eq(Score.IsApprox(MAIN_ARMS), false, "no spec is marked as an estimate")
+    eq(#Score.Trees(), 2, "the addon's own profiles are still there to be asked for")
+
+    -- The list that was there is made again, by its score.
+    check(S.state ~= "idle", "a list that was made on the addon's weights is made again")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, MAIN_ARMS, "on the main spec")
+    CheckStandardOffers("Forever Leveling BiS, on the first spec")
+    near(S.ctx.equipped[5].value, 10, "what is worn is scored by it, without its enchantment")
+    near(S.ctx.equipped[16].value, 20, "every piece of it")
+    eq(S.ctx.show1H, true, "a spec is offered one-handed weapons"); eq(S.ctx.show2H, true, "and two-handed ones")
+    CheckLevelingAsked("a scan")
+    eq(#dropdown.radios, 1, "the field has the one line"); eq(dropdown.radios[1].text, "Arms", "the main spec")
+    eq(dropdown:GetText(), "Arms", "which it shows")
+    dropdown._tooltip(GameTooltip)
+    local tip = {}
+    for _, line in ipairs(GameTooltip._lines) do tip[#tip + 1] = line.text end
+    check(table.concat(tip, " | "):find(ns.L.PROFILE_TIP_LEVELING, 1, true) ~= nil, "its tooltip says where the main spec is chosen")
+    dropdown:Pick(1)
+    W.Run(0.5)
+    eq(told, 1, "the one line clicked: nothing changes"); eq(S.state, "idle", "and the list stays")
+    eq(me.leveling, nil, "nothing is written on the card of the character being played")
+    eq(me.profile, nil, "the addon's own profile is left alone")
+
+    -- Another main spec chosen in Forever Leveling BiS: the addon hears of it, and the list
+    -- follows.
+    Score.Current()
+    W.LevelingChar().spec = "fury"
+    W.LevelingChanged()
+    W.Run(0.5)
+    eq(told, 2, "another main spec chosen there: what keeps scores is told")
+    eq(Score.Current().name, MAIN_FURY, "the profile is the main spec it has now")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, MAIN_FURY, "the list follows"); eq(dropdown:GetText(), "Fury", "and so does the field")
+    check(Offer("Helm") ~= nil, "a helm for the empty head, by its score for that spec")
+    check(Offer("Shield") ~= nil, "a shield for the empty off hand")
+    check(Offer("Big Axe") ~= nil, "and a two-hander")
+    eq(Offer("Good Chest"), nil, "the chest is no upgrade for it: 9 against 12")
+    eq(OfferCount(), 3, "and nothing else")
+
+    -- It calls for other reasons too (the gear changed, an item was loaded): nothing of
+    -- what the scores rest on changed.
+    W.LevelingChanged()
+    W.Run(0.5)
+    eq(told, 2, "it says something changed, with its answers as they were: nothing is told"); eq(S.state, "idle", "and the list stays")
+    -- The spec's weights are changed in its own window.
+    W.SetLevelingWeights("WARRIOR", "fury", { str = 1, sta = 2, dps = 1 })
+    W.LevelingChanged()
+    W.Run(0.5)
+    eq(told, 3, "the weights of the main spec changed: what keeps scores is told")
+    W.RunUntil(Idle, 600)
+    W.SetLevelingWeights("WARRIOR", "fury", { str = 1, sta = 3, dps = 1 })
+    W.LevelingChanged()
+    W.SetLevelingWeights("WARRIOR", "fury", { str = 1, sta = 1, dps = 1 })
+    W.LevelingChanged()
+    W.Run(0.5)
+    eq(told, 4, "a burst of changes is one telling")
+    W.RunUntil(Idle, 600)
+    -- Another way to fill the hands chosen there for the spec.
+    W.LevelingChar().weapons = { ["WARRIOR:fury"] = "dualwield" }
+    W.LevelingChanged()
+    W.Run(0.5)
+    eq(told, 5, "another weapon setup: what keeps scores is told")
+    eq(Score.Current().name, "@WARRIOR:fury:dualwield", "and the profile names it")
+    W.RunUntil(Idle, 600)
+
+    -- A main spec found changed with nobody saying so: its answer is asked for again after
+    -- a moment, and not each time.
+    Score.Current()
+    W.LevelingChar().spec = "arms"
+    local asked = W.leveling.specAsked
+    for _ = 1, 20 do Score.Current() end
+    eq(W.leveling.specAsked, asked, "asked many times in a moment, the main spec is not asked for each time")
+    W.Run(3)
+    eq(Score.Current().name, MAIN_ARMS, "an answer grown old is asked for again")
+    W.Run(0.5)
+    eq(told, 6, "and, being new, told")
+    W.RunUntil(Idle, 600)
+    CheckStandardOffers("Forever Leveling BiS, back on the first spec")
+
+    -- /upscout stats: the stats as the game counts them on the spec's weights, by Forever
+    -- Leveling BiS's words for them, and its own score, which counts more than those.
+    local good = W.items["200:0"]
+    good.game, good.leveling, good.bonus = { ITEM_MOD_STRENGTH_SHORT = 4 }, { str = 4 }, 3
+    local at = #W.printed + 1
+    SlashCmdList.UPGRADESCOUT("stats " .. W.Link(200))
+    local said = Said(at)
+    check(said:find('on the profile "Arms": score 27', 1, true) ~= nil, "the main spec and Forever Leveling BiS's own score for it: " .. said)
+    check(said:find("Strength: 4 × 1.5 = 6", 1, true) ~= nil, "a stat by its word for it, with the spec's weight")
+    check(said:find("TEST_S1", 1, true) == nil, "a stat it has no weight for is left out")
+    good.game, good.leveling, good.bonus = nil, nil, nil
+
+    -- It has no answer about the character: no main spec, no scan, and the reason.
+    W.leveling.ready = false
+    W.LevelingChanged()
+    W.Run(0.5)
+    eq(told, 7, "its answers gone: what keeps scores is told")
+    eq(Score.Current(), nil, "no main spec to be had: none in use")
+    eq(S.Start(), false, "and no scan"); eq(S.message, ns.L.ERR_NO_SCALE_LEVELING, "which says why")
+    W.leveling.ready = true
+    W.LevelingChanged()
+    W.Run(0.5)
+    W.RunUntil(Idle, 600)
+    eq(Score.Current().name, MAIN_ARMS, "its answers back, the main spec back")
+    CheckLevelingAsked("answers coming and going")
+
+    -- Back to the addon's own weights: its profile is where it was left.
+    Score.SetEngine(nil)
+    eq(UpgradeScoutDB.engine, nil, "the addon's own weights chosen again: nothing is left written")
+    eq(Score.Current().name, "S1", "the addon's profile as it was")
+    W.RunUntil(Idle, 600)
+    eq(#dropdown.radios, 2, "the field lists the addon's profiles again")
+    local before = #W.leveling.asked
+    ScanToEnd()
+    CheckStandardOffers("the addon's own weights again")
+    eq(#W.leveling.asked, before, "and Forever Leveling BiS is asked about no item")
+
+    -- Another character of the account can be scored on any spec of its class: the one
+    -- chosen for it in the addon's field, then its main spec as Forever Leveling BiS last
+    -- saved it, then the one for its talents, then the first.
+    Score.SetEngine("leveling")
+    TreeNames()
+    local saved = ForeverLevelingBiSDB.chars
+    local function Other(card)
+        card.key, card.name, card.realm = card.key or "P", card.name or "P", card.realm or "Testrealm"
+        return card
+    end
+    local picked, all = Score.Current(Other({ class = "DRUID", talents = "DRUID_FERAL_BEAR" }))
+    eq(#all, 4, "another character: every spec Forever Leveling BiS has for its class")
+    eq(all[1].name, "DRUID:balance", "each by its class and its key there"); eq(all[1].title, "Balance", "and the name of its talent tree")
+    eq(all[2].title, "Feral Combat (Cat)", "a druid's two of one tree are told apart by the shape")
+    eq(all[3].title, "Feral Combat (Bear)", "each of them"); eq(all[4].title, "Restoration", "the last")
+    eq(picked.name, "DRUID:bear", "the one in use: the spec for the tree its talents are in")
+    eq(Score.Current(Other({ class = "DRUID" })).name, "DRUID:balance", "with nothing to go by: the first")
+    eq(Score.Current(Other({ class = "DRUID", talents = "DRUID_FERAL_BEAR", leveling = "restoration" })).name, "DRUID:restoration",
+        "under the spec chosen for it in the addon's field")
+    eq(Score.Current(Other({ class = "DRUID", talents = "DRUID_FERAL_CAT", leveling = "gone" })).name, "DRUID:feral",
+        "a choice that is no spec any more gives way to the talents")
+    saved["Alty-Testrealm"] = { spec = "bear", weapons = { ["DRUID:bear"] = "held" } }
+    local alt = Other({ key = "Alty-Testrealm", name = "Alty", class = "DRUID", talents = "DRUID_BALANCE" })
+    eq(Score.Current(alt).name, "DRUID:bear:held", "its main spec as saved there comes before its talents, with the way it fills its hands")
+    alt.leveling = "feral"
+    eq(Score.Current(alt).name, "DRUID:feral", "and after the choice made in the addon's field")
+    alt.leveling, alt.realm = nil, "Elsewhere"
+    eq(Score.Current(alt).name, "DRUID:balance", "a character of another realm is another character there")
+    -- Forever Leveling BiS keeps a character by its full name: the first name and the surname.
+    saved["Bob Hopes-Testrealm"] = { spec = "feral" }
+    eq(Score.Current(Other({ key = "Bob Hopes", name = "Bob", last = "Hopes", class = "DRUID" })).name, "DRUID:feral",
+        "a character with a surname is found by both names")
+    saved["Alty-Testrealm"].spec = "nonsense"
+    alt.realm = "Testrealm"
+    eq(Score.Current(alt).name, "DRUID:balance", "a saved spec that is none of the class's is passed over")
+    -- A priest has three specs there and two profiles here; a hunter four specs for three trees.
+    W.AddLevelingSpecs("PRIEST", { "discipline", "holy", "shadow" })
+    W.AddLevelingSpecs("HUNTER", { "beastmastery", "marksmanship", "survival", "survivalmelee" })
+    picked, all = Score.Current(Other({ class = "PRIEST", talents = "PRIEST_HEALER" }))
+    eq(picked.name, "PRIEST:holy", "a priest that heals: Holy stands for either of its healing trees")
+    eq(all[1].title, ns.L.TREE_DISCIPLINE, "Discipline by the game's name for the tree"); eq(all[2].title, "Holy", "Holy by the word a paladin's is")
+    eq(Score.Current(Other({ class = "PRIEST", talents = "PRIEST_SHADOW" })).name, "PRIEST:shadow", "its Shadow by the tree")
+    picked, all = Score.Current(Other({ class = "HUNTER", talents = "HUNTER_SURVIVAL" }))
+    eq(picked.name, "HUNTER:survival", "a hunter of the Survival tree: the first of the two specs for it")
+    eq(all[3].title, "Survival (Ranged)", "which are told apart by the way of fighting"); eq(all[4].title, "Survival (Melee)", "in the game's words")
+    eq(Score.Current(Other({ class = "HUNTER", talents = "HUNTER_BEAST_MASTERY" })).name, "HUNTER:beastmastery", "a tree named in two words")
+    eq(Score.Current(Other({ class = "MAGE" })), nil, "a class it has no specs for: none")
+    eq(Score.Title("DRUID:bear:held"), "Feral Combat (Bear)", "a profile's title leaves the weapon setup out")
+    eq(Score.Title("no such thing"), "no such thing", "what is no profile is its own title")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- A weapon is worth one thing in the main hand and another in the off hand to Forever
+-- Leveling BiS, and the lists keep the two apart; and a weapon it says is not for the spec
+-- is not offered.
+function scenarios.leveling_hands()
+    W.player.dualWield = true
+    local function Blade(id, name, dps, level, more)
+        local def = { id = id, name = name, equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 7, value = 0, dps = dps, level = level }
+        for key, value in pairs(more or {}) do def[key] = value end
+        return W.AddItem(def)
+    end
+    Blade(400, "Main Blade", 10, 5)
+    Blade(401, "Off Blade", 8, 5)
+    Blade(402, "New Blade", 12, 8)
+    Blade(403, "Odd Blade", 30, 8, { notFor = true })
+    Blade(404, "Left Blade", 11, 8, { equipLoc = "INVTYPE_WEAPONOFFHAND" })
+    Blade(405, "Great Axe", 16, 8, { equipLoc = "INVTYPE_2HWEAPON", subClassID = 1 })
+    W.AddItem({ id = 406, name = "Buckler", equipLoc = "INVTYPE_SHIELD", subClassID = 6, value = 7, level = 6 })
+    W.equipped[16], W.equipped[17] = W.Link(400), W.Link(401)
+    for id = 402, 406 do W.AddAuction(id, 1000) end
+    LevelingWorld()
+    UpgradeScoutDB = { engine = "leveling" }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score, S = ns.Score, ns.Scanner
+    eq(Score.Engine(), "leveling", "Forever Leveling BiS scores"); eq(Score.Current().name, MAIN_ARMS, "on the main spec")
+
+    -- The spec weighs a point of damage per second 2 in the main hand and 1 in the off hand.
+    local ctx = Score.Context(MAIN_ARMS)
+    near(ctx.equipped[16].value, 20, "the weapon in the main hand, at what it is worth there")
+    near(ctx.equipped[17].value, 8, "the one in the off hand, at what it is worth in the off hand")
+    local blade = Score.Item(W.Link(402))
+    near(Score.Value(blade, MAIN_ARMS, 10), 24, "a weapon for one hand: its score is the main hand's")
+    near(Score.OffValue(blade, MAIN_ARMS, 10), 12, "with another for the off hand")
+    local left = Score.Item(W.Link(404))
+    near(Score.Value(left, MAIN_ARMS, 10), 11, "a weapon made for the off hand has the one score, the off hand's")
+    eq(Score.OffValue(left, MAIN_ARMS, 10), nil, "and no second one")
+    eq(Score.OffValue(Score.Item(W.Link(405)), MAIN_ARMS, 10), nil, "nor has a two-hander")
+    eq(Score.OffValue(Score.Item(W.Link(406)), MAIN_ARMS, 10), nil, "nor a shield")
+    eq(Score.ClassCanUse(Score.Item(W.Link(403)), nil), false, "a weapon Forever Leveling BiS says the character cannot use now is not for it")
+    eq(Score.ClassCanUse(blade, nil), true, "one it has a gain for is")
+    eq(Score.ClassCanUse(Score.Item(W.Link(403)), { class = "WARRIOR", level = 10 }), true, "and it is not asked about another character")
+    W.items["402:0"].cached = false
+    eq(Score.Item(W.Link(402)), nil, "an item the client has not loaded has no answer yet")
+    W.items["402:0"].cached = true
+
+    W.OpenAuctionHouse()
+    -- (Every price is to be looked up, also of what a better weapon for the same gold leaves out.)
+    SetView(false, false)
+    ScanToEnd()
+    local offer = Offer("New Blade")
+    check(offer ~= nil, "a better blade is in the list")
+    near(offer.value, 24, "at its score for the main hand"); near(offer.offValue, 12, "with the one for the off hand beside it")
+    local gains = ns.Compare.Gains(offer, S.ctx)
+    eq(#gains, 2, "it can go in either hand")
+    eq(gains[1].group, "MAINHAND", "in the main hand"); near(gains[1].delta, 4, "24 against 20")
+    eq(gains[2].group, "OFFHAND", "in the off hand"); near(gains[2].delta, 4, "12 against 8: both at what they are worth there")
+    near(gains[2].base, 8, "against the worn one's worth there")
+    local worn = {}
+    ns.Compare.Wear(worn, offer, gains[2])
+    near(worn[17].value, 12, "put on in the off hand, it counts for what it is worth there")
+    ns.Compare.Wear(worn, offer, gains[1])
+    near(worn[16].value, 24, "and in the main hand for its score")
+    check(Offer("Left Blade") ~= nil, "a weapon for the off hand: 11 against 8"); eq(Offer("Left Blade").offValue, nil, "with its one score")
+    check(Offer("Great Axe") ~= nil, "a two-hander against both hands, the off hand at what it is worth there: 32 against 28")
+    eq(Offer("Buckler"), nil, "a shield is no upgrade on the blade in the off hand: 7 against 8")
+    eq(Offer("Odd Blade"), nil, "the weapon that is not for the spec is not offered, for all its score")
+    -- What Forever Leveling BiS was asked: the worn off-hand weapon as one in the off hand.
+    local asMain, asOff = false, false
+    for _, ask in ipairs(W.leveling.asked) do
+        if ask.link:find("item:401:", 1, true) then
+            if ask.offHand then asOff = true else asMain = true end
+        end
+    end
+    eq(asOff, true, "the weapon worn in the off hand is asked about as one held there"); eq(asMain, false, "and not as one in the main hand")
+    local refused = 0
+    for _, link in ipairs(W.leveling.gains) do
+        local id = tonumber(link:match("item:(%d+)"))
+        check(id >= 402 and id <= 406, "whether an item is for the character is asked of what is for sale, not of what is worn")
+        if id == 403 then refused = refused + 1 end
+    end
+    check(refused >= 1, "the odd blade among them")
+    CheckLevelingAsked("weapons")
+
+    -- With anyone else scoring a weapon has the one score, for either hand.
+    Score.SetEngine(nil)
+    eq(Score.OffValue(Score.Item(W.Link(402)), "S1", 10), nil, "the addon's own weights: no second score for the off hand")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- Forever Leveling BiS chosen and not there: the addon scores by itself, and the choice stands.
+function scenarios.leveling_absent()
+    StandardWorld()
+    UpgradeScoutDB = { engine = "leveling" }
+    LoadAddon()
+    local Score = ns.Score
+    eq(ns.Leveling.Usable(), false, "Forever Leveling BiS is not installed"); eq(Score.Engine(), nil, "so the addon scores, though it was chosen")
+    eq(Score.Current().name, "S1", "on its own profiles")
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    CheckStandardOffers("Forever Leveling BiS chosen and not installed")
+    eq(UpgradeScoutDB.engine, "leveling", "the choice stands for when it is back")
+
+    -- It is there but does not know the character yet, as in the moments of logging in:
+    -- its API has no answers then.
+    LevelingWorld()
+    W.leveling.ready = false
+    eq(ns.Leveling.Usable(), false, "before it knows the character it cannot be asked"); eq(Score.Engine(), nil, "and is not")
+    eq(Score.Current().name, "S1", "the addon's profiles meanwhile")
+    W.leveling.ready = true
+    eq(Score.Engine(), "leveling", "once it does, it scores, as chosen")
+    eq(Score.Current().name, MAIN_ARMS, "on its main spec")
+    local asked = W.leveling.specAsked
+    for _ = 1, 50 do Score.Engine() end
+    eq(W.leveling.specAsked, asked, "that it is there is not found out anew each time")
+
+    -- An API older than the one that scores, or without a function the addon calls, is one
+    -- that cannot be asked.
+    ForeverLevelingBiS_API.version = 1
+    eq(ns.Leveling.Usable(), false, "its first API had no scores"); eq(Score.Engine(), nil, "and leaves the scoring to the addon")
+    ForeverLevelingBiS_API.version = 2
+    local kept = ForeverLevelingBiS_API.ScoreItem
+    ForeverLevelingBiS_API.ScoreItem = nil
+    eq(ns.Leveling.Usable(), false, "one that lacks a function the addon calls"); eq(Score.Engine(), nil, "leaves it to the addon too")
+    ForeverLevelingBiS_API.ScoreItem = kept
+    eq(Score.Engine(), "leveling", "with everything in place it scores")
+    -- What it is asked only where it is there can be missing.
+    local gain, keys = ForeverLevelingBiS_API.GetGain, ForeverLevelingBiS_API.GetStatKeys
+    ForeverLevelingBiS_API.GetGain, ForeverLevelingBiS_API.GetStatKeys = nil, nil
+    eq(ns.Leveling.Usable(), true, "without its word on what a character can wear it still scores")
+    eq(Score.ClassCanUse(Score.Item(W.Link(212)), nil), true, "and no weapon is refused for it")
+    local parts = Score.Parts(Score.Item(W.Link(200)), MAIN_ARMS, 10)
+    eq(#parts, 0, "nor is it an error to ask for a sum without its words for the stats")
+    ForeverLevelingBiS_API.GetGain, ForeverLevelingBiS_API.GetStatKeys = gain, keys
+
+    -- Switched off for the next session: the addon's weights again, without a word.
+    Relog(W.player, W.equipped)
+    W.RemoveLeveling()
+    eq(ns.Score.Engine(), nil, "Forever Leveling BiS switched off: the addon scores")
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    CheckStandardOffers("Forever Leveling BiS switched off")
+    eq(UpgradeScoutDB.engine, "leveling", "and the choice still stands")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- With Forever Leveling BiS scoring: while it writes its own block and draws its own arrows,
+-- none of ours beside them; with either switched off in its settings, ours in its place, by
+-- its score.
+function scenarios.leveling_tooltips()
+    StandardWorld()
+    W.AddItem({ id = 220, name = "Oak Wand", equipLoc = "INVTYPE_RANGEDRIGHT", classID = 2, subClassID = 19, value = 9, level = 5 })
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.items["212:0"].value2 = 40
+    -- A shirt and a trinket that is only used, as most characters wear.
+    W.AddItem({ id = 230, name = "Lucky Charm", equipLoc = "INVTYPE_TRINKET", value = 0, level = 1, noStats = true })
+    W.equipped[4] = W.Link(207)
+    W.equipped[13] = W.Link(230)
+    LevelingWorld()
+    -- It was chosen in an earlier session.
+    UpgradeScoutDB = { engine = "leveling" }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score = ns.Score
+    local kept = ForeverLevelingBiSDB
+    eq(ns.Leveling.Item(W.Link(207)).leveling, false, "a shirt is not gear: there is nothing to read, and that is an answer")
+    eq(Score.Context(MAIN_ARMS).unread, nil, "wearing one, the gear is whole")
+    eq(Score.Engine(), "leveling", "Forever Leveling BiS scores, as chosen before"); eq(Score.Current().name, MAIN_ARMS, "on the main spec")
+
+    -- What an item does beyond its stats: a use and a chance on hit count as not scored;
+    -- what it does while worn is a stat where the game's tables say so.
+    local function Effects(id) return Score.HasUnscoredEffects(Score.Item(W.Link(id))) end
+    local good = W.items["200:0"]
+    eq(Effects(201), true, "a use: not counted"); eq(Effects(200), false, "an item of plain stats")
+    good.equipLine = true
+    eq(Effects(200), true, "what it does while worn, which the game's tables know no stat for")
+    ns.GearData.extra[200] = { ITEM_MOD_ATTACK_POWER_SHORT = 14 }
+    eq(Effects(200), false, "the same where they do: counted")
+    ns.GearData.extra[200] = nil
+    good.equipLine, good.procLine = nil, true
+    eq(Effects(200), true, "a chance on hit")
+    good.procLine = nil
+
+    -- Does the tooltip have lines of ours? Our header, then what is under it, joined by " | ".
+    local function Ours(tooltip)
+        local header
+        for i, line in ipairs(tooltip._lines) do
+            if line.text:find("Upgrade Scout", 1, true) then header = i end
+        end
+        if not header then return nil end
+        local out = {}
+        for i = header + 1, #tooltip._lines do
+            local line = tooltip._lines[i]
+            out[#out + 1] = line.text .. (line.right and " " .. line.right or "")
+        end
+        return table.concat(out, " | ")
+    end
+    local function Shown(tooltip, id)
+        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:SetHyperlink(W.Link(id))
+        return Ours(tooltip)
+    end
+    eq(Shown(GameTooltip, 200), nil, "no lines of ours for an item in the bags: Forever Leveling BiS writes its own")
+    eq(LevelingBlock(GameTooltip), true, "which are there")
+    eq(Shown(ItemRefTooltip, 200), nil, "nor for a link in the chat")
+
+    -- The arrows in the bags are its own: none of ours beside them.
+    local function Arrow(button)
+        local arrow = button.UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    local function Bag(slot) return Arrow(ContainerFrameCombinedBags.Items[slot]) end
+    local function Grey(slot) return ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow._grey end
+    local slot = {}
+    for _, id in ipairs({ 200, 202, 203, 204, 208, 212, 214, 220 }) do slot[id] = W.PutInBags(W.Link(id)) end
+    W.OpenBags()
+    W.Run(1)
+    eq(Bag(slot[200]), false, "a better chest: no arrow of ours, Forever Leveling BiS draws its own")
+    eq(Bag(slot[203]), false, "nor on one of a higher level"); eq(Bag(slot[212]), false, "nor on a two-hander")
+    -- It draws none in the bank: there ours stay, by its score.
+    W.bags[6] = { [3] = { link = W.Link(211) }, [4] = { link = W.Link(202) } }
+    W.OpenBank(6)
+    local bank = {}
+    for button in BankPanel:EnumerateValidItems() do bank[button._slot] = button end
+    eq(Arrow(bank[3]), true, "the helm in the bank: an arrow of ours, where it draws none")
+    eq(Arrow(bank[4]), false, "not the weaker chest in the bank")
+
+    -- Its arrows switched off in its settings: ours are drawn in the bags, by its score.
+    kept.bagMarks = false
+    W.LevelingChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), true, "its own arrows switched off: ours, on a better chest, 18 against 10 by its score")
+    eq(Grey(slot[200]), false, "green: it can be put on now")
+    eq(Bag(slot[203]), true, "a better chest of a higher level"); eq(Grey(slot[203]), true, "grey")
+    eq(Bag(slot[212]), true, "a two-hander against the sword")
+    eq(Bag(slot[202]), false, "not a weaker chest"); eq(Bag(slot[204]), false, "not mail the character has not learned")
+    eq(Bag(slot[208]), false, "not a chest with nothing to read"); eq(Bag(slot[220]), false, "not a wand: a warrior never uses one")
+    eq(Bag(slot[214]), false, "not a potion")
+    -- They can be switched off and on as ever.
+    UpgradeScoutDB.arrows = false
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(Bag(slot[200]), false, "ours switched off in the welcome window")
+    UpgradeScoutDB.arrows = nil
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(Bag(slot[200]), true, "and on again")
+    -- Another main spec chosen in Forever Leveling BiS: the arrows follow.
+    W.LevelingChar().spec = "fury"
+    W.LevelingChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), false, "for the other spec the chest is no upgrade: 9 against 12")
+    eq(Bag(slot[212]), true, "and the two-hander is one: 40 against nothing")
+    W.LevelingChar().spec = nil
+    W.LevelingChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), true, "back on the first spec the chest has its arrow")
+    -- Its arrows switched on again: ours go from the bags.
+    kept.bagMarks = nil
+    W.LevelingChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), false, "its arrows switched on again: ours go")
+    eq(Arrow(bank[3]), true, "and stay in the bank")
+
+    -- Its block in a tooltip switched off in its settings. It tells nobody of that: it is
+    -- found out the next time a tooltip is up. Then our lines stand in, by its score.
+    kept.tooltip = false
+    eq(Shown(GameTooltip, 200), "Arms +80%", "its block switched off: our line in a tooltip, for the main spec")
+    eq(LevelingBlock(GameTooltip), false, "with nothing of its own")
+    local heading
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.text:find("Upgrade Scout", 1, true) then heading = line.text end
+    end
+    check(heading:find("Upgrade Scout (Forever Leveling BiS score)", 1, true) ~= nil, "under a heading that says whose score it is: " .. heading)
+    UpgradeScoutDB.ownTree = true
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    Shown(GameTooltip, 200)
+    local single = GameTooltip._lines[#GameTooltip._lines]
+    check(single.text:find("Arms (Forever Leveling BiS score)", 1, true) ~= nil, "\"Only my spec\": one line, with whose score it is: " .. single.text)
+    eq(single.right, "+80%", "and the gain")
+    UpgradeScoutDB.ownTree = nil
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    UpgradeScoutDB.tooltip = false
+    ns.Fire("SETTING_CHANGED", "tooltip")
+    eq(Shown(GameTooltip, 200), nil, "they go by their box in the welcome window, as with the addon scoring")
+    UpgradeScoutDB.tooltip = nil
+    ns.Fire("SETTING_CHANGED", "tooltip")
+    W.Run(0.5)
+
+    -- A row of the list at the auction house.
+    W.player.money = 50000
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    SetView(false, false)
+    ScanToEnd()
+    W.Run(1)
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            local entry = w._shown and w._kind == "Button" and w.entry or nil
+            if entry and entry.offer and entry.offer.name == name then return w end
+        end
+    end
+    local function Under(name)
+        local row = Row(name)
+        check(row ~= nil, name .. " is in the list")
+        W.compared = nil
+        row:GetScript("OnEnter")(row)
+        local ours, theirs = Ours(GameTooltip), LevelingBlock(GameTooltip)
+        row:GetScript("OnLeave")(row)
+        return ours, theirs
+    end
+    -- (Its block is still switched off: the gains under a row are ours to write, by their box.)
+    local ours, theirs = Under("Good Chest")
+    check(ours ~= nil and ours:find("Arms +80%", 1, true) ~= nil, "its block switched off: the gains are ours to write under a row")
+    eq(theirs, false, "with nothing of its own")
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(Under("Good Chest"), nil, "and they go by their box")
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    -- Switched on again: its block, and none of our lines about the score.
+    kept.tooltip = nil
+    eq(Shown(GameTooltip, 200), nil, "its block switched on again: its lines, and none of ours")
+    eq(LevelingBlock(GameTooltip), true, "its own are back")
+    W.Run(0.5)
+    ours, theirs = Under("Good Chest")
+    eq(ours, nil, "a row with nothing to add: no lines of ours, not even the addon's name")
+    eq(theirs, true, "Forever Leveling BiS's block stands there, as anywhere"); eq(W.compared, GameTooltip, "and the worn item beside it as ever")
+    eq(Under("Great Chest"), "Has effects the score does not count | You are 4g short",
+        "a row with something to say about buying: that, under the addon's name, and no gains")
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(Under("Great Chest"), "Has effects the score does not count | You are 4g short", "the score's box unticked: the notes stay")
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    CheckLevelingAsked("tooltips and arrows")
+
+    -- The addon's own weights chosen again: its lines are back, and its arrows, which then
+    -- stand beside Forever Leveling BiS's own: they are by other weights.
+    Score.SetEngine(nil)
+    W.Run(1)
+    eq(Shown(GameTooltip, 200), "Arms +80% | Protection ~ -25% | Forever Leveling BiS: block",
+        "the addon scores again: its lines in the tooltip, and Forever Leveling BiS's own after them")
+    eq(Bag(slot[200]), true, "and its arrows, by its own profile")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+-- The welcome window with Forever Leveling BiS: the fourth answer to who scores, the one
+-- button of its main spec in place of the trees, the tooltip's block and the arrows' card out
+-- of use while it writes and draws its own, and the window coming up once for a player who
+-- has it.
+function scenarios.leveling_welcome()
+    StandardWorld()
+    W.AddItem({ id = 16999, name = "Royal Seal", equipLoc = "INVTYPE_FINGER", quality = 3, level = 54 })
+    W.AddItem({ id = 5000, name = "Coral Band", equipLoc = "INVTYPE_FINGER", level = 21 })
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    local L
+
+    -- Without it: the answer is there, and out of reach.
+    LoadAddon()
+    L = ns.L
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome ~= nil end, 10)
+    local window = UpgradeScoutWelcome
+    eq(#window.Engines, 4, "who scores: four answers")
+    local own, pawn, companion, theirs = unpack(window.Engines)
+    eq(theirs.Label:GetText(), "Forever Leveling BiS", "the fourth is Forever Leveling BiS, by its name")
+    eq(own.Mark:IsShown(), true, "the addon is the one that does"); eq(theirs.Mark:IsShown(), false, "Forever Leveling BiS is not")
+    eq(theirs:GetAlpha(), 0.45, "it cannot be chosen while it is not there: its button is grey")
+    eq(theirs.Glow.parts[1]:IsShown(), false, "and does not light up under the mouse")
+    local function Hint(button)
+        GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        button:GetScript("OnEnter")(button)
+        local said = GameTooltip._lines[1] and GameTooltip._lines[1].text or nil
+        button:GetScript("OnLeave")(button)
+        return said
+    end
+    eq(Hint(theirs), L.WELCOME_NO_LEVELING, "the mouse on its grey button: a tooltip says why")
+    theirs:Click()
+    eq(UpgradeScoutDB.engine, nil, "a click on the grey button does nothing")
+    -- The four in one row, each as wide as the others, every name with room on its button.
+    check(own._points[1].x < pawn._points[1].x and pawn._points[1].x < companion._points[1].x
+        and companion._points[1].x < theirs._points[1].x, "the four side by side")
+    eq(own._points[1].y, theirs._points[1].y, "in one row"); near(own:GetWidth(), theirs:GetWidth(), "each as wide as the others")
+    check(theirs._points[1].x + theirs:GetWidth() <= window:GetWidth() - 20 + 0.01, "and all of them inside the window")
+    check(theirs.Label:GetUnboundedStringWidth() + 17 <= theirs:GetWidth(), "the longest name has room on its button, with the diamond of the one that is lit")
+    -- In a wider font a name may not have that room: the buttons then share the row by the
+    -- length of their names.
+    theirs.Label:SetText("Forever Leveling BiS in a wider font")
+    ns.Welcome.Show()
+    check(theirs:GetWidth() > own:GetWidth() and own:GetWidth() > pawn:GetWidth(), "a name too long for an equal share: the buttons go by their names")
+    check(theirs.Label:GetUnboundedStringWidth() + 17 <= theirs:GetWidth(), "and the long one has its room")
+    near(pawn._points[1].x, own._points[1].x + own:GetWidth() + 11, "one after another, with the same gap")
+    near(theirs._points[1].x + theirs:GetWidth(), window:GetWidth() - 20, "the row as wide as before")
+    theirs.Label:SetText("Forever Leveling BiS")
+    ns.Welcome.Show()
+    near(own:GetWidth(), theirs:GetWidth(), "the name as it is: each as wide as the others again")
+    local height = window:GetHeight()
+    window.Done:Click()
+    eq(UpgradeScoutDB.welcomed, true, "seen"); eq(UpgradeScoutDB.levelingOffered, nil, "but not with Forever Leveling BiS there to choose")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(window:IsShown(), false, "without it the window does not come up by itself again")
+
+    -- The player installs Forever Leveling BiS. The window comes up once more, and says why.
+    LevelingWorld()
+    Relog(W.player, W.equipped)
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome:IsShown() end, 10)
+    L = ns.L
+    window = UpgradeScoutWelcome
+    eq(window.About:GetText(), L.WELCOME_LEVELING_NEW, "it is there now: the window comes up to say that it can be chosen")
+    own, pawn, companion, theirs = unpack(window.Engines)
+    eq(theirs:GetAlpha(), 1, "its button is no longer grey"); eq(theirs.Glow.parts[1]:IsShown(), true, "and lights up under the mouse")
+    eq(Hint(theirs), nil, "with nothing left to explain in a tooltip")
+    eq(pawn:GetAlpha(), 0.45, "Pawn's is still grey: Pawn is not there"); eq(companion:GetAlpha(), 0.45, "and so is Forever Companion's")
+    eq(own.Mark:IsShown(), true, "the addon scores until another is chosen")
+    eq(window:GetHeight(), height, "the window is as tall as without it")
+
+    -- Chosen.
+    local told = 0
+    ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
+    theirs:Click()
+    eq(UpgradeScoutDB.engine, "leveling", "a click chooses Forever Leveling BiS, for the account"); eq(told, 1, "and what keeps scores is told")
+    eq(theirs.Mark:IsShown(), true, "its button is lit"); eq(own.Mark:IsShown(), false, "the addon's goes dark")
+    local trees = window.Trees
+    eq(trees[1].Label:GetText(), "Arms", "one button in place of the trees: the main spec in Forever Leveling BiS")
+    eq(trees[1]:IsShown(), true, "it is there"); eq(trees[2]:IsShown(), false, "and no other")
+    eq(trees[1].Mark:IsShown(), true, "lit")
+    eq(window.Ask:GetText(), L.WELCOME_SCALE_LEVELING:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")),
+        "over it, whose main spec it is and where it is chosen")
+    trees[1]:Click()
+    eq(told, 1, "a click on it changes nothing"); eq(ns.Roster.Me().leveling, nil, "and writes nothing")
+    theirs:Click()
+    eq(told, 1, "the one that scores clicked again: nothing changes")
+
+    -- The score in a tooltip is Forever Leveling BiS's to write: the block says so, and what
+    -- it asks of the score is out of use. The notes are still ours.
+    local block, arrows = window.Tips, window.Pair[2]
+    local tip, tabs, elsewhere, notes = block.Picture.Tip, block.Tabs, block.Elsewhere, block.Notes
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_LEVELING, "the tooltip's block says that Forever Leveling BiS writes there")
+    for name, box in pairs({ ["the addon's tabs"] = tabs, ["the rest of the game"] = elsewhere }) do
+        eq(box:IsEnabled(), false, "the score's box for " .. name .. " is out of use"); eq(box:GetChecked(), false, "and empty: " .. name)
+        eq(box:GetAlpha(), 0.4, "and dim: " .. name)
+    end
+    eq(block.All:IsEnabled(), false, "the two buttons are out of use"); eq(block.All:GetAlpha(), 0.35, "and dim")
+    eq(notes:IsEnabled(), true, "the box of the notes is in use"); eq(notes:GetChecked(), true, "and ticked")
+    eq(tip.Note:IsShown(), true, "the picture has the note"); eq(tip.Lines[1].Title:IsShown(), false, "and no line of the score")
+
+    -- The arrows in the bags are its own too: the card says so, and its box is empty, dim
+    -- and out of use.
+    local kept = ForeverLevelingBiSDB
+    local slot = W.PutInBags(W.Link(200))
+    W.OpenBags()
+    W.Run(1)
+    local function Arrow()
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    eq(arrows.Body:GetText(), L.WELCOME_ARROWS_LEVELING, "the arrows' card says that Forever Leveling BiS draws them")
+    eq(arrows.Switch:IsEnabled(), false, "its box is out of use"); eq(arrows.Switch:GetChecked(), false, "and empty")
+    eq(arrows.Switch.Tick:IsShown(), false, "without its tick"); eq(arrows.Switch:GetAlpha(), 0.4, "and dim")
+    eq(arrows.Title:GetAlpha(), 0.5, "as its name is"); eq(arrows.Picture:GetAlpha(), 0.3, "and the picture is faded")
+    arrows.Switch:Click()
+    eq(UpgradeScoutDB.arrows, nil, "a click on it changes nothing"); eq(Arrow(), false, "no arrow of ours in the bags")
+    -- Its own arrows switched off in its settings: the card is ours again.
+    kept.bagMarks = false
+    W.LevelingChanged()
+    W.Run(0.5)
+    eq(arrows.Body:GetText(), L.WELCOME_ARROWS_TEXT, "its own arrows switched off: the card has its own sentence")
+    eq(arrows.Switch:IsEnabled(), true, "its box is in use"); eq(arrows.Switch:GetChecked(), true, "and ticked, as it was left")
+    eq(arrows.Switch:GetAlpha(), 1, "at full strength"); eq(arrows.Picture:GetAlpha(), 1, "and the picture whole")
+    eq(Arrow(), true, "with an arrow of ours on the better chest, by its score")
+    kept.bagMarks = nil
+    W.LevelingChanged()
+    W.Run(0.5)
+    eq(arrows.Switch:IsEnabled(), false, "its own switched on again: the card is out of use"); eq(Arrow(), false, "and ours are gone")
+    eq(UpgradeScoutDB.arrows, nil, "what the box was left at is kept")
+
+    -- Its block in a tooltip switched off in its settings, of which it tells nobody: the
+    -- window finds out when it is next drawn, and the block is ours again.
+    kept.tooltip = false
+    ns.Welcome.Show()
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "its block switched off: the tooltip's block has its own sentence")
+    for name, box in pairs({ ["the addon's tabs"] = tabs, ["the rest of the game"] = elsewhere }) do
+        eq(box:IsEnabled(), true, "the score's box for " .. name .. " is in use"); eq(box:GetChecked(), true, "and ticked: " .. name)
+        eq(box:GetAlpha(), 1, "and whole: " .. name)
+    end
+    eq(block.All:IsEnabled(), true, "the two buttons in use"); eq(tip.Lines[1].Title:IsShown(), true, "the picture with the score's lines")
+    W.Run(0.5)
+    kept.tooltip = nil
+    ns.Welcome.Show()
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_LEVELING, "switched on again: Forever Leveling BiS writes there")
+    W.Run(0.5)
+    eq(told, 1, "none of that is news about the scores")
+
+    -- Another character of the account: the lists for it have our lines, always.
+    UpgradeScoutDB.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", class = "DRUID", level = 20 }
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_LEVELING_OTHERS, "with another character the block says where our lines are left")
+    eq(tabs:IsEnabled(), false, "the box of the tabs is not the player's to change"); eq(tabs:GetChecked(), true, "it is held ticked")
+    eq(block.All:IsEnabled(), true, "and the two buttons are in use")
+    UpgradeScoutDB.chars["Alty-Testrealm"] = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_LEVELING, "without the other character the block is as it was")
+
+    -- A main spec chosen in Forever Leveling BiS shows here.
+    W.LevelingChar().spec = "fury"
+    W.LevelingChanged()
+    W.Run(0.5)
+    eq(trees[1].Label:GetText(), "Fury", "another main spec chosen there is the one on the button"); eq(told, 2, "and what keeps scores is told")
+    eq(trees[2]:IsShown(), false, "still the one button")
+
+    -- Closed: seen with Forever Leveling BiS there, so it does not come up by itself again.
+    window.Done:Click()
+    eq(UpgradeScoutDB.levelingOffered, true, "the choice has been seen with it")
+    eq(UpgradeScoutDB.pawnOffered, nil, "and not with Pawn, which was not there"); eq(UpgradeScoutDB.companionOffered, nil, "nor with Forever Companion")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(window:IsShown(), false, "it does not come up by itself again")
+    ns.Welcome.Show()
+    eq(window.About:GetText(), L.WELCOME_ABOUT, "asked for, it has its usual first words")
+
+    -- The addon chosen again: the trees, the block and the card as they were.
+    own:Click()
+    eq(UpgradeScoutDB.engine, nil, "a click on the addon's button: nothing is left written"); eq(own.Mark:IsShown(), true, "its button is lit")
+    eq(trees[1].Label:GetText(), "Arms", "the trees are back"); eq(trees[2]:IsShown(), true, "both of them")
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "the tooltip's block has its sentence"); eq(tabs:IsEnabled(), true, "and its boxes in use")
+    eq(arrows.Body:GetText(), L.WELCOME_ARROWS_TEXT, "the arrows' card has its sentence"); eq(arrows.Switch:IsEnabled(), true, "and its box in use")
+    W.Run(0.5)
+    eq(Arrow(), true, "and the arrows in the bags are ours, by the addon's own profile")
+    CheckLevelingAsked("the welcome window")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- What a consumable adds, scored on the weights of a spec of Forever Leveling BiS: the game's
+-- names for stats put into its own, and a chance into the percent it weighs.
+function scenarios.leveling_supplies()
+    StandardWorld()
+    SuppliesWorld()
+    LevelingWorld()
+    UpgradeScoutDB = { engine = "leveling" }
+    LoadAddon()
+    SupplyFacts()
+    local Score = ns.Score
+    eq(Score.Engine(), "leveling", "Forever Leveling BiS scores")
+    local CASTS, HEALS = "DRUID:balance", "DRUID:restoration"
+    local DAMAGE, HEALING = "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT", "ITEM_MOD_SPELL_HEALING_DONE_SHORT"
+    local function Value(stats, id, level) return Score.StatsValue(stats, id, level) end
+
+    near(Value({ ITEM_MOD_STRENGTH_SHORT = 8, ITEM_MOD_AGILITY_SHORT = 4 }, MAIN_ARMS), 8 * 1.5 + 4, "stats under its names, by the spec's weights")
+    near(Value({ ITEM_MOD_CRIT_RATING_SHORT = 28 }, MAIN_ARMS), 2 * 8, "a chance: 28 points of rating are the 2% it weighs")
+    near(Value({ ITEM_MOD_CRIT_MELEE_RATING_SHORT = 28 }, MAIN_ARMS), 2 * 8, "a chance with weapons counts on a fighter's weights")
+    near(Value({ ITEM_MOD_CRIT_MELEE_RATING_SHORT = 28 }, CASTS, 20), 0, "and not on a caster's")
+    near(Value({ ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, CASTS, 20), 6, "a chance with spells counts on a caster's weights")
+    near(Value({ ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, MAIN_ARMS), 0, "and not on a fighter's")
+    near(Value({ ITEM_MOD_CRIT_RATING_SHORT = 14, ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, CASTS, 20), 12, "both kinds add up for the one who uses both")
+    near(Value({ ITEM_MOD_ATTACK_POWER_SHORT = 10 }, MAIN_ARMS), 4, "attack power")
+    near(Value({ ITEM_MOD_MELEE_ATTACK_POWER_SHORT = 10 }, MAIN_ARMS), 4, "attack power with weapons in hand is plain attack power, of a consumable")
+    -- What adds to spells is three stats there: to damage and healing alike, to the one, to
+    -- the other.
+    near(Value({ [DAMAGE] = 36 }, CASTS, 20), 36, "spell damage alone, under its own name")
+    near(Value({ [DAMAGE] = 20, [HEALING] = 20 }, CASTS, 20), 20, "damage and healing alike are spell power, counted once")
+    near(Value({ [HEALING] = 20 }, CASTS, 20), 0, "healing alone is nothing to weights without one for it")
+    near(Value({ [DAMAGE] = 36 }, HEALS, 20), 0, "damage alone is nothing to a healer's")
+    near(Value({ [DAMAGE] = 20, [HEALING] = 20 }, HEALS, 20), 20, "damage and healing alike: spell power")
+    near(Value({ [HEALING] = 10 }, HEALS, 20), 10, "healing alone: healing")
+    near(Value({ [DAMAGE] = 30, [HEALING] = 40 }, HEALS, 20), 30 + 10, "more of the one than of the other: each part under its name")
+    near(Value({ ITEM_MOD_HEALTH_SHORT = 25 }, MAIN_ARMS), 2.5 * 0.5, "health as the Stamina that gives it: Forever Leveling BiS has no stat for it")
+    near(Value({ ITEM_MOD_MANA_SHORT = 30 }, CASTS, 20), 2, "mana as Intellect")
+    near(Value({ ITEM_MOD_UNHEARD_OF_SHORT = 99 }, MAIN_ARMS), 0, "a stat it has no name for counts for nothing")
+    near(Value({ ITEM_MOD_SPIRIT_SHORT = 8 }, MAIN_ARMS), 0, "nor does one the spec does not weigh")
+    eq(Value({ ITEM_MOD_STRENGTH_SHORT = 8 }, "MAGE:frost", 20), nil, "no answer for a spec it has no weights for")
+    eq(Value({ ITEM_MOD_STRENGTH_SHORT = 8 }, "S1"), nil, "nor for one of the addon's own profiles")
+
+    -- Its weights change with the level, and are asked for by the character's.
+    W.SetLevelingWeights("DRUID", "bear", function(level) return { sta = level >= 40 and 2 or 1 } end)
+    near(Value({ ITEM_MOD_STAMINA_SHORT = 10 }, "DRUID:bear", 20), 10, "a druid of 20: the weights of that level")
+    near(Value({ ITEM_MOD_STAMINA_SHORT = 10 }, "DRUID:bear", 45), 20, "one of 45: another level's")
+    local last = W.leveling.weighed[#W.leveling.weighed]
+    eq(last.class, "DRUID", "asked for by the class"); eq(last.spec, "bear", "the spec"); eq(last.level, 45, "and the level")
+    local times = #W.leveling.weighed
+    Value({ ITEM_MOD_STAMINA_SHORT = 10 }, "DRUID:bear", 45)
+    Value({ ITEM_MOD_STAMINA_SHORT = 10 }, "DRUID:bear", 20)
+    eq(#W.leveling.weighed, times, "the same weights are not asked for twice")
+    -- A spec with weights for each way of filling the hands is asked about with the one named.
+    W.SetLevelingWeights("DRUID", "feral", function(_, setup) return { agi = setup == "held" and 3 or 1 } end)
+    W.LevelingChanged()
+    W.Run(0.5)
+    near(Value({ ITEM_MOD_AGILITY_SHORT = 10 }, "DRUID:feral:held", 20), 30, "a weapon setup named in the profile is the one asked about")
+    near(Value({ ITEM_MOD_AGILITY_SHORT = 10 }, "DRUID:feral", 20), 10, "none named: the spec's usual one")
+
+    -- The list of consumables is scored on the spec.
+    W.OpenAuctionHouse()
+    ScanSupplies()
+    local rows = ns.Supplies.Build(ns.Scanner.supplies, SupplyOpts(MAIN_ARMS, { mana = false }))
+    local function Worth(name)
+        for _, row in ipairs(rows) do
+            if row.kind == "supply" and row.entry.supply.name == name then return row.entry.value end
+        end
+    end
+    near(Worth("Elixir of Giants"), 25 * 1.5, "an elixir of Strength on a fighter's weights"); near(Worth("Elixir of Agility"), 15, "one of Agility")
+    eq(Worth("Elixir of Wisdom"), nil, "Intellect is of no use to that spec")
+    rows = ns.Supplies.Build(ns.Scanner.supplies, SupplyOpts(CASTS, { mana = true }))
+    near(Worth("Elixir of Wisdom"), 6, "and worth its weight to a caster's")
+    -- The heading over a consumable's score says whose score it is.
+    GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    ns.Tooltip.AddHeader(GameTooltip, "Arms", true)
+    local heading = GameTooltip._lines[#GameTooltip._lines]
+    check(heading.text:find("Upgrade Scout (Forever Leveling BiS score)", 1, true) ~= nil, "a heading over a score, with Forever Leveling BiS scoring: " .. heading.text)
+    eq(heading.right, "Arms", "with what stands on its right")
+    ns.Tooltip.AddHeader(GameTooltip)
+    heading = GameTooltip._lines[#GameTooltip._lines]
+    eq(heading.text:find("Forever Leveling BiS", 1, true), nil, "a heading over notes alone names no other addon")
+    eq(#W.leveling.asked, 0, "no item was asked about for any of it")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- Another character of the account: the specs of its class, its items scored from the
+-- weights of its spec at its level, its own choice written on its card, and Forever Leveling
+-- BiS's block, which is about the character being played, kept out of the rows of its list.
+function scenarios.leveling_alt()
+    StandardWorld()
+    local warrior, warriorGear = W.player, W.equipped
+    -- The druid's chests, by the game's own count of their stats: Intellect, Agility, and on
+    -- the one for sale 1% to crit, which the game counts as 14 points of rating.
+    W.AddItem({ id = 300, name = "Alt's Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, level = 15,
+        values = { D1 = 0 }, game = { ITEM_MOD_INTELLECT_SHORT = 12, ITEM_MOD_AGILITY_SHORT = 3 } })
+    W.AddItem({ id = 310, name = "Druid Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, level = 18,
+        values = { D1 = 0 }, game = { ITEM_MOD_INTELLECT_SHORT = 14, ITEM_MOD_AGILITY_SHORT = 2, ITEM_MOD_CRIT_RATING_SHORT = 14 } })
+    W.AddAuction(310, 2000)
+    LevelingWorld()
+    UpgradeScoutDB = { engine = "leveling" }
+
+    -- The druid is played once, and its main spec chosen in Forever Leveling BiS.
+    W.Login(Druid())
+    W.equipped = { [5] = W.Link(300) }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    eq(ns.Score.Current().name, "@DRUID:balance:twohand", "the druid, played: its main spec in Forever Leveling BiS")
+    W.LevelingChar().spec = "feral"
+    Relog(warrior, warriorGear)
+    TreeNames()
+    local Score, S = ns.Score, ns.Scanner
+    local kept = ForeverLevelingBiSDB
+    local card = UpgradeScoutDB.chars["Alty-Testrealm"]
+    check(card ~= nil, "the druid is remembered")
+
+    local current, theirs = Score.Current(card)
+    eq(#theirs, 4, "another character: every spec Forever Leveling BiS has for its class")
+    eq(theirs[1].name, "DRUID:balance", "by its class and its key there"); eq(theirs[1].title, "Balance", "and the name of its tree")
+    eq(current.name, "DRUID:feral", "the one in use: its main spec as Forever Leveling BiS last saved it")
+    eq(#Score.Profiles(ns.Roster.Me()), 1, "the card of the character being played is that character")
+
+    -- At the auction house the field lists them under the warrior's one line.
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local frame = UpgradeScoutFrame
+    local dropdown = frame.ProfileDropdown
+    local ALTY = "|cffff7c0aAlty|r"
+    eq(#dropdown.radios, 5, "the warrior's main spec and the druid's four specs")
+    eq(dropdown.radios[1].text, "Arms", "the warrior's own")
+    eq(dropdown.radios[2].text, ALTY .. ": Balance", "the druid's by its name and the spec's")
+    eq(dropdown.radios[3].text, ALTY .. ": Feral Combat (Cat)", "each of them")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    dropdown:Pick(4)
+    eq(ns.Roster.Target(), card, "the lists are for the druid"); eq(card.leveling, "bear", "on the spec chosen, written on its card by its key")
+    dropdown:Pick(2)
+    eq(card.leveling, "balance", "another of its specs chosen")
+    eq(kept.chars["Alty-Testrealm"].spec, "feral", "and nothing is written into what Forever Leveling BiS keeps")
+    eq(card.profile, nil, "apart from the addon's own profile"); eq(card.scale, nil, "from the Pawn scale")
+    eq(card.companion, nil, "and from Forever Companion's")
+    local scored = #W.leveling.asked
+    frame.ScanButton:Click()
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    W.Run(1)
+    eq(S.ctx.who, card, "the scan was for the druid"); eq(S.ctx.profile, "DRUID:balance", "on its spec")
+    near(S.ctx.equipped[5].value, 12, "its chest: 12 Intellect, by the weights of that spec")
+    check(Offer("Druid Jerkin") ~= nil, "a jerkin better than the druid's")
+    near(Offer("Druid Jerkin").value, 20, "14 Intellect and the 1% to crit: the game's 14 points of rating, weighed by the percent")
+    eq(Offer("Good Chest"), nil, "the warrior's upgrades are not the druid's")
+    eq(#W.leveling.asked, scored, "Forever Leveling BiS is asked for the score of no item: that is for the character being played")
+    local levels = {}
+    for _, weighed in ipairs(W.leveling.weighed) do
+        if weighed.class == "DRUID" and weighed.spec == "balance" then levels[weighed.level] = true end
+    end
+    eq(levels[20], true, "its weights are asked for by the druid's class, spec and level"); eq(levels[10], nil, "not by the warrior's")
+
+    -- A row's tooltip has our lines here: Forever Leveling BiS's block is about the character
+    -- being played, and is kept out.
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            local entry = w._shown and w._kind == "Button" and w.entry or nil
+            if entry and entry.offer and entry.offer.name == name then return w end
+        end
+    end
+    local function ListFor(index)
+        dropdown:Pick(index)
+        W.Run(0.5)
+        if S.state == "idle" then frame.ScanButton:Click() end
+        W.RunUntil(function() return S.state == "idle" end, 300)
+        W.Run(1)
+    end
+    local function Elsewhere()
+        GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        GameTooltip:SetHyperlink(W.Link(310))
+        return LevelingBlock(GameTooltip)
+    end
+    local jerkin = Row("Druid Jerkin")
+    check(jerkin ~= nil, "the jerkin is in the list")
+    jerkin:GetScript("OnEnter")(jerkin)
+    local doubles = {}
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right then doubles[#doubles + 1] = line end
+    end
+    eq(doubles[1].right, ALTY, "a list for another character: our header, which says whose")
+    check(doubles[1].text:find("Upgrade Scout (Forever Leveling BiS score)", 1, true) ~= nil, "and that the score in our lines is Forever Leveling BiS's: " .. doubles[1].text)
+    eq(doubles[2].text, "Balance", "then the druid's specs"); eq(doubles[2].right, "+67%", "with the gain on each: 20 against 12")
+    eq(doubles[3].text, "Feral Combat (Cat)", "on the next"); eq(doubles[3].right, "-33%", "2 Agility against 3")
+    eq(doubles[4].text, "Feral Combat (Bear)", "on the third"); eq(doubles[5].text, "Restoration", "and the fourth")
+    eq(doubles[5].right, "+17%", "half of 14 Intellect against half of 12")
+    eq(ShoppingTooltip1:IsShown(), true, "and the druid's chest beside it")
+    eq(LevelingBlock(GameTooltip), false, "Forever Leveling BiS's block is kept out of a row for another character")
+    eq(rawget(kept, "tooltip"), nil, "and its switch for the block is afterwards as it was: never touched")
+    jerkin:GetScript("OnLeave")(jerkin)
+    eq(Elsewhere(), true, "anywhere else it writes its block")
+    -- A player who has touched that switch: it is put back as they have it.
+    kept.tooltip = true
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(LevelingBlock(GameTooltip), false, "kept out the same way"); eq(rawget(kept, "tooltip"), true, "and the switch is as that player has it")
+    jerkin:GetScript("OnLeave")(jerkin)
+    kept.tooltip = nil
+    -- Something goes wrong while the tooltip is filled in: the error passes on, with the
+    -- switch put back.
+    local passed
+    local ok, problem = pcall(ns.Leveling.Hushed, function(what) passed = what error("no such item", 0) end, "a link")
+    eq(ok, false, "an error in filling the tooltip in passes on"); eq(problem, "no such item", "as it was")
+    eq(passed, "a link", "what fills it in is called with what it was given"); eq(rawget(kept, "tooltip"), nil, "and the switch is put back all the same")
+    -- While its block is kept out, the addon does not take it for switched off.
+    local during
+    ns.Leveling.Hushed(function() during = ns.Leveling.WritesTooltip() end)
+    eq(during, true, "kept out for a moment, it is still the one that writes the score")
+    -- Our lines are all that says the score there, so they do not go by their box.
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(GameTooltip._lines[#GameTooltip._lines].right, "+17%", "our lines unticked for the tabs: they still stand in a list for another character")
+    jerkin:GetScript("OnLeave")(jerkin)
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    -- One line for the spec in use says whose score it is after the spec's name.
+    UpgradeScoutDB.ownTree = true
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    jerkin:GetScript("OnEnter")(jerkin)
+    local single = GameTooltip._lines[#GameTooltip._lines]
+    check(single.text:find(ALTY .. ": Balance (Forever Leveling BiS score)", 1, true) ~= nil, "\"Only my spec\": one line, with whose score it is: " .. single.text)
+    eq(single.right, "+67%", "and the gain")
+    jerkin:GetScript("OnLeave")(jerkin)
+    UpgradeScoutDB.ownTree = nil
+    ns.Fire("SETTING_CHANGED", "ownTree")
+
+    -- A weapon for that character: its damage per second by the weight of the hand it is in,
+    -- and its speed, which the game keeps in the words of the tooltip.
+    local CLAWS = "DRUID:feral"
+    W.AddItem({ id = 320, name = "Cat Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10, value = 0, level = 10, speed = 3.6,
+        game = { ITEM_MOD_AGILITY_SHORT = 5, ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 20, ITEM_MOD_MELEE_ATTACK_POWER_SHORT = 40 } })
+    W.AddItem({ id = 321, name = "Claw", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 13, value = 0, level = 10, speed = 2.0,
+        game = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 10 } })
+    W.AddItem({ id = 322, name = "Sling", equipLoc = "INVTYPE_RANGED", classID = 2, subClassID = 2, value = 0, level = 10, speed = 2.8,
+        game = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 10, ITEM_MOD_AGILITY_SHORT = 1 } })
+    local function Worth(id, offHand) return Score.Value(Score.Item(W.Link(id)), CLAWS, 20, offHand) end
+    local function Feral(weights)
+        W.SetLevelingWeights("DRUID", "feral", weights)
+        W.LevelingChanged()
+        W.Run(0.5)
+    end
+    near(Worth(320), 5 + 40 * 0.5 + 20 * 3, "a staff: its stats, the attack power it gives a druid's shapes, and its damage per second")
+    near(Worth(321), 30, "a weapon for one hand, in the main hand"); near(Worth(321, true), 15, "in the off hand: half, where the spec names no weight for it")
+    near(Score.OffValue(Score.Item(W.Link(321)), CLAWS, 20), 15, "which is its second score")
+    near(Worth(322), 1, "a ranged weapon by the weight for those, which this spec has none of")
+    Feral({ agi = 1, feratkpwr = 0.5, dps = 3, ohDps = 1, rangedDps = 2, speed = 2 })
+    near(Worth(320), 85 + (3.6 - 3.3) * 10 * 2, "a weight for speed: for each tenth of a second slower than a two-hander's usual 3.3")
+    near(Worth(321), 30 + (2.0 - 2.4) * 10 * 2, "a one-hander against the usual 2.4: faster counts against it")
+    near(Worth(321, true), 10, "the off hand by its own weight, with none for its speed"); near(Worth(322), 1 + 20, "a ranged weapon by its own")
+    Feral({ agi = 1, feratkpwr = 0.5, dps = 3, speed = 2, speedRef = 3.0 })
+    near(Worth(320), 85 + (3.6 - 3.0) * 10 * 2, "the speed the weights were measured at, where they name it")
+    Feral({ agi = 1, feratkpwr = 0.5, dps = 3, speed = -100 })
+    near(Worth(320), 5 + 40 * 0.5, "speed can cancel a weapon's damage, and take it no lower than nothing")
+    W.items["320:0"].speedText = "Tempo 3,60"
+    Feral({ agi = 1, feratkpwr = 0.5, dps = 3, speed = 2 })
+    near(Worth(320), 85 + (3.6 - 3.3) * 10 * 2, "a speed written with a comma, as some languages do")
+    Feral({ agi = 1, str = 1, feratkpwr = 0.5, dps = 3 })
+
+    -- The warrior's own list: Forever Leveling BiS writes there as everywhere.
+    ListFor(1)
+    eq(ns.Roster.Target(), nil, "the lists are the warrior's own again")
+    local chest = Row("Good Chest")
+    check(chest ~= nil, "a better chest for the warrior is in the list")
+    chest:GetScript("OnEnter")(chest)
+    eq(LevelingBlock(GameTooltip), true, "a row of the player's own list: its block, as anywhere")
+    chest:GetScript("OnLeave")(chest)
+    CheckLevelingAsked("another character")
+
+    -- The addon's own weights chosen, with Forever Leveling BiS still installed: it writes
+    -- into tooltips as before, and is kept out of a list for another character the same way.
+    W.items["300:0"].values, W.items["310:0"].values = { D1 = 12, D2 = 3 }, { D1 = 20, D2 = 2 }
+    W.items["300:0"].game, W.items["310:0"].game = nil, nil
+    Score.SetEngine(nil)
+    W.Run(1)
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    ListFor(3)
+    eq(ns.Roster.Target(), card, "the addon scores, and the lists are for the druid")
+    jerkin = Row("Druid Jerkin")
+    check(jerkin ~= nil, "the jerkin is in the druid's list by the addon's own weights")
+    jerkin:GetScript("OnEnter")(jerkin)
+    eq(LevelingBlock(GameTooltip), false, "the addon scoring: its block is kept out of a row for another character")
+    local ours, marked = false, false
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.right == ALTY then ours = true end
+        if line.text:find("Forever Leveling BiS score", 1, true) then marked = true end
+    end
+    eq(ours, true, "under our header, which says whose list it is")
+    eq(marked, false, "and names no other addon: the score is the addon's own")
+    jerkin:GetScript("OnLeave")(jerkin)
+    eq(Elsewhere(), true, "and it writes on everywhere else")
+
+    -- Without Forever Leveling BiS there is nobody to keep out: the tooltip is filled in and no more.
+    W.RemoveLeveling()
+    local filled
+    ns.Leveling.Hushed(function(what) filled = what end, "a link")
+    eq(filled, "a link", "no Forever Leveling BiS: what fills the tooltip in is called")
     eq(#W.errors, 0, "nothing of it is an error")
 end
 
