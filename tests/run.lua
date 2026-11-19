@@ -984,6 +984,35 @@ function scenarios.scan_unanswered()
     eq(S.unanswered, 0, "a scan with every answer")
     check(Status():find("6 upgrades in 5 slots.", 1, true) ~= nil, "lists all six: " .. Status())
     check(Status():find("incomplete", 1, true) == nil and Status():find("answer", 1, true) == nil, "and has nothing to add")
+    eq(S.stats.resent, 0, "statistics: no search sent twice"); eq(#S.stats.slow, 0, "and none that took long")
+    check(S.stats.slowest > 0 and S.stats.slowest < 1, "an answer comes in well under a second: " .. S.stats.slowest)
+    eq(S.stats.foreign, 0, "nobody else searched meanwhile"); eq(S.stats.dropped, 0, "and no request was thrown away")
+
+    -- A search left without an answer once is sent again after three seconds, not eight: the
+    -- second sending is answered, and the scan loses those three seconds and no price. The
+    -- statistics say where the time went.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    check(S.Start(), "fourth scan starts")
+    W.RunUntil(function() return S.state == "verify" and OfferCount() >= 1 end, 60)
+    local searches, began = W.AH.calls.search, GetTime()
+    W.AH.dropSearches = 1
+    W.RunUntil(function() return W.AH.calls.search == searches + 1 end, 60)
+    -- Somebody else searches while it waits for that answer: it is counted.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    C_AuctionHouse.SendBrowseQuery({ searchString = "x", sorts = {}, itemClassFilters = {} })
+    W.RunUntil(function() return W.AH.calls.search == searches + 2 end, 60)
+    local waited = GetTime() - began
+    check(waited >= 3 and waited < 5, "the search without an answer is sent again after three seconds: " .. waited)
+    W.RunUntil(function() return S.state == "idle" end, 120)
+    W.Run(0.3)
+    eq(S.unanswered, 0, "it got its answer the second time"); eq(S.stats.timeouts, 0, "statistics: no search without an answer")
+    eq(OfferCount(), 6, "all six prices are in the list"); eq(UnsureCount(), 0, "none left at its row's lowest price")
+    eq(S.stats.resent, 1, "statistics: one search sent twice"); eq(S.stats.foreign, 1, "one search of somebody else's")
+    eq(#S.stats.slow, 1, "one search took long")
+    local slow = S.stats.slow[1]
+    eq(slow.tries, 2, "sent twice"); check(slow.sec >= 3 and slow.sec < 5, "over three seconds: " .. slow.sec)
+    check(slow.item:find("%d+:%d+$") ~= nil and slow.auctions >= 1, "with the item it was for and its auctions: " .. slow.item)
+    eq(ns.db.lastScan.resent, 1, "kept with the last scan's numbers"); eq(#ns.db.lastScan.slow, 1, "the slow search too")
 end
 
 -- A piece of gear that stacks is sold by the piece out of one pile, as consumables are: the game

@@ -24,7 +24,12 @@ local MAX_ROWS = 60000         -- browse rows read before giving up on the rest
 local EARLY_STOP_RUN = 100     -- rows above the player's level in a row that end a level-sorted browse
 local LOAD_TIMEOUT = 4         -- seconds to wait for the client to load item data
 local JOB_TIMEOUT = 8          -- seconds to wait for an answer to an item search
+local JOB_FIRST_WAIT = 3       -- and for the answer to its first sending: that one comes in under a second,
+                               -- and a search left without it has been answered when sent again (a real
+                               -- scan: 6 of 39 searches, 8 seconds lost on each)
 local JOB_RETRIES = 1
+local SLOW_JOB = 2             -- seconds from which a search is written down as a slow one (lastScan.slow),
+local SLOW_KEPT = 12           -- and how many of those are kept
 local FAIL_STREAK = 3          -- unanswered item searches in a row that end the price checks
 local PACE_WEIGHT = 5          -- searches the last scan's pace counts for in the time-left estimate,
                                -- and the fewest this run must time when there is no last scan
@@ -170,6 +175,31 @@ local function NewStats()
         early = false,                      -- the browse stopped before the last page
         listed = 0,                         -- candidates put into the list before their search
         own = 0,                            -- candidates whose row holds an auction of the player's own
+        -- Where the time of the price checks went, to be read after a real scan:
+        resent = 0,                         -- item searches sent a second time for want of an answer
+        dropped = 0,                        -- requests the game said were thrown away, and sent again
+        waits = 0,                          -- times a search's auctions were not loaded yet when read
+        foreign = 0,                        -- searches somebody else sent to the auction house meanwhile
+        slowest = 0,                        -- the longest an answer took to come, in seconds
+        slow = {},                          -- the searches that took long: { item, sec, tries, waits, auctions }
+    }
+end
+
+-- Writes a search down when it took long (see NewStats): which item, how many seconds from
+-- its first sending to its end, how often it was sent, how often its auctions were waited
+-- for, and how many it had. answered: false for one that never got an answer.
+local function NoteJob(job, answered)
+    local stats = run and run.stats
+    if not stats or not job.firstAt then return end
+    local took = GetTime() - job.firstAt
+    if took < SLOW_JOB or #stats.slow >= SLOW_KEPT then return end
+    local key = job.key
+    stats.slow[#stats.slow + 1] = {
+        item = (job.eval and job.eval.name or "?") .. " " .. tostring(key.itemID) .. ":" .. tostring(key.itemSuffix or 0),
+        sec = math.floor(took * 10 + 0.5) / 10,
+        tries = job.tries + 1,
+        waits = job.evalTries,
+        auctions = answered and (AH.GetNumItemSearchResults(key) or 0) or -1,
     }
 end
 
@@ -575,14 +605,24 @@ local function FinishRun(ok)
     ns.Fire("OFFERS_CHANGED")
 end
 
+-- The answer to a search comes in well under a second. Now and then none comes at all, and
+-- the same search sent again is answered at once: so the first sending is not waited for
+-- as long as the second, after which the search is given up (StepJobs). Until the request
+-- has gone out (it waits its turn: Send) the longer time holds.
+local sendingSearch = false
 local function SendJob(job)
     job.state = "query"
     job.deadline = GetTime() + JOB_TIMEOUT
+    local wait = job.tries == 0 and JOB_FIRST_WAIT or JOB_TIMEOUT
     Send(function()
-        job.deadline = GetTime() + JOB_TIMEOUT
+        local now = GetTime()
+        job.deadline = now + wait
+        job.sentAt, job.firstAt = now, job.firstAt or now
         if run.stats then run.stats.searches = run.stats.searches + 1 end
         -- 0, 0 is "no level filter", as the auction window itself sends by default.
+        sendingSearch = true
         AH.SendSearchQuery(job.key, ITEM_SORTS, false, 0, 0)
+        sendingSearch = false
     end)
 end
 
@@ -614,6 +654,7 @@ local function NextJob()
     job.tries = 0
     job.evalTries = 0
     job.partial = false
+    job.sentAt, job.firstAt = nil, nil
     SendJob(job)
 end
 
@@ -636,6 +677,10 @@ end
 -- Called when the client has (some of) the auctions for the current job.
 local function ContinueJob(job)
     local key = job.key
+    -- (How long the answer took to come: the longest of a scan is kept.)
+    if run.stats and job.sentAt and job.state == "query" then
+        run.stats.slowest = math.max(run.stats.slowest, math.floor((GetTime() - job.sentAt) * 100 + 0.5) / 100)
+    end
     local count = AH.GetNumItemSearchResults(key) or 0
     if not AH.HasFullItemSearchResults(key) and count < MAX_AUCTIONS then
         if CheapestLoaded(job, count) then
@@ -771,6 +816,7 @@ local function ReadJob(job)
 
     if notReady and job.evalTries < EVAL_RETRIES then
         job.evalTries = job.evalTries + 1
+        if run.stats then run.stats.waits = run.stats.waits + 1 end
         job.state = "wait"
         job.retryAt = GetTime() + 0.3
         return
@@ -802,6 +848,7 @@ local function ReadJob(job)
     end
 
     job.status = "done"
+    NoteJob(job, true)
     run.failStreak = 0
     S.info.verified = S.info.verified + 1
     ns.Fire("OFFERS_CHANGED")
@@ -862,10 +909,12 @@ local function StepJobs(now)
             job.state = "read"          -- read what did arrive
         elseif job.tries < JOB_RETRIES then
             job.tries = job.tries + 1
+            if run.stats then run.stats.resent = run.stats.resent + 1 end
             SendJob(job)
         else
             run.failed = true
             job.status = "failed"
+            NoteJob(job, false)
             if run.stats then run.stats.timeouts = run.stats.timeouts + 1 end
             S.info.verified = S.info.verified + 1
             if IsScanMode(run.mode) then
@@ -1812,6 +1861,7 @@ ns.On("AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED", function()
     -- The server threw a request away. If it was ours, ask again.
     if run and not pending and lastRequest then
         pending = lastRequest
+        if run.stats then run.stats.dropped = run.stats.dropped + 1 end
     end
 end)
 
@@ -1955,6 +2005,17 @@ local function OnForeignBrowse()
         S.Stop(L.ST_INTERRUPTED)
     end
 end
+
+-- A search that is not ours, sent while the prices are looked up: the auction house takes
+-- one request at a time, so it may cost one of ours its answer. Counted, to be read after a
+-- real scan (lastScan.foreign).
+local function OnForeignSearch()
+    if S.state == "verify" and run and run.stats and not sendingSearch and not sendingBrowse then
+        run.stats.foreign = run.stats.foreign + 1
+    end
+end
+hooksecurefunc(AH, "SendSearchQuery", OnForeignSearch)
+hooksecurefunc(AH, "SendBrowseQuery", OnForeignSearch)
 hooksecurefunc(AH, "SendBrowseQuery", OnForeignBrowse)
 hooksecurefunc(AH, "SearchForFavorites", OnForeignBrowse)
 hooksecurefunc(AH, "SearchForItemKeys", OnForeignBrowse)
