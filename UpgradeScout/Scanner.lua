@@ -22,8 +22,12 @@ ns.Scanner = S
 local BROWSE_TIMEOUT = 15      -- seconds to wait for an answer to a browse request
 local MAX_ROWS = 60000         -- browse rows read before giving up on the rest
 local EARLY_STOP_RUN = 100     -- rows above the player's level in a row that end a level-sorted browse
-local LOAD_TIMEOUT = 4         -- seconds to wait for the client to load item data
-local JOB_TIMEOUT = 8          -- seconds to wait for an answer to an item search
+local LOAD_TIMEOUT = 4         -- seconds without a row read after which the client is not waited for any more
+local LOAD_QUIET = 1           -- and after which the list no longer waits for the rows still unread: they
+                               -- are read on while the prices are looked up (see StepLate). A real scan:
+                               -- 13 rows of 10,000 never were read, and the list stood four seconds for them
+local LATE_KEPT = 12           -- rows never read that the last scan's numbers name (lastScan.unreadItems)
+local JOB_TIMEOUT = 8         -- seconds to wait for an answer to an item search
 local JOB_FIRST_WAIT = 3       -- and for the answer to its first sending: that one comes in under a second,
                                -- and a search left without it has been answered when sent again (a real
                                -- scan: 6 of 39 searches, 8 seconds lost on each)
@@ -176,18 +180,37 @@ local function NewStats()
         listed = 0,                         -- candidates put into the list before their search
         own = 0,                            -- candidates whose row holds an auction of the player's own
         -- Where the time of the price checks went, to be read after a real scan:
-        resent = 0,                         -- item searches sent a second time for want of an answer
+        resent = 0,                         -- item searches that went out a second time for want of an answer
         dropped = 0,                        -- requests the game said were thrown away, and sent again
         waits = 0,                          -- times a search's auctions were not loaded yet when read
         foreign = 0,                        -- searches somebody else sent to the auction house meanwhile
-        slowest = 0,                        -- the longest an answer took to come, in seconds
-        slow = {},                          -- the searches that took long: { item, sec, tries, waits, auctions }
+        slowest = 0,                        -- the longest an answer took to come from a search's first sending, in seconds
+        slow = {},                          -- the searches that took long: { item, sec, tries, after, waits, auctions }
+        -- Rows the client was slow to tell about, or never did (see StepScore and StepLate):
+        late = 0,                           -- rows the list did not wait for
+        lateWhy = {},                       -- what those were waiting for: { data, sample, link, tip = rows }
+        lateRead = 0,                       -- of them, rows read while the prices were looked up
+        unread = {},                        -- rows never read, by what was missing, as lateWhy
+        unreadItems = {},                   -- the first of those: "item number:suffix what"
     }
 end
 
+-- A row the client never told enough about goes to its item search unread; what it was
+-- waiting for (row.why, see ScoreRow) is counted, and the first few are named.
+local function NoteUnread(row)
+    local stats = S.stats
+    if not stats or not stats.unread then return end
+    local why = row.why or "?"
+    stats.unread[why] = (stats.unread[why] or 0) + 1
+    if #stats.unreadItems < LATE_KEPT then
+        stats.unreadItems[#stats.unreadItems + 1] = tostring(row.key.itemID) .. ":" .. tostring(row.key.itemSuffix or 0) .. " " .. why
+    end
+end
+
 -- Writes a search down when it took long (see NewStats): which item, how many seconds from
--- its first sending to its end, how often it was sent, how often its auctions were waited
--- for, and how many it had. answered: false for one that never got an answer.
+-- its first sending to its end, how often it went out, how long after the last time the
+-- answer came, how often its auctions were waited for, and how many it had. answered: false
+-- for one that never got an answer.
 local function NoteJob(job, answered)
     local stats = run and run.stats
     if not stats or not job.firstAt then return end
@@ -197,7 +220,10 @@ local function NoteJob(job, answered)
     stats.slow[#stats.slow + 1] = {
         item = (job.eval and job.eval.name or "?") .. " " .. tostring(key.itemID) .. ":" .. tostring(key.itemSuffix or 0),
         sec = math.floor(took * 10 + 0.5) / 10,
-        tries = job.tries + 1,
+        tries = job.sent,
+        -- (From the last sending to the answer: a fraction of a second says that the search
+        -- sent again was the one answered. -1 for a search never answered.)
+        after = job.answered and math.floor(job.answered * 10 + 0.5) / 10 or -1,
         waits = job.evalTries,
         auctions = answered and (AH.GetNumItemSearchResults(key) or 0) or -1,
     }
@@ -607,18 +633,29 @@ end
 
 -- The answer to a search comes in well under a second. Now and then none comes at all, and
 -- the same search sent again is answered at once: so the first sending is not waited for
--- as long as the second, after which the search is given up (StepJobs). Until the request
--- has gone out (it waits its turn: Send) the longer time holds.
+-- as long as the second, after which the search is given up (StepJobs). That is so only
+-- where the second can go out at once: while the client is still busy with the first, its
+-- answer may be on the way, and the longer time holds, as it does until a request has gone
+-- out at all (it waits its turn: Send).
 local sendingSearch = false
 local function SendJob(job)
     job.state = "query"
     job.deadline = GetTime() + JOB_TIMEOUT
-    local wait = job.tries == 0 and JOB_FIRST_WAIT or JOB_TIMEOUT
+    job.early = nil
     Send(function()
+        -- Answered while this waited its turn, or over: there is nothing to ask. (A search
+        -- sent for a job that has its answer would take the answer away again.)
+        if not run or run.job ~= job or job.state ~= "query" then return end
         local now = GetTime()
-        job.deadline = now + wait
+        job.deadline = now + JOB_TIMEOUT
+        -- When the first sending is given up, if another request can go out by then (Overdue).
+        job.early = job.tries == 0 and now + JOB_FIRST_WAIT or nil
         job.sentAt, job.firstAt = now, job.firstAt or now
-        if run.stats then run.stats.searches = run.stats.searches + 1 end
+        job.sent = job.sent + 1
+        if run.stats then
+            run.stats.searches = run.stats.searches + 1
+            if job.sent > 1 then run.stats.resent = run.stats.resent + 1 end
+        end
         -- 0, 0 is "no level filter", as the auction window itself sends by default.
         sendingSearch = true
         AH.SendSearchQuery(job.key, ITEM_SORTS, false, 0, 0)
@@ -647,6 +684,9 @@ local function NextJob()
         S.info.toVerify = S.info.verified + left
     end
     if not job then
+        -- Rows that are still being read may bring something to look up yet: StepLate
+        -- comes back here when one does, and when none is left.
+        if IsScanMode(run.mode) and scan.late then return end
         FinishRun(not run.failed)
         return
     end
@@ -654,7 +694,8 @@ local function NextJob()
     job.tries = 0
     job.evalTries = 0
     job.partial = false
-    job.sentAt, job.firstAt = nil, nil
+    job.sentAt, job.firstAt, job.answered = nil, nil, nil
+    job.sent = 0                -- times its search went out
     SendJob(job)
 end
 
@@ -677,9 +718,14 @@ end
 -- Called when the client has (some of) the auctions for the current job.
 local function ContinueJob(job)
     local key = job.key
-    -- (How long the answer took to come: the longest of a scan is kept.)
-    if run.stats and job.sentAt and job.state == "query" then
-        run.stats.slowest = math.max(run.stats.slowest, math.floor((GetTime() - job.sentAt) * 100 + 0.5) / 100)
+    -- (How long the answer took to come, from the search's first sending, and from its last:
+    -- the longest of a scan is kept, and a slow search is written down with both, NoteJob.)
+    if job.firstAt and job.state == "query" then
+        local now = GetTime()
+        job.answered = now - job.sentAt
+        if run.stats then
+            run.stats.slowest = math.max(run.stats.slowest, math.floor((now - job.firstAt) * 100 + 0.5) / 100)
+        end
     end
     local count = AH.GetNumItemSearchResults(key) or 0
     if not AH.HasFullItemSearchResults(key) and count < MAX_AUCTIONS then
@@ -689,6 +735,7 @@ local function ContinueJob(job)
             job.state = "more"
             job.deadline = GetTime() + JOB_TIMEOUT
             Send(function()
+                if not run or run.job ~= job or job.state ~= "more" then return end
                 job.deadline = GetTime() + JOB_TIMEOUT
                 if run.stats then run.stats.pages = run.stats.pages + 1 end
                 if AH.RequestMoreItemSearchResults(key) then
@@ -899,17 +946,23 @@ function S.TimeLeft()
     return left * pace
 end
 
+-- Has the job waited long enough for an answer? Its first sending is given up early (see
+-- SendJob), but only when another request can go out at once.
+local function Overdue(job, now)
+    if now > job.deadline then return true end
+    return job.state == "query" and job.early ~= nil and now > job.early and AH.IsThrottledMessageSystemReady()
+end
+
 local function StepJobs(now)
     local job = run.job
     if not job then return end
     if job.state == "read" or (job.state == "wait" and now >= job.retryAt) then
         ReadJob(job)
-    elseif (job.state == "query" or job.state == "more") and now > job.deadline then
+    elseif (job.state == "query" or job.state == "more") and Overdue(job, now) then
         if job.state == "more" then
             job.state = "read"          -- read what did arrive
         elseif job.tries < JOB_RETRIES then
             job.tries = job.tries + 1
-            if run.stats then run.stats.resent = run.stats.resent + 1 end
             SendJob(job)
         else
             run.failed = true
@@ -936,7 +989,9 @@ end
 ---------------------------------------------------------------------------
 -- Step 2: scoring the browse rows
 ---------------------------------------------------------------------------
--- true when the row is settled, false when it has to wait for the client to load something.
+-- true when the row is settled; false when it has to wait for the client to load something,
+-- and then what: "data" the item itself, "sample" a link of one of the row's auctions,
+-- "link" what that link stands for, "tip" its tooltip.
 local function ScoreRow(row)
     local key = row.key
     local itemID = key.itemID
@@ -945,7 +1000,7 @@ local function ScoreRow(row)
             run.requested[itemID] = true
             C_Item.RequestLoadItemDataByID(itemID)
         end
-        return false
+        return false, "data"
     end
 
     -- An item that stacks is sold by the piece out of one pile, as consumables are, whatever
@@ -968,16 +1023,16 @@ local function ScoreRow(row)
             -- is not written down anywhere, hence the wait and not a promise.)
             AH.GetItemKeyInfo(key)
         end
-        return false
+        return false, "sample"
     end
 
     local eval = EvalLink(link)
-    if eval == nil then return false end
+    if eval == nil then return false, "link" end
 
     if eval and #ns.Compare.Place(eval, S.ctx) > 0 then
         -- Red text is about the item, not the auction, so the sample answers for the row.
         if eval.usable == nil then ReadTooltip(eval) end
-        if eval.usable == nil then return false end
+        if eval.usable == nil then return false, "tip" end
         -- (An item the tooltip has just called unique-equipped, and that is worn, is a
         -- candidate still: SkipReason finds it no better than the gear.)
         if eval.usable then
@@ -986,6 +1041,8 @@ local function ScoreRow(row)
         end
     end
     scan.rejected[#scan.rejected + 1] = row
+    -- (A row read late, after the rows dropped by score were sent to their searches: NextJob.)
+    if scan.requeued then AddCandidate(row) end
     return true
 end
 
@@ -1076,6 +1133,38 @@ local function ScoreSupply(row, final)
     return true
 end
 
+-- Rows of gear the client never told enough about go to their item searches, which can
+-- tell what a row holds without its help (the candidates without a sample: AddCandidate).
+local function GiveUp(rows)
+    for i = 1, #rows do
+        NoteUnread(rows[i])
+        AddCandidate(rows[i])
+    end
+end
+
+-- The list does not wait for the rows the client is slow to tell about: once the others are
+-- read and nothing more has come for a moment, the candidates are listed and their prices
+-- looked up, and the rows still unread are read on meanwhile (StepLate). They belong to the
+-- scan and not to the run: scan.late = { rows, at = when a row was last read, nextTry }.
+-- Each is asked for once more: one asking is not known to be answered always.
+local function HoldLate(rows)
+    local stats = run.stats
+    scan.late = { rows = rows, at = run.lastRead, nextTry = 0 }
+    for i = 1, #rows do
+        local row = rows[i]
+        local why = row.why or "?"
+        if stats then
+            stats.late = stats.late + 1
+            stats.lateWhy[why] = (stats.lateWhy[why] or 0) + 1
+        end
+        if why == "data" then
+            C_Item.RequestLoadItemDataByID(row.key.itemID)
+        elseif why == "sample" then
+            AH.GetItemKeyInfo(row.key)
+        end
+    end
+end
+
 local function StepScore(now)
     local started = Clock()
     local list = run.toScore
@@ -1084,10 +1173,12 @@ local function StepScore(now)
     while run.scoreIndex <= #list do
         local row = list[run.scoreIndex]
         run.scoreIndex = run.scoreIndex + 1
-        if Score(row) then
+        local read, why = Score(row)
+        if read then
             S.info.scored = S.info.scored + 1
-            run.lastLoad = now
+            run.lastLoad, run.lastRead = now, now
         else
+            row.why = why
             run.waiting[#run.waiting + 1] = row
         end
         if Clock() - started > FRAME_BUDGET_MS then
@@ -1095,19 +1186,28 @@ local function StepScore(now)
             return
         end
     end
+    -- Every row has had its turn once: the client has from now to tell of the rest.
+    if not run.passed then
+        run.passed = true
+        run.lastRead = now
+    end
 
     if #run.waiting > 0 then
         if now - run.lastLoad > LOAD_TIMEOUT then
             -- The client is not going to tell us more: let the item search decide these.
             -- (A consumable has no item search to go to: it is taken as far as it is known.)
-            for i = 1, #run.waiting do
-                if supplies then
-                    ScoreSupply(run.waiting[i], true)
-                else
-                    AddCandidate(run.waiting[i])
-                end
+            if supplies then
+                for i = 1, #run.waiting do ScoreSupply(run.waiting[i], true) end
+            else
+                GiveUp(run.waiting)
             end
             S.info.scored = S.info.scored + #run.waiting
+            run.waiting = {}
+        elseif not supplies and #scan.candidates > 0 and now - run.lastRead > LOAD_QUIET then
+            -- There is a list to show and prices to look up: on with those, and the rows
+            -- still unread are read on meanwhile. (With no candidate yet there is nothing
+            -- to go on with, and the wait is as it was.)
+            HoldLate(run.waiting)
             run.waiting = {}
         elseif now >= run.nextRetry then
             run.nextRetry = now + 0.25
@@ -1126,6 +1226,60 @@ local function StepScore(now)
     scan.ready = true
     ListCandidates()
     StartVerify()
+end
+
+-- Reads on the rows the list did not wait for (HoldLate), a few times a second, while the
+-- prices are looked up. A row that is read is a candidate like any other: in the list at
+-- once, and looked up in its turn. What is still unread when nothing more has come for
+-- LOAD_TIMEOUT goes to the item searches. The run does not end before that (NextJob).
+local LATE_RETRY = 0.25
+
+local function StepLate(now)
+    local late = scan.late
+    if now < late.nextTry then return end
+    local started = Clock()
+    local rows, unread = late.rows, {}
+    local known = #scan.candidates
+    local at = 1
+    while at <= #rows do
+        local row = rows[at]
+        at = at + 1
+        local read, why = ScoreRow(row)
+        if read then
+            late.at = now
+            if run.stats then run.stats.lateRead = run.stats.lateRead + 1 end
+        else
+            row.why = why
+            unread[#unread + 1] = row
+        end
+        if Clock() - started > FRAME_BUDGET_MS then break end
+    end
+    -- The rows this frame had no time for come first in the next one.
+    local cut = at <= #rows
+    if cut then
+        local rest = {}
+        for i = at, #rows do rest[#rest + 1] = rows[i] end
+        for i = 1, #unread do rest[#rest + 1] = unread[i] end
+        unread = rest
+    end
+    late.nextTry = cut and now or now + LATE_RETRY
+    if #unread > 0 and not cut and now - late.at > LOAD_TIMEOUT then
+        GiveUp(unread)
+        unread = {}
+    end
+    late.rows = unread
+    if #unread == 0 then scan.late = nil end
+
+    if #scan.candidates > known then
+        SortCandidates()
+        ListCandidates()
+        local _, left = PickCandidate()
+        S.info.toVerify = S.info.verified + left
+        ns.Fire("SCAN_PROGRESS")
+    end
+    -- Nothing was being looked up, for want of a candidate: there may be one now, and with
+    -- nothing left to wait for either the scan is over.
+    if not run.job and (#scan.candidates > known or not scan.late) then NextJob() end
 end
 
 ---------------------------------------------------------------------------
@@ -1234,6 +1388,7 @@ local function FinishBrowse(partial)
     S.info.scored = 0
     run.scoreIndex = 1
     run.lastLoad = GetTime()
+    run.lastRead = run.lastLoad
     run.nextRetry = 0
     SetState("score")
 end
@@ -1328,7 +1483,9 @@ local function NewRun(mode)
         evalCache = scanning and scan.evalCache or {},
         stats = stats,
         deadline = 0,
-        lastLoad = 0,
+        lastLoad = 0,       -- when the client last loaded an item, or a row was read
+        lastRead = 0,       -- when a row was last read (see StepScore)
+        passed = false,     -- every row has had its turn once
         nextRetry = 0,
     }
     ResetOrder()
@@ -1466,6 +1623,12 @@ function S.Stop(message)
         if state == "verify" then
             -- Every candidate is known; only prices are missing, and those can be resumed.
             S.halted = true
+            -- (Rows that were still being read are candidates from here on, for their
+            -- item searches to decide: nothing reads them on while no run is under way.)
+            if scan and scan.late then
+                GiveUp(scan.late.rows)
+                scan.late = nil
+            end
         else
             S.partial = true
             scan = nil
@@ -1835,6 +1998,8 @@ function S.Step()
         StepScore(now)
     elseif S.state == "verify" then
         if run.lookup then StepLookup(now) else StepJobs(now) end
+        -- (Either may have ended the run.)
+        if run and scan and scan.late and IsScanMode(run.mode) then StepLate(now) end
     end
 end
 

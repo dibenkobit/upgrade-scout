@@ -7,9 +7,9 @@ local scenario = arg[1]
 local ADDON_DIR = "UpgradeScout/"
 
 local names = {
-    "events", "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_no_sample",
+    "events", "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_late", "scan_no_sample",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
-    "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_pieces", "scan_eta",
+    "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_slow_answer", "scan_pieces", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "fonts", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
@@ -570,6 +570,65 @@ function scenarios.scan_async()
     eq(Offer("Ghost"), nil, "an item the client never loads is left out, and the scan still ends")
 end
 
+-- The list does not wait for the rows the client is slow to tell about: it is shown, and its
+-- prices are looked up, while those are read on. A real scan stood four seconds near the end
+-- of its scoring for 13 rows of 10,000 that the client never told of.
+function scenarios.scan_late()
+    StandardWorld()
+    W.AddItem({ id = 300, name = "Ghost", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 70, level = 9, uncached = true })
+    W.AddAuction(300, 100)
+    W.neverLoad = { [300] = true }       -- the client never loads this one,
+    W.AddItem({ id = 301, name = "Late Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 40, level = 9, uncached = true })
+    W.AddAuction(301, 600)
+    W.loadAfter = { [301] = 2.5 }        -- and this one after two and a half seconds
+    LoadAddon()
+    SetView(false, false)                -- every upgrade is listed, so every price is looked up
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return S.state == "score" end, 60)
+    local began = W.now
+    W.RunUntil(function() return S.state ~= "score" end, 60)
+    eq(S.state, "verify", "the prices are looked up")
+    check(W.now - began < 1.5, "a second after the last row was read, not four: " .. (W.now - began))
+    check(Unsure("Good Chest") ~= nil or Offer("Good Chest") ~= nil, "the rows that were read are in the list")
+    eq(Unsure("Late Helm"), nil, "a row the client has not told of is not in the list yet")
+    eq(S.stats.late, 2, "two rows the list did not wait for")
+    eq(S.stats.lateWhy.data, 2, "both for want of their items")
+
+    W.RunUntil(function() return Unsure("Late Helm") ~= nil or Offer("Late Helm") ~= nil end, 5)
+    check(W.now - began < 3.2, "the helm is in the list as soon as the client has it: " .. (W.now - began))
+    eq(S.state, "verify", "while the prices are looked up")
+    eq(S.stats.lateRead, 1, "one late row read")
+
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(Offer("Late Helm").buyout, 600, "and its price is looked up like any other")
+    eq(Offer("Ghost"), nil, "the row never read went to its item search, which left it out")
+    eq(S.stats.unread.data, 1, "one row never read, for want of its item")
+    eq(S.stats.unreadItems[1], "300:0 data", "and it is named")
+    eq(ns.db.lastScan.unread.data, 1, "the numbers are kept with the last scan's")
+    eq(S.unanswered, 0, "nothing was left unanswered")
+    check(Offer("Good Chest") ~= nil and Offer("Helm") ~= nil and Offer("Shield") ~= nil, "the rest of the list is whole")
+    -- The scan did not end before the row never read was given up: four seconds after the
+    -- helm was read.
+    check(W.now - began > 6, "the scan waited for the last row before it ended: " .. (W.now - began))
+
+    -- A scan stopped while a row is still being read: the row is a candidate from then on,
+    -- and its search is among the prices looked up when the list asks for them again.
+    check(S.Start(), "a second scan starts")
+    W.RunUntil(function() return S.state == "verify" end, 60)
+    eq(S.stats.late, 1, "the second scan: the one row that never loads is late")
+    local searches = W.AH.calls.search
+    S.Stop()
+    eq(S.stats.unread.data, 1, "stopped: the late row is given to its search")
+    S.Resume()
+    check(S.Demand(), "the prices are picked up again")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    check(W.AH.calls.search > searches, "and looked up")
+    eq(Offer("Ghost"), nil, "the row never read is left out again")
+    check(Offer("Late Helm") ~= nil, "the helm, loaded by now, is found at once")
+end
+
 -- A belt that comes in variants, as random-suffix gear does on Forever: the plain item has
 -- nothing on it, each variant is an item of its own with a row of its own at the auction house.
 local function AddBelts()
@@ -1013,6 +1072,66 @@ function scenarios.scan_unanswered()
     eq(slow.tries, 2, "sent twice"); check(slow.sec >= 3 and slow.sec < 5, "over three seconds: " .. slow.sec)
     check(slow.item:find("%d+:%d+$") ~= nil and slow.auctions >= 1, "with the item it was for and its auctions: " .. slow.item)
     eq(ns.db.lastScan.resent, 1, "kept with the last scan's numbers"); eq(#ns.db.lastScan.slow, 1, "the slow search too")
+end
+
+-- An answer that is slow to come, while the client lets no other request out: the search is
+-- not sent again over it. A second sending put in line behind the first would go out after
+-- the answer and take it away again, and the row with it.
+function scenarios.scan_slow_answer()
+    StandardWorld()
+    LoadAddon()
+    SetView(false, false)
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    local function Begin(label)
+        W.RunUntil(function() return W.AH.ready end, 15)
+        local searches = W.AH.calls.search
+        check(S.Start(), label .. ": scan starts")
+        W.RunUntil(function() return S.state == "verify" and OfferCount() >= 1 end, 60)
+        return searches
+    end
+    local function End(label)
+        W.RunUntil(function() return S.state == "idle" end, 120)
+        W.Run(0.5)
+        eq(OfferCount(), 6, label .. ": all six prices are in the list"); eq(UnsureCount(), 0, label .. ": none left unchecked")
+        eq(S.unanswered, 0, label .. ": nothing unanswered"); eq(S.stats.timeouts, 0, label .. ": no search given up")
+    end
+
+    -- How many searches a scan with every answer in time sends.
+    local searches = Begin("plain")
+    End("plain")
+    local plain = W.AH.calls.search - searches
+
+    -- The answer comes after 3.4 seconds, and the client is busy until then.
+    searches = Begin("slow")
+    W.AH.slowSearch = { answer = 3.41, ready = 3.44 }
+    End("slow")
+    eq(W.AH.calls.search - searches, plain, "slow: every search went out once")
+    eq(S.stats.resent, 0, "slow: none a second time")
+    eq(#S.stats.slow, 1, "slow: the slow one is written down")
+    local slow = S.stats.slow[1]
+    eq(slow.tries, 1, "slow: sent once"); check(slow.sec >= 3.3 and slow.sec < 4, "slow: over three seconds: " .. slow.sec)
+    check(slow.after >= 3.3 and slow.after < 4, "slow: the answer came that long after its one sending: " .. slow.after)
+    check(S.stats.slowest >= 3.3 and S.stats.slowest < 4, "slow: the longest answer of the scan: " .. S.stats.slowest)
+
+    -- No answer at all, and the client lets nothing out for twelve seconds: the search is
+    -- sent again when it does, as it was before the first sending was given up early.
+    searches = Begin("busy")
+    W.AH.slowSearch = { answer = false, ready = 12 }
+    End("busy")
+    eq(W.AH.calls.search - searches, plain + 1, "busy: one search went out twice")
+    eq(S.stats.resent, 1, "busy: counted")
+    slow = S.stats.slow[1]
+    eq(slow.tries, 2, "busy: sent twice"); check(slow.sec >= 12 and slow.sec < 13, "busy: twelve seconds: " .. slow.sec)
+    check(slow.after < 1, "busy: the second sending was answered at once: " .. slow.after)
+
+    -- No answer, and the client free again at once: sent again after three seconds.
+    searches = Begin("free")
+    W.AH.slowSearch = { answer = false, ready = 0.15 }
+    End("free")
+    eq(W.AH.calls.search - searches, plain + 1, "free: one search went out twice")
+    slow = S.stats.slow[1]
+    check(slow.sec >= 3 and slow.sec < 4, "free: three seconds lost, not eight: " .. slow.sec)
 end
 
 -- A piece of gear that stacks is sold by the piece out of one pile, as consumables are: the game

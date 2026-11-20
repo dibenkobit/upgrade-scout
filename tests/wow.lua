@@ -1458,8 +1458,9 @@ function C_Item.IsItemDataCachedByID(id)
     end
     return true
 end
+-- W.loadAfter: { [item] = seconds } for an item the client is slower to load than the rest.
 function C_Item.RequestLoadItemDataByID(id)
-    C_Timer.After(W.loadDelay or 0.5, function()
+    C_Timer.After(W.loadAfter and W.loadAfter[id] or W.loadDelay or 0.5, function()
         if W.neverLoad and W.neverLoad[id] then return end
         for _, item in pairs(W.items) do
             if item.id == id then item.cached = true end
@@ -1533,11 +1534,12 @@ end
 
 local function KeyText(key) return key.itemID .. ":" .. key.itemLevel .. ":" .. key.itemSuffix end
 
-local function Busy()
+-- after: seconds until the next request may go out (a moment, unless said otherwise).
+local function Busy(after)
     -- Like the real server: a request sent while another is in flight is an error in the addon.
     if not A.ready then error("request sent while the auction house throttle was not ready", 3) end
     A.ready = false
-    C_Timer.After(0.15, function()
+    C_Timer.After(after or 0.15, function()
         A.ready = true
         W.Fire("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
     end)
@@ -1635,14 +1637,20 @@ function C_AuctionHouse.GetItemKeySampleLink(key)
 end
 function C_AuctionHouse.GetItemKeyInfo() return nil end
 
+-- W.AH.slowSearch = { answer = seconds, or false for none; ready = seconds }: the next item
+-- search is answered that long after it is sent, and the throttle lets the next request out
+-- that long after it.
 function C_AuctionHouse.SendSearchQuery(key, sorts, separateOwnerItems, minLevel, maxLevel)
-    Busy()
+    local slow = A.slowSearch
+    A.slowSearch = nil
+    Busy(slow and slow.ready)
     A.calls.search = A.calls.search + 1
     assert(type(sorts) == "table" and separateOwnerItems == false and minLevel == 0 and maxLevel == 0, "unexpected item search arguments")
     if A.dropSearches and A.dropSearches > 0 then
         A.dropSearches = A.dropSearches - 1
         return
     end
+    if slow and slow.answer == false then return end
     A.results = A.results or {}
     A.loaded = A.loaded or {}
     local list = InBucket(key)
@@ -1658,7 +1666,7 @@ function C_AuctionHouse.SendSearchQuery(key, sorts, separateOwnerItems, minLevel
     local text = KeyText(key)
     A.results[text], A.loaded[text] = nil, nil
     local copy = { itemID = key.itemID, itemLevel = key.itemLevel, itemSuffix = key.itemSuffix, battlePetSpeciesID = 0 }
-    C_Timer.After(0.2, function()
+    C_Timer.After(slow and slow.answer or 0.2, function()
         A.results[text] = list
         A.loaded[text] = math.min(#list, A.itemPageSize)
         W.Fire("ITEM_SEARCH_RESULTS_UPDATED", copy)
