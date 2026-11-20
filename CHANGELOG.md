@@ -24,8 +24,8 @@
   say whose score it is: **Upgrade Scout (Forever Leveling BiS score)**.
 - The choice is for the whole account. Without Forever Leveling BiS, or with it switched off, the
   addon scores by its own weights.
-- A price check the auction house leaves without an answer is asked again after 3 seconds, not 8:
-  the scan no longer seems stuck on it.
+- A price check the auction house leaves without an answer is asked again after about a second,
+  not 8: the scan no longer seems stuck on it.
 - The scoring no longer stands still for several seconds near its end. The list appears while
   the game is still loading the last few items, and those join it as they come.
 - If you have Forever Leveling BiS, the window comes up once after the update to show you the

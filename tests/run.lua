@@ -1047,9 +1047,10 @@ function scenarios.scan_unanswered()
     check(S.stats.slowest > 0 and S.stats.slowest < 1, "an answer comes in well under a second: " .. S.stats.slowest)
     eq(S.stats.foreign, 0, "nobody else searched meanwhile"); eq(S.stats.dropped, 0, "and no request was thrown away")
 
-    -- A search left without an answer once is sent again after three seconds, not eight: the
-    -- second sending is answered, and the scan loses those three seconds and no price. The
-    -- statistics say where the time went.
+    -- A search left without an answer once is sent again after a second, not eight (four
+    -- times as long as an answer has taken in this scan, and no less than a second): the
+    -- second sending is answered, and the scan loses that second and no price. The statistics
+    -- say where the time went.
     W.RunUntil(function() return W.AH.ready end, 5)
     check(S.Start(), "fourth scan starts")
     W.RunUntil(function() return S.state == "verify" and OfferCount() >= 1 end, 60)
@@ -1061,7 +1062,7 @@ function scenarios.scan_unanswered()
     C_AuctionHouse.SendBrowseQuery({ searchString = "x", sorts = {}, itemClassFilters = {} })
     W.RunUntil(function() return W.AH.calls.search == searches + 2 end, 60)
     local waited = GetTime() - began
-    check(waited >= 3 and waited < 5, "the search without an answer is sent again after three seconds: " .. waited)
+    check(waited >= 1 and waited < 2, "the search without an answer is sent again after a second: " .. waited)
     W.RunUntil(function() return S.state == "idle" end, 120)
     W.Run(0.3)
     eq(S.unanswered, 0, "it got its answer the second time"); eq(S.stats.timeouts, 0, "statistics: no search without an answer")
@@ -1069,7 +1070,7 @@ function scenarios.scan_unanswered()
     eq(S.stats.resent, 1, "statistics: one search sent twice"); eq(S.stats.foreign, 1, "one search of somebody else's")
     eq(#S.stats.slow, 1, "one search took long")
     local slow = S.stats.slow[1]
-    eq(slow.tries, 2, "sent twice"); check(slow.sec >= 3 and slow.sec < 5, "over three seconds: " .. slow.sec)
+    eq(slow.tries, 2, "sent twice"); check(slow.sec >= 1 and slow.sec < 2, "over a second: " .. slow.sec)
     check(slow.item:find("%d+:%d+$") ~= nil and slow.auctions >= 1, "with the item it was for and its auctions: " .. slow.item)
     eq(ns.db.lastScan.resent, 1, "kept with the last scan's numbers"); eq(#ns.db.lastScan.slow, 1, "the slow search too")
 end
@@ -1125,13 +1126,41 @@ function scenarios.scan_slow_answer()
     eq(slow.tries, 2, "busy: sent twice"); check(slow.sec >= 12 and slow.sec < 13, "busy: twelve seconds: " .. slow.sec)
     check(slow.after < 1, "busy: the second sending was answered at once: " .. slow.after)
 
-    -- No answer, and the client free again at once: sent again after three seconds.
+    -- No answer, and the client free again at once: sent again after a second. Answers have
+    -- come in a fifth of a second here, and four times that is under the least it waits.
     searches = Begin("free")
     W.AH.slowSearch = { answer = false, ready = 0.15 }
     End("free")
     eq(W.AH.calls.search - searches, plain + 1, "free: one search went out twice")
     slow = S.stats.slow[1]
-    check(slow.sec >= 3 and slow.sec < 4, "free: three seconds lost, not eight: " .. slow.sec)
+    check(slow.sec >= 1 and slow.sec < 2, "free: a second lost, not eight: " .. slow.sec)
+
+    -- Where answers are slower to come the wait is longer: one that took 0.6 seconds, and the
+    -- next search left without an answer is sent again after four times that.
+    searches = Begin("lagging")
+    W.AH.slowSearch = { answer = 0.6, ready = 0.15 }
+    W.RunUntil(function() return W.AH.slowSearch == nil end, 30)
+    W.Run(0.9)
+    W.AH.slowSearch = { answer = false, ready = 0.15 }
+    End("lagging")
+    eq(W.AH.calls.search - searches, plain + 1, "lagging: one search went out twice")
+    eq(#S.stats.slow, 1, "lagging: and is written down")
+    slow = S.stats.slow[1]
+    check(slow.sec >= 2.4 and slow.sec < 3.2, "lagging: after four times the slowest answer, 2.4 seconds: " .. slow.sec)
+
+    -- An answer that is late and not lost, with the client free: the search goes out again
+    -- after a second, the first answer comes right after, and the next searches are waited
+    -- for as long as that one took. Nothing is lost by the second sending.
+    searches = Begin("late")
+    W.AH.slowSearch = { answer = 1.3, ready = 0.15 }
+    W.RunUntil(function() return W.AH.slowSearch == nil end, 30)
+    W.RunUntil(function() return #S.stats.slow == 1 end, 30)
+    W.AH.slowSearch = { answer = false, ready = 0.15 }
+    End("late")
+    eq(W.AH.calls.search - searches, plain + 2, "late: two searches went out twice")
+    eq(#S.stats.slow, 2, "late: both are written down")
+    check(S.stats.slow[1].sec >= 1 and S.stats.slow[1].sec < 2, "late: the late answer came after 1.3 seconds: " .. S.stats.slow[1].sec)
+    check(S.stats.slow[2].sec >= 3, "late: the next search without an answer was waited for longer, 3 seconds: " .. S.stats.slow[2].sec)
 end
 
 -- A piece of gear that stacks is sold by the piece out of one pile, as consumables are: the game

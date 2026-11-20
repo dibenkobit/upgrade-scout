@@ -28,11 +28,14 @@ local LOAD_QUIET = 1           -- and after which the list no longer waits for t
                                -- 13 rows of 10,000 never were read, and the list stood four seconds for them
 local LATE_KEPT = 12           -- rows never read that the last scan's numbers name (lastScan.unreadItems)
 local JOB_TIMEOUT = 8         -- seconds to wait for an answer to an item search
-local JOB_FIRST_WAIT = 3       -- and for the answer to its first sending: that one comes in under a second,
-                               -- and a search left without it has been answered when sent again (a real
-                               -- scan: 6 of 39 searches, 8 seconds lost on each)
+local JOB_FIRST_WAIT = 3       -- and at most for the answer to its first sending: a search left without it
+                               -- has been answered when sent again (a real scan: 6 of 39 searches, 8
+                               -- seconds lost on each). Once answers have come it is waited for
+local JOB_FIRST_TIMES = 4      -- this many times as long as the slowest of them took (in real scans a
+local JOB_FIRST_LEAST = 1      -- quarter of a second), and never less than this (see FirstWait)
 local JOB_RETRIES = 1
 local SLOW_JOB = 2             -- seconds from which a search is written down as a slow one (lastScan.slow),
+                               -- as is one that went out twice, however long it took,
 local SLOW_KEPT = 12           -- and how many of those are kept
 local FAIL_STREAK = 3          -- unanswered item searches in a row that end the price checks
 local PACE_WEIGHT = 5          -- searches the last scan's pace counts for in the time-left estimate,
@@ -215,7 +218,7 @@ local function NoteJob(job, answered)
     local stats = run and run.stats
     if not stats or not job.firstAt then return end
     local took = GetTime() - job.firstAt
-    if took < SLOW_JOB or #stats.slow >= SLOW_KEPT then return end
+    if (took < SLOW_JOB and job.sent < 2) or #stats.slow >= SLOW_KEPT then return end
     local key = job.key
     stats.slow[#stats.slow + 1] = {
         item = (job.eval and job.eval.name or "?") .. " " .. tostring(key.itemID) .. ":" .. tostring(key.itemSuffix or 0),
@@ -635,10 +638,49 @@ end
 
 -- The answer to a search comes in well under a second. Now and then none comes at all, and
 -- the same search sent again is answered at once: so the first sending is not waited for
--- as long as the second, after which the search is given up (StepJobs). That is so only
+-- as long as the second, after which the search is given up (StepJobs), but a few times as
+-- long as answers take (FirstWait). That is so only
 -- where the second can go out at once: while the client is still busy with the first, its
 -- answer may be on the way, and the longer time holds, as it does until a request has gone
 -- out at all (it waits its turn: Send).
+-- How long the answers to first sendings have taken since the last scan began: the least and
+-- the most, in seconds; nil until one came. The first sending of a search is waited for a
+-- few times as long as the slowest of them, so that the wait fits how fast the auction
+-- house answers this player, whatever that is.
+local answers = {}
+
+local function FirstWait()
+    if not answers.most then return JOB_FIRST_WAIT end
+    return math.max(JOB_FIRST_LEAST, math.min(JOB_FIRST_WAIT, answers.most * JOB_FIRST_TIMES))
+end
+
+-- A search that went out twice and has its answer: { key, took = seconds from its first
+-- sending to that answer, till }. Which of the two sendings was answered cannot be told
+-- then. It can a moment later: when a second answer comes for the same item, both were
+-- answered, so the first was late and not lost, and answers take as long as `took` here
+-- (NoteStray). With none lost the next searches are then waited for long enough, and no
+-- search goes out twice for nothing; with one lost the wait stays short.
+local doubled
+local DOUBLED_FOR = 5           -- seconds the second answer is looked out for
+
+-- An answer came to the job's search, `took` seconds after its last sending.
+local function NoteAnswer(job, took, now)
+    if job.sent == 1 then
+        answers.least = math.min(answers.least or took, took)
+        answers.most = math.max(answers.most or took, took)
+    else
+        doubled = { key = job.key, took = now - job.firstAt, till = now + DOUBLED_FOR }
+    end
+end
+
+-- An answer to an item search that no job is waiting for.
+local function NoteStray(itemKey)
+    if doubled and GetTime() <= doubled.till and ns.SameKey(itemKey, doubled.key) then
+        answers.most = math.max(answers.most or doubled.took, doubled.took)
+        doubled = nil
+    end
+end
+
 local sendingSearch = false
 local function SendJob(job)
     job.state = "query"
@@ -651,7 +693,7 @@ local function SendJob(job)
         local now = GetTime()
         job.deadline = now + JOB_TIMEOUT
         -- When the first sending is given up, if another request can go out by then (Overdue).
-        job.early = job.tries == 0 and now + JOB_FIRST_WAIT or nil
+        job.early = job.tries == 0 and now + FirstWait() or nil
         job.sentAt, job.firstAt = now, job.firstAt or now
         job.sent = job.sent + 1
         if run.stats then
@@ -725,6 +767,7 @@ local function ContinueJob(job)
     if job.firstAt and job.state == "query" then
         local now = GetTime()
         job.answered = now - job.sentAt
+        NoteAnswer(job, job.answered, now)
         if run.stats then
             run.stats.slowest = math.max(run.stats.slowest, math.floor((now - job.firstAt) * 100 + 0.5) / 100)
         end
@@ -1594,6 +1637,7 @@ function S.Start()
     S.finishedAt = nil
     S.info = { rows = 0, scored = 0, toScore = 0, verified = 0, toVerify = 0 }
     S.stats = NewStats()
+    answers, doubled = {}, nil
     confirming = false
     scan = {
         candidates = {},    -- rows whose item scored as an upgrade (see AddCandidate)
@@ -2061,6 +2105,8 @@ local function OnItemResults(itemKey)
     local job = run.job
     if job and (job.state == "query" or job.state == "more") and ns.SameKey(itemKey, job.key) then
         ContinueJob(job)
+    else
+        NoteStray(itemKey)
     end
 end
 ns.On("ITEM_SEARCH_RESULTS_UPDATED", OnItemResults)
