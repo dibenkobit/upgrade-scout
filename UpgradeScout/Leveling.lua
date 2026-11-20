@@ -74,6 +74,9 @@ F.TEXT = {
     ASK = "WELCOME_SCALE_LEVELING",
     NONE = "WELCOME_NO_SCALE_LEVELING",
     CHANGE = "CHANGE_LEVELING",
+    -- (The two above, while no main spec is chosen there yet: F.Words.)
+    ASK_UNCHOSEN = "WELCOME_SCALE_LEVELING_UNCHOSEN",
+    CHOOSE = "CHOOSE_LEVELING",
     WRITES = "WELCOME_TOOLTIP_LEVELING",
     WRITES_OTHERS = "WELCOME_TOOLTIP_LEVELING_OTHERS",
     NEW = "WELCOME_LEVELING_NEW",
@@ -334,6 +337,24 @@ function F.Opens()
     return F.Usable() and Command() ~= nil
 end
 
+-- Until the player picks a main spec in Forever Leveling BiS it goes by the first spec of
+-- the class, whatever the character's talents are in (a mage with its points in Frost is
+-- scored as Arcane), and its API does not tell that from a choice. What it saves does: no
+-- spec is written down for the character. The welcome window then says so over the spec,
+-- and the button beside it reads "Choose", not "Change" (Score.Text asks here for the words).
+local function Unchosen()
+    local me = ns.Roster.Me()
+    local saved = me and Saved(me) or nil
+    -- (A character it has nothing saved for at all is one this cannot tell of.)
+    return saved ~= nil and saved.spec == nil
+end
+
+function F.Words(what)
+    if what == "ASK" and Unchosen() then return F.TEXT.ASK_UNCHOSEN end
+    if what == "CHANGE" and Unchosen() then return F.TEXT.CHOOSE end
+    return F.TEXT[what]
+end
+
 function F.Open()
     if F.Opens() then Command()(PANEL) end
 end
@@ -347,7 +368,13 @@ end
 -- have changed (Look), which also finds out by these which of them did.
 -- The character being played is asked about with nothing named: its own class, main spec,
 -- level and weapon setup, whatever they are by now.
+-- It says so for the main spec of the character being played and for no other: a set of
+-- weights the player changed for another spec comes without a word. So an answer about
+-- another spec is asked for again once it is OTHERS_FOR seconds old, and one found changed
+-- is told as any other change is (`stale`, see Look).
 local asked = {}
+local OTHERS_FOR = 10
+local stale = false
 
 local function Text(weights)
     local parts = {}
@@ -364,7 +391,7 @@ local function Ask(key)
         weights = ForeverLevelingBiS_API.GetWeights(key.class, key.spec, key.level, key.setup)
     end
     if type(weights) ~= "table" then return nil end
-    return { weights = weights, text = Text(weights), key = key }
+    return { weights = weights, text = Text(weights), key = key, at = GetTime() }
 end
 
 -- The weights a profile scores with for a character of the level; nil for what is not a
@@ -377,6 +404,14 @@ local function Weights(id, level)
     local got = asked[name]
     if got == nil then
         got = Ask({ mine = own, class = class, spec = spec, setup = setup, level = level }) or false
+        asked[name] = got
+    elseif got and not own and GetTime() - got.at > OTHERS_FOR then
+        local again = Ask(got.key)
+        if (again and again.text) ~= got.text then
+            stale = true
+            Later()
+        end
+        got = again or false
         asked[name] = got
     end
     return got and got.weights or nil
@@ -452,6 +487,7 @@ SUPPLY[Mod("SPELL_DAMAGE_DONE")], SUPPLY[Mod("SPELL_HEALING_DONE")] = nil, nil
 local SPELL_DAMAGE, SPELL_HEALING = Mod("SPELL_DAMAGE_DONE"), Mod("SPELL_HEALING_DONE")
 local HEALTH, MANA = Mod("HEALTH"), Mod("MANA")
 local DPS = Mod("DAMAGE_PER_SECOND")
+local BLOCK = Mod("BLOCK_VALUE")
 
 -- Are the weights a spell caster's? They are when Intellect, Spirit and what adds to spells
 -- together weigh more than Strength, Agility and attack power do.
@@ -578,7 +614,17 @@ function F.Item(link)
         if not C_Item.GetItemInfo(bare) then return nil end
         local own = ns.Score.Own(link)
         if not own then return nil end
-        read = { link = bare, stats = own.stats }
+        local stats = own.stats
+        if own.tipBlock then
+            -- A shield's own block, which this addon reads from its tooltip, is no stat to
+            -- Forever Leveling BiS: what it weighs as `block` is the bonus to the block
+            -- value that a few items have, which the game counts among an item's stats.
+            stats = {}
+            for name, amount in pairs(own.stats) do
+                if name ~= BLOCK then stats[name] = amount end
+            end
+        end
+        read = { link = bare, stats = stats }
     end
     return {
         link = link, itemID = itemID, invType = invType, classID = classID, subClassID = subClassID,
@@ -649,6 +695,98 @@ function F.Refuses(item, who)
         end
     end
     return read.refused
+end
+
+---------------------------------------------------------------------------
+-- Its say on the hands
+---------------------------------------------------------------------------
+-- Forever Leveling BiS has rules for what goes into the hands that this addon has not. A
+-- hand takes only the kinds of weapon the spec's abilities need there (a Subtlety rogue's
+-- main hand takes a dagger, its off hand anything). And a weapon is judged in the weapon
+-- setup that would hold it, on that setup's weights, which for some specs are other weights
+-- than ScoreItem scores with. Its API tells none of that apart. It tells what comes of it:
+-- GetGain, "the same as the green or red number on its tooltip", the most the item gains
+-- the character in whatever hand it may go. So a row of ours says no more than that:
+--   * It would gain more in a hand than GetGain says, on the scores of what is worn now:
+--     it has no place in that hand. Were it allowed there, GetGain would be as much.
+--   * It would gain more in every hand it can go, and GetGain says it gains something: the
+--     scores are not the ones it judged by, and what the item is said to gain is GetGain.
+-- F.Hands(item) answers for the main hand and for the off hand: nil, nothing to add; false,
+-- no place there; a number, the most to be said. item: { link, invType, value, offValue }.
+-- Asked about the character being played alone (Score.Context), and about what it wears
+-- now, whatever gear the comparison is made with (Compare.Places).
+-- An answer is kept for HANDS_FOR seconds, and no longer than Forever Leveling BiS says that
+-- something changed (Hook): its gain is another once the gear is.
+local MAIN_SLOT, OFF_SLOT = 16, 17
+local HANDS_FOR = 5
+local HANDS_KEPT = 2000         -- answers kept at most
+local SLACK = 0.05              -- what two sums of the same scores may differ by
+local hands, handsKept = {}, 0  -- link -> { main, off, at }
+local held                      -- the scores of what is in the hands now: { main, off, twoHander, at }
+
+local function ForgetHands()
+    hands, handsKept, held = {}, 0, nil
+end
+
+-- nil while it cannot score what is worn yet.
+local function WornHands(now)
+    if held and now - held.at <= HANDS_FOR then return held end
+    local function Held(slot)
+        local link = GetInventoryItemLink("player", slot)
+        if not link then return 0 end
+        local _, _, _, invType, _, classID = C_Item.GetItemInfoInstant(link)
+        local offHand = slot == OFF_SLOT and classID == WEAPON_CLASS and not RANGED[invType]
+        local score = ForeverLevelingBiS_API.ScoreItem(ns.Stats.Bare(link), offHand and true or nil)
+        return type(score) == "number" and score or nil, invType
+    end
+    local main, mainType = Held(MAIN_SLOT)
+    local off = Held(OFF_SLOT)
+    if not main or not off then return nil end
+    held = { main = main, off = off, twoHander = mainType == "INVTYPE_2HWEAPON", at = now }
+    return held
+end
+
+function F.Hands(item)
+    local link, invType, value = item.link, item.invType, item.value
+    if type(link) ~= "string" or type(value) ~= "number" or ns.Compare.Kind(invType) ~= "HANDS" then return nil, nil end
+    local gain = ForeverLevelingBiS_API and ForeverLevelingBiS_API.GetGain
+    if type(gain) ~= "function" then return nil, nil end
+    local now = GetTime()
+    local known = hands[link]
+    if known and now - known.at <= HANDS_FOR then return known.main, known.off end
+
+    local main, off
+    local got = gain(ns.Stats.Bare(link))
+    local gear = type(got) == "number" and WornHands(now) or nil
+    if gear then
+        -- What it would gain in each hand it can go, as Compare.Places counts it.
+        local inMain, inOff
+        if invType == "INVTYPE_2HWEAPON" then
+            inMain = value - (gear.main + gear.off)
+        else
+            if invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND" then inMain = value - gear.main end
+            local weapon = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONOFFHAND"
+            if invType ~= "INVTYPE_WEAPONMAINHAND" and not gear.twoHander and (not weapon or CanDualWield()) then
+                inOff = (item.offValue or value) - gear.off
+            end
+        end
+        local mainOver = inMain ~= nil and inMain > got + SLACK
+        local offOver = inOff ~= nil and inOff > got + SLACK
+        local everyHand = (inMain == nil or mainOver) and (inOff == nil or offOver)
+        if everyHand and got > SLACK then
+            if mainOver then main = got end
+            if offOver then off = got end
+        else
+            if mainOver then main = false end
+            if offOver then off = false end
+        end
+    end
+    if hands[link] == nil then
+        if handsKept >= HANDS_KEPT then ForgetHands() end
+        handsKept = handsKept + 1
+    end
+    hands[link] = { main = main, off = off, at = now }
+    return main, off
 end
 
 -- Its words for the stats, by their keys, in the player's language (GetStatKeys); our own
@@ -879,8 +1017,11 @@ local function Look(whole)
         asked[MINE] = nil
     end
     if id then Weights(id) end
+    -- (Weights of another spec that were found changed when next asked for: Weights.)
+    if stale then changed, stale = true, false end
     if changed then
         epoch = epoch + 1
+        ForgetHands()
         ns.Fire("SCORING_CHANGED")
     end
 end
@@ -899,7 +1040,12 @@ local function Hook()
     local api = Api()
     if not api or told == api or type(api.OnChanged) ~= "function" then return end
     told = api
-    api.OnChanged(Changed)
+    api.OnChanged(function()
+        -- (What it makes of an item for the hands goes by the gear, which is what most often
+        -- changed: that is asked anew at once, the rest after a moment. See F.Hands.)
+        ForgetHands()
+        Changed()
+    end)
 end
 Hook()
 -- (Forever Leveling BiS may be loaded after this addon, when the player has it load on demand.)

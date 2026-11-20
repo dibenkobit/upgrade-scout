@@ -8246,7 +8246,8 @@ function scenarios.leveling_scan()
     -- Under the one line, the way to where another spec is chosen: a line that is no choice
     -- of the menu, and opens Forever Leveling BiS on its settings.
     eq(#dropdown.buttons, 1, "under the one line, a line that is no choice")
-    eq(dropdown.buttons[1].text, ns.L.CHANGE_LEVELING, "it says where the spec is changed"); eq(dropdown.buttons[1].after, 1, "right under the spec")
+    eq(dropdown.buttons[1].text, ns.L.CHOOSE_LEVELING, "no main spec is chosen there yet: it says where one is chosen")
+    eq(dropdown.buttons[1].after, 1, "right under the spec")
     eq(#dropdown.buttons[1].initializers, 1, "dressed as the menu's other lines")
     eq(#W.leveling.typed, 0, "Forever Leveling BiS has been asked to open nothing yet")
     dropdown.buttons[1].callback()
@@ -8482,6 +8483,81 @@ function scenarios.leveling_hands()
     end
     check(refused >= 1, "the odd blade among them")
     CheckLevelingAsked("weapons")
+
+    -- Its say on the hands. It has rules this addon has not (a hand that takes only one kind
+    -- of weapon, a weapon judged by another weapon setup's weights), and tells what comes of
+    -- them: the most an item gains. No row says more than that.
+    Blade(407, "Rule Blade", 14, 8, { noMain = true })      -- its rules keep this one out of the main hand
+    Blade(408, "Setup Blade", 15, 8, { gain = 3 })          -- judged by other weights: it gains 3, whatever the hand
+    Blade(409, "Flat Blade", 13, 8, { gain = 0 })           -- and this one nothing at all
+    local now = Score.Context(MAIN_ARMS)
+    eq(type(now.hands), "function", "the comparison for the character being played has its say on the hands")
+    eq(Score.Context("WARRIOR:arms", { class = "WARRIOR", level = 10, gear = {} }).hands, nil, "the one for another character has not")
+    local function Sale(id)
+        local item = Score.Item(W.Link(id))
+        return { link = W.Link(id), itemID = id, invType = item.invType, value = Score.Value(item, MAIN_ARMS, 10),
+            offValue = Score.OffValue(item, MAIN_ARMS, 10) }
+    end
+    gains = ns.Compare.Gains(Sale(402), now)
+    eq(#gains, 2, "a blade that gains what the rows say keeps both hands"); near(gains[1].delta, 4, "at its gain")
+    gains = ns.Compare.Gains(Sale(407), now)
+    eq(#gains, 1, "a blade it keeps out of the main hand has one place, for all its score there (28 against 20)")
+    eq(gains[1].group, "OFFHAND", "the off hand"); near(gains[1].delta, 6, "14 against 8, which is its own gain")
+    gains = ns.Compare.Gains(Sale(408), now)
+    eq(#gains, 2, "a blade that would gain more in either hand than it says: both places stay")
+    near(gains[1].delta, 3, "at what it says the blade gains, in the main hand (not 30 against 20)")
+    near(gains[2].delta, 3, "and in the off hand (not 15 against 8)")
+    near(gains[1].percent, 3 / 28, "the share is of the gain that is said")
+    eq(#ns.Compare.Place(Sale(408), now), 2, "an upgrade still, in both")
+    eq(#ns.Compare.Gains(Sale(409), now), 0, "a blade it says gains nothing has no place, whatever the scores (26 against 20)")
+    -- The answer is kept for a moment, and asked for again when it says something changed.
+    local asked = #W.leveling.gains
+    ns.Compare.Gains(Sale(407), now)
+    eq(#W.leveling.gains, asked, "asked once for an item, not at every comparison")
+    W.LevelingChanged()
+    ns.Compare.Gains(Sale(407), now)
+    eq(#W.leveling.gains, asked + 1, "and again after it said that something changed")
+    W.Run(0.5)
+
+    -- Another character's shield: its own block, which this addon reads from the tooltip, is
+    -- no stat to Forever Leveling BiS. A bonus to the block value, which the game counts
+    -- among an item's stats, is.
+    W.AddItem({ id = 410, name = "Wall", equipLoc = "INVTYPE_SHIELD", subClassID = 6, value = 0, level = 6, block = 40,
+        game = { ITEM_MOD_STAMINA_SHORT = 5 } })
+    W.AddItem({ id = 411, name = "Bonus Wall", equipLoc = "INVTYPE_SHIELD", subClassID = 6, value = 0, level = 6, block = 40,
+        game = { ITEM_MOD_STAMINA_SHORT = 5, ITEM_MOD_BLOCK_VALUE_SHORT = 10 } })
+    near(Score.Value(Score.Item(W.Link(410)), "WARRIOR:protection", 10), 10, "a shield for another character: 5 Stamina by 2, its 40 block by nothing")
+    near(Score.Value(Score.Item(W.Link(411)), "WARRIOR:protection", 10), 15, "a bonus to the block value counts: 10 by 0.5 more")
+
+    -- Weights of a spec that is not the main one change without a word from it: they are
+    -- asked for again when they are ten seconds old, and what keeps scores is told.
+    local told = 0
+    ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
+    near(Score.Value(Score.Item(W.Link(410)), "WARRIOR:protection", 10), 10, "before the change")
+    W.SetLevelingWeights("WARRIOR", "protection", { sta = 3, armor = 0.1, block = 0.5 })
+    W.Run(5)
+    near(Score.Value(Score.Item(W.Link(410)), "WARRIOR:protection", 10), 10, "weights changed there for another spec: the old answer holds for a while")
+    eq(told, 0, "and nothing is told")
+    W.Run(6)
+    near(Score.Value(Score.Item(W.Link(410)), "WARRIOR:protection", 10), 15, "ten seconds on they are asked for again: 5 Stamina by 3")
+    W.Run(0.5)
+    eq(told, 1, "and what keeps scores is told that they changed")
+
+    -- The best set for a budget: an offer stands in for another only where it is as strong in
+    -- either hand. Three blades at one price, gold for two: the one that is weakest in the
+    -- main hand is by far the best in the off hand, and belongs in the set.
+    local function Held(id, value)
+        return { link = "worn" .. id, itemID = id, invType = "INVTYPE_WEAPON", value = value }
+    end
+    local function ForSale(id, value, offValue)
+        return { id = "o" .. id, itemID = id, invType = "INVTYPE_WEAPON", value = value, offValue = offValue, buyout = 1000,
+            link = "link" .. id, name = "Item " .. id, count = 1 }
+    end
+    local wearing = { equipped = { [16] = Held(1, 20), [17] = Held(2, 8) }, dualWield = true }
+    local first, second, third = ForSale(11, 30, 15), ForSale(12, 29, 14.5), ForSale(13, 28, 27)
+    local sale = { [first.id] = first, [second.id] = second, [third.id] = third }
+    local _, summary = ns.Plan.Rows(ns.Plan.Choose(ns.Plan.Ladder(sale, wearing, 2000), 2000))
+    near(summary.gain, 29, "the set: 30 against 20 in the main hand, 27 against 8 in the off hand")
 
     -- With anyone else scoring a weapon has the one score, for either hand.
     Score.SetEngine(nil)
@@ -8830,8 +8906,20 @@ function scenarios.leveling_welcome()
     eq(trees[1].Label:GetText(), "Arms", "one button in place of the trees: the main spec in Forever Leveling BiS")
     eq(trees[1]:IsShown(), true, "it is there"); eq(trees[2]:IsShown(), false, "and no other")
     eq(trees[1].Mark:IsShown(), true, "lit")
+    -- No main spec is chosen in Forever Leveling BiS yet: it goes by the class's first, and
+    -- the line over the button says that this one is no choice.
+    eq(window.Ask:GetText(), L.WELCOME_SCALE_LEVELING_UNCHOSEN:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")),
+        "over it: no main spec is chosen there yet, and it goes by this one")
+    eq(window.There.Label:GetText(), L.CHOOSE_LEVELING, "the button beside it says where to choose one")
+    -- Chosen there, the same spec or another: the line says where it is chosen, the button
+    -- where it is changed.
+    W.LevelingChar().spec = "arms"
+    W.LevelingChanged()
+    W.Run(0.5)
+    window:Hide()
+    ns.Welcome.Show()
     eq(window.Ask:GetText(), L.WELCOME_SCALE_LEVELING:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")),
-        "over it, whose main spec it is and where it is chosen")
+        "a main spec chosen there: over the button, whose main spec it is and where it is chosen")
     trees[1]:Click()
     eq(told, 1, "a click on it changes nothing"); eq(ns.Roster.Me().leveling, nil, "and writes nothing")
     theirs:Click()

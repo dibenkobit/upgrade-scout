@@ -95,7 +95,8 @@ end
 
 -- The offers of one kind that a set can need. One is left out when `room` others that are
 -- worn the same way are at least as strong and cost no more: whatever set it is in, one of
--- those could stand in its place.
+-- those could stand in its place. As strong in either hand, for a weapon that is worth
+-- another number in the off hand (offValue, see Compare.Places).
 local function Needed(offers, room)
     local out = {}
     for i = 1, #offers do
@@ -104,6 +105,7 @@ local function Needed(offers, room)
         for j = 1, #offers do
             local other = offers[j]
             if j ~= i and other.invType == offer.invType and other.value >= offer.value and other.buyout <= offer.buyout
+                and (other.offValue or other.value) >= (offer.offValue or offer.value)
                 and (other.value > offer.value or other.buyout < offer.buyout or j < i) then
                 better = better + 1
                 if better >= room then break end

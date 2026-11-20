@@ -118,13 +118,18 @@ for id, item in pairs(flb.Items) do
                 -- The game's count of armor is the two together.
                 armor = armor + amount
             elseif key == "block" then
-                -- A shield's block is in a line of its tooltip, not among the game's stats.
-                if item.class == 4 and item.subclass == 6 then def.block = amount else game[Mod("BLOCK_VALUE")] = amount end
+                -- Its `block` is the bonus to the block value that a few items have, which
+                -- the game counts among an item's stats.
+                game[Mod("BLOCK_VALUE")] = amount
             else
                 unknown[key] = (unknown[key] or 0) + 1
             end
         end
         if armor ~= 0 then game.RESISTANCE0_NAME = armor end
+        -- A shield's own block is a line of its tooltip and no stat of the game's. Forever
+        -- Leveling BiS has none of it in its data, so the amount here is made up: a sum
+        -- that counted it would differ from its score for every shield.
+        if item.class == 4 and item.subclass == 6 then def.block = 40 end
         if item.weapon and item.weapon.dps then
             game[Mod("DAMAGE_PER_SECOND")] = item.weapon.dps
             def.speed = item.weapon.speed

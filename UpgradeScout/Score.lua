@@ -29,7 +29,7 @@ ns.Score = Score
 -- WritesTooltip, Hushed), and says how the addon is named (NAME), which of our words are
 -- about it (TEXT) and what the account remembers of having seen it offered (OFFERED). One
 -- may answer a few more, which the others have no use for: DrawsArrows, OffValue, Refuses,
--- Opens and Open.
+-- Hands, Opens and Open, Words.
 local OTHERS = {
     { engine = "pawn", file = "Pawn" },
     { engine = "companion", file = "Companion" },
@@ -79,7 +79,10 @@ end
 -- while this addon scores by itself.
 function Score.Text(what)
     local other = Other()
-    return other and ns.L[other.TEXT[what]] or nil
+    if not other then return nil end
+    -- (Its own choice of words where it has more than one for the same place: Leveling.Words.)
+    local key = other.Words and other.Words(what) or other.TEXT[what]
+    return ns.L[key]
 end
 
 -- The choice made in the welcome window: "pawn", "companion", "leveling", or nil for the
@@ -303,8 +306,14 @@ function Score.Own(link)
     if extra then
         for name, amount in pairs(extra) do stats[name] = (stats[name] or 0) + amount end
     end
-    if classID == ARMOR_CLASS and subClassID == SHIELD and not stats[BLOCK] then stats[BLOCK] = ShieldBlock(link) end
-    return { link = link, itemID = itemID, invType = invType, classID = classID, subClassID = subClassID, stats = stats }
+    -- (tipBlock: the block among the stats is the shield's own, read from its tooltip.)
+    local tipBlock = false
+    if classID == ARMOR_CLASS and subClassID == SHIELD and not stats[BLOCK] then
+        stats[BLOCK] = ShieldBlock(link)
+        tipBlock = stats[BLOCK] ~= nil
+    end
+    return { link = link, itemID = itemID, invType = invType, classID = classID, subClassID = subClassID, stats = stats,
+        tipBlock = tipBlock }
 end
 
 function Score.Item(link)
@@ -479,10 +488,14 @@ end
 -- With another addon scoring the context also says what the scale wants no upgrades of:
 -- show1H and show2H, false for the one-handed or the two-handed weapons it is not to be
 -- offered (a Pawn scale can say so).
+-- And, for the character being played, what the addon itself makes of an item for the hands
+-- (ctx.hands, see Compare.Places): Forever Leveling BiS has rules for them that this addon
+-- has not.
 local function Finish(ctx)
     local other = Other()
     if other then
         ctx.show1H, ctx.show2H = other.ShowsWeapons(ctx.profile)
+        if other.Hands and not ctx.who then ctx.hands = other.Hands end
     end
     return ctx
 end

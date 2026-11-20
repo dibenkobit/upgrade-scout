@@ -2522,7 +2522,10 @@ end
 --     hand asked about, plus what only it knows of the item (`bonus`).
 --   * GetGain says what an item gains the main spec; nothing for an item the character
 --     cannot wear now (here: `notFor`), and nothing with a second value of true for one it
---     cannot tell of yet.
+--     cannot tell of yet. For what goes into the hands it is the most the item gains in a
+--     hand it may go in, against what is worn there, on the scores ScoreItem gives; a hand
+--     its rules keep the item out of does not count (here: `noMain`, `noOff`). A test may
+--     name the gain outright (`gain`), as where it judges by other weights than ScoreItem's.
 --   * OnChanged takes a function to call whenever its answers may have changed
 --     (W.LevelingChanged calls them, as the addon does for many reasons).
 --   * It writes a block into the game's main tooltip and the one for a link in the chat,
@@ -2609,13 +2612,8 @@ local function LevelingFunctions(L)
         }
     end
 
-    function API.ScoreItem(link, offHand)
-        if not L.ready then return nil end
-        L.asked[#L.asked + 1] = { link = link, offHand = offHand and true or false }
-        local item = ParseItem(link)
-        if not item then return nil end
-        if not item.cached then return nil, true end
-        if not LEVELING_GEAR[item.equipLoc or ""] then return nil end
+    -- The score of an item (as the tests keep it) for the main spec, in a hand.
+    local function ScoreOf(item, offHand)
         local spec, setup, class = MainSpec()
         local weights = Stats(class, spec, W.player.level, setup)
         if not weights then return nil end
@@ -2630,12 +2628,29 @@ local function LevelingFunctions(L)
                 score = score + item.dps * weight
             end
             score = score + (item.bonus or 0)
-            -- An enchantment adds a thousand, as to the game's own count: a score that reads
-            -- an enchanted link is found out.
-            if link:match("item:%d+:%d") then score = score + 1000 end
         end
         return score
     end
+
+    function API.ScoreItem(link, offHand)
+        if not L.ready then return nil end
+        L.asked[#L.asked + 1] = { link = link, offHand = offHand and true or false }
+        local item = ParseItem(link)
+        if not item then return nil end
+        if not item.cached then return nil, true end
+        if not LEVELING_GEAR[item.equipLoc or ""] then return nil end
+        local score = ScoreOf(item, offHand)
+        -- An enchantment adds a thousand, as to the game's own count: a score that reads
+        -- an enchanted link is found out.
+        if score and not item.noStats and link:match("item:%d+:%d") then score = score + 1000 end
+        return score
+    end
+
+    local HANDS = {
+        INVTYPE_WEAPON = true, INVTYPE_2HWEAPON = true, INVTYPE_WEAPONMAINHAND = true, INVTYPE_WEAPONOFFHAND = true,
+        INVTYPE_SHIELD = true, INVTYPE_HOLDABLE = true,
+    }
+    local WEAPONS = { INVTYPE_WEAPON = true, INVTYPE_WEAPONOFFHAND = true }
 
     function API.GetGain(link)
         if not L.ready then return nil end
@@ -2643,8 +2658,37 @@ local function LevelingFunctions(L)
         local item = ParseItem(link)
         if not item then return nil end
         if not item.cached then return nil, true end
-        if item.notFor or not LEVELING_GEAR[item.equipLoc or ""] then return nil end
-        return 1
+        local kind = item.equipLoc or ""
+        if item.notFor or not LEVELING_GEAR[kind] then return nil end
+        if item.gain ~= nil then return item.gain end
+        if not HANDS[kind] then return 1 end
+        -- The hands: what is worn there, scored as it is held.
+        local function Worn(slot)
+            local worn = W.equipped[slot] and ParseItem(W.equipped[slot])
+            if not worn then return 0, nil end
+            return ScoreOf(worn, slot == 17 and WEAPONS[worn.equipLoc or ""] or false) or 0, worn
+        end
+        local main, mainItem = Worn(16)
+        local off = Worn(17)
+        local twoHander = mainItem ~= nil and mainItem.equipLoc == "INVTYPE_2HWEAPON"
+        local asMain, asOff = ScoreOf(item, false) or 0, ScoreOf(item, WEAPONS[kind] or false) or 0
+        local best
+        local function Consider(gain)
+            if not best or gain > best then best = gain end
+        end
+        if kind == "INVTYPE_2HWEAPON" then
+            if not item.noMain then Consider(asMain - (main + off)) end
+        else
+            if (kind == "INVTYPE_WEAPON" or kind == "INVTYPE_WEAPONMAINHAND") and not item.noMain then
+                Consider(asMain - main)
+            end
+            if kind ~= "INVTYPE_WEAPONMAINHAND" and not item.noOff and (not WEAPONS[kind] or CanDualWield()) then
+                -- (Beside a two-hander it takes the place of that.)
+                Consider(twoHander and asOff - main or asOff - off)
+            end
+        end
+        -- No hand of the spec's takes it: it is not for the spec.
+        return best
     end
 
     function API.IsUpgrade() return false end

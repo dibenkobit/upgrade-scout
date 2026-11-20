@@ -8,13 +8,17 @@
 - Your character is scored for the main spec you chose in Forever Leveling BiS, with the numbers
   its own tooltip shows. To score for another spec, choose another main spec there: the lists
   follow. **Change in Forever Leveling BiS**, beside the spec, opens its settings.
+- Until you choose a main spec there, Forever Leveling BiS scores for the first spec of your
+  class, whatever your talents. The window says so, and the button reads **Choose in Forever
+  Leveling BiS**.
 - With Forever Leveling BiS chosen, its own tooltip lines say what an item is worth and its own
   arrows mark the upgrades in your bags, so the addon leaves its own out. Switch either off in
   its settings, and the addon's come back, by its scores. In the bank, where it draws no arrows,
   the addon's stay.
 - A weapon is scored for the hand it would go in: the main hand and the off hand count
   differently, as they do in Forever Leveling BiS. A weapon it says your spec cannot use is not
-  listed.
+  listed, and one it keeps out of a hand is not offered for that hand: a Subtlety rogue's main
+  hand takes a dagger. No row says a weapon gains more than its own tooltip does.
 - A list made for another of your characters goes by Forever Leveling BiS's weights for that
   character's class, spec and level. The **Profile** dropdown lists the specs. The addon's lines
   say whose score it is: **Upgrade Scout (Forever Leveling BiS score)**.

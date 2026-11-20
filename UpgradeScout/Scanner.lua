@@ -483,7 +483,9 @@ local function Outdone(cand)
     local better = 0
     for i = 1, #list do
         local offer = list[i]
-        if offer.value >= cand.eval.value and offer.buyout <= cand.minPrice then
+        -- (As strong in either hand, where a weapon has a score of its own for the off hand.)
+        if offer.value >= cand.eval.value and offer.buyout <= cand.minPrice
+            and (offer.offValue or offer.value) >= (cand.eval.offValue or cand.eval.value) then
             better = better + 1
             if better >= room then return true end
         end

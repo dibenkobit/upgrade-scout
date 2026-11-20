@@ -189,6 +189,18 @@ local function Places(item, ctx, beats)
     local offValue = off and off.value or 0
     local holdingTwoHander = main ~= nil and main.invType == "INVTYPE_2HWEAPON"
 
+    -- The addon that scores may have a say of its own on an item for the hands (ctx.hands,
+    -- see Score.Context and Leveling.Hands), for the main hand and for the off hand: false,
+    -- the item has no place in that hand; a number, the most it may be said to gain there.
+    local mainMost, offMost
+    if ctx.hands then mainMost, offMost = ctx.hands(item) end
+    -- The item's worth in a hand, with that say heeded: nil where it has no place there.
+    local function Worth(there, base, most)
+        if most == false then return nil end
+        if type(most) == "number" and there - base > most then return base + most end
+        return there
+    end
+
     -- A Pawn scale can be told to offer no two-handed weapons, or no one-handed ones and
     -- what goes with them (ctx.show2H, ctx.show1H: see Score.Context). Such a weapon then
     -- has no place on that scale.
@@ -196,11 +208,12 @@ local function Places(item, ctx, beats)
         if ctx.show2H == false then return out end
         -- A two-hander replaces both hands, so it has to beat both together.
         local base = mainValue + offValue
-        if beats(value, base) then
+        local there = Worth(value, base, mainMost)
+        if there and beats(there, base) then
             local replaced = {}
             if main then replaced[#replaced + 1] = main.link end
             if off then replaced[#replaced + 1] = off.link end
-            out[1] = Placement("MAINHAND", MAIN_HAND, value, base, #replaced > 0 and replaced or nil, off and "BOTH_HANDS" or nil)
+            out[1] = Placement("MAINHAND", MAIN_HAND, there, base, #replaced > 0 and replaced or nil, off and "BOTH_HANDS" or nil)
         end
         return out
     end
@@ -210,16 +223,17 @@ local function Places(item, ctx, beats)
         -- Against a two-hander the comparison is honest only if the off hand is counted as empty.
         -- The gain is a share of what both hands hold, as a two-hander's is: the main hand
         -- lists the two kinds together, and the bigger gain must read as the bigger percent.
-        if beats(value, mainValue) then
-            out[#out + 1] = Placement("MAINHAND", MAIN_HAND, value, mainValue, main and { main.link } or nil,
+        local there = Worth(value, mainValue, mainMost)
+        if there and beats(there, mainValue) then
+            out[#out + 1] = Placement("MAINHAND", MAIN_HAND, there, mainValue, main and { main.link } or nil,
                 holdingTwoHander and "OFFHAND_EMPTY" or nil, mainValue + offValue)
         end
     end
 
     if invType ~= "INVTYPE_WEAPONMAINHAND" and not holdingTwoHander then
         local isWeapon = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONOFFHAND"
-        local there = item.offValue or value
-        if (not isWeapon or ctx.dualWield) and beats(there, offValue) then
+        local there = Worth(item.offValue or value, offValue, offMost)
+        if there and (not isWeapon or ctx.dualWield) and beats(there, offValue) then
             out[#out + 1] = Placement("OFFHAND", OFF_HAND, there, offValue, off and { off.link } or nil)
         end
     end
@@ -231,8 +245,8 @@ local function Anywhere()
     return true
 end
 
--- item: { invType, value, itemID, unique, offValue (see Places) }
--- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield, show1H, show2H }
+-- item: { invType, value, itemID, unique, offValue (see Places), link (for ctx.hands) }
+-- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield, show1H, show2H, hands }
 -- Returns a list of placements; empty when the item is not an upgrade anywhere.
 -- A one-hand weapon can appear twice (main hand and off hand) for a dual wielder.
 function C.Place(item, ctx)
