@@ -28,6 +28,12 @@
   not 8: the scan no longer seems stuck on it.
 - The scoring no longer stands still for several seconds near its end. The list appears while
   the game is still loading the last few items, and those join it as they come.
+- Right after a game update the game takes a while to load its items. The scan now waits for
+  them, and the status line counts them down. Rows the game never loads are no longer looked up
+  one by one, which took minutes: the list says how many it is short of, and the next scan has
+  them.
+- The **Profile** dropdown names your other characters in full, first name and surname, without
+  the realm.
 - Prices that are not checked yet are no longer dimmed. A dimmed row looked like one you could
   not buy, and most of those prices are right.
 - While the prices are checked, the status line says that some of them may be bids. The row's

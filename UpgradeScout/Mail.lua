@@ -135,7 +135,7 @@ function M.Pending()
         local card = type(parcel) == "table" and ns.Roster.Get(parcel.to) or nil
         if not card or (parcel.at or 0) < oldest then
             table.remove(parcels, i)
-        elseif parcel.from == me.key and card.realm == me.realm then
+        elseif parcel.from == me.key and ns.Roster.SameRealm(card, me) then
             -- (A letter does not go to another realm; such a parcel waits for nothing here.)
             local group = byKey[card.key]
             if not group then

@@ -249,7 +249,14 @@ local function Describe(card)
     card.class = class or card.class
     card.className = className
     card.race = UnitRace("player")
-    card.realm = GetRealmName()
+    -- (The game now and then has no name for the realm when a character comes into the
+    -- world, and gives an empty one: what the card knew before then stands.)
+    local realm = GetRealmName()
+    if type(realm) == "string" and realm ~= "" then
+        card.realm = realm
+    elseif card.realm == "" then
+        card.realm = nil
+    end
     card.faction = UnitFactionGroup("player")
     local level = UnitLevel("player") or 0
     if levelUp and levelUp > level then level = levelUp end
@@ -424,9 +431,8 @@ function Roster.List()
         local sameSide = not faction or not card.faction or card.faction == faction
         if card ~= me and sameSide and Sound(key, card) then others[#others + 1] = card end
     end
-    local realm = me and me.realm
     table.sort(others, function(a, b)
-        local aHere, bHere = a.realm == realm, b.realm == realm
+        local aHere, bHere = Roster.SameRealm(a, me), Roster.SameRealm(b, me)
         if aHere ~= bHere then return aHere end
         if a.name ~= b.name then return a.name < b.name end
         return a.key < b.key
@@ -478,6 +484,20 @@ end
 -- How a card is shown
 ---------------------------------------------------------------------------
 -- A text in the colour of the card's class.
+-- The character's whole name: the first name, and the surname Forever gives it.
+function Roster.FullName(card)
+    if type(card.last) == "string" and card.last ~= "" then return card.name .. " " .. card.last end
+    return card.name
+end
+
+-- Are two characters of one realm? A card that does not say its realm (the game had no
+-- name for it yet) is taken to be of the same one, as an account's characters mostly are.
+function Roster.SameRealm(a, b)
+    local one, other = a and a.realm, b and b.realm
+    if type(one) ~= "string" or one == "" or type(other) ~= "string" or other == "" then return true end
+    return one == other
+end
+
 function Roster.Colored(card, text)
     local color = RAID_CLASS_COLORS[card.class]
     return color and color:WrapTextInColorCode(text) or text

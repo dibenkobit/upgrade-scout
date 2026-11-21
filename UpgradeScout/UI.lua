@@ -925,7 +925,12 @@ local function SuppliesText()
         else
             parts[#parts + 1] = L.ST_SUP_DONE:format(summary.items, summary.groups)
         end
-        if S.suppliesPartial and not S.suppliesNote then parts[#parts + 1] = L.ST_PARTIAL end
+        if S.suppliesPartial and not S.suppliesNote then
+            parts[#parts + 1] = L.ST_PARTIAL
+        elseif (S.suppliesUnread or 0) > 0 and not S.suppliesNote then
+            -- The game told nothing of many rows: it was still loading its items.
+            parts[#parts + 1] = L.ST_UNREAD:format(S.suppliesUnread)
+        end
     end
     return ForWho(table.concat(parts, " "))
 end
@@ -935,6 +940,8 @@ end
 local function Shortfall()
     if S.message then return nil end
     if S.partial or S.halted then return L.ST_PARTIAL end
+    -- The game told nothing of many rows: it was still loading its items (Scanner.unread).
+    if (S.unread or 0) > 0 then return L.ST_UNREAD:format(S.unread) end
     -- The scan ran to its end, and the auction house left some item searches unanswered.
     if S.unanswered > 0 then return L.ST_UNANSWERED:format(S.unanswered) end
     return nil
@@ -945,6 +952,9 @@ local function StatusText()
     if S.state == "browse" then
         return L.ST_BROWSE:format(S.info.rows)
     elseif S.state == "score" then
+        -- Every row has had its turn and the game has yet to tell of some: the line says
+        -- what the scan is waiting for, and counts them down.
+        if (S.info.waiting or 0) > 0 then return L.ST_LOADING:format(S.info.waiting) end
         return (S.mode == "supplies" and L.ST_SUP_SCORE or L.ST_SCORE):format(S.info.scored, S.info.toScore)
     elseif S.state == "verify" then
         if S.IsScan() then
@@ -1379,12 +1389,8 @@ local function ProfileMenu(_, root)
             -- The name in the colour of the class, then the profile: "Diluna: Balance".
             -- The field shows the line that is chosen, so
             -- it says whose list this is as long as it is not one's own.
-            local name = WhoName(card)
-            -- What is bought here cannot be sent to another realm: a character of one is
-            -- listed with its realm, so that it is not chosen by mistake.
-            if me and card.realm and me.realm and card.realm ~= me.realm then
-                name = name .. " (" .. card.realm .. ")"
-            end
+            -- By its whole name, the surname too: two characters may share the first.
+            local name = ns.Roster.Colored(card, ns.Roster.FullName(card))
             for i = 1, #theirs do
                 AddLine(root, name .. ": " .. theirs[i].title, { who = card.key, profile = theirs[i].name })
                 lines = lines + 1

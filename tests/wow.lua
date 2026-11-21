@@ -1479,9 +1479,10 @@ end
 -- named after its profile, which that profile weighs at 1 and the others at nothing (see
 -- TestWeights in run.lua). `game` adds stats under the game's real names.
 -- An enchantment adds a thousand to the first: a score that reads an enchanted link is found out.
+-- `statsHeld`: the client has the item (its name, its kind) and not yet what it gives.
 function C_Item.GetItemStats(info)
     local item = ParseItem(info)
-    if not item or not item.cached then return nil end
+    if not item or not item.cached or item.statsHeld then return nil end
     local out = {}
     if item.noStats then return out end
     if item.value then out.TEST_S1 = item.value end

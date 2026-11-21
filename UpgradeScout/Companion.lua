@@ -184,7 +184,7 @@ local function Saved(who)
     local saved, keys = db.sv, db.keys
     if type(saved) ~= "table" or type(saved.char) ~= "table" or type(keys) ~= "table" then return nil end
     local me = ns.Roster.Me()
-    if not me or type(who.name) ~= "string" or who.realm == nil or who.realm ~= me.realm then return nil end
+    if not me or type(who.name) ~= "string" or not ns.Roster.SameRealm(who, me) then return nil end
     local theirs = saved.char[who.name .. " - " .. tostring(keys.realm)]
     return type(theirs) == "table" and theirs.scale or nil
 end

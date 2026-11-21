@@ -8,6 +8,8 @@ local ADDON_DIR = "UpgradeScout/"
 
 local names = {
     "events", "compare", "picks", "scan_sorted", "scan_order", "scan_unsorted", "scan_async", "scan_late", "scan_no_sample",
+    "scan_cold", "scan_unloaded", "scan_late_slow", "scan_stats_late", "scan_warm_tail", "pawn_blind_scan", "roster_names",
+    "leveling_no_realm", "supplies_unloaded",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
     "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_slow_answer", "scan_pieces", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "fonts", "tooltips", "arrows",
@@ -609,9 +611,6 @@ function scenarios.scan_late()
     eq(ns.db.lastScan.unread.data, 1, "the numbers are kept with the last scan's")
     eq(S.unanswered, 0, "nothing was left unanswered")
     check(Offer("Good Chest") ~= nil and Offer("Helm") ~= nil and Offer("Shield") ~= nil, "the rest of the list is whole")
-    -- The scan did not end before the row never read was given up: four seconds after the
-    -- helm was read.
-    check(W.now - began > 6, "the scan waited for the last row before it ended: " .. (W.now - began))
 
     -- A scan stopped while a row is still being read: the row is a candidate from then on,
     -- and its search is among the prices looked up when the list asks for them again.
@@ -10469,6 +10468,356 @@ function scenarios.locale_tw()
 end
 
 ---------------------------------------------------------------------------
+-- A client that has loaded none of its items yet, as a game that has just been updated: it
+-- tells of the rows over many seconds, a batch at a time, with more than a second between
+-- the batches. A few rows that were read are not the list: it waits for the rest as long as
+-- the client goes on telling of them, the status line counts them down, and when the list
+-- comes it is whole. No row goes to an item search unread.
+function scenarios.scan_cold()
+    StandardWorld()
+    local slow = {}
+    for i = 1, 60 do
+        local id = 3000 + i
+        W.AddItem({ id = id, name = "Cold Helm " .. i, equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 20 + i, level = 9, uncached = true })
+        W.AddAuction(id, 1000 + i)
+        slow[id] = 1.5 + math.floor((i - 1) / 10) * 1.5     -- ten at a time, a second and a half apart
+    end
+    W.loadAfter = slow
+    LoadAddon()
+    SetView(false, false)                -- every upgrade is listed, so every price is looked up
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local S = ns.Scanner
+    local frame = UpgradeScoutFrame
+    local function Status() return frame.Status:GetText() or "" end
+    local function Listed(name) return Unsure(name) ~= nil or Offer(name) ~= nil end
+
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return S.state == "score" and (S.info.waiting or 0) > 0 end, 60)
+    eq(S.info.waiting, 60, "every row has had its turn, and the client has yet to tell of sixty")
+    W.Run(0.1)
+    eq(Status(), "Waiting for the game to load items: 60 left", "the status line says what the scan waits for")
+    W.Run(1.2)
+    eq(S.state, "score", "over a second with no row read: the list waits on, for there are many")
+    eq(Listed("Good Chest"), false, "and is not shown as a few rows of what is for sale")
+    W.RunUntil(function() return (S.info.waiting or 0) < 60 end, 10)
+    W.Run(0.1)
+    eq(Status(), "Waiting for the game to load items: " .. S.info.waiting .. " left", "counted down as the client tells of them")
+    W.RunUntil(function() return S.state ~= "score" end, 60)
+    eq(S.state, "verify", "nearly all told of: the prices are looked up")
+    -- (The last few, when the client stops for a moment, are read on meanwhile like any
+    -- few rows, and join the list as they come.)
+    check(S.stats.late <= 30, "a few rows at most are left to be read meanwhile: " .. S.stats.late)
+    eq(S.unread, 0, "and none is left out")
+    eq(S.stats.waiting, 60, "the scan's numbers say how many the client was slow with")
+    eq(S.stats.waitingWhy.data, 60, "and for want of what")
+    local listed = 0
+    for i = 1, 60 do
+        if Listed("Cold Helm " .. i) then listed = listed + 1 end
+    end
+    check(listed >= 30, "the list has most of the rows when it comes: " .. listed)
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    for i = 1, 60 do check(Offer("Cold Helm " .. i) ~= nil, "and is whole in the end: helm " .. i) end
+    eq(Offer("Cold Helm 60").buyout, 1060, "each at its price")
+    check(not Status():find("has not loaded", 1, true), "the list is short of nothing: " .. Status())
+    eq(#ns.db.scans, 1, "the scan's numbers are kept among the last few")
+end
+
+-- Many rows the client never tells of. An item search for each would take minutes, most of
+-- them for nothing, with the list standing at the few rows that were read: none is sent. The
+-- scan goes on with what was read, ends, and the list says how many rows it is short of. A
+-- scan a little later, with the items loaded, has them.
+function scenarios.scan_unloaded()
+    StandardWorld()
+    W.neverLoad = {}
+    for i = 1, 40 do
+        local id = 3100 + i
+        W.AddItem({ id = id, name = "Ghost Helm " .. i, equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 20 + i, level = 9, uncached = true })
+        W.AddAuction(id, 1000 + i)
+        W.neverLoad[id] = true
+    end
+    LoadAddon()
+    SetView(false, false)
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local S = ns.Scanner
+    local frame = UpgradeScoutFrame
+    local function Status() return frame.Status:GetText() or "" end
+    -- The items the scan sends an item search for.
+    local searched = {}
+    local Send = C_AuctionHouse.SendSearchQuery
+    C_AuctionHouse.SendSearchQuery = function(key, ...)
+        searched[#searched + 1] = key.itemID
+        return Send(key, ...)
+    end
+    local function Ghosts()
+        local n = 0
+        for i = 1, #searched do
+            if searched[i] > 3100 then n = n + 1 end
+        end
+        return n
+    end
+
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return S.state == "score" and (S.info.waiting or 0) > 0 end, 60)
+    local began = W.now
+    -- (The game loads other items meanwhile, as it does all the time for everybody: those
+    -- say nothing of the rows that wait, and do not keep the scan waiting.)
+    while S.state == "score" and W.now - began < 20 do
+        W.Fire("ITEM_DATA_LOAD_RESULT", 999999, true)
+        W.Run(0.25)
+    end
+    check(W.now - began > 3.5 and W.now - began < 5, "they are waited for four seconds, as ever: " .. (W.now - began))
+    eq(S.state, "verify", "then the prices of what was read are looked up")
+    eq(S.unread, 40, "forty rows the client told nothing of")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(Ghosts(), 0, "and no item search is sent for any of them")
+    check(Offer("Good Chest") ~= nil and Offer("Helm") ~= nil and Offer("Shield") ~= nil, "the rows that were read are all in the list")
+    eq(S.stats.left, 40, "the scan's numbers say how many were left out"); eq(S.stats.unread.data, 40, "and for want of what")
+    eq(#S.stats.unreadItems, 12, "the first of them are named")
+    W.Run(0.3)
+    check(Status():find("The game has not loaded 40 rows yet. Scan again in a moment.", 1, true) ~= nil,
+        "the list says what it is short of: " .. Status())
+    eq(S.Demand(), false, "nothing more is looked up when the list is drawn again")
+
+    -- A purchase, and out of its box again: nothing is sent for the rows left out.
+    S.Buy(Offer("Helm"))
+    W.RunUntil(Asking, 30)
+    Asking().Cancel:Click()
+    W.Run(2)
+    eq(S.state, "idle", "after a purchase called off the scanner is idle"); eq(Ghosts(), 0, "and has asked about none of them")
+
+    -- The client has its items now.
+    W.neverLoad = nil
+    check(S.Start(), "a second scan starts")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(S.unread, 0, "a scan a little later: nothing is left out")
+    eq(Offer("Ghost Helm 40").buyout, 1040, "and the rows are in the list, at their prices")
+    W.Run(0.3)
+    check(not Status():find("has not loaded", 1, true), "the list is short of nothing: " .. Status())
+    eq(#ns.db.scans, 2, "the numbers of both scans are kept")
+    eq(ns.db.scans[1].left, 40, "the first's among them")
+end
+
+-- A few rows that are read on while the prices are looked up, in a game so slow that a frame
+-- has time for one of them: they are given up when their time is over all the same, and the
+-- scan ends. (It waited on for ever: a frame that had no time for every row never looked at
+-- the time.)
+function scenarios.scan_late_slow()
+    StandardWorld()
+    W.neverLoad = {}
+    for i = 1, 5 do
+        local id = 3200 + i
+        W.AddItem({ id = id, name = "Ghost Ring " .. i, equipLoc = "INVTYPE_FINGER", value = 30 + i, level = 9, uncached = true })
+        W.AddAuction(id, 500 + i)
+        W.neverLoad[id] = true
+    end
+    -- The clock the addon times a frame by (it takes the function when it loads).
+    local slowFrames, ticks = false, 0
+    local clock = debugprofilestop
+    debugprofilestop = function()
+        if not slowFrames then return clock() end
+        ticks = ticks + 1
+        return ticks * 7
+    end
+    LoadAddon()
+    SetView(false, false)
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return S.state == "verify" end, 60)
+    eq(S.stats.late, 5, "five rows the list did not wait for")
+    -- From here on the clock of a frame runs out after one row.
+    slowFrames = true
+    local began = W.now
+    W.RunUntil(function() return S.state == "idle" end, 60)
+    check(W.now - began < 30, "the scan ends: " .. (W.now - began))
+    eq(S.stats.unread.data, 5, "the five rows went to their item searches unread")
+    check(Offer("Good Chest") ~= nil and Offer("Helm") ~= nil, "and the list is whole")
+end
+
+-- The menu of the profile field names another character by its whole name, surname and all,
+-- and by nothing else: no realm. And a realm the game has no name for at login (an empty
+-- one, now and then) does not unmake what the cards knew.
+function scenarios.roster_names()
+    StandardWorld()
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Roster = ns.Roster
+    local me = Roster.Me()
+    eq(me.realm, "Testrealm", "the character's realm, as the game names it")
+    UpgradeScoutDB.chars["Alty Moon"] = { key = "Alty Moon", name = "Alty", last = "Moon", realm = "Elsewhere", class = "DRUID",
+        level = 20, talents = "D1" }
+    UpgradeScoutDB.chars["Alty Sun"] = { key = "Alty Sun", name = "Alty", last = "Sun", realm = "Testrealm", class = "DRUID",
+        level = 20, talents = "D2" }
+    local moon, sun = UpgradeScoutDB.chars["Alty Moon"], UpgradeScoutDB.chars["Alty Sun"]
+    eq(Roster.FullName(moon), "Alty Moon", "a whole name: the first name and the surname")
+    eq(Roster.FullName(me), "Tester", "the first name alone where there is no surname")
+
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local dropdown = UpgradeScoutFrame.ProfileDropdown
+    local lines = {}
+    for i = 1, #dropdown.radios do lines[#lines + 1] = dropdown.radios[i].text end
+    local all = table.concat(lines, " / ")
+    check(all:find("Alty Sun|r: ", 1, true) ~= nil, "a character is listed by its whole name: " .. all)
+    check(all:find("Alty Moon|r: ", 1, true) ~= nil, "one of another realm too: " .. all)
+    check(not all:find("Elsewhere", 1, true) and not all:find("Testrealm", 1, true), "and no realm is written: " .. all)
+    check(all:find("Alty Sun", 1, true) < all:find("Alty Moon", 1, true), "those of this realm come first")
+
+    -- The game has no name for the realm: an empty one.
+    W.realm = ""
+    Roster.Update()
+    eq(me.realm, "Testrealm", "the card keeps the realm it knew")
+    me.realm = ""                        -- as a version that took the empty name wrote it
+    Roster.Update()
+    eq(me.realm, nil, "an empty name is no realm")
+    eq(Roster.SameRealm(me, sun), true, "a character whose realm is not known is taken to be of the same one")
+    eq(Roster.SameRealm(me, moon), true, "whichever that is")
+    W.realm = nil
+    Roster.Update()
+    eq(me.realm, "Testrealm", "named again, it is written down")
+    eq(Roster.SameRealm(me, sun), true, "of the same realm"); eq(Roster.SameRealm(me, moon), false, "and of another")
+end
+
+-- Forever Leveling BiS names the character's entry by the realm as the game gave it at
+-- login. With no name for the realm then, it keeps the character under a name without one
+-- for the session, with nothing chosen in it: the addon reads that entry, and says that no
+-- main spec is chosen, whatever was saved under the real name.
+function scenarios.leveling_no_realm()
+    StandardWorld()
+    LevelingWorld()
+    ForeverLevelingBiSDB.chars["Tester-Testrealm"].spec = "fury"    -- chosen in a session before
+    W.realm = ""
+    ForeverLevelingBiSDB.chars[W.LevelingKey()] = {}                 -- what it makes at this login
+    LoadAddon()
+    W.Fire("PLAYER_LOGIN")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    ns.Score.SetEngine("leveling")
+    eq(ns.Roster.Me().realm, nil, "the card has no realm to go by")
+    eq(ns.Score.Text("CHANGE"), ns.L.CHOOSE_LEVELING, "no main spec is chosen in the entry it goes by: the button says where to choose one")
+    W.LevelingChar().spec = "arms"
+    eq(ns.Score.Text("CHANGE"), ns.L.CHANGE_LEVELING, "chosen there, the button says where it is changed")
+end
+
+-- An item whose name the game has a moment before what it gives. It is asked again, and is
+-- in the list when the game tells the rest. (It was taken to give nothing, for the whole
+-- scan.) One the game never tells more of is taken to give nothing after a while, and the
+-- scan does not wait for it or look it up.
+function scenarios.scan_stats_late()
+    StandardWorld()
+    W.AddItem({ id = 3300, name = "Slow Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 40, level = 9 })
+    W.AddAuction(3300, 900)
+    W.AddItem({ id = 3301, name = "Blank Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 50, level = 9 })
+    W.AddAuction(3301, 950)
+    W.items["3300:0"].statsHeld, W.items["3301:0"].statsHeld = true, true
+    LoadAddon()
+    SetView(false, false)
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    local blank = 0
+    local Send = C_AuctionHouse.SendSearchQuery
+    C_AuctionHouse.SendSearchQuery = function(key, ...)
+        if key.itemID == 3301 then blank = blank + 1 end
+        return Send(key, ...)
+    end
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return S.state == "score" end, 60)
+    local began = W.now
+    W.Run(0.8)
+    W.items["3300:0"].statsHeld = nil     -- the game tells what the helm gives
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    check(Offer("Slow Helm") ~= nil, "the helm the game was slow to tell of is in the list")
+    eq(Offer("Slow Helm").buyout, 900, "at its price")
+    eq(Offer("Blank Helm"), nil, "the one it never told more of is not")
+    eq(blank, 0, "and was not looked up")
+    eq(next(S.stats.unread), nil, "no row went to an item search unread")
+    check(Offer("Good Chest") ~= nil and Offer("Helm") ~= nil and Offer("Shield") ~= nil, "the rest of the list is whole")
+    check(W.now - began < 30, "and the scan did not stand still for it: " .. (W.now - began))
+end
+
+-- Most of the rows a first look left unread come a moment later, and one never does: the
+-- list does not stand four seconds for that one because they were many at first.
+function scenarios.scan_warm_tail()
+    StandardWorld()
+    for i = 1, 31 do
+        local id = 3400 + i
+        W.AddItem({ id = id, name = "Fresh Helm " .. i, equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 20 + i, level = 9, uncached = true })
+        W.AddAuction(id, 1000 + i)
+    end
+    W.AddItem({ id = 3499, name = "Ghost Ring", equipLoc = "INVTYPE_FINGER", value = 30, level = 9, uncached = true })
+    W.AddAuction(3499, 500)
+    W.neverLoad = { [3499] = true }
+    LoadAddon()
+    SetView(false, false)
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return S.state == "score" and (S.info.waiting or 0) > 0 end, 60)
+    local began = W.now
+    eq(S.info.waiting, 32, "thirty-two rows unread at the first look")
+    W.RunUntil(function() return S.state ~= "score" end, 60)
+    check(W.now - began < 2.5, "the list comes a second after the last row was read, not four: " .. (W.now - began))
+    eq(S.stats.late, 1, "the one row is read on meanwhile")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(Offer("Fresh Helm 31").buyout, 1031, "the rows that came are in the list")
+end
+
+-- An item Pawn has nothing for, though the game says what it gives: that is an answer, and
+-- the scan does not wait for another.
+function scenarios.pawn_blind_scan()
+    StandardWorld()
+    PawnWorld()
+    for i = 1, 3 do
+        W.AddItem({ id = 3500 + i, name = "Blind Helm " .. i, equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 40 + i, level = 9, pawnBlind = true })
+        W.AddAuction(3500 + i, 900 + i)
+    end
+    UpgradeScoutDB = { engine = "pawn" }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    SetView(false, false)
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    check(S.Start(), "scan starts")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    check(S.stats.score < 0.3, "the scoring is not held up by what Pawn cannot read: " .. S.stats.score)
+    eq(S.stats.waiting, 0, "no row waited"); eq(S.stats.late, 0, "none was read late")
+    eq(Offer("Blind Helm 1"), nil, "and such an item is not in the list")
+end
+
+-- A scan for consumables in a client that has not loaded its items: the rows it never told
+-- of are left out, as ever, and when they are many the scan's numbers say so.
+function scenarios.supplies_unloaded()
+    SuppliesWorld()
+    W.neverLoad = {}
+    for i = 1, 40 do
+        local id = 4000 + i
+        W.AddItem({ id = id, name = "Ghost Brew " .. i, classID = 0, quality = 1, subClassID = 2, level = 10, stack = 5,
+            use = "Increases Strength by " .. i .. " for 1 hr.", uncached = true })
+        W.AddAuction(id, 20 + i, { quantity = 3 })
+        W.neverLoad[id] = true
+    end
+    LoadAddon()
+    SupplyFacts()
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    check(S.StartSupplies(), "the scan for consumables starts")
+    W.RunUntil(function() return S.state == "score" and (S.info.waiting or 0) > 0 end, 60)
+    eq(S.info.waiting, 40, "forty rows the client has yet to tell of")
+    W.RunUntil(function() return S.state == "idle" end, 60)
+    eq(S.suppliesUnread, 40, "left out, and counted: the list says that it is short of them")
+    local listed = 0
+    for _ in pairs(S.supplies) do listed = listed + 1 end
+    check(listed > 0, "what the client told of is listed")
+    W.neverLoad = nil
+    check(S.StartSupplies(), "a second scan starts")
+    W.RunUntil(function() return S.state == "idle" end, 60)
+    eq(S.suppliesUnread, 0, "a scan a little later is short of nothing")
+end
+
 local fn = scenarios[scenario]
 if not fn then
     realPrint("unknown scenario: " .. tostring(scenario))

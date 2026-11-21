@@ -231,17 +231,29 @@ end
 -- character's full name and its realm: the main spec chosen there (`spec`) and the weapon
 -- setup of each spec (`weapons`, by "CLASS:spec"). The full name is the first name and the
 -- surname with the game's own sign between them. nil for a character it has not seen.
+-- The character being played is kept there under the realm's name as the game gave it at
+-- login, which is when Forever Leveling BiS reads it (its Core.lua). Now and then the game
+-- has none then, and gives an empty one: for that session it keeps the character under a
+-- name without a realm, with nothing chosen yet, whatever it saved under the real one.
+local loginRealm
+ns.On("PLAYER_LOGIN", function()
+    local realm = GetRealmName()
+    loginRealm = type(realm) == "string" and realm or nil
+end)
+
 local function Saved(who)
     local kept = Kept()
     local chars = kept and kept.chars
-    if type(chars) ~= "table" or type(who.name) ~= "string" or type(who.realm) ~= "string" then return nil end
+    local realm = who.realm
+    if loginRealm and who == ns.Roster.Me() then realm = loginRealm end
+    if type(chars) ~= "table" or type(who.name) ~= "string" or type(realm) ~= "string" then return nil end
     local name = who.name
     if type(who.last) == "string" and who.last ~= "" then
         local signs = Constants and Constants.CharacterNameSeparatorConsts
         local sign = type(signs) == "table" and signs.CHARACTERNAME_SURNAME_SEPARATOR or nil
         name = name .. (type(sign) == "string" and sign or " ") .. who.last
     end
-    local theirs = chars[name .. "-" .. who.realm]
+    local theirs = chars[name .. "-" .. realm]
     return type(theirs) == "table" and theirs or nil
 end
 
