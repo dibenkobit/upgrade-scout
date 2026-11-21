@@ -26,10 +26,17 @@ local LOAD_TIMEOUT = 4         -- seconds without a row read after which the cli
 local LOAD_QUIET = 1           -- and after which the list no longer waits for the rows still unread: they
                                -- are read on while the prices are looked up (see StepLate). A real scan:
                                -- 13 rows of 10,000 never were read, and the list stood four seconds for them
-local UNREAD_FEW = 30          -- That is for a few rows. More than this many unread are the client still
-                               -- loading its items (a game that had just been updated: 1,985 rows of a
-                               -- scan). They are waited for as long as it goes on telling of them, and
-                               -- what is left of them in the end is not looked up row by row (LeaveUnread)
+local UNREAD_FEW = 60          -- That is for a few rows: this many, or
+local UNREAD_SHARE = 0.02      -- this share of the rows if that is more, and never more than
+local UNREAD_MOST = 0.25       -- this share of them. A real scan: 37 rows of 9,500 were never told of,
+                               -- starter clothes among them. More rows unread are a client still loading
+                               -- its items (a game that had just been updated: 1,985 rows): they are
+                               -- waited for as long as it goes on telling of them (StepScore)
+local UNREAD_SEARCHED = 30     -- rows never read that a scan sends to their item searches, at most (GiveUp)
+local STALL_SAID = 2           -- seconds without a row read after which the status line says that the scan
+                               -- waits for the game, where it does
+local SUPPLY_RIPE = 1.5        -- seconds a few rows of consumables are waited for (they have no item search
+                               -- to go to, and are not read on later)
 local LOAD_LONGEST = 60        -- seconds the rows are waited for at the very most, however the client goes on
 local SETTLE_FOR = 2           -- seconds an item the game names without saying what it gives is asked again
                                -- before it is taken to give nothing (see EvalLink)
@@ -75,7 +82,7 @@ S.partial = false              -- the last scan stopped before it had seen every
 S.unanswered = 0               -- item searches the auction house did not answer since the last scan
                                -- began: the scan went on without those prices
 S.unread = 0                   -- rows of the last scan the game told nothing of, too many to look up one
-                               -- by one: the list is short of whatever they hold (see LeaveUnread)
+                               -- by one: the list is short of whatever they hold (see StepScore)
 S.halted = false               -- the price checks were stopped and wait for S.Resume()
 S.finishedAt = nil
 S.stats = nil                  -- what the last scan sent and how long it took (see NewStats)
@@ -209,7 +216,10 @@ local function NewStats()
         unreadItems = {},                   -- the first of those: "item number:suffix what"
         waiting = 0,                        -- rows still unread when every row had had its turn once,
         waitingWhy = {},                    -- by what was missing, as lateWhy
-        left = 0,                           -- rows never read that were not looked up either (S.unread)
+        left = 0,                           -- rows never read that were not looked up either
+        stalled = false,                    -- the scoring stood still for the client, and the status line said so
+        forced = 0,                         -- rows read though the client never said it had loaded their item
+        dead = 0,                           -- items the client said it could not load
     }
 end
 
@@ -415,18 +425,36 @@ local function AddCandidate(row, eval)
     }
 end
 
--- Rows of gear the client never told enough about go to their item searches, which can
--- tell what a row holds without its help (the candidates without a sample: AddCandidate).
+-- Rows of gear the client never told enough about, when their time is over.
+-- Where it has the row's item and no link of an auction in the row ("sample"), or not the
+-- tooltip of what scored as an upgrade ("tip"), an item search can tell what the row holds:
+-- the row is a candidate without a sample (AddCandidate), up to UNREAD_SEARCHED of a scan.
+-- Where it never loaded the item itself ("data", "link") a search has nothing to score the
+-- row's auctions by either, and none is sent. In real scans those were a few dozen rows of
+-- junk, and the searches once sent for them, a second and more each, found nothing.
+-- Returns how many rows were left out.
 local function GiveUp(rows)
     local list = scan.candidates
+    local stats = S.stats
+    local left = 0
     for i = 1, #rows do
-        NoteUnread(rows[i])
+        local row = rows[i]
+        NoteUnread(row)
         local known = #list
-        AddCandidate(rows[i])
-        -- (The client has had seconds to tell of the row's item: its search does not wait
-        -- as long again for the same: ReadJob.)
-        if #list > known then list[#list].unread = true end
+        if (row.why == "sample" or row.why == "tip") and scan.searchedUnread < UNREAD_SEARCHED then
+            AddCandidate(row)
+        end
+        if #list > known then
+            scan.searchedUnread = scan.searchedUnread + 1
+            -- (The client has had seconds to tell of the row: its search does not wait as
+            -- long again for the same: ReadJob.)
+            list[#list].unread = true
+        else
+            left = left + 1
+        end
     end
+    if stats and stats.left then stats.left = stats.left + left end
+    return left
 end
 
 -- Where the candidate's item would go and by how much it beats the gear there.
@@ -1097,15 +1125,20 @@ end
 -- true when the row is settled; false when it has to wait for the client to load something,
 -- and then what: "data" the item itself, "sample" a link of one of the row's auctions,
 -- "link" what that link stands for, "tip" its tooltip.
-local function ScoreRow(row)
+-- force: the row is read though the client does not say that it has loaded the item. Of a
+-- few dozen items of a scan it never says so, however long it is waited for, while the
+-- row's own link may tell all there is to know. A row that cannot be read so either still
+-- waits for "data": its item is what the client lacks.
+local function ScoreRow(row, force)
     local key = row.key
     local itemID = key.itemID
-    if not C_Item.IsItemDataCachedByID(itemID) then
+    local cached = C_Item.IsItemDataCachedByID(itemID)
+    if not cached then
         if not run.requested[itemID] then
             run.requested[itemID] = true
             C_Item.RequestLoadItemDataByID(itemID)
         end
-        return false, "data"
+        if not force then return false, "data" end
     end
 
     -- An item that stacks is sold by the piece out of one pile, as consumables are, whatever
@@ -1118,7 +1151,7 @@ local function ScoreRow(row)
     -- and all. No link made from the row's key could stand in for it: the variant is in no
     -- field of a link that the key could fill in, and the plain item scores as something else.
     -- So a row without a sample waits for one, and if none comes the item search decides
-    -- (see StepScore).
+    -- (see GiveUp).
     local link = AH.GetItemKeySampleLink(key)
     if not link then
         if not row.asked then
@@ -1128,23 +1161,25 @@ local function ScoreRow(row)
             -- is not written down anywhere, hence the wait and not a promise.)
             AH.GetItemKeyInfo(key)
         end
-        return false, "sample"
+        return false, cached and "sample" or "data"
     end
 
     local eval = EvalLink(link)
-    if eval == nil then return false, "link" end
+    if eval == nil then return false, cached and "link" or "data" end
 
     if eval and #ns.Compare.Place(eval, S.ctx) > 0 then
         -- Red text is about the item, not the auction, so the sample answers for the row.
         if eval.usable == nil then ReadTooltip(eval) end
-        if eval.usable == nil then return false, "tip" end
+        if eval.usable == nil then return false, cached and "tip" or "data" end
         -- (An item the tooltip has just called unique-equipped, and that is worn, is a
         -- candidate still: SkipReason finds it no better than the gear.)
         if eval.usable then
+            if not cached and run.stats then run.stats.forced = run.stats.forced + 1 end
             AddCandidate(row, eval)
             return true
         end
     end
+    if not cached and run.stats then run.stats.forced = run.stats.forced + 1 end
     scan.rejected[#scan.rejected + 1] = row
     -- (A row read late, after the rows dropped by score were sent to their searches: NextJob.)
     if scan.requeued then AddCandidate(row) end
@@ -1238,23 +1273,12 @@ local function ScoreSupply(row, final)
     return true
 end
 
--- A few rows never read go to their item searches (GiveUp). Many are a client that has not
--- loaded its items, as a game that has just been updated has not for some minutes: an item
--- search for each would take as long, most of them for nothing, with the list standing at
--- the few rows that were read. None is sent: the scan goes on with what was read, and the
--- list says how many rows it is short of (S.unread), which a scan a little later will have.
-local function LeaveUnread(rows)
-    for i = 1, #rows do NoteUnread(rows[i]) end
-    S.unread = S.unread + #rows
-    if run.stats then run.stats.left = run.stats.left + #rows end
-end
-
 -- The list does not wait for a few rows the client is slow to tell about: once the others
 -- are read and nothing more has come for a moment, the candidates are listed and their prices
 -- looked up, and the rows still unread are read on meanwhile (StepLate). They belong to the
 -- scan and not to the run: scan.late = { rows, at = when a row was last read, nextTry }.
--- (A few: UNREAD_FEW at most. With more unread the client is still loading its items, and
--- the list waits: StepScore.)
+-- (A few: see UNREAD_FEW. With more unread the client is still loading its items, and the
+-- list waits: StepScore.)
 -- Each is asked for once more: one asking is not known to be answered always.
 local function HoldLate(rows)
     local stats = run.stats
@@ -1274,20 +1298,36 @@ local function HoldLate(rows)
     end
 end
 
+-- Are the rows few, of all the scan has to score? (See UNREAD_FEW.)
+local function Few(count)
+    local all = S.info.toScore
+    return count <= math.max(UNREAD_FEW, all * UNREAD_SHARE) and count <= all * UNREAD_MOST
+end
+
 local function StepScore(now)
     local started = Clock()
     local list = run.toScore
     local supplies = run.mode == "supplies"
-    local Score = supplies and ScoreSupply or ScoreRow
     while run.scoreIndex <= #list do
         local row = list[run.scoreIndex]
         run.scoreIndex = run.scoreIndex + 1
-        local read, why = Score(row)
+        local read, why
+        if supplies then
+            read = ScoreSupply(row)
+        else
+            -- A row the client has not told of for a while, when only a few are left, or
+            -- whose item it said it cannot load, is read without its say (ScoreRow).
+            local force = row.since ~= nil
+                and (run.dead[row.key.itemID] or (run.few and now - row.since >= LOAD_QUIET)) or false
+            if force then row.forced = true end
+            read, why = ScoreRow(row, force)
+        end
         if read then
             S.info.scored = S.info.scored + 1
             run.lastLoad, run.lastRead = now, now
         else
             row.why = why
+            row.since = row.since or now
             run.waiting[#run.waiting + 1] = row
             run.awaited[row.key.itemID] = true
         end
@@ -1296,57 +1336,92 @@ local function StepScore(now)
             return
         end
     end
+    local waiting = #run.waiting
     -- Every row has had its turn once: the client has from now to tell of the rest.
     if not run.passed then
         run.passed = true
         run.passedAt = now
         run.lastRead = now
-        -- (How many it had not told of by then, and for want of what: the scan's numbers.)
+        -- (How many it had not told of by then, and for want of what: the scan's numbers.
+        -- In a real scan two rows of three: the client loads an item when it is asked for.)
         local stats = run.stats
         if stats and stats.waitingWhy then
-            stats.waiting = #run.waiting
-            for i = 1, #run.waiting do
+            stats.waiting = waiting
+            for i = 1, waiting do
                 local why = run.waiting[i].why or "?"
                 stats.waitingWhy[why] = (stats.waitingWhy[why] or 0) + 1
             end
         end
     end
-    -- The rows the client has yet to tell of: the status line counts them down meanwhile.
-    if S.info.waiting ~= #run.waiting then
-        S.info.waiting = #run.waiting
+    -- A few rows the client is slow with, or never tells of, are not worth the list's time.
+    -- Many are a client still loading its items: the list would be a few rows of what is
+    -- for sale, so they are waited for as long as it goes on telling of them.
+    local few = Few(waiting)
+    run.few = few
+    -- Once the scan has stood still for the client (a moment without a row read, and many
+    -- to come, or a scan for consumables, which has nowhere to go on to), the status line
+    -- says so and counts the rows down. Until then it counts the rows scored, as ever.
+    if not run.stalled and (supplies or not few) and now - run.lastRead > STALL_SAID then
+        run.stalled = true
+        if run.stats and run.stats.waitingWhy then run.stats.stalled = true end
+    end
+    local said = run.stalled and waiting or 0
+    if S.info.waiting ~= said then
+        S.info.waiting = said
         ns.Fire("SCAN_PROGRESS")
     end
 
-    if #run.waiting > 0 then
-        -- A few rows the client is slow with, or never tells of, are not worth the list's
-        -- time. Many are a client still loading its items: the list would be a few rows of
-        -- what is for sale, so they are waited for as long as it goes on telling of them.
-        local few = #run.waiting <= UNREAD_FEW
-        if now - run.lastLoad > LOAD_TIMEOUT or now - run.passedAt > LOAD_LONGEST then
-            -- The client is not going to tell us more. A few rows go to their item
-            -- searches, which can tell what a row holds; many are left out (LeaveUnread).
-            -- (A consumable has no item search to go to: it is taken as far as it is known.)
-            if supplies then
+    if waiting > 0 then
+        -- The client is not going to tell us more: nothing came for a while, or the wait
+        -- has been long enough whatever comes.
+        local over = now - run.lastLoad > LOAD_TIMEOUT or now - run.passedAt > LOAD_LONGEST
+        local settled = false
+        if supplies then
+            -- A consumable has no item search to go to: it is taken as far as it is known.
+            -- A few rows, each of which has had its moment, are not waited for longer:
+            -- there are rows whose items the client never loads.
+            local ripe = few
+            for i = 1, ripe and waiting or 0 do
+                if now - run.waiting[i].since < SUPPLY_RIPE then
+                    ripe = false
+                    break
+                end
+            end
+            if over or ripe then
                 local lost = 0
-                for i = 1, #run.waiting do
+                for i = 1, waiting do
                     local row = run.waiting[i]
                     ScoreSupply(row, true)
                     if not S.supplies[row.ks] then lost = lost + 1 end
                 end
                 -- (Many: the client has not loaded its items, and the list says so.)
-                if lost > UNREAD_FEW then S.suppliesUnread = lost end
-            elseif few then
-                GiveUp(run.waiting)
-            else
-                LeaveUnread(run.waiting)
+                if not few then S.suppliesUnread = lost end
+                S.info.scored = S.info.scored + waiting
+                settled = true
             end
-            S.info.scored = S.info.scored + #run.waiting
-            run.waiting = {}
-        elseif not supplies and few and #scan.candidates > 0 and now - run.lastRead > LOAD_QUIET then
-            -- There is a list to show and prices to look up: on with those, and the rows
-            -- still unread are read on meanwhile. (With no candidate yet there is nothing
-            -- to go on with, and the wait is as it was.)
-            HoldLate(run.waiting)
+        elseif few then
+            -- Each of the few has had its moment and a look without the client's say: on
+            -- with the list and the prices, and they are read on meanwhile (HoldLate).
+            local ripe = true
+            for i = 1, waiting do
+                if not run.waiting[i].forced then
+                    ripe = false
+                    break
+                end
+            end
+            if ripe or over then
+                HoldLate(run.waiting)
+                settled = true
+            end
+        elseif over then
+            -- Many, and the client has stopped telling of them. What an item search can
+            -- tell goes to one (GiveUp); the rest is left out, and the list says how many
+            -- rows it is short of, which a scan a little later will have.
+            S.unread = S.unread + GiveUp(run.waiting)
+            S.info.scored = S.info.scored + waiting
+            settled = true
+        end
+        if settled then
             run.waiting = {}
         elseif now >= run.nextRetry then
             run.nextRetry = now + 0.25
@@ -1385,7 +1460,7 @@ local function StepLate(now)
     while at <= #rows do
         local row = rows[at]
         at = at + 1
-        local read, why = ScoreRow(row)
+        local read, why = ScoreRow(row, true)
         if read then
             late.at = now
             if run.stats then run.stats.lateRead = run.stats.lateRead + 1 end
@@ -1622,7 +1697,10 @@ local function NewRun(mode)
         scoreIndex = 1,
         waiting = {},       -- rows waiting for the client to load item data
         requested = {},
-        awaited = {},       -- items of the rows that wait: one of them loaded is a sign of life (OnItemLoaded)
+        -- Items of the rows that wait: one of them loaded is a sign of life; and those the
+        -- client said it cannot load (OnItemLoaded).
+        awaited = scanning and scan.awaited or {},
+        dead = scanning and scan.dead or {},
         -- A lookup around a purchase scores its item afresh; a scan keeps its scores.
         evalCache = scanning and scan.evalCache or {},
         unsettled = scanning and scan.unsettled or {},  -- item link -> when it first had no reading (EvalLink)
@@ -1747,6 +1825,9 @@ function S.Start()
         rejected = {},      -- rows dropped by score alone
         evalCache = {},     -- item link -> score (see EvalLink)
         unsettled = {},     -- item link -> when the game first had no reading of it
+        awaited = {},       -- item -> a row waits for it
+        dead = {},          -- item -> the client said it cannot load it
+        searchedUnread = 0, -- rows never read that went to their item searches (GiveUp)
         ready = false,      -- scoring finished: the candidates are all known
         bucketsVary = false,-- some row held items that differ from its sample
         requeued = false,
@@ -2222,10 +2303,20 @@ ns.On("ITEM_SEARCH_RESULTS_ADDED", OnItemResults)
 local QueueContext = ns.Soon(0.5, function() S.RefreshContext() end)
 
 local function OnItemLoaded(itemID, success)
-    -- A sign that the client is still telling of the rows that wait, when the item is one
-    -- of theirs: the game loads items for everybody all the time, and those say nothing.
-    if run and S.state == "score" and success ~= false and itemID ~= nil and run.awaited[itemID] then
-        run.lastLoad = GetTime()
+    -- Of an item a row waits for. Loaded: a sign that the client is still telling of the
+    -- rows (the game loads items for everybody all the time, and those say nothing). Not
+    -- to be loaded, by its own word: the item's rows are not waited for (StepScore).
+    if run and itemID ~= nil and run.awaited[itemID] then
+        if success == false then
+            if not run.dead[itemID] then
+                run.dead[itemID] = true
+                if run.stats then run.stats.dead = run.stats.dead + 1 end
+            end
+        elseif S.state == "score" then
+            run.lastLoad = GetTime()
+        elseif scan and scan.late then
+            scan.late.at = GetTime()
+        end
     end
     -- An item the gear snapshot was waiting for (see Score.Context).
     local ctx = S.ctx

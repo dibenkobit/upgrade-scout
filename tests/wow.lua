@@ -1452,9 +1452,10 @@ function C_Item.GetItemSubClassInfo(classID, subClassID)
     if classID == 0 then return W.subNames[subClassID] end
     if classID == 4 then return W.armorNames[subClassID] end
 end
+-- `neverCached`: an item the client has all there is to know of and never says it has loaded.
 function C_Item.IsItemDataCachedByID(id)
     for _, item in pairs(W.items) do
-        if item.id == id and not item.cached then return false end
+        if item.id == id and (not item.cached or item.neverCached) then return false end
     end
     return true
 end
