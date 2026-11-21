@@ -28,15 +28,12 @@
   not 8: the scan no longer seems stuck on it.
 - The scoring no longer stands still for several seconds near its end. The list appears while
   the game is still loading the last few items, and those join it as they come.
-- If you have Forever Leveling BiS, the window comes up once after the update to show you the
-  choice.
-
-## 2.10.1
-
 - Prices that are not checked yet are no longer dimmed. A dimmed row looked like one you could
   not buy, and most of those prices are right.
 - While the prices are checked, the status line says that some of them may be bids. The row's
   tooltip still says when its price is not checked yet.
+- If you have Forever Leveling BiS, the window comes up once after the update to show you the
+  choice.
 
 ## 2.10.0
 
