@@ -29,6 +29,9 @@ local _, ns = ...
 --               scored on while none is chosen
 --   armorOnly, minGain, minGainOn, maxBelow, maxBelowOn
 --               what it wants of its gear: the list's filters that are its own (see Wants.lua)
+--   hands, weaponsOut
+--               what it wants of its weapons: how it fills its hands, and the kinds of weapon
+--               it is not to be offered (see Wants.lua)
 --   maxPrice, maxPriceOn
 --               the most to pay for one item for it: "Buyout up to" (see Wants.lua)
 --   seen        when it was last written down (time())
@@ -92,6 +95,27 @@ function Roster.HeaviestArmor(class)
         if ARMOR[sub].classes[class] then heaviest = sub end
     end
     return heaviest
+end
+
+-- The kinds of weapon in the order a list of them reads best: those for one hand, those for
+-- both, those for the ranged slot, each as `held` says ("ONE", "TWO", "RANGED"); axes, maces
+-- and swords first among the first two, so that the two read alike.
+local WEAPON_ORDER = {
+    { held = "ONE", 0, 4, 7, 15, 13 },
+    { held = "TWO", 1, 5, 8, 6, 10 },
+    { held = "RANGED", 2, 18, 3, 16, 19 },
+}
+
+-- The kinds of weapon a class can ever wield, in that order: { { kind = the item subclass,
+-- held = how it is held }, ... }. Nothing for a class that is not one.
+function Roster.WeaponKinds(class)
+    local out = {}
+    for _, group in ipairs(WEAPON_ORDER) do
+        for _, sub in ipairs(group) do
+            if WEAPONS[sub].classes[class or ""] then out[#out + 1] = { kind = sub, held = group.held } end
+        end
+    end
+    return out
 end
 
 -- The kinds of `kinds` the character being played has learned; nil when it seems to have

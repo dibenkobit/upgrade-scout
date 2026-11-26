@@ -23,7 +23,7 @@ read_globals = {
     "AnchorUtil",
     "C_AuctionHouse", "C_ClassTalents", "C_Container", "C_Item", "C_SpellBook", "C_Timer", "C_TooltipInfo", "C_Traits",
     "ColorManager", "Constants", "Settings",
-    "Enum", "EventUtil", "TooltipDataProcessor", "TooltipUtil", "MoneyStringConstants", "PixelUtil", "SOUNDKIT", "ScrollBoxConstants", "ScrollUtil",
+    "Enum", "EventUtil", "MenuResponse", "TooltipDataProcessor", "TooltipUtil", "MoneyStringConstants", "PixelUtil", "SOUNDKIT", "ScrollBoxConstants", "ScrollUtil",
     "BankPanelItemButtonMixin",
     -- its frames, fonts and colours
     "AuctionHouseFrame", "GameTooltip", "MailFrame", "MailFrameTab2", "Minimap", "SendMailNameEditBox", "SendMailSubjectEditBox",

@@ -56,15 +56,13 @@ local function Wearable(link)
     return known
 end
 
--- Is the item armor of a lighter kind than the character has asked to be offered ("Best
--- armor type for the class" in the Filters menu of the Upgrades tab: see Wants.lua)? What
--- the list at the auction house leaves out for that gets no arrow either.
-local function TooLight(link)
-    local wants = ns.Wants.Of(ns.Roster.Me())
-    if not wants or not wants.armor then return false end
-    local _, _, _, invType, _, classID, subClassID = C_Item.GetItemInfoInstant(link)
-    local armor = ns.Wants.ArmorOf(invType, classID, subClassID)
-    return armor ~= nil and armor ~= wants.armor
+-- Is the item one the character has asked not to be offered, in the Filters menu of the
+-- Upgrades tab (see Wants.lua)? Armor of a lighter kind than "Best armor type for the class"
+-- keeps, a kind of weapon it left out, a two-hander for one that fills its hands with a
+-- weapon for one hand and a shield, or the other way about. What the list at the auction
+-- house leaves out for that gets no arrow either.
+local function Unwanted(link)
+    return not ns.Wants.FitsLink(ns.Wants.Of(ns.Roster.Me()), link)
 end
 
 -- "now" when the item gets the green arrow, "later" when it gets the grey one, false when it
@@ -78,7 +76,7 @@ function B.Arrow(link, where, addon)
     if ns.Score.DrawsArrows(where, addon) then return false end
     local upgrade = ns.Tooltip.Upgrade(link)
     if not upgrade then return upgrade end
-    if TooLight(link) then return false end
+    if Unwanted(link) then return false end
     return Wearable(link)
 end
 
@@ -287,7 +285,8 @@ ns.Listen("SCORING_CHANGED", function()
     MarkAllSoon()
 end)
 
--- The character being played asks for another kind of armor, or for any again (Wants.lua).
+-- The character being played asks for another kind of armor or of weapon, or for any again
+-- (Wants.lua).
 ns.Listen("WANTS_CHANGED", function(card)
     if card ~= ns.Roster.Me() then return end
     retries = 0

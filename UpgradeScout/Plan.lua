@@ -199,12 +199,14 @@ end
 -- on. An upgrade is then measured against those, and no second chest is bought to replace the
 -- one that is still in the mail. Returns a context of its own; `ctx` is left as it is.
 --   items   { { link, itemID, invType, value, unique }, ... }
-function Plan.Wearing(ctx, items)
+--   hands   how the character means to fill its hands (its wants have it): a shield bought
+--           by one that holds a two-hander and is going over to one hand counts as held
+function Plan.Wearing(ctx, items, hands)
     if not items or #items == 0 then return ctx end
     local view = On(ctx, CopyGear(ctx.equipped))
     for i = 1, #items do
         local item = items[i]
-        local placements = ns.Compare.Place(item, view)
+        local placements = ns.Compare.Place(item, view, hands)
         local best
         for p = 1, #placements do
             if not best or placements[p].delta > best.delta then best = placements[p] end
@@ -219,10 +221,17 @@ end
 --   ctx      comparison context (see Score.Context)
 --   wants    what the character wants of its gear (Wants.Of): a set is made of the offers it
 --            would have, each adding as much as it asks; nil for any
+-- A set is made of offers the list has a row for: each is an upgrade by itself, on the gear
+-- as it is and the way the character fills its hands. (A scan keeps offers that are that
+-- only for another choice of the hands, see Compare.Possible: a shield beside a two-hander.)
+-- Where each goes in a set is another matter, and there the hands are filled as they can be
+-- held: a shield is in a set with the weapon for one hand that takes the two-hander's place,
+-- and never by itself, as a sum that says what the set adds could not be true of it.
 function Plan.Ladder(offers, ctx, cap, wants)
     local kinds, names = {}, {}
+    local hands = wants and wants.hands
     for _, offer in pairs(offers) do
-        if offer.buyout <= cap and ns.Wants.Fits(wants, offer) then
+        if offer.buyout <= cap and ns.Wants.Fits(wants, offer) and #ns.Compare.Place(offer, ctx, hands) > 0 then
             local name, room = ns.Compare.Kind(offer.invType)
             if name then
                 local kind = kinds[name]

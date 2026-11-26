@@ -28,6 +28,8 @@ local names = {
     "leveling_scan", "leveling_hands", "leveling_absent", "leveling_tooltips", "leveling_welcome", "leveling_supplies", "leveling_alt",
     "levels", "levels_ui", "scan_levels",
     "ellesmere", "ellesmere_absent", "ellesmere_late", "ellesmere_leveling", "ellesmere_companion",
+    "hands", "weapons", "weapons_scan", "weapons_spare", "weapons_ui", "weapons_rogue", "weapons_warlock", "weapons_paladin",
+    "weapons_others", "weapons_leveling",
 }
 
 if not scenario then
@@ -87,6 +89,11 @@ local function TestWeights()
     }
 end
 
+-- More of them for a scenario that has a use for other classes, or for profiles by the names
+-- the addon's own go by: a function that is given the tests' weights each time the addon is
+-- loaded, to add to. See MoreProfiles.
+local moreWeights
+
 -- Loads the addon's files in .toc order, the way the game does.
 local function LoadAddon()
     for line in io.lines(ADDON_DIR .. "UpgradeScout.toc") do
@@ -97,6 +104,7 @@ local function LoadAddon()
         end
     end
     ns.Weights = TestWeights()
+    if moreWeights then moreWeights(ns.Weights) end
     -- No item of the stand-in client is in the game's tables: each is "newer" than them.
     ns.GearData = { newest = 0, extra = {}, effects = {} }
     W.AddOnLoaded("UpgradeScout")
@@ -204,19 +212,76 @@ local function FilterBox(label)
     return box
 end
 
--- The labels of the Filters menu's tick boxes, top to bottom, with a "/" where a rule is.
+-- The lines of a menu, top to bottom: the label of each, a "/" where a rule is, and a ">"
+-- after a line that opens a menu of its own. With `marks`, a line of which one is chosen is
+-- "(x)" before its label when it is that one and "( )" when not, and a tick box "[x]" or "[ ]".
+local function MenuLines(elements, marks)
+    local out = {}
+    for _, line in ipairs(elements) do
+        local text = line.kind == "rule" and "/" or line.text
+        if line.kind ~= "rule" and #line.elements > 0 then text = text .. " >" end
+        if marks and (line.kind == "radio" or line.kind == "check") then
+            local mark = line.isSelected(line.data) and "x" or " "
+            text = (line.kind == "radio" and "(" .. mark .. ") " or "[" .. mark .. "] ") .. text
+        end
+        out[#out + 1] = text
+    end
+    return table.concat(out, " | ")
+end
+
+-- The lines of the Filters menu.
 local function FilterMenu()
     local field = UpgradeScoutFrame.FilterField
     field:Open()
-    local out = {}
-    for i, tickBox in ipairs(field.checks) do
-        out[#out + 1] = tickBox.text
-        for _, rule in ipairs(field.rules) do
-            if rule.afterCheck == i then out[#out + 1] = "/" end
-        end
-    end
+    local out = MenuLines(field.elements)
     field:Close()
-    return table.concat(out, " | ")
+    return out
+end
+
+-- The menu that the line "Weapons" of the Filters menu opens (Filters.lua), for a test to
+-- handle as the player does. Each look and each click opens the two menus anew, as FilterBox
+-- does, and closes what is still open after it. A click may come with `keep`: a function
+-- that is told the Filters field and that menu right after the click, before anything is
+-- closed, to see what the click left open.
+local function WeaponsMenu()
+    local menu = {}
+    local function Look(what)
+        local field = UpgradeScoutFrame.FilterField
+        field:Open()
+        local seen = what(field, field:OpenSub("Weapons"))
+        if field._open then field:Close() end
+        return seen
+    end
+    -- Its lines, with their marks.
+    function menu:Lines() return Look(function(_, sub) return MenuLines(sub.elements, true) end) end
+    -- A click on a line, by its label.
+    function menu:Click(label, keep)
+        Look(function(field, sub)
+            field:ClickSub(label)
+            if keep then keep(field, sub) end
+        end)
+    end
+    -- The frame of a line, as the game drew it and the addon dressed it, told to `what`.
+    function menu:Line(label, what)
+        return Look(function(_, sub)
+            for i, line in ipairs(sub.elements) do
+                if line.text == label then return what(sub.lines[i], line) end
+            end
+            error("no line labelled " .. label)
+        end)
+    end
+    -- The tooltip of a line: its lines of text, joined.
+    function menu:Tooltip(label)
+        return self:Line(label, function(frame, line)
+            GameTooltip:SetOwner(frame)
+            line.tooltip(GameTooltip, line)
+            local seen = {}
+            for _, said in ipairs(GameTooltip._lines) do seen[#seen + 1] = said.text end
+            GameTooltip:Hide()
+            return table.concat(seen, " | ")
+        end)
+    end
+    return menu
 end
 
 -- A level 10 warrior with a chest (score 10), one ring (score 4) and a one-hand sword (score 20).
@@ -2451,7 +2516,7 @@ function scenarios.ui()
         "and hangs from the field's right end: the field stands at the window's edge")
     eq(frame.AffordCheck, nil, "no filter's tick box in the strip"); eq(frame.TopCheck, nil, "not one")
     -- A warrior of level 10 wears mail, and plate from 40: the line that is its own names mail.
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
         "the lines of the menu, the one that is no filter under a rule")
     local checkbox, topBox = FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
     eq(topBox:GetChecked(), true, "top five on by default")
@@ -3509,7 +3574,7 @@ function scenarios.net_ui()
 
     -- The box: the last line of the Filters menu, under a rule, off until it is ticked.
     eq(frame.NetCheck, nil, "no tick box of its own above the list")
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
         "the last line of the menu, under a rule: what the best value goes by, not a filter")
     eq(net:IsShown(), true, "in the menu of the Upgrades tab")
     eq(net:GetChecked(), false, "not ticked")
@@ -9861,7 +9926,7 @@ function scenarios.wants_ui()
     W.AddAuction(310, 2000)
     W.AddAuction(311, 1000)
     local LABEL, SHORT = "Best armor type for the class", "Best armor"
-    local MENU = "Only what I can afford | Buyout up to | Top 5 per slot | " .. LABEL .. " | Upgrade at least | Gear at most | / | Value by net cost"
+    local MENU = "Only what I can afford | Buyout up to | Top 5 per slot | " .. LABEL .. " | Upgrade at least | Gear at most | Weapons > | / | Value by net cost"
     -- The box of the menu in view, and the last line of its tooltip: which type it keeps for
     -- the character the list is for.
     local best = FilterBox(LABEL)
@@ -10019,7 +10084,7 @@ function scenarios.wants_ui()
     frame.ProfileDropdown:Pick(5)
     W.Run(0.5)
     eq(ns.Roster.Target(), UpgradeScoutDB.chars["Magey-Testrealm"], "the lists are for the mage")
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Upgrade at least | Gear at most | / | Value by net cost", "a mage's menu has no line about armor")
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Upgrade at least | Gear at most | Weapons > | / | Value by net cost", "a mage's menu has no line about armor")
 
     -- Back to the warrior: its box is as it was.
     frame.ProfileDropdown:Pick(1)
@@ -10467,7 +10532,7 @@ function scenarios.price_max_ui()
     SetView(false, false)
     ScanToEnd()
     W.Run(0.5)
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
         "the line stands under the other price filter")
     eq(Row("Great Chest").Pick.Text:GetText(), "Best upgrade", "the robe, at nine gold, is the best chest there is")
     check(Status():find("12 upgrades in 6 slots.", 1, true) ~= nil, "twelve upgrades: " .. Status())
@@ -11601,11 +11666,12 @@ function scenarios.levels_ui()
         Settle()
     end
 
-    -- The line stands with the character's other two, above the rule. Its tooltip says that
-    -- the scan is the shorter for it, and which level the number comes to for the warrior.
+    -- The line stands with the character's other two, above the menu of its weapons and the
+    -- rule. Its tooltip says that the scan is the shorter for it, and which level the number
+    -- comes to for the warrior.
     SetView(false, false)
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | " .. LABEL .. " | / | Value by net cost",
-        "the line is the last of the filters")
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | " .. LABEL .. " | Weapons > | / | Value by net cost",
+        "the line stands after the other number, and before the menu of weapons")
     eq(below:GetChecked(), false, "not ticked until the player ticks it")
     eq(Comes(), ns.Roster.Colored(me, me.name) .. ": From level 20", "its tooltip names the level: 30 less the ten that stand in the field")
     check(ns.L.LEVEL_MIN_TIP:find("The scan gets shorter too", 1, true) ~= nil, "and says that the scan is shorter with it")
@@ -12191,6 +12257,1396 @@ function scenarios.ellesmere_companion()
     W.Run(1)
     eq(EllesmereArrow(0, chest), false, "and on again: ours go"); eq(EllesmereArrow(6, 3), false, "from the bank too")
     eq(E.refreshes, drawn, "with EllesmereUI never asked to draw its bag window"); eq(E.bankRefreshes, bankDrawn, "or its bank")
+end
+
+---------------------------------------------------------------------------
+-- Weapons: how a character fills its hands, and the kinds of weapon it is offered
+---------------------------------------------------------------------------
+-- Profiles by the names the addon's own have for a warrior's and a paladin's Protection, on
+-- which a character that has not chosen is offered a weapon for one hand and a shield
+-- (Wants.Hands), and profiles for a paladin, a rogue and a warlock, which the tests' weights
+-- have none for. A warrior's Protection scores as the tests' second profile does (`value2`);
+-- the others each by a stat of their own (an item's `values`: PP, PR, R1, L1).
+local function MoreProfiles()
+    moreWeights = function(data)
+        data.classes.WARRIOR = { "S1", "WARRIOR_PROTECTION" }
+        data.classes.PALADIN = { "PALADIN_HOLY", "PALADIN_PROTECTION", "PALADIN_RETRIBUTION" }
+        data.classes.ROGUE = { "R1" }
+        data.classes.WARLOCK = { "L1" }
+        data.start.PALADIN, data.start.ROGUE, data.start.WARLOCK = "PALADIN_RETRIBUTION", "R1", "L1"
+        local titles = data.titles.enUS
+        titles.WARRIOR_PROTECTION, titles.PALADIN_HOLY, titles.PALADIN_PROTECTION = "Protection", "Holy", "Protection"
+        titles.PALADIN_RETRIBUTION, titles.R1, titles.L1 = "Retribution", "Combat", "Affliction"
+        data.profiles.WARRIOR_PROTECTION = { class = "WARRIOR", weights = { TEST_S2 = 1 } }
+        data.profiles.PALADIN_HOLY = { class = "PALADIN", weights = { TEST_PH = 1 } }
+        data.profiles.PALADIN_PROTECTION = { class = "PALADIN", weights = { TEST_PP = 1 } }
+        data.profiles.PALADIN_RETRIBUTION = { class = "PALADIN", weights = { TEST_PR = 1 } }
+        data.profiles.R1 = { class = "ROGUE", weights = { TEST_R1 = 1 } }
+        data.profiles.L1 = { class = "WARLOCK", weights = { TEST_L1 = 1 } }
+    end
+end
+
+-- An item put up for sale.
+local function Sell(def, price)
+    W.AddItem(def)
+    W.AddAuction(def.id, price)
+    return def
+end
+
+-- Where an item for the hands is offered, for every way the hands are held and every way the
+-- character says it fills them (Compare.Place by the choice, and what Wants.Keep leaves of
+-- it): the table of the whole matter.
+function scenarios.hands()
+    LoadAddon()
+    local Compare, Wants = ns.Compare, ns.Wants
+    local function Worn(id, invType, value)
+        return { link = "worn" .. id, itemID = id, invType = invType, value = value }
+    end
+    -- What is held: a two-hander (30); a sword (20) and a shield (7); two swords (20 and 8);
+    -- nothing.
+    local HELD = {
+        two = { [16] = Worn(1, "INVTYPE_2HWEAPON", 30) },
+        shield = { [16] = Worn(1, "INVTYPE_WEAPON", 20), [17] = Worn(2, "INVTYPE_SHIELD", 7) },
+        pair = { [16] = Worn(1, "INVTYPE_WEAPON", 20), [17] = Worn(2, "INVTYPE_WEAPON", 8) },
+        none = {},
+    }
+    local function Ctx(held, dualWield, more)
+        local ctx = { equipped = HELD[held], dualWield = dualWield }
+        for key, value in pairs(more or {}) do ctx[key] = value end
+        return ctx
+    end
+    -- An item for sale: a two-hander is worth 60, anything else 40, unless said.
+    local function Item(kind, value)
+        return { link = "sale" .. kind, itemID = 9, invType = "INVTYPE_" .. kind, value = value or (kind == "2HWEAPON" and 60 or 40) }
+    end
+    -- What the list has of it: each place as "hand +gain note"; "unwanted" where it is an
+    -- upgrade that the choice leaves out, which the list counts; "" where it has no place.
+    local function Listed(ctx, hands, item)
+        local wants = hands ~= "ANY" and { hands = hands } or nil
+        local placements = Compare.Place(item, ctx, wants and wants.hands)
+        local kept = Wants.Keep(wants, item, placements)
+        if #placements > 0 and #kept == 0 then return "unwanted" end
+        local out = {}
+        for _, placement in ipairs(kept) do
+            out[#out + 1] = (placement.group == "MAINHAND" and "main" or "off") .. " +" .. ("%g"):format(placement.delta)
+                .. (placement.note and " " .. placement.note or "")
+        end
+        return table.concat(out, ", ")
+    end
+    local EMPTY, NEEDS = "main +10 OFFHAND_EMPTY", "off +40 NEEDS_ONE_HAND"
+    -- For each way of holding, and one who can hold two weapons or cannot: what "Any",
+    -- "Two-hand" and "One-hand, shield and off-hand" make of each kind of item.
+    local TABLE = {
+        { "two", false, {
+            ["2HWEAPON"] = { "main +30", "main +30", "unwanted" },
+            WEAPON = { EMPTY, "unwanted", EMPTY },
+            WEAPONMAINHAND = { EMPTY, "unwanted", EMPTY },
+            WEAPONOFFHAND = { "", "", "" },
+            SHIELD = { "", "", NEEDS },
+            HOLDABLE = { "", "", NEEDS },
+        } },
+        { "two", true, {
+            ["2HWEAPON"] = { "main +30", "main +30", "unwanted" },
+            WEAPON = { EMPTY, "unwanted", EMPTY .. ", " .. NEEDS },
+            WEAPONMAINHAND = { EMPTY, "unwanted", EMPTY },
+            WEAPONOFFHAND = { "", "", NEEDS },
+            SHIELD = { "", "", NEEDS },
+            HOLDABLE = { "", "", NEEDS },
+        } },
+        { "shield", false, {
+            ["2HWEAPON"] = { "main +33 BOTH_HANDS", "main +33 BOTH_HANDS", "unwanted" },
+            WEAPON = { "main +20", "unwanted", "main +20" },
+            WEAPONMAINHAND = { "main +20", "unwanted", "main +20" },
+            WEAPONOFFHAND = { "", "", "" },
+            SHIELD = { "off +33", "unwanted", "off +33" },
+            HOLDABLE = { "off +33", "unwanted", "off +33" },
+        } },
+        { "shield", true, {
+            ["2HWEAPON"] = { "main +33 BOTH_HANDS", "main +33 BOTH_HANDS", "unwanted" },
+            WEAPON = { "main +20, off +33", "unwanted", "main +20, off +33" },
+            WEAPONMAINHAND = { "main +20", "unwanted", "main +20" },
+            WEAPONOFFHAND = { "off +33", "unwanted", "off +33" },
+            SHIELD = { "off +33", "unwanted", "off +33" },
+            HOLDABLE = { "off +33", "unwanted", "off +33" },
+        } },
+        { "pair", true, {
+            ["2HWEAPON"] = { "main +32 BOTH_HANDS", "main +32 BOTH_HANDS", "unwanted" },
+            WEAPON = { "main +20, off +32", "unwanted", "main +20, off +32" },
+            WEAPONMAINHAND = { "main +20", "unwanted", "main +20" },
+            WEAPONOFFHAND = { "off +32", "unwanted", "off +32" },
+            SHIELD = { "off +32", "unwanted", "off +32" },
+            HOLDABLE = { "off +32", "unwanted", "off +32" },
+        } },
+        { "none", false, {
+            ["2HWEAPON"] = { "main +60", "main +60", "unwanted" },
+            WEAPON = { "main +40", "unwanted", "main +40" },
+            WEAPONMAINHAND = { "main +40", "unwanted", "main +40" },
+            WEAPONOFFHAND = { "", "", "" },
+            SHIELD = { "off +40", "unwanted", "off +40" },
+            HOLDABLE = { "off +40", "unwanted", "off +40" },
+        } },
+        { "none", true, {
+            ["2HWEAPON"] = { "main +60", "main +60", "unwanted" },
+            WEAPON = { "main +40, off +40", "unwanted", "main +40, off +40" },
+            WEAPONMAINHAND = { "main +40", "unwanted", "main +40" },
+            WEAPONOFFHAND = { "off +40", "unwanted", "off +40" },
+            SHIELD = { "off +40", "unwanted", "off +40" },
+            HOLDABLE = { "off +40", "unwanted", "off +40" },
+        } },
+    }
+    local cases = 0
+    for _, row in ipairs(TABLE) do
+        local held, dualWield, expected = row[1], row[2], row[3]
+        for kind, byChoice in pairs(expected) do
+            for i, hands in ipairs(Wants.HANDS) do
+                cases = cases + 1
+                eq(Listed(Ctx(held, dualWield), hands, Item(kind)), byChoice[i],
+                    ("holding %s%s, %s, the list set to %s"):format(held, dualWield and " (can hold two weapons)" or "", kind, hands))
+            end
+        end
+    end
+    eq(cases, 7 * 6 * 3, "every case of the table was asked"); eq(table.concat(Wants.HANDS, " "), "ANY TWO ONE", "the three choices, in the menu's order")
+
+    -- The off hand beside a two-hander, for one going over to a weapon for one hand: the item
+    -- goes into it as into an empty slot. Its gain is its own worth, with no percent to it,
+    -- and nothing comes off: what the hands gain in all is for the weapon to come to decide.
+    local two = Ctx("two", false)
+    local place = Compare.Place(Item("SHIELD", 9), two, "ONE")[1]
+    eq(place.group, "OFFHAND", "a shield beside a two-hander goes to the off hand"); eq(place.slot, 17, "its slot")
+    near(place.delta, 9, "for what it is worth"); near(place.base, 0, "against nothing")
+    eq(place.percent, nil, "no percent is claimed"); eq(place.replaced, nil, "and the two-hander is not said to come off for it")
+    eq(place.note, "NEEDS_ONE_HAND", "the row says what it takes")
+    eq(#Compare.Place(Item("SHIELD", 9), two), 0, "without the choice it has no place, as ever")
+    eq(#Compare.Place(Item("SHIELD", 9), two, "TWO"), 0, "nor for one who keeps to two-handers")
+    eq(#Compare.Place(Item("SHIELD", 9), two, "ANY"), 0, "nor by any name that is not that choice")
+    eq(#Compare.Place(Item("SHIELD", 0), two, "ONE"), 0, "a shield worth nothing is no upgrade there either")
+    -- A weapon for one hand is measured against the two-hander as it always was: the gain a
+    -- share of what the hands hold now. A weaker one is no upgrade, whatever the choice.
+    place = Compare.Place(Item("WEAPON", 33), two, "ONE")[1]
+    near(place.delta, 3, "a sword against the two-hander"); near(place.percent, 0.1, "a share of it"); eq(place.replaced[1], "worn1", "which comes off")
+    eq(#Compare.Place(Item("WEAPON", 25), two, "ONE"), 0, "a weaker sword is not offered for the main hand")
+    local both = Compare.Place(Item("WEAPON", 25), Ctx("two", true), "ONE")
+    eq(#both, 1, "one who can hold two is offered it for the off hand"); eq(both[1].group, "OFFHAND", "alone"); eq(both[1].note, "NEEDS_ONE_HAND", "with the note")
+    -- With a sword and a shield held, the choice changes no place and no number.
+    place = Compare.Place(Item("WEAPON", 24), Ctx("shield", false), "ONE")[1]
+    near(place.percent, 4 / 27, "a sword against a sword: still a share of both hands"); eq(place.note, nil, "and no note")
+
+    -- A second copy of a unique item has no place, in the freed off hand as anywhere.
+    local unique = Item("SHIELD")
+    unique.unique, unique.itemID = true, 1
+    eq(#Compare.Place(unique, two, "ONE"), 0, "the unique rule holds there")
+    unique.itemID = 9
+    eq(#Compare.Place(unique, two, "ONE"), 1, "a unique shield that is not worn is offered")
+
+    -- Every place, upgrade or not, and the one place asked about (the lines of a row's
+    -- tooltip for the other profiles).
+    eq(#Compare.Gains(Item("SHIELD", 0), two, "ONE"), 1, "every place, upgrade or not: the off hand by the choice")
+    eq(#Compare.Gains(Item("SHIELD", 0), two), 0, "and none without it")
+    near(Compare.Gain(Item("HOLDABLE", 6), two, "OFFHAND", "ONE").delta, 6, "the gain in the off hand, asked for by the choice")
+    eq(Compare.Gain(Item("HOLDABLE", 6), two, "OFFHAND"), nil, "which is no place without it")
+
+    -- What a scan keeps: whatever some choice has a place for.
+    eq(Compare.Possible(Item("SHIELD"), two), true, "a shield beside a two-hander is kept: one choice has a place for it")
+    eq(Compare.Possible(Item("2HWEAPON"), two), true, "a better two-hander is kept")
+    eq(Compare.Possible(Item("WEAPON", 25), two), false, "a weaker sword is not: no choice has a place for it")
+    eq(Compare.Possible(Item("WEAPON", 25), Ctx("two", true)), true, "unless the character can hold two")
+    eq(Compare.Possible(Item("WEAPONOFFHAND"), two), false, "an off-hand weapon is not for one who cannot")
+    eq(Compare.Possible(Item("SHIELD", 5), Ctx("shield", false)), false, "a weaker shield than the one held is not kept")
+
+    -- Another addon's say stands beside the choice, and the stricter of the two holds.
+    eq(Listed(Ctx("two", false, { show1H = false }), "ONE", Item("SHIELD")), "", "a scale that shows nothing for one hand: no shield, whatever the choice")
+    eq(Listed(Ctx("two", false, { show1H = false }), "ONE", Item("2HWEAPON")), "unwanted", "and the choice leaves the two-handers out")
+    eq(Listed(Ctx("shield", false, { show2H = false }), "ANY", Item("2HWEAPON")), "", "a scale that shows no two-handers")
+    eq(Listed(Ctx("shield", false, { show2H = false }), "TWO", Item("SHIELD")), "unwanted", "with a choice of two-handers: nothing for the hands at all")
+    -- The addon that scores is told when the off hand is asked about as free of a
+    -- two-hander, and what it says of that hand holds.
+    local asked = {}
+    local function Says(main, off)
+        return function(item, offFree)
+            asked[#asked + 1] = offFree
+            return main, off
+        end
+    end
+    eq(Listed(Ctx("two", false, { hands = Says(nil, false) }), "ONE", Item("SHIELD")), "", "it says the item has no place in that hand")
+    eq(asked[#asked], true, "asked about the off hand as free")
+    eq(Listed(Ctx("two", false, { hands = Says(nil, 5) }), "ONE", Item("SHIELD")), "off +5 NEEDS_ONE_HAND", "or the most it gains there")
+    eq(Listed(Ctx("two", false, { hands = Says(nil, nil) }), "ANY", Item("2HWEAPON")), "main +30", "without the choice")
+    eq(asked[#asked], false, "it is asked as before")
+    eq(Listed(Ctx("shield", false, { hands = Says(nil, nil) }), "ONE", Item("SHIELD")), "off +33", "and with a shield held")
+    eq(asked[#asked], false, "the off hand is what it is")
+
+    -- What the choice leaves out, item by item (Wants.Fits): what is held in the hands, and
+    -- nothing else.
+    local ONE, TWO = { hands = "ONE" }, { hands = "TWO" }
+    eq(Wants.Fits(ONE, { invType = "INVTYPE_2HWEAPON" }), false, "one hand: no two-hander")
+    eq(Wants.Fits(TWO, { invType = "INVTYPE_2HWEAPON" }), true, "two hands: a two-hander")
+    for _, kind in ipairs({ "WEAPON", "WEAPONMAINHAND", "WEAPONOFFHAND", "SHIELD", "HOLDABLE" }) do
+        eq(Wants.Fits(ONE, { invType = "INVTYPE_" .. kind }), true, "one hand: " .. kind)
+        eq(Wants.Fits(TWO, { invType = "INVTYPE_" .. kind }), false, "two hands: no " .. kind)
+    end
+    for _, kind in ipairs({ "RANGED", "RANGEDRIGHT", "THROWN", "RELIC", "HEAD", "FINGER", "TRINKET" }) do
+        check(Wants.Fits(ONE, { invType = "INVTYPE_" .. kind }) and Wants.Fits(TWO, { invType = "INVTYPE_" .. kind }),
+            "what is not held in the hands is no matter of the choice: " .. kind)
+    end
+    eq(Wants.Fits(ONE, {}), true, "nor is an item that does not say how it is worn")
+
+    -- The best set for a budget fills the hands as they can be held. For one that holds a
+    -- two-hander (30) and goes over to one hand: a sword that beats it (36) with a shield
+    -- (12) is a set; a shield alone is none, whatever it is worth, as the sum of a set says
+    -- what the set adds. Without the choice the two-hander (45) is the set.
+    local Plan = ns.Plan
+    local function For(id, kind, value, buyout)
+        return { id = "o" .. id, itemID = id, invType = "INVTYPE_" .. kind, value = value, buyout = buyout, link = "link" .. id,
+            name = "Item " .. id, count = 1 }
+    end
+    local function Best(offers, ctx, wants)
+        local rows = Plan.Rows(Plan.Choose(Plan.Ladder(offers, ctx, 100000, wants), 100000))
+        local out = {}
+        for _, row in ipairs(rows) do
+            if row.kind == "item" then out[#out + 1] = row.entry.offer.itemID .. ":+" .. ("%g"):format(row.entry.delta) end
+        end
+        return table.concat(out, " ")
+    end
+    local offers = {}
+    for _, offer in ipairs({ For(31, "2HWEAPON", 45, 3000), For(32, "WEAPON", 36, 2000), For(33, "SHIELD", 12, 800), For(34, "HOLDABLE", 5, 300) }) do
+        offers[offer.id] = offer
+    end
+    eq(Best(offers, two, nil), "31:+15", "no choice: the two-hander, and no shield, which the list has no row for")
+    eq(Best(offers, two, ONE), "32:+6 33:+12", "one hand: the sword in the two-hander's place, and the shield beside it")
+    eq(Best(offers, two, TWO), "31:+15", "two hands: the two-hander")
+    offers.o32 = nil
+    eq(Best(offers, two, ONE), "", "one hand, and no sword for sale that beats the two-hander: a shield alone is no set")
+    -- A shield bought and not yet held counts as held by one who goes over to one hand: a
+    -- sword is then measured as it will be worn, and a second shield against the first.
+    local bought = { { link = "bought", itemID = 33, invType = "INVTYPE_SHIELD", value = 12 } }
+    local wearing = Plan.Wearing(two, bought, "ONE")
+    eq(wearing.equipped[17].link, "bought", "the shield bought counts as held")
+    eq(two.equipped[17], nil, "in a copy of the gear")
+    eq(Plan.Wearing(two, bought).equipped[17], nil, "and not for one who has not said it goes that way")
+    place = Compare.Place(Item("SHIELD", 15), wearing, "ONE")[1]
+    near(place.delta, 3, "another shield is worth what it adds to that one"); eq(place.replaced[1], "bought", "which it would replace")
+    eq(place.note, "NEEDS_ONE_HAND", "and still asks for a weapon for one hand")
+    unique.itemID = 33
+    eq(#Compare.Place(unique, wearing, "ONE"), 0, "a second copy of a unique shield that was bought is not offered")
+end
+
+-- What a test of a scan asks of it, as the scenario of the wants does. Each for the scan
+-- that stands, and for the character it was made for.
+--   Scan()    a scan to its end; returns how many item searches it sent
+--   More()    the prices the list has come to need and lacks; returns how many searches
+--   Shown()   the upgrades the list shows with the tab's own filters off, by name; how many
+--             the character's filters leave out; and the list's entries by the item's name
+--   Set()     the best set for all the gold there is, as "name +gain" in the list's order
+local function ScanTools()
+    local S = ns.Scanner
+    local tools = {}
+    local function Owner()
+        return S.ctx and S.ctx.who or ns.Roster.Me()
+    end
+    function tools.Scan()
+        W.RunUntil(function() return W.AH.ready end, 5)
+        local before = W.AH.calls.search
+        ScanToEnd()
+        return W.AH.calls.search - before
+    end
+    function tools.More()
+        local before = W.AH.calls.search
+        if not S.Demand() then return 0 end
+        W.RunUntil(function() return S.state == "idle" end, 600)
+        return W.AH.calls.search - before
+    end
+    function tools.Shown()
+        local rows, summary = ns.Results.Build(S.offers, S.ctx, { money = GetMoney(), wants = ns.Wants.Of(Owner()), unchecked = S.Unchecked() })
+        local out, entries = {}, {}
+        for _, row in ipairs(rows) do
+            local name = row.kind == "item" and row.entry.offer.name
+            if name and not entries[name] then out[#out + 1] = name end
+            if name then entries[name] = entries[name] or row.entry end
+        end
+        table.sort(out)
+        return table.concat(out, ", "), summary.unwanted, entries
+    end
+    function tools.Set()
+        local wants = ns.Wants.Of(Owner())
+        local rows = ns.Plan.Rows(ns.Plan.Choose(ns.Plan.Ladder(S.offers, S.ctx, GetMoney(), wants), GetMoney()))
+        local out = {}
+        for _, row in ipairs(rows) do
+            if row.kind == "item" then out[#out + 1] = row.entry.offer.name .. " +" .. ("%g"):format(row.entry.delta) end
+        end
+        return table.concat(out, ", ")
+    end
+    return tools
+end
+
+-- What a card says of a character's weapons, and what is asked of its gear by that
+-- (Wants.lua): the kinds of weapon a class has, the way the hands are filled where the
+-- player chose and where the profile says, and a card that came out of a saved file with
+-- anything at all written where those are kept.
+function scenarios.weapons()
+    MoreProfiles()
+    StandardWorld()
+    LoadAddon()
+    local Wants, Roster = ns.Wants, ns.Roster
+
+    -- The kinds of weapon a class can ever wield, by the game's names, in the order of the
+    -- menu: those for one hand, for both, for the ranged slot, a "/" between the three.
+    local function Kinds(class)
+        local out, held = {}, nil
+        for _, weapon in ipairs(Roster.WeaponKinds(class)) do
+            if held and weapon.held ~= held then out[#out + 1] = "/" end
+            held = weapon.held
+            out[#out + 1] = C_Item.GetItemSubClassInfo(2, weapon.kind)
+        end
+        return table.concat(out, " | ")
+    end
+    eq(Kinds("WARRIOR"), "One-Handed Axes | One-Handed Maces | One-Handed Swords | Daggers | Fist Weapons | / | "
+        .. "Two-Handed Axes | Two-Handed Maces | Two-Handed Swords | Polearms | Staves | / | Bows | Crossbows | Guns | Thrown",
+        "a warrior: every kind but a wand")
+    eq(Kinds("ROGUE"), "One-Handed Axes | One-Handed Maces | One-Handed Swords | Daggers | Fist Weapons | / | Bows | Crossbows | Guns | Thrown",
+        "a rogue: nothing for both hands")
+    eq(Kinds("WARLOCK"), "One-Handed Swords | Daggers | / | Staves | / | Wands", "a warlock")
+    eq(Kinds("MAGE"), Kinds("WARLOCK"), "a mage the same")
+    eq(Kinds("PRIEST"), "One-Handed Maces | Daggers | / | Staves | / | Wands", "a priest")
+    eq(Kinds("PALADIN"), "One-Handed Axes | One-Handed Maces | One-Handed Swords | / | Two-Handed Axes | Two-Handed Maces | Two-Handed Swords | Polearms",
+        "a paladin: nothing for the ranged slot")
+    eq(Kinds("DRUID"), "One-Handed Maces | Daggers | Fist Weapons | / | Two-Handed Maces | Polearms | Staves", "a druid")
+    eq(#Roster.WeaponKinds("HUNTER"), 12, "a hunter: twelve kinds"); eq(#Roster.WeaponKinds("SHAMAN"), 7, "a shaman: seven")
+    eq(#Roster.WeaponKinds(nil), 0, "no class, no kinds"); eq(#Roster.WeaponKinds("BARD"), 0, "nor for a class that is not one")
+    -- The kind of weapon an item is.
+    eq(Wants.WeaponOf(2, 7), 7, "a one-handed sword"); eq(Wants.WeaponOf(2, 0), 0, "a one-handed axe, whose number is nought")
+    eq(Wants.WeaponOf(4, 6), nil, "a shield is no weapon"); eq(Wants.WeaponOf(2, nil), nil, "nor is what has no kind"); eq(Wants.WeaponOf(nil, 7), nil, "or no class")
+
+    -- How the hands are filled. Nothing chosen: any way, and nothing is asked.
+    local told = {}
+    ns.Listen("WANTS_CHANGED", function(card) told[#told + 1] = card end)
+    local function Hands(card)
+        local hands, own = Wants.Hands(card)
+        return hands .. (own and " (chosen)" or "")
+    end
+    local warrior = { class = "WARRIOR", level = 30 }
+    eq(Hands(warrior), "ANY", "a warrior on Arms, nothing chosen: any way"); eq(Wants.Of(warrior), nil, "which asks for nothing")
+    eq(Hands(nil), "ANY", "no character: any way")
+    -- On a profile of a shield tank a character that has not chosen is offered one hand.
+    warrior.profile = "WARRIOR_PROTECTION"
+    eq(Hands(warrior), "ONE", "a warrior on Protection: a weapon for one hand and a shield, by the profile")
+    eq(Wants.Of(warrior).hands, "ONE", "which is asked of its gear"); eq(warrior.hands, nil, "and not written down as its choice")
+    warrior.profile, warrior.talents = nil, "WARRIOR_PROTECTION"
+    eq(Hands(warrior), "ONE", "the same where the profile is the one its talents are in")
+    local paladin = { class = "PALADIN", level = 17 }
+    eq(Hands(paladin), "ANY", "a paladin starts on Retribution: any way")
+    paladin.talents = "PALADIN_PROTECTION"
+    eq(Hands(paladin), "ONE", "with its talents in Protection: one hand")
+    paladin.profile = "PALADIN_HOLY"
+    eq(Hands(paladin), "ANY", "and with Holy chosen, any way again")
+    paladin.profile = nil
+    eq(Hands({ class = "DRUID", level = 30, profile = "D2" }), "ANY", "no other profile has a say: a druid's Feral")
+    -- The weights the addon comes with have those two profiles by those names, and of all
+    -- its profiles they alone say so.
+    local real, tests = {}, ns.Weights
+    assert(loadfile(ADDON_DIR .. "Weights.lua"))("UpgradeScout", real)
+    ns.Weights = real.Weights
+    local tanks = {}
+    for class, ids in pairs(real.Weights.classes) do
+        for _, id in ipairs(ids) do
+            if Wants.Hands({ class = class, level = 60, profile = id }) == "ONE" then tanks[#tanks + 1] = id end
+        end
+    end
+    ns.Weights = tests
+    table.sort(tanks)
+    eq(table.concat(tanks, " "), "PALADIN_PROTECTION WARRIOR_PROTECTION", "of the addon's own profiles, a warrior's and a paladin's Protection, and no other")
+    -- A choice stands whatever the profile, "Any" among them.
+    Wants.SetHands(paladin, "ANY")
+    eq(paladin.hands, "ANY", "any way, chosen: written on the card"); eq(Hands(paladin), "ANY (chosen)", "and it holds on Protection")
+    eq(Wants.Of(paladin), nil, "nothing is asked")
+    Wants.SetHands(paladin, "TWO")
+    eq(Hands(paladin), "TWO (chosen)", "a two-hander, chosen"); eq(Wants.Of(paladin).hands, "TWO", "is asked for")
+    Wants.SetHands(paladin, "ONE")
+    eq(Hands(paladin), "ONE (chosen)", "one hand, chosen: the same as the profile says, and now the character's own")
+    paladin.talents = "PALADIN_RETRIBUTION"
+    eq(Hands(paladin), "ONE (chosen)", "it stays when the talents go elsewhere")
+    eq(#told, 3, "the addon is told of each choice"); eq(told[3], paladin, "and whose it is")
+    Wants.SetHands(paladin, "BOTH")
+    eq(paladin.hands, "ONE", "what is none of the three is no choice"); eq(#told, 3, "and nothing is told")
+    check(Wants.Of(paladin) == Wants.Of({ class = "WARRIOR", level = 60, hands = "ONE" }), "the same wants are one table")
+    check(Wants.Of(paladin) == Wants.Of(warrior), "whether the player chose them or the profile did")
+    check(Wants.Of(paladin) ~= Wants.Of({ class = "WARRIOR", level = 60, hands = "TWO" }), "and other wants another")
+
+    -- The kinds of weapon: all are offered until one is unticked.
+    local rogue = { class = "ROGUE", level = 20 }
+    eq(Wants.Of(rogue), nil, "a rogue with every kind ticked asks for nothing"); eq(Wants.KindOut(rogue, 15), false, "daggers are offered")
+    Wants.SetKind(rogue, 15, false)
+    eq(rogue.weaponsOut[15], true, "daggers unticked: written on the card"); eq(Wants.KindOut(rogue, 15), true, "and left out")
+    eq(Wants.Of(rogue).kinds[15], true, "which is asked of its gear"); eq(Wants.Of(rogue).kinds[7], nil, "swords are not left out")
+    eq(Wants.Of(rogue).hands, nil, "and the hands are filled any way")
+    eq(#told, 4, "the addon is told")
+    Wants.SetKind(rogue, 0, false)
+    Wants.SetKind(rogue, 4, false)
+    local _, out = Wants.KindsOut(rogue)
+    eq(out, 3, "three kinds left out")
+    check(Wants.Of(rogue) == Wants.Of({ class = "ROGUE", level = 5, weaponsOut = { [4] = true, [0] = true, [15] = true } }),
+        "the same kinds left out are the same wants, in whatever order they were unticked")
+    check(Wants.Of(rogue) ~= Wants.Of({ class = "ROGUE", level = 5, weaponsOut = { [4] = true, [0] = true } }), "and others are not")
+    local wants = Wants.Of(rogue)
+    eq(Wants.Fits(wants, { invType = "INVTYPE_WEAPON", weapon = 15 }), false, "a dagger does not fit")
+    eq(Wants.Fits(wants, { invType = "INVTYPE_WEAPON", weapon = 7 }), true, "a sword does")
+    eq(Wants.Fits(wants, { invType = "INVTYPE_RANGED", weapon = 2 }), true, "and a bow")
+    eq(Wants.Fits(wants, { invType = "INVTYPE_HEAD", armor = 2 }), true, "what is no weapon is no matter of it")
+    eq(Wants.Fits(wants, { invType = "INVTYPE_SHIELD" }), true, "a shield neither")
+    eq(Wants.FitsLink(wants, W.Link(102)), true, "by its link: the worn sword fits"); eq(Wants.FitsLink(nil, W.Link(212)), true, "and anything fits no wants")
+    eq(Wants.FitsLink({ kinds = { [7] = true } }, W.Link(102)), false, "a sword does not fit wants without swords")
+    eq(Wants.FitsLink({ hands = "ONE" }, W.Link(212)), false, "nor a two-handed axe a character that goes by one hand")
+    eq(Wants.FitsLink({ hands = "TWO" }, W.Link(213)), false, "nor a shield one that goes by two")
+    eq(Wants.FitsLink({ armor = 3 }, W.Link(202)), false, "and leather not one that keeps mail, as before")
+    Wants.SetKind(rogue, 15, true)
+    Wants.SetKind(rogue, 0, true)
+    Wants.SetKind(rogue, 4, true)
+    eq(rogue.weaponsOut, nil, "all ticked again: the card says nothing of it"); eq(Wants.Of(rogue), nil, "and nothing is asked")
+    -- A kind that is none of the class's own has no say, whatever a card says of it.
+    rogue.weaponsOut = { [10] = true, [19] = true }
+    eq(Wants.Of(rogue), nil, "a rogue's card with staves and wands left out asks for nothing")
+    rogue.weaponsOut = { [10] = true, [7] = true }
+    _, out = Wants.KindsOut(rogue)
+    eq(out, 1, "of staves and swords, the swords count"); eq(Wants.Of(rogue).kinds[10], nil, "alone")
+    -- Everything at once: the armor, the gain, the hands and the kinds.
+    local all = { class = "WARRIOR", level = 10, armorOnly = true, minGainOn = true, minGain = 25, hands = "ONE", weaponsOut = { [15] = true } }
+    wants = Wants.Of(all)
+    eq(wants.armor, 3, "all four at once: mail"); eq(wants.gain, 25, "a quarter"); eq(wants.hands, "ONE", "one hand"); eq(wants.kinds[15], true, "no daggers")
+    eq(Wants.Fits(wants, { invType = "INVTYPE_CHEST", armor = 2 }), false, "each leaves out its own: leather")
+    eq(Wants.Fits(wants, { invType = "INVTYPE_2HWEAPON", weapon = 1 }), false, "a two-hander")
+    eq(Wants.Fits(wants, { invType = "INVTYPE_WEAPON", weapon = 15 }), false, "a dagger")
+    eq(Wants.Fits(wants, { invType = "INVTYPE_WEAPON", weapon = 7 }), true, "and a sword stays")
+
+    -- A card comes out of a saved file: whatever is written there, nothing breaks, and what
+    -- is no choice is none.
+    local junk = { 5, 0, true, false, "one", "any", "", {}, { "ONE" }, function() end }
+    for i = 1, #junk do
+        local card = { class = "WARRIOR", level = 10, hands = junk[i], weaponsOut = junk[i] }
+        eq(Hands(card), "ANY", "a card with a " .. type(junk[i]) .. " for a choice: any way")
+        eq(Wants.Of(card), nil, "and nothing asked"); eq(Wants.KindOut(card, 7), false, "no kind left out")
+        card.talents = "WARRIOR_PROTECTION"
+        eq(Hands(card), "ONE", "and the profile has its say, as with no choice")
+        Wants.SetKind(card, 7, false)
+        eq(Wants.KindOut(card, 7), true, "a kind unticked on such a card is left out")
+        Wants.SetKind(card, 7, true)
+        eq(Wants.KindOut(card, 7), false, "and ticked again is not")
+    end
+    local odd = { class = "WARRIOR", level = 10, weaponsOut = { [7] = "yes", [15] = 1, [0] = false, [1] = true, [99] = true, swords = true, [1.5] = true } }
+    _, out = Wants.KindsOut(odd)
+    eq(out, 1, "only a kind of the class that is plainly left out counts"); eq(Wants.Of(odd).kinds[1], true, "the two-handed axes")
+    eq(Wants.Of({ level = 10, hands = "TWO", weaponsOut = { [7] = true } }).hands, "TWO", "a card without a class: its choice of hands holds")
+    eq(Wants.Of({ level = 10, weaponsOut = { [7] = true } }), nil, "and no kind is its class's to leave out")
+
+    -- The same from the file itself: the character being played logs in to a card with
+    -- nonsense on it, and scans.
+    local me = Roster.Me()
+    me.hands, me.weaponsOut = { 1, 2 }, "none"
+    Relog(W.player, W.equipped)
+    me = ns.Roster.Me()
+    eq(type(me.hands), "table", "the nonsense is on the card still")
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    SetView(false, false)
+    ScanToEnd()
+    CheckStandardOffers("a card with nonsense about its weapons")
+    W.Run(0.5)
+    eq(UpgradeScoutFrame.FilterNames:GetText(), "", "no filter is on")
+    local menu = WeaponsMenu()
+    check(menu:Lines():find("(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [x] One-Handed Axes", 1, true) ~= nil,
+        "the menu opens, with nothing chosen and every kind ticked: " .. menu:Lines())
+    menu:Click("Daggers")
+    eq(type(me.weaponsOut), "table", "a kind unticked there is written over the nonsense"); eq(me.weaponsOut[15], true, "as it should be")
+    menu:Click("Two-hand")
+    eq(me.hands, "TWO", "and so is a choice of hands")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- A level 10 warrior that holds a two-handed mace (30; 20 on its second profile) and wears
+-- nothing else. For sale, with the score on the second profile after the first:
+--   Long Axe         two-handed axe, 45 / 40    +15 on the maul
+--   Sharp Sword      one-handed sword, 36 / 24  +6 on the maul, and the off hand empty
+--   Blunt Mace       one-handed mace, 20 / 15   weaker than the maul
+--   Oak Shield       12 / 12                    for the off hand, which a two-hander leaves no place in
+--   Lantern          held in the off hand, 5 / 2
+--   Parrying Dagger  off-hand weapon, 9         for one who can hold two weapons, which a warrior of 10 cannot
+--   Helm             12 / 5                     for the empty head
+--   Short Bow        4 / 1                      for the empty ranged slot
+local function TwoHandWorld()
+    W.AddItem({ id = 590, name = "Worn Maul", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 5, value = 30, value2 = 20, level = 5 })
+    W.equipped[16] = W.Link(590)
+    Sell({ id = 600, name = "Long Axe", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 1, value = 45, value2 = 40, level = 9 }, 3000)
+    Sell({ id = 601, name = "Sharp Sword", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 7, value = 36, value2 = 24, level = 9 }, 2000)
+    Sell({ id = 602, name = "Blunt Mace", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 4, value = 20, value2 = 15, level = 9 }, 500)
+    Sell({ id = 603, name = "Oak Shield", equipLoc = "INVTYPE_SHIELD", subClassID = 6, value = 12, value2 = 12, level = 8 }, 800)
+    Sell({ id = 604, name = "Lantern", equipLoc = "INVTYPE_HOLDABLE", subClassID = 0, value = 5, value2 = 2, level = 8 }, 300)
+    Sell({ id = 605, name = "Parrying Dagger", equipLoc = "INVTYPE_WEAPONOFFHAND", classID = 2, subClassID = 15, value = 9, value2 = 9, level = 8 }, 400)
+    Sell({ id = 606, name = "Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 12, value2 = 5, level = 9 }, 500)
+    Sell({ id = 607, name = "Short Bow", equipLoc = "INVTYPE_RANGED", classID = 2, subClassID = 2, value = 4, value2 = 1, level = 6 }, 200)
+end
+
+-- A scan, and the choice of weapons changed with its list on view: the list follows at once,
+-- no price is looked up for what the choice leaves out, and the prices it comes to need are
+-- looked up when it does. The character holds a two-hander, where the choice has most to say.
+function scenarios.weapons_scan()
+    TwoHandWorld()
+    LoadAddon()
+    local Wants, S = ns.Wants, ns.Scanner
+    W.OpenAuctionHouse()
+    local me = ns.Roster.Me()
+    local tools = ScanTools()
+    local Scan, More, Shown, Set = tools.Scan, tools.More, tools.Shown, tools.Set
+    local ANY = "Helm, Long Axe, Sharp Sword, Short Bow"
+    local ONE = "Helm, Lantern, Oak Shield, Sharp Sword, Short Bow"
+    local TWO = "Helm, Long Axe, Short Bow"
+
+    -- Nothing chosen, the tab's own filters off: the list is what it always was for one that
+    -- holds a two-hander. The shield and the lantern are kept without a search: another
+    -- choice of the hands has a place for them.
+    SetView(false, false)
+    eq(Scan(), 4, "four item searches: the axe, the sword, the helm and the bow")
+    local list, unwanted, entries = Shown()
+    eq(list, ANY, "no choice: no shield and no lantern beside the two-hander"); eq(unwanted, 0, "and nothing is counted as left out")
+    eq(entries["Sharp Sword"].note, "OFFHAND_EMPTY", "the sword against the maul, with its note")
+    near(entries["Sharp Sword"].percent, 0.2, "+20%: its gain is a share of the maul")
+    eq(Offer("Oak Shield"), nil, "the shield's price was not looked up"); eq(Unsure("Oak Shield"), nil, "and it is no offer: the scan keeps it aside")
+    eq(S.stats.candidates, 4, "four upgrades by score: what is kept aside is none"); eq(S.stats.skipped, 0, "and the list did without no price")
+    eq(S.Demand(), false, "nothing more is needed for the list as it is")
+    eq(Set(), "Helm +12, Long Axe +15, Short Bow +4", "the best set: the axe, and no shield, which the list has no row for")
+
+    -- One hand, a shield and the off hand: the two-hander is out, and what goes into the off
+    -- hand is in, at once, as into an empty slot. Their prices are asked for.
+    Wants.SetHands(me, "ONE")
+    list, unwanted, entries = Shown()
+    eq(list, ONE, "one hand: the shield and the lantern are listed, the axe is not"); eq(unwanted, 1, "which is counted as left out")
+    local shield = entries["Oak Shield"]
+    eq(shield.group, "OFFHAND", "the shield is for the off hand"); eq(shield.note, "NEEDS_ONE_HAND", "with the note that it takes a weapon for one hand")
+    near(shield.delta, 12, "at its own worth"); eq(shield.percent, nil, "and no percent"); eq(shield.replaced, nil, "of nothing that comes off")
+    eq(entries["Lantern"].note, "NEEDS_ONE_HAND", "the lantern the same")
+    eq(entries["Sharp Sword"].group, "MAINHAND", "the sword is where it was"); near(entries["Sharp Sword"].percent, 0.2, "at the gain it had")
+    check(Unsure("Oak Shield") ~= nil and Unsure("Lantern") ~= nil, "the two are in the list at the lowest prices of their rows, as a scan lists what it finds")
+    eq(Unsure("Blunt Mace"), nil, "the mace, weaker than the maul, has no place by any choice: it was not kept")
+    eq(Unsure("Parrying Dagger"), nil, "nor was an off-hand weapon, for one who cannot hold two")
+    eq(More(), 2, "two searches: the shield and the lantern")
+    eq(Offer("Oak Shield").buyout, 800, "the shield has its price"); eq(Offer("Lantern").buyout, 300, "and the lantern")
+    eq(Shown(), ONE, "the same list")
+    eq(Set(), "Helm +12, Sharp Sword +6, Oak Shield +12, Short Bow +4", "the best set: the sword in the maul's place, and the shield beside it")
+
+    -- A two-hander: nothing for one hand.
+    Wants.SetHands(me, "TWO")
+    list, unwanted = Shown()
+    eq(list, TWO, "two hands: the axe, and no sword"); eq(unwanted, 1, "the sword is counted as left out, the shield and the lantern are no upgrades")
+    eq(More(), 0, "nothing to look up")
+    eq(Set(), "Helm +12, Long Axe +15, Short Bow +4", "the best set is of the same")
+    -- Any way, chosen: as with no choice. The shield's price is known by now, and it is still
+    -- no row, nor in a set.
+    Wants.SetHands(me, "ANY")
+    list, unwanted = Shown()
+    eq(list, ANY, "any way: the list of the start"); eq(unwanted, 0, "nothing left out"); eq(More(), 0, "nothing to look up")
+    check(Offer("Oak Shield") ~= nil, "the shield's price is still known")
+    eq(Set(), "Helm +12, Long Axe +15, Short Bow +4", "and the best set does not pair it with the sword: that takes saying one hand")
+
+    -- A scan with one hand chosen looks up no price for the two-hander.
+    Wants.SetHands(me, "ONE")
+    eq(Scan(), 5, "five searches: the sword, the shield, the lantern, the helm and the bow")
+    eq(Offer("Long Axe"), nil, "none for the axe"); check(Unsure("Long Axe") ~= nil, "which is kept at its row's lowest price")
+    list, unwanted = Shown()
+    eq(list, ONE, "the list for one hand"); eq(unwanted, 1, "the axe counted")
+    eq(S.Demand(), false, "and nothing more is needed")
+    Wants.SetHands(me, "ANY")
+    eq(More(), 1, "any way again: one search, for the axe"); eq(Offer("Long Axe").buyout, 3000, "which has its price")
+    -- And one with a two-hander chosen none for the sword, the shield or the lantern.
+    Wants.SetHands(me, "TWO")
+    eq(Scan(), 3, "three searches: the axe, the helm and the bow")
+    eq(Offer("Sharp Sword"), nil, "none for the sword"); eq(Offer("Oak Shield"), nil, "or the shield")
+    Wants.SetHands(me, "ONE")
+    eq(More(), 3, "one hand: three searches, for the sword, the shield and the lantern")
+    Wants.SetHands(me, "ANY")
+
+    -- The kinds of weapon. One-handed swords unticked: the sword is out; then the bows, then
+    -- the two-handed axes.
+    Wants.SetKind(me, 7, false)
+    list, unwanted = Shown()
+    eq(list, "Helm, Long Axe, Short Bow", "no one-handed swords: no sword"); eq(unwanted, 1, "counted")
+    Wants.SetKind(me, 2, false)
+    Wants.SetKind(me, 1, false)
+    list, unwanted = Shown()
+    eq(list, "Helm", "nor bows, nor two-handed axes: the helm alone"); eq(unwanted, 3, "three left out")
+    eq(Set(), "Helm +12", "and the best set is the helm")
+    eq(Scan(), 1, "a scan looks up the helm's price and no other")
+    check(Unsure("Sharp Sword") ~= nil and Unsure("Long Axe") ~= nil and Unsure("Short Bow") ~= nil, "the three are kept without a search")
+    Wants.SetKind(me, 7, true)
+    eq(More(), 1, "swords ticked again: one search"); check(Offer("Sharp Sword") ~= nil, "for the sword")
+    -- A kind of weapon is no matter of the hands: with one hand chosen and maces unticked,
+    -- the shield stays. (It is armor, of no kind there is a box for.)
+    Wants.SetHands(me, "ONE")
+    Wants.SetKind(me, 4, false)
+    list, unwanted = Shown()
+    eq(list, "Helm, Lantern, Oak Shield, Sharp Sword", "one hand, without maces, bows and two-handed axes")
+    eq(unwanted, 2, "the bow and the axe left out: the axe once, for both reasons")
+    eq(More(), 2, "the shield's price and the lantern's are asked for")
+    Wants.SetKind(me, 2, true)
+    Wants.SetKind(me, 1, true)
+    Wants.SetKind(me, 4, true)
+    Wants.SetHands(me, "ANY")
+    eq(me.weaponsOut, nil, "every kind ticked again")
+    eq(More(), 2, "the bow's price and the axe's are asked for")
+    eq(Shown(), ANY, "and the list is whole")
+
+    -- "Upgrade at least" with one hand chosen: what goes into the freed off hand has no
+    -- percent, as what goes into an empty slot has none, and stays whatever the number.
+    Wants.SetHands(me, "ONE")
+    Wants.SetGain(me, true, 50)
+    list, unwanted = Shown()
+    eq(list, "Helm, Lantern, Oak Shield, Short Bow", "at least 50%: the sword's +20% falls short, the shield stays")
+    eq(unwanted, 2, "the axe and the sword left out")
+    Wants.SetGain(me, false)
+    Wants.SetHands(me, "ANY")
+
+    -- "Top 5 per slot" judges among what the character would have, for the hands as for
+    -- armor: with the axe out the sword is the best there is for the main hand.
+    SetView(false, true)
+    Wants.SetHands(me, "ONE")
+    eq(Scan(), 5, "top five with one hand chosen: the sword, the shield, the lantern, the helm and the bow")
+    eq(Offer("Long Axe"), nil, "and no price for the axe")
+    SetView(false, false)
+    Wants.SetHands(me, "ANY")
+
+    -- Gear changed with the list on view. A scan made with the maul held kept the shield and
+    -- the lantern aside. A sword goes on in the maul's place: the off hand is free, the two
+    -- are in the list at once, any way, and their prices are asked for.
+    eq(Scan(), 4, "a scan with the maul held, any way: four searches")
+    eq(Unsure("Oak Shield"), nil, "the shield is kept aside")
+    W.AddItem({ id = 591, name = "Worn Blade", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 7, value = 25, level = 5 })
+    W.equipped[16] = W.Link(591)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1.5)
+    eq(S.ctx.equipped[16].itemID, 591, "the list is measured against the sword now held")
+    list, unwanted, entries = Shown()
+    eq(list, "Helm, Lantern, Long Axe, Oak Shield, Sharp Sword, Short Bow", "with a sword held: the shield and the lantern are listed")
+    eq(unwanted, 0, "nothing left out"); eq(entries["Oak Shield"].note, nil, "for an off hand that is empty: nothing to note")
+    check(Unsure("Oak Shield") ~= nil and Unsure("Lantern") ~= nil, "at the lowest prices of their rows")
+    eq(More(), 2, "which are looked up")
+    -- The shield goes on beside the sword, and the list is measured against that, whatever
+    -- the choice. The lantern (5) is weaker than the shield.
+    W.equipped[17] = W.Link(603)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1.5)
+    eq(S.ctx.equipped[17].itemID, 603, "the list is measured against the shield now held")
+    list, unwanted, entries = Shown()
+    eq(list, "Helm, Long Axe, Sharp Sword, Short Bow", "any way: the axe, 45 against 37, and the sword, 36 against 25")
+    eq(unwanted, 0, "nothing left out"); eq(entries["Long Axe"].note, "BOTH_HANDS", "the axe takes both hands")
+    Wants.SetHands(me, "ONE")
+    list, unwanted, entries = Shown()
+    eq(list, "Helm, Sharp Sword, Short Bow", "one hand: no axe"); eq(unwanted, 1, "which is left out")
+    eq(entries["Sharp Sword"].note, nil, "and no note on the sword: the off hand stays as it is")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- What a scan keeps aside for another way of filling the hands is counted by itself. One
+-- that holds a two-hander has every shield for sale kept so, and they are many: they do not
+-- take the place of what the list is for, and their number is no reason to call a scan
+-- incomplete, until the character goes over to one hand and the list is to have them.
+function scenarios.weapons_spare()
+    TwoHandWorld()
+    for i = 1, 2010 do
+        Sell({ id = 20000 + i, name = "Plain Shield " .. i, equipLoc = "INVTYPE_SHIELD", subClassID = 6, value = 1, level = 1 }, 10 + i)
+    end
+    -- Read after all of those: an upgrade as things stand.
+    Sell({ id = 30000, name = "Late Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 20, level = 10 }, 600)
+    W.AH.honorLevelSort = false
+    LoadAddon()
+    local Wants, S = ns.Wants, ns.Scanner
+    W.OpenAuctionHouse()
+    local me = ns.Roster.Me()
+    SetView(false, false)
+    ScanToEnd()
+    eq(S.partial, false, "more shields than are kept aside: the scan is whole all the same")
+    check(Offer("Late Helm") ~= nil, "a helm read after them is in the list"); check(Offer("Long Axe") ~= nil, "and the axe")
+    eq(S.stats.candidates, 5, "five upgrades by score: the shields kept aside are none")
+    eq(UnsureCount(), 0, "and none of them is an offer")
+    -- One hand chosen: the shields are in the list, as many as were kept, and the list says
+    -- that it has not every one of them.
+    Wants.SetHands(me, "ONE")
+    eq(UnsureCount(), 2000, "one hand: two thousand of the 2012 things for the off hand that are for sale, as many as are kept")
+    eq(S.partial, true, "and the scan says that it has not everything")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- The line "Weapons" of the Filters menu and the menu it opens: what it shows, what a click
+-- in it does to the card, to the list on view, to the names beside the Filters field and to
+-- the arrows in the bags; whose it is when the list is for another character; and the line
+-- the profile chose, until the player chooses.
+function scenarios.weapons_ui()
+    MoreProfiles()
+    TwoHandWorld()
+    -- For a druid of the account, and of no worth to a warrior: a staff, a mace, a dagger and
+    -- something to hold in the off hand.
+    Sell({ id = 620, name = "Elder Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10, value = 0, values = { D1 = 40 }, level = 15 }, 1000)
+    Sell({ id = 621, name = "Stone Mace", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 4, value = 0, values = { D1 = 30 }, level = 15 }, 900)
+    Sell({ id = 622, name = "Moon Dagger", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 15, value = 0, values = { D1 = 20 }, level = 15 }, 700)
+    Sell({ id = 623, name = "Grove Orb", equipLoc = "INVTYPE_HOLDABLE", subClassID = 0, value = 0, values = { D1 = 8 }, level = 15 }, 600)
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    -- The druid as it left things when it was last played: two-handers, and no daggers.
+    UpgradeScoutDB.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", faction = "Alliance",
+        class = "DRUID", level = 20, gear = {}, hands = "TWO", weaponsOut = { [15] = true } }
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local frame, S, L = UpgradeScoutFrame, ns.Scanner, ns.L
+    local me, druid = ns.Roster.Me(), UpgradeScoutDB.chars["Alty-Testrealm"]
+    local field = frame.FilterField
+    local weapons = WeaponsMenu()
+    local box
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then box = w end
+    end
+    local function Row(name)
+        for _, at in ipairs({ 0, 1 }) do
+            box:SetScrollPercentage(at)
+            for _, w in ipairs(box:GetFrames()) do
+                if w._shown and w._kind == "Button" and w.entry and w.entry.offer.name == name then return w end
+            end
+        end
+    end
+    local function Settle()
+        W.RunUntil(function() return S.state == "idle" end, 300)
+        W.Run(0.5)
+    end
+    local function Status() return frame.Status:GetText() or "" end
+    local function Names() return frame.FilterNames:GetText() end
+    -- The lines of the Filters field's own tooltip, after its title.
+    local function Named()
+        field._tooltip(GameTooltip)
+        local out = {}
+        for i = 2, #GameTooltip._lines do out[#out + 1] = GameTooltip._lines[i].text end
+        GameTooltip:Hide()
+        return table.concat(out, " | ")
+    end
+    -- The lines of a row's tooltip that are no part of the game's own: "left right", joined.
+    local function RowTip(row)
+        row:GetScript("OnEnter")(row)
+        local out, ours = {}, false
+        for _, line in ipairs(GameTooltip._lines) do
+            if ours then out[#out + 1] = line.text .. (line.right and " " .. line.right or "") end
+            if line.text:find("Upgrade Scout", 1, true) then ours = true end
+        end
+        row:GetScript("OnLeave")(row)
+        return table.concat(out, " | ")
+    end
+    local HANDS = "Any | Two-hand | One-hand, shield and off-hand"
+    local WARRIOR_KINDS = "[x] One-Handed Axes | [x] One-Handed Maces | [x] One-Handed Swords | [x] Daggers | [x] Fist Weapons | / | "
+        .. "[x] Two-Handed Axes | [x] Two-Handed Maces | [x] Two-Handed Swords | [x] Polearms | [x] Staves | / | [x] Bows | [x] Crossbows | [x] Guns | [x] Thrown"
+
+    -- The line stands with the character's other filters, over the rule, and opens a menu:
+    -- three lines of which one is chosen, then under a rule a tick box for every kind of
+    -- weapon a warrior can ever wield, by the game's names, in three blocks.
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
+        "the line is in the menu, and opens one of its own")
+    eq(weapons:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS,
+        "which has the three ways to fill the hands, any way chosen, and every kind ticked")
+    eq(L.HANDS_ANY .. " | " .. L.HANDS_TWO .. " | " .. L.HANDS_ONE, HANDS, "in the addon's own words")
+    -- The lines are the game's, dressed as those of the addon's other menus: the line that
+    -- opens the menu in our colours, with the game's arrow at its end; a diamond on a line
+    -- of which one is chosen; our tick box on a kind; our rule.
+    field:Open()
+    local opener
+    for i, line in ipairs(field.elements) do
+        if line.text == "Weapons" then opener = field.all[i] end
+    end
+    check(opener.arrow ~= nil, "the line has the game's arrow: it opens a menu"); eq(Pictures(opener, "RowGlow"), 1, "and the light of our rows under the mouse")
+    eq(opener:IsEnabled(), true, "it can be opened")
+    eq(#opener.fontString._points, 1, "its word is anchored once"); eq(opener.fontString._points[1].x, 16 + 7, "after the room of a tick box, where the words of the other lines stand")
+    field:Close()
+    eq(weapons:Line("Any", function(line) return Pictures(line, "Diamond") end), 2, "the way chosen: a gold diamond over the grey one")
+    eq(weapons:Line("Two-hand", function(line) return Pictures(line, "Diamond") end), 1, "the others: a grey one")
+    eq(weapons:Line("Daggers", function(line) return Pictures(line, "Check") == 1 and line.Tick:IsShown() end), true, "a kind: our tick box, ticked")
+    local ruled = 0
+    field:Open()
+    for i, line in ipairs(field:OpenSub("Weapons").elements) do
+        if line.kind == "rule" then ruled = ruled + Pictures(field.sub.lines[i], "Line") end
+    end
+    field:Close()
+    eq(ruled, 3, "three rules of ours: over the kinds for one hand, for both and for the ranged slot")
+    eq(weapons:Tooltip("Any"), "Any | " .. L.HANDS_ANY_TIP, "a way has a tooltip that says what it shows")
+    eq(weapons:Tooltip("Two-hand"), "Two-hand | " .. L.HANDS_TWO_TIP, "each of them")
+    eq(weapons:Tooltip("One-hand, shield and off-hand"), "One-hand, shield and off-hand | " .. L.HANDS_ONE_TIP, "what it leaves out, and what it lets in")
+    eq(weapons:Tooltip("Staves"), "Staves | " .. L.KINDS_TIP, "and so has a kind")
+
+    -- The list of a warrior that holds a two-handed mace, nothing chosen.
+    SetView(false, false)
+    ScanToEnd()
+    W.Run(0.5)
+    check(Row("Long Axe") ~= nil and Row("Sharp Sword") ~= nil and Row("Helm") ~= nil and Row("Short Bow") ~= nil, "the axe, the sword, the helm and the bow")
+    eq(Row("Oak Shield"), nil, "no shield beside a two-hander"); eq(Row("Lantern"), nil, "and nothing to hold in the off hand")
+    check(Status():find("4 upgrades in 3 slots.", 1, true) ~= nil, "four upgrades: " .. Status())
+    eq(Names(), "", "no filter is on: nothing beside the field")
+    -- The arrows in the bags, by the same gear.
+    local function Arrow(slot)
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    local axe, sword, shield, helm = W.PutInBags(W.Link(600)), W.PutInBags(W.Link(601)), W.PutInBags(W.Link(603)), W.PutInBags(W.Link(606))
+    W.OpenBags()
+    eq(Arrow(axe), true, "the axe in the bags has its arrow"); eq(Arrow(sword), true, "and the sword"); eq(Arrow(helm), true, "and the helm")
+    eq(Arrow(shield), false, "the shield has none: it has no place beside the maul")
+
+    -- One hand, a shield and the off hand. The click leaves both menus open, with the mark
+    -- on the line clicked; the card has the choice, and the list follows at once.
+    local searches, sounds = W.AH.calls.search, #W.sounds
+    weapons:Click("One-hand, shield and off-hand", function(open, sub)
+        eq(open._open, true, "the menu stays open after the click"); eq(open.sub, sub, "and so does the one beside it")
+        check(sub.lines[3].leftTexture2 ~= nil, "whose lines are drawn again: the mark is on the line clicked")
+        eq(sub.lines[1].leftTexture2, nil, "and off the one that had it")
+        eq(#open.lines, 7, "the lines of the first menu are drawn again as well")
+    end)
+    eq(#W.sounds, sounds + 1, "the game sounds the click, once")
+    eq(me.hands, "ONE", "the choice is written on the warrior's card"); eq(UpgradeScoutDB.chars[me.key].hands, "ONE", "which is saved with the account")
+    eq(weapons:Lines(), "( ) Any | ( ) Two-hand | (x) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "the menu shows it the next time it opens")
+    eq(Row("Long Axe"), nil, "the axe is out of the list at once"); check(Row("Oak Shield") ~= nil and Row("Lantern") ~= nil, "and the shield and the lantern are in")
+    Settle()
+    eq(W.AH.calls.search, searches + 2, "two item searches, for the prices of the two")
+    local row = Row("Oak Shield")
+    eq(row.Upgrade:GetText(), "New", "the shield is for a slot that is empty: no percent")
+    eq(row.Hand:GetText(), "Off Hand", "the row says how it is held")
+    eq(Row("Lantern").Hand:GetText(), "Held In Off-hand", "as the lantern's does")
+    eq(RowTip(row), "Arms +12 pts | Protection +12 pts | Needs a one-hand weapon in your main hand",
+        "its tooltip: what it adds on each profile, in that place, and what it takes")
+    eq(RowTip(Row("Sharp Sword")), "Arms +20% | Protection +20% | Your off hand will be empty", "the sword's is what it was")
+    check(Status():find("5 upgrades in 4 slots.", 1, true) ~= nil, "five upgrades now: " .. Status())
+    eq(Names(), "One-hand", "the choice is named beside the field"); eq(Named(), "One-hand, shield and off-hand", "and in full in the field's tooltip")
+    W.Run(1.5)
+    eq(Arrow(axe), false, "in the bags the axe has lost its arrow"); eq(Arrow(sword), true, "the sword keeps its own")
+    eq(Arrow(shield), false, "and the shield has none still: an arrow goes by the line of the item's tooltip, which is as it was")
+    -- The best set for a budget is made of the same.
+    local bar = frame.PlanBar
+    bar.Check:SetChecked(true)
+    bar.Check:Click()
+    Settle()
+    check(Row("Sharp Sword") ~= nil and Row("Oak Shield") ~= nil and Row("Helm") ~= nil, "the set: the sword, the shield beside it, the helm")
+    eq(Row("Long Axe"), nil, "and not the axe"); eq(Row("Oak Shield").entry.note, nil, "in a set the shield goes beside the sword: nothing more to note")
+    eq(Names(), "One-hand", "the choice keeps its name beside the field")
+    -- A shield that was bought and is not yet held counts as held, for one going over to one
+    -- hand: a set has no second one.
+    S.acquired[#S.acquired + 1] = { link = W.Link(603), itemID = 603, invType = "INVTYPE_SHIELD", value = 12 }
+    ns.UI.Refresh()
+    check(Row("Sharp Sword") ~= nil, "with the shield bought, the set still has the sword"); eq(Row("Oak Shield"), nil, "and no shield: the one bought is as good")
+    table.remove(S.acquired)
+    ns.UI.Refresh()
+    check(Row("Oak Shield") ~= nil, "without the purchase the shield is in the set again")
+    bar.Check:SetChecked(false)
+    bar.Check:Click()
+    Settle()
+
+    -- A kind of weapon unticked: the menu stays open here too, and the list is without it.
+    weapons:Click("One-Handed Swords", function(open, sub)
+        eq(open._open, true, "the menu stays open after a tick box"); eq(sub.lines[7].Tick:IsShown(), false, "and the tick is gone from the line")
+    end)
+    eq(me.weaponsOut[7], true, "written on the card"); eq(Row("Sharp Sword"), nil, "no sword in the list")
+    eq(Names(), "One-hand \194\183 Weapons 13/14", "beside the field: how many kinds are still offered")
+    eq(Named(), "One-hand, shield and off-hand | Weapon types: 13 of 14", "and in its tooltip")
+    W.Run(1.5)
+    eq(Arrow(sword), false, "the sword in the bags has lost its arrow")
+    weapons:Click("One-Handed Swords")
+    eq(me.weaponsOut, nil, "ticked again: the card says nothing of the kinds"); check(Row("Sharp Sword") ~= nil, "and the sword is back")
+    W.Run(1.5)
+    eq(Arrow(sword), true, "with its arrow")
+    -- A two-hander.
+    weapons:Click("Two-hand")
+    eq(me.hands, "TWO", "two hands, chosen"); eq(Names(), "Two-hand", "named beside the field")
+    check(Row("Long Axe") ~= nil, "the axe is back"); eq(Row("Sharp Sword"), nil, "the sword is out"); eq(Row("Oak Shield"), nil, "and the shield")
+    W.Run(1.5)
+    eq(Arrow(axe), true, "in the bags the axe has its arrow"); eq(Arrow(sword), false, "and the sword none")
+    weapons:Click("Any")
+    eq(me.hands, "ANY", "any way, chosen: written down like the others"); eq(Names(), "", "and no filter")
+    Settle()
+
+    -- The list for the druid: the menu is the druid's, with a druid's kinds and what the
+    -- druid left chosen, and what is clicked there is written on the druid's card alone.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    frame.ProfileDropdown:Pick(3)
+    W.Run(0.5)
+    eq(ns.Roster.Target(), druid, "the lists are for the druid")
+    eq(weapons:Lines(), "( ) Any | (x) Two-hand | ( ) One-hand, shield and off-hand | / | [x] One-Handed Maces | [ ] Daggers | [x] Fist Weapons | / | "
+        .. "[x] Two-Handed Maces | [x] Polearms | [x] Staves", "the druid's menu: its kinds, and its choices as it left them")
+    eq(Names(), "Two-hand \194\183 Weapons 5/6", "named beside the field")
+    frame.ScanButton:Click()
+    Settle()
+    check(Row("Elder Staff") ~= nil, "the staff is listed for the druid")
+    eq(Row("Stone Mace"), nil, "the mace is not"); eq(Row("Grove Orb"), nil, "nor the orb"); eq(Row("Moon Dagger"), nil, "nor the dagger")
+    eq(Offer("Stone Mace"), nil, "and no price was looked up for what the druid does not want")
+    weapons:Click("Any")
+    eq(druid.hands, "ANY", "any way, on the druid's card"); eq(me.hands, "ANY", "the warrior's own is its own")
+    check(Row("Stone Mace") ~= nil and Row("Grove Orb") ~= nil, "the mace and the orb are listed at once"); eq(Row("Moon Dagger"), nil, "the dagger still is not")
+    weapons:Click("Daggers")
+    eq(druid.weaponsOut, nil, "daggers ticked for the druid"); eq(me.weaponsOut, nil, "and nothing of it on the warrior's card")
+    check(Row("Moon Dagger") ~= nil, "the dagger is listed")
+    Settle()
+    check(Offer("Stone Mace") ~= nil and Offer("Grove Orb") ~= nil and Offer("Moon Dagger") ~= nil, "and the three have their prices")
+    weapons:Click("One-hand, shield and off-hand")
+    eq(druid.hands, "ONE", "one hand for the druid")
+    eq(Arrow(axe), true, "the arrows stay the warrior's: its own choice is any way")
+
+    -- Back to the warrior, on Protection now: the profile of a shield tank. A character that
+    -- has not chosen is offered one hand there, the line the profile chose is the one marked,
+    -- and its tooltip says who chose.
+    me.hands = nil
+    frame.ProfileDropdown:Pick(2)
+    Settle()
+    eq(ns.Roster.Target(), nil, "the lists are the warrior's own"); eq(me.profile, "WARRIOR_PROTECTION", "on Protection")
+    eq(me.hands, nil, "the card has no choice")
+    eq(weapons:Lines(), "( ) Any | ( ) Two-hand | (x) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "and the menu marks the line the profile chose")
+    eq(weapons:Tooltip("One-hand, shield and off-hand"),
+        "One-hand, shield and off-hand | " .. L.HANDS_ONE_TIP .. ' | Chosen by the profile "Protection" until you choose.', "whose tooltip says so")
+    eq(weapons:Tooltip("Two-hand"), "Two-hand | " .. L.HANDS_TWO_TIP, "the other lines' say nothing of it")
+    eq(Names(), "One-hand", "it is named beside the field, as a choice of the player's is")
+    check(Row("Oak Shield") ~= nil and Row("Sharp Sword") ~= nil, "the list: the shield, and the sword that beats the maul on this profile")
+    eq(Row("Long Axe"), nil, "and no two-hander")
+    W.Run(1.5)
+    eq(Arrow(axe), false, "nor an arrow on the one in the bags")
+    -- "Any" chosen: it is written down, and holds on that profile.
+    weapons:Click("Any")
+    eq(me.hands, "ANY", "any way, chosen")
+    eq(weapons:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "the menu marks it")
+    eq(weapons:Tooltip("One-hand, shield and off-hand"), "One-hand, shield and off-hand | " .. L.HANDS_ONE_TIP, "and the profile's line says no more of the profile")
+    eq(Names(), "", "no filter is on")
+    Settle()
+    check(Row("Long Axe") ~= nil, "the axe is listed"); eq(Row("Oak Shield"), nil, "the shield is not")
+    -- It is there the next time the character is played, still on Protection.
+    W.CloseAuctionHouse()
+    Relog(W.player, W.equipped)
+    me = ns.Roster.Me()
+    eq(me.profile, "WARRIOR_PROTECTION", "played again: on Protection"); eq(me.hands, "ANY", "with its choice")
+    eq(ns.Wants.Of(me), nil, "which asks for nothing")
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    eq(WeaponsMenu():Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "as the menu shows")
+    eq(UpgradeScoutDB.chars["Alty-Testrealm"].hands, "ONE", "and the druid's card has what was chosen for the druid")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- The tab with a list on it, for the three scenarios below: each is what a player wrote of
+-- the addon, as it was and as it is with the "Weapons" line.
+--   Row(name)   the row of an upgrade, wherever in the list it is
+--   Rows()      the names of the upgrades listed, in order of the alphabet
+--   Settle()    waits for the scanner, and for the list to be drawn
+--   Names()     what stands beside the Filters field
+local function Tab()
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local tab = { frame = UpgradeScoutFrame, menu = WeaponsMenu() }
+    local box
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then box = w end
+    end
+    local function Seen(found)
+        for _, at in ipairs({ 0, 1 }) do
+            box:SetScrollPercentage(at)
+            for _, w in ipairs(box:GetFrames()) do
+                if w._shown and w._kind == "Button" and w.entry and w.entry.offer then found(w) end
+            end
+        end
+    end
+    function tab.Row(name)
+        local row
+        Seen(function(w) if w.entry.offer.name == name then row = row or w end end)
+        return row
+    end
+    function tab.Rows()
+        local out, seen = {}, {}
+        Seen(function(w)
+            local name = w.entry.offer.name
+            if not seen[name] then
+                seen[name] = true
+                out[#out + 1] = name
+            end
+        end)
+        table.sort(out)
+        return table.concat(out, ", ")
+    end
+    function tab.Settle()
+        W.RunUntil(function() return ns.Scanner.state == "idle" end, 300)
+        W.Run(0.5)
+    end
+    function tab.Names() return tab.frame.FilterNames:GetText() end
+    function tab.Status() return tab.frame.Status:GetText() or "" end
+    return tab
+end
+
+-- "Is there a way to set a weapon type to search for? I want to look for 1h swords but it
+-- keeps showing just daggers and axes. This is using the rogue combat settings."
+-- A rogue with a dagger in each hand (10 and 6). For sale, each a bigger upgrade than the
+-- next: two axes, two daggers, then two swords and a mace. "Top 5 per slot" has the first
+-- sword for its fifth, and no use for the second or for the mace.
+function scenarios.weapons_rogue()
+    MoreProfiles()
+    W.player = { name = "Slicey", level = 20, class = "ROGUE", money = 100000, dualWield = true }
+    local function Blade(id, name, kind, score, price)
+        local def = { id = id, name = name, equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = kind, value = 0, values = { R1 = score }, level = 15 }
+        if price then return Sell(def, price) end
+        return W.AddItem(def)
+    end
+    Blade(700, "Worn Dirk", 15, 10)
+    Blade(701, "Worn Shiv", 15, 6)
+    W.equipped = { [16] = W.Link(700), [17] = W.Link(701) }
+    Blade(710, "Hand Axe", 0, 18, 4000)
+    Blade(711, "War Hatchet", 0, 17, 2800)
+    Blade(712, "Fine Dirk", 15, 16, 1800)
+    Blade(713, "Keen Kris", 15, 15, 1000)
+    Blade(714, "Cutlass", 7, 14, 2000)
+    Blade(715, "Rapier", 7, 13, 900)
+    Blade(716, "Cudgel", 4, 12, 1800)
+    Sell({ id = 717, name = "Throwing Knife", equipLoc = "INVTYPE_THROWN", classID = 2, subClassID = 16, value = 0, values = { R1 = 3 }, level = 10 }, 100)
+    Sell({ id = 718, name = "Band", equipLoc = "INVTYPE_FINGER", value = 0, values = { R1 = 5 }, level = 10 }, 300)
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local me = ns.Roster.Me()
+    eq(ns.Score.Current().title, "Combat", "a rogue on Combat")
+    local tab = Tab()
+    local Row, Rows, Settle, menu = tab.Row, tab.Rows, tab.Settle, tab.menu
+
+    -- As it was: the list has the daggers and the axes, and of the swords the one that is the
+    -- fifth of its five.
+    SetView(false, true)
+    ScanToEnd()
+    W.Run(0.5)
+    eq(Rows(), "Band, Cutlass, Fine Dirk, Hand Axe, Keen Kris, Throwing Knife, War Hatchet", "top five: daggers and axes and the last of the five a sword, a ring and a knife to throw")
+    eq(Row("Rapier"), nil, "no second sword"); eq(Offer("Rapier"), nil, "whose price the scan had no use for")
+
+    -- The menu has a rogue's kinds of weapon: nothing for both hands.
+    eq(menu:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [x] One-Handed Axes | [x] One-Handed Maces | "
+        .. "[x] One-Handed Swords | [x] Daggers | [x] Fist Weapons | / | [x] Bows | [x] Crossbows | [x] Guns | [x] Thrown", "a rogue's menu of weapons")
+    -- Every kind but the one-handed swords unticked.
+    local searches = W.AH.calls.search
+    for _, kind in ipairs({ "One-Handed Axes", "One-Handed Maces", "Daggers", "Fist Weapons", "Bows", "Crossbows", "Guns", "Thrown" }) do
+        menu:Click(kind)
+    end
+    eq(menu:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [ ] One-Handed Axes | [ ] One-Handed Maces | "
+        .. "[x] One-Handed Swords | [ ] Daggers | [ ] Fist Weapons | / | [ ] Bows | [ ] Crossbows | [ ] Guns | [ ] Thrown", "swords alone are ticked")
+    Settle()
+    eq(Rows(), "Band, Cutlass, Rapier", "the list: the swords, and the ring, which is no weapon")
+    eq(W.AH.calls.search, searches + 1, "one item search, for the price of the second sword: the first has its price")
+    eq(Row("Cutlass").Pick.Text:GetText(), "Best upgrade", "the picks are chosen among the swords")
+    eq(Row("Cutlass").Upgrade:GetText(), "+25%", "14 against the dagger's 10: a share of the 16 the two hands hold")
+    eq(tab.Names(), "Top 5 per slot \194\183 Weapons 1/9", "beside the Filters field: one kind of nine")
+    local kinds = 0
+    for kind, out in pairs(me.weaponsOut) do
+        check(out == true and type(kind) == "number", "a kind left out, by its number")
+        kinds = kinds + 1
+    end
+    eq(kinds, 8, "eight kinds are written on the card as left out"); eq(me.weaponsOut[7], nil, "the swords are not among them")
+    -- A scan with that looks up the swords and the ring, and nothing else.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    searches = W.AH.calls.search
+    ScanToEnd()
+    W.Run(0.5)
+    eq(W.AH.calls.search, searches + 3, "a scan: three item searches")
+    eq(Rows(), "Band, Cutlass, Rapier", "and the same list")
+    eq(Offer("Hand Axe"), nil, "no price for an axe"); eq(Offer("Keen Kris"), nil, "or a dagger")
+    -- The swords go on: the list has nothing more for the hands, and says why.
+    menu:Click("One-Handed Swords")
+    Settle()
+    eq(Rows(), "Band", "no kind ticked: no weapon at all"); eq(tab.Names(), "Top 5 per slot \194\183 Weapons 0/9", "none of nine")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- "Just came here for the same thing, want 2h Staff options to show as well as 1h+Offhand on
+-- my Lock."
+-- A warlock with a dagger (10) and an orb (5). For sale: a staff that beats the two together,
+-- one that does not, a sword, an orb and a wand.
+function scenarios.weapons_warlock()
+    MoreProfiles()
+    W.player = { name = "Hexy", level = 20, class = "WARLOCK", money = 100000, dualWield = false, mana = 500 }
+    local function Lock(def, score, price)
+        def.value, def.values, def.level = 0, { L1 = score }, def.level or 15
+        if price then return Sell(def, price) end
+        return W.AddItem(def)
+    end
+    Lock({ id = 730, name = "Worn Athame", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 15 }, 10)
+    Lock({ id = 731, name = "Worn Orb", equipLoc = "INVTYPE_HOLDABLE", subClassID = 0 }, 5)
+    W.equipped = { [16] = W.Link(730), [17] = W.Link(731) }
+    Lock({ id = 740, name = "Rune Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10 }, 22, 2000)
+    Lock({ id = 741, name = "Bone Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10 }, 14, 500)
+    Lock({ id = 742, name = "Hex Blade", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 7 }, 14, 1500)
+    Lock({ id = 743, name = "Soul Orb", equipLoc = "INVTYPE_HOLDABLE", subClassID = 0 }, 8, 800)
+    Lock({ id = 744, name = "Bone Wand", equipLoc = "INVTYPE_RANGEDRIGHT", classID = 2, subClassID = 19 }, 3, 200)
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local me = ns.Roster.Me()
+    local tab = Tab()
+    local Row, Rows, Settle, menu = tab.Row, tab.Rows, tab.Settle, tab.menu
+    eq(menu:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [x] One-Handed Swords | [x] Daggers | / | [x] Staves | / | [x] Wands",
+        "a warlock's menu of weapons")
+
+    -- Any way: staves and what goes into one hand and the other, side by side. A staff has to
+    -- beat the dagger and the orb together, and is said to take both hands.
+    SetView(false, false)
+    ScanToEnd()
+    W.Run(0.5)
+    eq(Rows(), "Bone Wand, Hex Blade, Rune Staff, Soul Orb", "any way: the staff, the sword, the orb, and the wand")
+    eq(Row("Rune Staff").Upgrade:GetText(), "+47%", "the staff: 22 against the 15 of both hands")
+    eq(Row("Hex Blade").Upgrade:GetText(), "+27%", "the sword: 4 more, of the same 15")
+    eq(Row("Bone Staff"), nil, "a staff that does not beat the two together is no upgrade")
+    -- Staves alone.
+    menu:Click("Two-hand")
+    eq(Rows(), "Bone Wand, Rune Staff", "two hands: the staff, and the wand, which is held in neither")
+    eq(tab.Names(), "Two-hand", "named beside the Filters field")
+    -- One hand and the off hand alone.
+    menu:Click("One-hand, shield and off-hand")
+    eq(Rows(), "Bone Wand, Hex Blade, Soul Orb", "one hand: the sword and the orb"); eq(tab.Names(), "One-hand", "named beside the field")
+    -- Or by the kind: both ways of holding, and no swords.
+    menu:Click("Any")
+    menu:Click("One-Handed Swords")
+    eq(Rows(), "Bone Wand, Rune Staff, Soul Orb", "any way, without swords"); eq(tab.Names(), "Weapons 3/4", "three kinds of four")
+    menu:Click("One-Handed Swords")
+    eq(me.hands, "ANY", "the card has the choice of any way"); eq(me.weaponsOut, nil, "and every kind")
+
+    -- The staff goes on. Any way, nothing is offered for the off hand beside it; with one
+    -- hand chosen the orb is, as what the off hand will hold, and no better staff.
+    Sell({ id = 745, name = "Elder Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 10, value = 0, values = { L1 = 30 }, level = 18 }, 4000)
+    W.equipped = { [16] = W.Link(740) }
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1.5)
+    W.RunUntil(function() return W.AH.ready end, 5)
+    ScanToEnd()
+    W.Run(0.5)
+    eq(Rows(), "Bone Wand, Elder Staff", "with the staff held, any way: a better staff, and nothing for the off hand")
+    local searches = W.AH.calls.search
+    menu:Click("One-hand, shield and off-hand")
+    eq(Rows(), "Bone Wand, Soul Orb", "one hand: the orb is listed at once, and the staff is not")
+    eq(Row("Soul Orb").Upgrade:GetText(), "New", "for the off hand as it will be, empty")
+    Settle()
+    eq(W.AH.calls.search, searches + 1, "and its price is looked up")
+    eq(Offer("Soul Orb").buyout, 800, "which it has")
+    eq(Row("Hex Blade"), nil, "the sword is no row: it does not beat the staff held (14 against 22)")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- A Protection paladin of level 17: "If I have a two-hand equipped it doesn't suggest
+-- changing to a one-hand + shield, and even if I equip a shield it still offers many
+-- two-hand... could lead new players to the wrong path."
+-- The paladin holds a two-handed mace (20 on Protection). For sale: a stronger two-hander, a
+-- sword that beats the maul and one that does not, two shields and a helm.
+function scenarios.weapons_paladin()
+    MoreProfiles()
+    W.player = { name = "Shieldy", level = 17, class = "PALADIN", money = 100000, dualWield = false, mana = 300,
+        talents = { { name = "Holy", points = 0 }, { name = "Protection", points = 8 }, { name = "Retribution", points = 0 } } }
+    local function Pala(def, protection, retribution, price)
+        def.value, def.values, def.level = 0, { PP = protection, PR = retribution }, def.level or 15
+        if price then return Sell(def, price) end
+        return W.AddItem(def)
+    end
+    Pala({ id = 750, name = "Worn Maul", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 5 }, 20, 30)
+    W.equipped = { [16] = W.Link(750) }
+    Pala({ id = 760, name = "Great Hammer", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subClassID = 5 }, 40, 60, 3000)
+    Pala({ id = 761, name = "Guard Sword", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 7 }, 24, 20, 2000)
+    Pala({ id = 762, name = "Dull Sword", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 7 }, 15, 12, 400)
+    Pala({ id = 763, name = "Tower Shield", equipLoc = "INVTYPE_SHIELD", subClassID = 6 }, 12, 1, 900)
+    Pala({ id = 764, name = "Buckler", equipLoc = "INVTYPE_SHIELD", subClassID = 6 }, 6, 1, 300)
+    Pala({ id = 765, name = "Chain Coif", equipLoc = "INVTYPE_HEAD", subClassID = 3 }, 5, 4, 400)
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local me, S = ns.Roster.Me(), ns.Scanner
+    eq(ns.Score.Current().name, "PALADIN_PROTECTION", "a paladin with its talents in Protection is scored on Protection")
+    eq(me.hands, nil, "it has chosen nothing about its hands")
+    local tab = Tab()
+    local Row, Rows, Settle, menu = tab.Row, tab.Rows, tab.Settle, tab.menu
+    local function Arrow(slot)
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    local hammer = W.PutInBags(W.Link(760))
+    W.OpenBags()
+
+    -- With the two-hander held: one hand and a shield, by the profile. The shields are
+    -- offered for the off hand, the sword that beats the maul for the main hand, and no
+    -- two-hander: not in the list, not by an arrow in the bags.
+    SetView(false, false)
+    local searches = W.AH.calls.search
+    ScanToEnd()
+    W.Run(0.5)
+    eq(menu:Lines():find("( ) Any | ( ) Two-hand | (x) One-hand, shield and off-hand | / | ", 1, true), 1, "the menu marks one hand, which the profile chose")
+    eq(tab.Names(), "One-hand", "and it is named beside the Filters field")
+    eq(Rows(), "Buckler, Chain Coif, Guard Sword, Tower Shield", "the list: both shields, the sword, a helm; no two-hander")
+    eq(Row("Tower Shield").Upgrade:GetText(), "New", "a shield for the off hand as it will be"); eq(Row("Tower Shield").entry.note, "NEEDS_ONE_HAND", "which takes a weapon for one hand")
+    eq(Row("Guard Sword").Upgrade:GetText(), "+20%", "the sword: 24 against the maul's 20"); eq(Row("Guard Sword").entry.note, "OFFHAND_EMPTY", "with its note")
+    eq(Row("Dull Sword"), nil, "a sword weaker than the maul is no upgrade, and no row")
+    eq(W.AH.calls.search, searches + 4, "four item searches: none for the two-hander")
+    eq(Offer("Great Hammer"), nil, "whose price was not looked up")
+    eq(Arrow(hammer), false, "and the one in the bags has no arrow, for all its 40 against 20")
+    local _, summary = ns.Results.Build(S.offers, S.ctx, { money = GetMoney(), wants = ns.Wants.Of(me), unchecked = S.Unchecked() })
+    eq(summary.unwanted, 1, "it is counted as left out by the character's filters")
+
+    -- The sword and the tower shield go on. A two-hander that beats the two together (40
+    -- against 36) is still not offered.
+    W.equipped = { [16] = W.Link(761), [17] = W.Link(763) }
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1.5)
+    W.RunUntil(function() return W.AH.ready end, 5)
+    ScanToEnd()
+    W.Run(1.5)
+    eq(Rows(), "Chain Coif", "with a sword and a shield held: the helm, and no two-hander")
+    eq(Offer("Great Hammer"), nil, "nor its price"); eq(Arrow(hammer), false, "nor an arrow in the bags")
+
+    -- "Any" is the player's to choose: the two-hander is then offered, as it always was.
+    menu:Click("Any")
+    eq(me.hands, "ANY", "any way, chosen")
+    check(Row("Great Hammer") ~= nil, "the two-hander is listed at once")
+    Settle()
+    check(Offer("Great Hammer") ~= nil, "its price is looked up"); eq(Row("Great Hammer").entry.note, "BOTH_HANDS", "and it is said to take both hands")
+    eq(tab.Names(), "", "no filter is on")
+    W.Run(1.5)
+    eq(Arrow(hammer), true, "and the one in the bags has its arrow")
+    -- On another profile of the paladin's nothing is chosen for it: with the choice taken
+    -- back, Retribution offers the two-hander and Protection does not.
+    me.hands = nil
+    tab.frame.ProfileDropdown:Pick(3)
+    Settle()
+    eq(me.profile, "PALADIN_RETRIBUTION", "Retribution chosen")
+    eq(menu:Lines():find("(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | ", 1, true), 1, "the menu marks any way")
+    check(Row("Great Hammer") ~= nil, "and the two-hander is listed: 60 against the 21 of sword and shield")
+    tab.frame.ProfileDropdown:Pick(2)
+    Settle()
+    eq(me.profile, "PALADIN_PROTECTION", "Protection chosen")
+    eq(Row("Great Hammer"), nil, "the two-hander is not listed")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- Pawn scores, or Forever Companion: no profile of the addon's has a say on the hands then,
+-- a choice of the player's holds as ever, and what a Pawn scale says of weapons stands beside
+-- it. The stricter of the two is what the list shows.
+function scenarios.weapons_others()
+    MoreProfiles()
+    TwoHandWorld()
+    W.player.talents = { { name = "Arms", points = 7 }, { name = "Fury", points = 0 }, { name = "Protection", points = 1 } }
+    PawnWorld()
+    W.AddPawnScale({ name = "WARRIOR_PROTECTION", shown = true, values = { TEST_S2 = 1 } })
+    CompanionWorld()
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score, Wants, S, me = ns.Score, ns.Wants, ns.Scanner, ns.Roster.Me()
+    local tools = ScanTools()
+    local Scan, More, Shown = tools.Scan, tools.More, tools.Shown
+
+    -- The addon's own weights, on Protection: one hand, by the profile.
+    me.profile = "WARRIOR_PROTECTION"
+    eq(Wants.Hands(me), "ONE", "the addon's own Protection says one hand")
+    -- Pawn chosen: the profile has no say, on whatever scale. Pawn's scales say for
+    -- themselves what they show of weapons.
+    Score.SetEngine("pawn")
+    eq(Score.Engine(), "pawn", "Pawn scores"); eq(Score.Current().name, ARMS, "on its scale for the talents")
+    eq(Wants.Hands(me), "ANY", "and nothing is chosen for the character"); eq(Wants.Of(me), nil, "nothing asked")
+    Score.Choose(me, PROT)
+    eq(Score.Current().name, PROT, "on Pawn's own scale for Protection"); eq(Wants.Hands(me), "ANY", "the same")
+    -- Not even on a scale the player named as the addon names its own profile.
+    Score.Choose(me, "WARRIOR_PROTECTION")
+    eq(Score.Current().name, "WARRIOR_PROTECTION", "on a scale of the player's by that very name"); eq(Wants.Hands(me), "ANY", "the same still")
+    Score.Choose(me, ARMS)
+
+    -- A scale that shows every weapon, and the player's choice.
+    W.OpenAuctionHouse()
+    SetView(false, false)
+    Scan()
+    eq(S.ctx.profile, ARMS, "a scan on the scale for Arms"); eq(S.ctx.show2H, true, "which shows two-handers"); eq(S.ctx.show1H, true, "and the rest")
+    eq(Shown(), "Helm, Long Axe, Sharp Sword, Short Bow", "no choice: the list of one that holds a two-hander")
+    Wants.SetHands(me, "ONE")
+    local list, unwanted, entries = Shown()
+    eq(list, "Helm, Lantern, Oak Shield, Sharp Sword, Short Bow", "one hand, chosen: it holds with Pawn scoring")
+    eq(entries["Oak Shield"].note, "NEEDS_ONE_HAND", "the shield for the off hand as it will be"); eq(unwanted, 1, "the axe left out")
+    eq(More(), 2, "the shield's price and the lantern's are looked up")
+
+    -- A scale that shows no two-handers, with each choice beside it.
+    Wants.SetHands(me, "ANY")
+    Score.Choose(me, PROT)
+    Scan()
+    eq(S.ctx.profile, PROT, "a scan on the scale for Protection"); eq(S.ctx.show2H, false, "which shows no two-handers")
+    list, unwanted = Shown()
+    eq(list, "Helm, Sharp Sword, Short Bow", "any way: no two-hander, by the scale"); eq(unwanted, 0, "which is the scale's to leave out, and not counted as the character's")
+    Wants.SetHands(me, "TWO")
+    list, unwanted = Shown()
+    eq(list, "Helm, Short Bow", "a two-hander chosen, on a scale that shows none: nothing for the hands"); eq(unwanted, 1, "the sword left out by the choice")
+    Wants.SetHands(me, "ONE")
+    list, unwanted, entries = Shown()
+    eq(list, "Helm, Lantern, Oak Shield, Sharp Sword, Short Bow", "one hand: the shield and the lantern, as the scale has nothing against them")
+    eq(unwanted, 0, "and nothing left out by the choice: the axe was out already")
+    eq(entries["Oak Shield"].note, "NEEDS_ONE_HAND", "with the note")
+    eq(More(), 2, "their prices are looked up")
+    eq(#W.pawn.fails, 0, "Pawn is asked about no scale it has not")
+
+    -- Forever Companion scores: the same. Its scale of a tank chooses nothing for the
+    -- character, it has no say on weapons, and a choice of the player's holds.
+    me.hands = nil
+    Score.SetEngine("companion")
+    eq(Score.Engine(), "companion", "Forever Companion scores")
+    local tank
+    for _, scale in ipairs(Score.Profiles()) do
+        if scale.title == "Mitigation Tank" then tank = scale.name end
+    end
+    check(tank ~= nil, "it has a scale of a tank")
+    Score.Choose(me, tank)
+    eq(Score.Current().name, tank, "which is the one in use"); eq(Wants.Hands(me), "ANY", "and nothing is chosen for the character")
+    Scan()
+    eq(S.ctx.profile, tank, "a scan on that scale"); eq(S.ctx.show2H, true, "which shows every weapon")
+    eq(Shown(), "Helm, Long Axe, Sharp Sword, Short Bow", "no choice: two-handers and all")
+    Wants.SetHands(me, "ONE")
+    list, unwanted = Shown()
+    eq(list, "Helm, Lantern, Oak Shield, Sharp Sword, Short Bow", "one hand, chosen: the list for one hand"); eq(unwanted, 1, "the axe left out")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- Forever Leveling BiS scores: no profile of the addon's has a say on the hands, a choice of
+-- the player's holds, and no row says more than that addon says an item gains. It measures
+-- an item for the off hand against the two-hander it would take the place of: so the off
+-- hand of one who goes over to one hand has a shield only where that addon says the shield
+-- gains, and at that gain.
+function scenarios.weapons_leveling()
+    MoreProfiles()
+    TwoHandWorld()
+    Sell({ id = 608, name = "Great Wall", equipLoc = "INVTYPE_SHIELD", subClassID = 6, value = 40, level = 9 }, 5000)
+    LevelingWorld()
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score, Wants, S, me = ns.Score, ns.Wants, ns.Scanner, ns.Roster.Me()
+    local tools = ScanTools()
+    local Scan, More, Shown = tools.Scan, tools.More, tools.Shown
+
+    me.profile = "WARRIOR_PROTECTION"
+    eq(Wants.Hands(me), "ONE", "the addon's own Protection says one hand")
+    Score.SetEngine("leveling")
+    eq(Score.Engine(), "leveling", "Forever Leveling BiS scores"); eq(Score.Current().name, MAIN_ARMS, "on its main spec")
+    eq(Wants.Hands(me), "ANY", "and nothing is chosen for the character")
+
+    W.OpenAuctionHouse()
+    SetView(false, false)
+    Scan()
+    eq(type(S.ctx.hands), "function", "the comparison has that addon's say on the hands")
+    eq(Shown(), "Helm, Long Axe, Sharp Sword, Short Bow", "no choice: the list of one that holds a two-hander")
+    -- One hand chosen. The oak shield (12) and the lantern (5) gain nothing by that addon's
+    -- count, which is against the maul (30): no row. The great wall (40) gains 10 by it.
+    Wants.SetHands(me, "ONE")
+    local list, unwanted, entries = Shown()
+    eq(list, "Great Wall, Helm, Sharp Sword, Short Bow", "one hand: the shield that addon says gains, and no other")
+    local wall = entries["Great Wall"]
+    eq(wall.group, "OFFHAND", "for the off hand"); eq(wall.note, "NEEDS_ONE_HAND", "with the note")
+    near(wall.delta, 10, "at the gain that addon says, 40 against the maul's 30, and not at its whole score")
+    eq(unwanted, 1, "the axe left out by the choice")
+    near(entries["Sharp Sword"].delta, 6, "the sword as that addon has it too: 36 against 30")
+    eq(More(), 1, "the wall's price is looked up"); eq(Offer("Great Wall").buyout, 5000, "and known")
+    eq(Unsure("Oak Shield"), nil, "the oak shield is not kept at all: no choice has a place for it there")
+    -- That addon's answer is asked about the character being played alone: the list for
+    -- another one goes by the scores, as it always did.
+    local other = Score.Context("WARRIOR:arms", { class = "WARRIOR", level = 10, gear = { [16] = W.Link(590) } })
+    eq(other.hands, nil, "the comparison for another character has no say of that addon's")
+    eq(other.equipped[16].invType, "INVTYPE_2HWEAPON", "it holds the same maul")
+    local place = ns.Compare.Place({ link = W.Link(603), itemID = 603, invType = "INVTYPE_SHIELD", value = 12 }, other, "ONE")[1]
+    check(place ~= nil and place.note == "NEEDS_ONE_HAND", "and its off hand is offered the oak shield by the choice")
+    near(place.delta, 12, "at the shield's own worth")
+    CheckLevelingAsked("the hands")
+    eq(#W.errors, 0, "nothing of it is an error")
 end
 
 local fn = scenarios[scenario]

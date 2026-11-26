@@ -1,11 +1,11 @@
 local _, ns = ...
 
--- What a character wants of its gear: the three filters of the Upgrades list that are about
--- the character the list is for, and not about the purchase. They are written on the
--- character's card (Roster.lua), which is kept for the whole account. So they go with the
--- character the list is for, and not with the one who shops: what is set while shopping for
--- an alt is the alt's, the alt finds it so when it is played and shops for itself, and what
--- it changes then is what the next one to shop for it finds.
+-- What a character wants of its gear: the filters of the Upgrades list that are about the
+-- character the list is for, and not about the purchase. They are written on the character's
+-- card (Roster.lua), which is kept for the whole account. So they go with the character the
+-- list is for, and not with the one who shops: what is set while shopping for an alt is the
+-- alt's, the alt finds it so when it is played and shops for itself, and what it changes then
+-- is what the next one to shop for it finds.
 --   armorOnly   true: only the best armor type for its class, which is the heaviest armor the
 --               character has learned to wear. A hunter is then offered leather, and mail
 --               once it has learned mail; cloth is left out.
@@ -17,25 +17,34 @@ local _, ns = ...
 --   maxBelowOn  true while that is asked for. The number stays when its box is unticked.
 --               This one is also about the scan: gear that is not to be offered is not asked
 --               of the auction house, and the scan is the shorter for it (see Scanner.lua).
+--   hands      how it fills its hands: "TWO", with a two-hander, and then weapons for one
+--               hand, shields and what is held in the off hand are left out; "ONE", with a
+--               weapon for one hand and a shield, a held item or a second weapon beside it,
+--               and then two-handers are left out; "ANY", either way. nil until the player
+--               chooses: the profile then says (see Wants.Hands).
+--   weaponsOut  { [weapon subclass] = true } for the kinds of weapon it is not to be offered:
+--               a rogue that fights with swords leaves the daggers and the maces out.
 -- ("Only what I can afford" and "Top N per slot" are about the buyer: those are in ns.db.)
 --
--- A fourth filter is kept on the card and is not one of the wants: "Buyout up to", the most
--- to pay for one item. It is about the purchase, as "Only what I can afford" is, and like that
+-- One more filter is kept on the card and is not one of the wants: "Buyout up to", the most to
+-- pay for one item. It is about the purchase, as "Only what I can afford" is, and like that
 -- one it has no say in the best set for a budget or in the arrows of the bags. But what is a
 -- fair price for an item depends on whom the item is for (a rich character shops for an alt
--- of level 20), so the sum goes with the character, as the other three do.
+-- of level 20), so the sum goes with the character, as the others do.
 --   maxPrice    that sum, in copper;
 --   maxPriceOn  true while it is asked for. The sum stays when its box is unticked.
 --
 -- What is asked of a character's gear right now is its "wants": { armor = the one kind of
 -- armor to offer (an item subclass: 2 leather, 3 mail, 4 plate), gain = the least percent,
--- level = the lowest level gear may ask for }, each of them nil when it is not asked for.
+-- level = the lowest level gear may ask for, hands = "TWO" or "ONE", kinds = { [weapon
+-- subclass] = true } for the kinds left out }, each of them nil when it is not asked for.
 -- Nothing asked for is nil, and every function here takes that for wants that leave nothing
 -- out.
 local Wants = {}
 ns.Wants = Wants
 
 local ARMOR_CLASS = Enum.ItemClass.Armor
+local WEAPON_CLASS = Enum.ItemClass.Weapon
 local CLOTH, PLATE = 1, 4
 
 Wants.DEFAULT_GAIN = 10         -- the percent in the field before one is typed
@@ -112,6 +121,70 @@ function Wants.FromLevel(card)
     return Wants.LevelTyped(card)
 end
 
+---------------------------------------------------------------------------
+-- Weapons
+---------------------------------------------------------------------------
+-- The three ways to fill the hands, in the order the menu has them.
+Wants.HANDS = { "ANY", "TWO", "ONE" }
+local IS_HANDS = { ANY = true, TWO = true, ONE = true }
+
+-- Which of the two ways an item for the hands goes with; nil for what is not held in them.
+local HELD = {
+    INVTYPE_2HWEAPON = "TWO",
+    INVTYPE_WEAPON = "ONE", INVTYPE_WEAPONMAINHAND = "ONE", INVTYPE_WEAPONOFFHAND = "ONE",
+    INVTYPE_SHIELD = "ONE", INVTYPE_HOLDABLE = "ONE",
+}
+
+-- The profiles of the addon's own whose weights come from a simulated tank behind a shield.
+-- What a two-hander scores on them is no measure of it: the character they are for does not
+-- hold one. So such a profile says "ONE" for a character that has not chosen.
+local SHIELD_TANK = { WARRIOR_PROTECTION = true, PALADIN_PROTECTION = true }
+
+-- The kind of weapon an item is (its subclass: 7 a one-handed sword, 10 a staff); nil for
+-- what is no weapon.
+function Wants.WeaponOf(classID, subClassID)
+    if classID == WEAPON_CLASS and type(subClassID) == "number" then return subClassID end
+    return nil
+end
+
+-- How the character of a card fills its hands: "ANY", "TWO" or "ONE". Its own choice where it
+-- has made one, "ANY" among them: a choice stands whatever the profile. Until then "ONE" on
+-- a profile of a shield tank, while the addon's own weights score, and "ANY" otherwise:
+-- another addon that scores has its own say on the hands (see Compare.Places), and this one
+-- adds none to it unasked. Also returns whether it is the character's own choice.
+-- (A card comes out of a saved file: what is none of the three is no choice.)
+function Wants.Hands(card)
+    if not card then return "ANY", false end
+    if IS_HANDS[card.hands] then return card.hands, true end
+    if not ns.Score.Engine() then
+        local profile = ns.Score.Current(card)
+        if profile and SHIELD_TANK[profile.name] then return "ONE", false end
+    end
+    return "ANY", false
+end
+
+-- Is this kind of weapon one the character of a card is not to be offered?
+function Wants.KindOut(card, kind)
+    return type(card.weaponsOut) == "table" and card.weaponsOut[kind] == true
+end
+
+-- The kinds its class can ever wield that it is not to be offered: { [weapon subclass] =
+-- true }, and how many they are. What its card says of any other kind is passed over.
+function Wants.KindsOut(card)
+    local out, count = {}, 0
+    if type(card.weaponsOut) ~= "table" then return out, count end
+    for _, weapon in ipairs(ns.Roster.WeaponKinds(card.class)) do
+        if card.weaponsOut[weapon.kind] == true then
+            out[weapon.kind] = true
+            count = count + 1
+        end
+    end
+    return out, count
+end
+
+---------------------------------------------------------------------------
+-- The wants
+---------------------------------------------------------------------------
 -- One table for each thing that can be asked, so that whoever keeps a result made for some
 -- wants can tell by the table itself whether they are still the same.
 local made = {}
@@ -122,26 +195,52 @@ function Wants.Of(card)
     local armor = card.armorOnly == true and Wants.Armor(card) or nil
     local gain = card.minGainOn == true and Wants.Gain(card) or nil
     local level = Wants.FromLevel(card)
-    if not armor and not gain and not level then return nil end
-    local key = (armor or 0) .. ":" .. (gain or 0) .. ":" .. (level or 0)
+    local hands = Wants.Hands(card)
+    if hands == "ANY" then hands = nil end
+    local kinds, count = Wants.KindsOut(card)
+    if count == 0 then kinds = nil end
+    if not armor and not gain and not level and not hands and not kinds then return nil end
+    -- (The kinds left out, in the order of their numbers: the same ones are the same key.)
+    local out = {}
+    if kinds then
+        for kind in pairs(kinds) do out[#out + 1] = kind end
+    end
+    table.sort(out)
+    local key = (armor or 0) .. ":" .. (gain or 0) .. ":" .. (level or 0) .. ":" .. (hands or "")
+        .. ":" .. table.concat(out, ",")
     local wants = made[key]
     if not wants then
-        wants = { armor = armor, gain = gain, level = level }
+        wants = { armor = armor, gain = gain, level = level, hands = hands, kinds = kinds }
         made[key] = wants
     end
     return wants
 end
 
 -- Would the character have the item at all? `item` is what the scanner knows of one (an
--- offer, or what EvalLink in Scanner.lua makes of a link): its `armor` is Wants.ArmorOf, and
--- its `reqLevel` the level it asks for. Gear that asks for no level is 0 there: anybody can
--- put it on, so it is made for the first level, where the game's own auction window writes
--- it too, and is out as soon as any level is.
+-- offer, or what EvalLink in Scanner.lua makes of a link): its `armor` is Wants.ArmorOf, its
+-- `weapon` Wants.WeaponOf, `invType` the way it is worn, and its `reqLevel` the level it asks
+-- for. Gear that asks for no level is 0 there: anybody can put it on, so it is made for the
+-- first level, where the game's own auction window writes it too, and is out as soon as any
+-- level is.
 function Wants.Fits(wants, item)
     if not wants then return true end
     if wants.armor and item.armor and item.armor ~= wants.armor then return false end
     if wants.level and item.reqLevel and item.reqLevel < wants.level then return false end
-    return true
+    if wants.kinds and item.weapon and wants.kinds[item.weapon] then return false end
+    local held = wants.hands and HELD[item.invType or ""]
+    return not held or held == wants.hands
+end
+
+-- The same of an item known by its link alone: one in the bags (Bags.lua). Nothing is said of
+-- the level it asks for: the arrows in the bags do not go by that (see Wants.SetBelow).
+function Wants.FitsLink(wants, link)
+    if not wants then return true end
+    local _, _, _, invType, _, classID, subClassID = C_Item.GetItemInfoInstant(link)
+    return Wants.Fits(wants, {
+        invType = invType,
+        armor = Wants.ArmorOf(invType, classID, subClassID),
+        weapon = Wants.WeaponOf(classID, subClassID),
+    })
 end
 
 -- Is the gain of a placement (see Compare.Place) enough? The percent is held against the
@@ -168,7 +267,7 @@ function Wants.Keep(wants, item, placements)
     return kept or NONE
 end
 
--- The two are set in the menu of the Filters field (Filters.lua). Whoever shows what they
+-- They are set in the menu of the Filters field (Filters.lua). Whoever shows what they
 -- change hears WANTS_CHANGED with the card: the list, and the arrows in the bags.
 function Wants.SetArmorOnly(card, on)
     card.armorOnly = on and true or nil
@@ -190,6 +289,23 @@ end
 function Wants.SetBelow(card, on, levels)
     if levels then card.maxBelow = Clamp(math.floor(levels), 1, Wants.MAX_BELOW) end
     card.maxBelowOn = on and true or nil
+end
+
+-- hands: one of Wants.HANDS. "ANY" is written down like the other two: it is a choice, and
+-- holds where the profile would say otherwise.
+function Wants.SetHands(card, hands)
+    if not IS_HANDS[hands] then return end
+    card.hands = hands
+    ns.Fire("WANTS_CHANGED", card)
+end
+
+-- kind: a weapon subclass; on: the character is to be offered it.
+function Wants.SetKind(card, kind, on)
+    local out = type(card.weaponsOut) == "table" and card.weaponsOut or {}
+    out[kind] = not on and true or nil
+    -- (No kind left out is no table: a card says nothing of what is as it was made.)
+    card.weaponsOut = next(out) ~= nil and out or nil
+    ns.Fire("WANTS_CHANGED", card)
 end
 
 ---------------------------------------------------------------------------

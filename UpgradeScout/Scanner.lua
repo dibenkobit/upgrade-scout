@@ -280,8 +280,16 @@ local function SaveStats()
         stats.checked, stats.belowFloor, stats.exact = scan.checked, scan.belowFloor, scan.exact
         stats.listed, stats.own = scan.listed, 0
         for i = 1, #scan.candidates do
-            if not scan.candidates[i].status then stats.skipped = stats.skipped + 1 end
-            if scan.candidates[i].own then stats.own = stats.own + 1 end
+            local cand = scan.candidates[i]
+            if cand.spare and not cand.listed and not cand.status then
+                -- Kept for another way of filling the hands, which the character never
+                -- took (see AddCandidate): no upgrade by score, and nothing the list
+                -- did without.
+                stats.candidates = stats.candidates - 1
+            elseif not cand.status then
+                stats.skipped = stats.skipped + 1
+            end
+            if cand.own then stats.own = stats.own + 1 end
         end
     end
     stats.at = time()
@@ -378,6 +386,8 @@ local function EvalLink(link)
                     -- Its kind of armor, where it has one: cloth, leather, mail or plate
                     -- (see Wants.lua).
                     armor = ns.Wants.ArmorOf(equipLoc, item.classID, item.subClassID),
+                    -- And its kind of weapon, for one that is a weapon: a dagger, a staff.
+                    weapon = ns.Wants.WeaponOf(item.classID, item.subClassID),
                     effects = ns.Score.HasUnscoredEffects(item),
                     -- What a vendor pays for it, in copper; 0 for an item no vendor buys.
                     -- The net cost of an offer is its buyout less this (Results.Net).
@@ -422,16 +432,27 @@ end
 ---------------------------------------------------------------------------
 -- Candidates: which of them need an item search
 ---------------------------------------------------------------------------
-local function AddCandidate(row, eval)
+-- spare: the row's item is better than the gear nowhere as things stand, and would be for a
+-- character that fills its hands another way than it has said: a shield beside a two-hander
+-- (Compare.Possible). It is kept, so that the list has it the moment the character says so,
+-- and until then it is no row of the list and no price is looked up for it. Such rows are
+-- many for one that holds a two-hander and can hold two weapons (every weapon for one hand
+-- there is), so they are counted by themselves: they do not crowd the others out. Nor does
+-- one too many of them make the scan one that stopped early, while the list has no use for
+-- them: see ListCandidates.
+local function AddCandidate(row, eval, spare)
     local list = scan.candidates
-    if #list >= MAX_CANDIDATES then
-        S.partial = true
+    local known = spare and scan.spares or #list - scan.spares
+    if known >= MAX_CANDIDATES then
+        if spare then scan.sparesCut = true else S.partial = true end
         return
     end
+    if spare then scan.spares = scan.spares + 1 end
     local minPrice = row.minPrice or 0
     list[#list + 1] = {
         key = row.key,
         ks = row.ks,
+        spare = spare or nil,
         -- The row's lowest price. No auction in the row has a buyout below it.
         minPrice = minPrice,
         -- The scored sample auction, when every auction in the row is that same item. Without
@@ -478,11 +499,14 @@ local function GiveUp(rows)
     return left
 end
 
--- Where the candidate's item would go and by how much it beats the gear there.
-local function Placements(cand)
-    if cand.placedFor ~= S.ctx then
-        cand.placedFor = S.ctx
-        cand.placements = ns.Compare.Place(cand.eval, S.ctx)
+-- Where the candidate's item would go and by how much it beats the gear there. `hands` is
+-- how the character means to fill its hands (its wants have it, see Wanted), which has a say
+-- in that: a candidate is whatever some choice of it has a place for (Compare.Possible), and
+-- may have none by the choice that stands.
+local function Placements(cand, hands)
+    if cand.placedFor ~= S.ctx or cand.placedHands ~= hands then
+        cand.placedFor, cand.placedHands = S.ctx, hands
+        cand.placements = ns.Compare.Place(cand.eval, S.ctx, hands)
         local best = 0
         for i = 1, #cand.placements do
             if cand.placements[i].delta > best then best = cand.placements[i].delta end
@@ -536,11 +560,13 @@ local function Checked()
 end
 
 -- The verified offers as the list groups them (see Results.Collect), rebuilt when they change.
+-- `wants` is what the character wants of its gear (Wanted): whoever asks for every candidate
+-- in turn has asked that once.
 local front = {}
-local function Front()
+local function Front(wants)
     local money = GetMoney()
     local afford = ns.db.affordableOnly and true or false
-    local wants, cap = Wanted(), Cap()
+    local cap = Cap()
     if front.dirty or front.offers ~= S.offers or front.ctx ~= S.ctx
         or front.money ~= money or front.afford ~= afford or front.wants ~= wants or front.cap ~= cap then
         front.groups = ns.Results.Collect(Checked(), S.ctx, { money = money, affordableOnly = afford, cap = cap, wants = wants })
@@ -559,8 +585,7 @@ end
 -- The verified offers by the way they are worn, put together again when they have changed.
 -- Only those the character would have at all (Wants.Fits): a set is made of nothing else.
 local byType = {}
-local function OffersWornAs(invType)
-    local wants = Wanted()
+local function OffersWornAs(invType, wants)
     if byType.changes ~= S.changes or byType.offers ~= S.offers or byType.wants ~= wants then
         byType = { changes = S.changes, offers = S.offers, wants = wants, lists = {} }
         for _, offer in pairs(Checked()) do
@@ -582,8 +607,8 @@ end
 -- the lowest price in the candidate's row: whatever set the candidate could be in, one of
 -- those would stand in its place for no more money. It must stay in step with Plan.lua's
 -- own rule for the offers a set can need.
-local function Outdone(cand)
-    local list = OffersWornAs(cand.eval.invType)
+local function Outdone(cand, wants)
+    local list = OffersWornAs(cand.eval.invType, wants)
     if not list then return false end
     local _, room = ns.Compare.Kind(cand.eval.invType)
     room = room or 1
@@ -603,11 +628,13 @@ end
 -- Why the candidate's price is not worth an item search right now; nil when it is. Every
 -- reason is a proof that the list, as the player has it set up, would not show the item
 -- whatever the search found, so skipping it never changes what the list shows:
---   worse      it no longer beats the player's gear
+--   worse      it no longer beats the player's gear, or has no place in the hands as the
+--              character fills them (a shield beside a two-hander it means to keep)
 --   unwanted   the character's own filters leave it out (Wants.lua): it is armor lighter than
 --              the character is to be offered, or made for a level further below the
---              character's than it is to be offered, or it adds less than was asked for in
---              every slot it fits
+--              character's than it is to be offered, a kind of weapon it left out or one
+--              for the hands it does not fill that way, or it adds less than was asked for
+--              in every slot it fits
 --   price      a price filter is on ("only what I can afford", "buyout up to") and even the
 --              row's lowest price is more than it lets through (see S.Ceiling)
 --   outranked  "top N per slot" is on and, in every slot it fits, the slot has no row for it
@@ -638,7 +665,7 @@ end
 -- the list may cost (S.Ceiling), both asked once for all the candidates.
 local function SkipReason(cand, wants, ceiling)
     if not cand.eval or scan.bucketsVary then return nil end
-    local placements = Placements(cand)
+    local placements = Placements(cand, wants and wants.hands)
     if #placements == 0 then return "worse" end
     -- The slots the list would show it in.
     placements = ns.Wants.Keep(wants, cand.eval, placements)
@@ -646,12 +673,12 @@ local function SkipReason(cand, wants, ceiling)
     if scan.floorBroken then return nil end
     if ns.db.plan then
         if cand.minPrice > S.PlanCap() then return "price" end
-        if Outdone(cand) then return "outdone" end
+        if Outdone(cand, wants) then return "outdone" end
         return nil
     end
     if ceiling and cand.minPrice > ceiling then return "price" end
     if ns.db.topOnly then
-        local groups = Front()
+        local groups = Front(wants)
         local top = ns.Results.TOP_COUNT
         local least, leastNet = cand.minPrice, ns.Results.Net(cand.minPrice, cand.eval.sell)
         for i = 1, #placements do
@@ -691,9 +718,11 @@ local function SortCandidates()
     local list = scan.candidates
     local money = GetMoney()
     local reachFirst = not ns.db.topOnly
+    local wants = Wanted()
+    local hands = wants and wants.hands
     for i = 1, #list do
         local cand = list[i]
-        if cand.eval then Placements(cand) else cand.best = 0 end
+        if cand.eval then Placements(cand, hands) else cand.best = 0 end
         cand.inReach = cand.minPrice <= money
     end
     table.sort(list, function(a, b)
@@ -717,7 +746,7 @@ function S.Unchecked()
         local cand = list[i]
         -- (A candidate that is in the list at its row's lowest price is counted there.)
         if not cand.status and cand.eval and not cand.listed then
-            local placements = Placements(cand)
+            local placements = Placements(cand, wants and wants.hands)
             if #placements > 0 then
                 placements = ns.Wants.Keep(wants, cand.eval, placements)
                 if #placements == 0 then
@@ -923,8 +952,10 @@ end
 local function CountAuction(found, job, eval, info)
     local id = job.ks .. ":" .. string.format("%.2f", eval.value)
     local offer = found[id]
-    if offer == nil and #ns.Compare.Place(eval, S.ctx) == 0 then
-        -- For sale and wearable, but no better than what the character has.
+    if offer == nil and not ns.Compare.Possible(eval, S.ctx) then
+        -- For sale and wearable, but no better than what the character has, however it
+        -- fills its hands. (What is better for one way of that only is an offer: the list
+        -- has it the moment the character says it goes that way, see Results.Collect.)
         offer = false
         found[id] = false
     end
@@ -948,6 +979,7 @@ local function CountAuction(found, job, eval, info)
         value = eval.value,
         offValue = eval.offValue,
         armor = eval.armor,
+        weapon = eval.weapon,
         effects = eval.effects,
         sell = eval.sell,
         buyout = info.buyoutAmount,
@@ -968,12 +1000,20 @@ end
 -- item up first, as it always does (S.Buy).
 -- A candidate without a sample, or a row without a price, has nothing to be listed by until
 -- its search.
+-- One kept for another way of filling the hands (`spare`, see AddCandidate) is listed once
+-- it has a place: when the character says it goes that way (WANTS_CHANGED, below), or when
+-- its gear changes so (S.RefreshContext). Where more of those were found than are kept, a
+-- list made for that way is short of some, and the scan says that it has not everything.
 local function ListCandidates()
     local list = scan.candidates
     local found = {}
+    local wants = Wanted()
+    local hands = wants and wants.hands
+    if scan.sparesCut and hands == "ONE" then S.partial = true end
     for i = 1, #list do
         local cand = list[i]
-        if not cand.status and not cand.listed and cand.eval and cand.minPrice > 0 then
+        if not cand.status and not cand.listed and cand.eval and cand.minPrice > 0
+            and (not cand.spare or #Placements(cand, hands) > 0) then
             cand.listed = true
             scan.listed = scan.listed + 1
             CountAuction(found, cand, cand.eval, { buyoutAmount = cand.minPrice })
@@ -1209,7 +1249,12 @@ local function ScoreRow(row, force)
         return true
     end
 
-    if eval and #ns.Compare.Place(eval, S.ctx) > 0 then
+    -- A candidate is what is better than the gear in some place. Also one that would be for
+    -- a character that fills its hands another way than it has said (`spare`): that may be
+    -- said by the time the list is read, and the row is not read again then.
+    local better = eval and #ns.Compare.Place(eval, S.ctx) > 0
+    local spare = eval and not better and ns.Compare.Possible(eval, S.ctx)
+    if better or spare then
         -- Red text is about the item, not the auction, so the sample answers for the row.
         if eval.usable == nil then ReadTooltip(eval) end
         if eval.usable == nil then return false, cached and "tip" or "data" end
@@ -1217,7 +1262,7 @@ local function ScoreRow(row, force)
         -- candidate still: SkipReason finds it no better than the gear.)
         if eval.usable then
             if not cached and run.stats then run.stats.forced = run.stats.forced + 1 end
-            AddCandidate(row, eval)
+            AddCandidate(row, eval, spare)
             return true
         end
     end
@@ -1921,6 +1966,8 @@ function S.Start()
     confirming = false
     scan = {
         candidates = {},    -- rows whose item scored as an upgrade (see AddCandidate)
+        spares = 0,         -- of those, rows kept for another way of filling the hands
+        sparesCut = false,  -- more of those were found than are kept
         rejected = {},      -- rows dropped by score alone
         evalCache = {},     -- item link -> score (see EvalLink)
         unsettled = {},     -- item link -> when the game first had no reading of it
@@ -2143,8 +2190,21 @@ function S.RefreshContext()
     Recheck()
     Reacquire()
     S.changes = S.changes + 1
+    -- (A candidate kept for another way of filling the hands may have its place now.)
+    if scan and scan.ready then ListCandidates() end
     ns.Fire("OFFERS_CHANGED")
 end
+
+-- The character the list is for wants something else of its gear (Wants.lua). The list
+-- follows by itself: it is made from the offers each time it is drawn, and asks for the
+-- prices it then lacks (S.Demand). One thing is done here: a candidate kept for another way
+-- of filling the hands, which is the way now, is put into the list as the others were, at its
+-- row's lowest price, so that the list has it at once and not only when its price is known.
+ns.Listen("WANTS_CHANGED", function(card)
+    if not scan or not scan.ready or not S.ctx then return end
+    if card ~= (S.ctx.who or ns.Roster.Me()) then return end
+    ListCandidates()
+end)
 
 ---------------------------------------------------------------------------
 -- Consumables: the scan and the purchase

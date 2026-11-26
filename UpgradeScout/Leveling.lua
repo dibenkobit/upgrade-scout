@@ -727,13 +727,18 @@ end
 -- no place there; a number, the most to be said. item: { link, invType, value, offValue }.
 -- Asked about the character being played alone (Score.Context), and about what it wears
 -- now, whatever gear the comparison is made with (Compare.Places).
+-- A character that holds a two-hander and has said it is going over to a weapon for one
+-- hand is offered an item for the off hand as if that hand were free (`offFree`, see
+-- Compare.Places): at the item's whole score, which GetGain never says of it, as it
+-- measures the item against the two-hander it would take the place of. So that row too
+-- says what GetGain says where it says the item gains, and is not there where it does not.
 -- An answer is kept for HANDS_FOR seconds, and no longer than Forever Leveling BiS says that
 -- something changed (Hook): its gain is another once the gear is.
 local MAIN_SLOT, OFF_SLOT = 16, 17
 local HANDS_FOR = 5
 local HANDS_KEPT = 2000         -- answers kept at most
 local SLACK = 0.05              -- what two sums of the same scores may differ by
-local hands, handsKept = {}, 0  -- link -> { main, off, at }
+local hands, handsKept = {}, 0  -- link -> { main, off, free = for the off hand taken as free, at }
 local held                      -- the scores of what is in the hands now: { main, off, twoHander, at }
 
 local function ForgetHands()
@@ -758,28 +763,38 @@ local function WornHands(now)
     return held
 end
 
-function F.Hands(item)
+-- The answer kept for an item, for the off hand as it is or taken as free of a two-hander.
+local function Said(known, offFree)
+    if offFree and known.free ~= nil then return known.main, known.free end
+    return known.main, known.off
+end
+
+function F.Hands(item, offFree)
     local link, invType, value = item.link, item.invType, item.value
     if type(link) ~= "string" or type(value) ~= "number" or ns.Compare.Kind(invType) ~= "HANDS" then return nil, nil end
     local gain = ForeverLevelingBiS_API and ForeverLevelingBiS_API.GetGain
     if type(gain) ~= "function" then return nil, nil end
     local now = GetTime()
     local known = hands[link]
-    if known and now - known.at <= HANDS_FOR then return known.main, known.off end
+    if known and now - known.at <= HANDS_FOR then return Said(known, offFree) end
 
-    local main, off
+    local main, off, free
     local got = gain(ns.Stats.Bare(link))
     local gear = type(got) == "number" and WornHands(now) or nil
     if gear then
         -- What it would gain in each hand it can go, as Compare.Places counts it.
-        local inMain, inOff
+        local inMain, inOff, inFree
         if invType == "INVTYPE_2HWEAPON" then
             inMain = value - (gear.main + gear.off)
         else
             if invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND" then inMain = value - gear.main end
             local weapon = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONOFFHAND"
-            if invType ~= "INVTYPE_WEAPONMAINHAND" and not gear.twoHander and (not weapon or CanDualWield()) then
-                inOff = (item.offValue or value) - gear.off
+            if invType ~= "INVTYPE_WEAPONMAINHAND" and (not weapon or CanDualWield()) then
+                if gear.twoHander then
+                    inFree = (item.offValue or value) - gear.off
+                else
+                    inOff = (item.offValue or value) - gear.off
+                end
             end
         end
         local mainOver = inMain ~= nil and inMain > got + SLACK
@@ -792,13 +807,18 @@ function F.Hands(item)
             if mainOver then main = false end
             if offOver then off = false end
         end
+        -- The off hand taken as free of the two-hander: no more than it says the item gains.
+        if inFree ~= nil and inFree > got + SLACK then
+            if got > SLACK then free = got else free = false end
+        end
     end
     if hands[link] == nil then
         if handsKept >= HANDS_KEPT then ForgetHands() end
         handsKept = handsKept + 1
     end
-    hands[link] = { main = main, off = off, at = now }
-    return main, off
+    known = { main = main, off = off, free = free, at = now }
+    hands[link] = known
+    return Said(known, offFree)
 end
 
 -- Its words for the stats, by their keys, in the player's language (GetStatKeys); our own

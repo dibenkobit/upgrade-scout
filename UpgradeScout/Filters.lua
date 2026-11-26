@@ -5,9 +5,10 @@ local L = ns.L
 -- field, whose menu has a tick box for every filter of the list in view. (The tick boxes once
 -- stood in a row above the list, and three of them filled it.)
 --   Upgrades      Only what I can afford, Buyout up to (a sum), Top N per slot, Best armor
---                 type for the class, Upgrade at least N %, Gear at most N levels below;
---                 and under a rule Value by net cost, which is no filter: it says which of
---                 a row's two prices the best value is judged by
+--                 type for the class, Upgrade at least N %, Gear at most N levels below,
+--                 Weapons (a line that opens a menu of its own: how the hands are filled,
+--                 and the kinds of weapon); and under a rule Value by net cost, which is no
+--                 filter: it says which of a row's two prices the best value is judged by
 --   Consumables   Only what I can afford, Best for me, Everything I can use. The last one
 --                 lets more in where the others leave out: unticked, the list is of what
 --                 has a score (see Supplies.lua)
@@ -15,10 +16,10 @@ local L = ns.L
 -- does. Beside the field stand the names of the filters that are on, so that it is plain
 -- without a click why the list is what it is; where they do not fit, how many are on.
 --
--- Four of the filters of gear are kept with the character the list is for: every character
--- has its own, whichever character of the account shops for it (see Wants.lua). Three of
--- them are about that character, the armor, the least gain and the levels below its own;
--- the fourth is the most to pay for one item for it. The others are the player's (ns.db).
+-- Most of the filters of gear are kept with the character the list is for: every character
+-- has its own, whichever character of the account shops for it (see Wants.lua). They are
+-- about that character, its armor, the least gain, the levels below its own and its weapons;
+-- and one is the most to pay for one item for it. The others are the player's (ns.db).
 local Filters = {}
 ns.Filters = Filters
 
@@ -75,16 +76,26 @@ local function Active()
     local cap = not planned and ns.Wants.Price(Owner())
     if cap then Add(L.PRICE_MAX_SHORT:format(ns.Money(cap)), L.PRICE_MAX_FULL:format(ns.Money(cap))) end
     if ns.db.topOnly and not planned then Add(L.TOP:format(ns.Results.TOP_COUNT)) end
-    local wants = ns.Wants.Of(Owner())
+    local owner = Owner()
+    local wants = ns.Wants.Of(owner)
     if wants and wants.armor then Add(L.ARMOR_BEST_SHORT, L.ARMOR_BEST) end
     if wants and wants.gain then Add(L.GAIN_MIN_SHORT:format(wants.gain), L.GAIN_MIN_FULL:format(wants.gain)) end
     -- Beside the field stands the level the number comes to for this character, which is
     -- what the list goes by; the field's tooltip has the line as the menu has it. A number
     -- that reaches down to the first level leaves nothing out (it is none of the wants),
     -- and the box is named all the same while it is ticked: "From level 1".
-    local owner = Owner()
     if owner and owner.maxBelowOn == true then
         Add(L.LEVEL_MIN_SHORT:format(ns.Wants.LevelTyped(owner) or 1), L.LEVEL_MIN_FULL:format(ns.Wants.Below(owner)))
+    end
+    -- How the hands are filled is named where it leaves something out, whether the player
+    -- chose it or the profile did: either way it is why the list is what it is.
+    if wants and wants.hands == "TWO" then Add(L.HANDS_TWO) end
+    if wants and wants.hands == "ONE" then Add(L.HANDS_ONE_SHORT, L.HANDS_ONE) end
+    if wants and wants.kinds then
+        -- How many kinds of weapon are still offered, of those the class has.
+        local _, gone = ns.Wants.KindsOut(owner)
+        local all = #ns.Roster.WeaponKinds(owner.class)
+        Add(L.KINDS_SHORT:format(all - gone, all), L.KINDS_FULL:format(all - gone, all))
     end
     return out
 end
@@ -449,6 +460,84 @@ local function AddSum(button)
         + 6 + SILVER_WIDTH + COIN_GAP + COIN_SIZE, LINE_HEIGHT
 end
 
+-- The line "Weapons". It opens a menu of its own beside it, with what the character the list
+-- is for is to be offered for its hands (Wants.lua):
+--   * how it fills them, one of three: any way; with a two-hander; with a weapon for one
+--     hand and a shield, a held item or a second weapon beside it. Until the player chooses,
+--     the profile does (Wants.Hands), and the line it chose is the one marked: its tooltip
+--     says who chose.
+--   * under a rule, a tick box for every kind of weapon the character's class can ever
+--     wield, by the game's own names, those for one hand, for both and for the ranged slot
+--     each under a rule of their own. All are ticked until one is unticked: that kind is
+--     then left out of the list.
+-- A click on any of them leaves both menus open, as a tick box of the menu itself does. A
+-- line that is one choice of several closes its menu unless it says otherwise: these say so.
+local function HandsAre(hands)
+    local card = Owner()
+    return card ~= nil and ns.Wants.Hands(card) == hands
+end
+
+local function SetHands(hands)
+    local card = Owner()
+    if not card then return end
+    ns.Wants.SetHands(card, hands)
+    tab.Changed()
+end
+
+local function KindOn(kind)
+    local card = Owner()
+    return card ~= nil and not ns.Wants.KindOut(card, kind)
+end
+
+local function FlipKind(kind)
+    local card = Owner()
+    if not card then return end
+    ns.Wants.SetKind(card, kind, ns.Wants.KindOut(card, kind))
+    tab.Changed()
+end
+
+-- The line itself has no tick box: its word stands where the words of the lines above it
+-- do, after the room of a box, and not under their boxes.
+local function Indent(button)
+    local words = button.fontString
+    if not words then return end
+    words:ClearAllPoints()
+    words:SetPoint("LEFT", button, "LEFT", BOX_WIDTH + 7, 0)
+end
+
+local function AddWeapons(root, owner)
+    local menu = root:CreateButton(L.WEAPONS)
+    menu:AddInitializer(Widgets.SkinMenuLine)
+    menu:AddInitializer(Indent)
+    for _, hands in ipairs(ns.Wants.HANDS) do
+        local text = L["HANDS_" .. hands]
+        local line = menu:CreateRadio(text, HandsAre, SetHands, hands)
+        line:SetResponse(MenuResponse.Refresh)
+        line:AddInitializer(Widgets.SkinMenuLine)
+        line:SetTooltip(function(tooltip)
+            GameTooltip_SetTitle(tooltip, text)
+            GameTooltip_AddNormalLine(tooltip, L["HANDS_" .. hands .. "_TIP"])
+            -- The line the profile chose, while the player has not: on which profile.
+            local card = Owner()
+            local now, own = ns.Wants.Hands(card)
+            local profile = card and not own and now == hands and hands ~= "ANY" and ns.Score.Current(card)
+            if profile then GameTooltip_AddHighlightLine(tooltip, L.HANDS_BY_PROFILE:format(profile.title)) end
+        end)
+    end
+    local held
+    for _, weapon in ipairs(ns.Roster.WeaponKinds(owner.class)) do
+        local name = C_Item.GetItemSubClassInfo(Enum.ItemClass.Weapon, weapon.kind)
+        -- (A kind the game has no name for has no line: there is nothing to call it by.)
+        if type(name) == "string" and name ~= "" then
+            if weapon.held ~= held then
+                held = weapon.held
+                menu:CreateDivider():AddInitializer(Widgets.SkinMenuDivider)
+            end
+            AddCheck(menu, name, KindOn, FlipKind, weapon.kind, L.KINDS_TIP)
+        end
+    end
+end
+
 -- The game calls this each time the menu opens.
 local function Menu(_, root)
     local gear = tab.View() == "gear"
@@ -475,6 +564,7 @@ local function Menu(_, root)
     -- "Gear at most N levels below" reads the same for every character, so the line's
     -- tooltip names the level it comes to for the one the list is for.
     AddCheck(root, L.LEVEL_MIN, BelowOn, FlipBelow, nil, L.LEVEL_MIN_TIP, nil, LevelNote(owner)):AddInitializer(AddLevels)
+    if owner then AddWeapons(root, owner) end
     root:CreateDivider():AddInitializer(Widgets.SkinMenuDivider)
     AddCheck(root, L.NET_VALUE, IsSet, Flip, "net", L.NET_TIP)
 end

@@ -829,9 +829,20 @@ end
 --   dropdown.radios   the lines of which one is chosen (root:CreateRadio), as the generator
 --                     last described them
 --   dropdown.checks   the lines with a tick box (root:CreateCheckbox)
---   dropdown.buttons  the lines that do something when clicked (root:CreateButton)
+--   dropdown.buttons  the lines that do something when clicked, or open a menu of their own
+--                     (root:CreateButton)
+--   dropdown.elements all of the menu's lines, its rules among them, in their order; each
+--                     says what it is (`kind`: "radio", "check", "button", "rule")
 --   dropdown.lines    while the menu is open (dropdown:Open), the frames the game made for
 --                     the lines with a tick box, in their order: see MenuLine
+--   dropdown.all      and those it made for all the lines, as `elements` has them
+--   dropdown.sub      while the menu a line opens beside it is open (dropdown:OpenSub): that
+--                     line as `owner`, its lines as `elements`, and `lines`, the frames the
+--                     game made for them, in their order
+-- What a click on a line makes of the menu, as a line's function may answer and a line may
+-- be told beforehand (SetResponse): MenuConstants.lua.
+MenuResponse = { Open = 1, Refresh = 2, Close = 3, CloseAll = 4 }
+
 local function DropdownModel(dropdown)
     dropdown.radios, dropdown.checks = {}, {}
     -- The template's own plate and arrow, and its text.
@@ -863,10 +874,10 @@ local function DropdownModel(dropdown)
     end
     function dropdown:GenerateMenu()
         assert(not self._open, "the menu is not rebuilt while it is open")
-        local root = { radios = {}, checks = {}, buttons = {}, dividers = 0, rules = {} }
         -- What the game hands back for a line of the menu: it takes functions that dress the
         -- line's frame once the game has drawn it (the addon's Widgets.SkinMenuLine), a
-        -- tooltip, and whether the line can be clicked.
+        -- tooltip, whether the line can be clicked, and what a click on it makes of the menu
+        -- where that is not what such a line does by itself (SetResponse).
         local function Description(entry)
             entry.initializers = {}
             function entry:AddInitializer(fn)
@@ -881,46 +892,73 @@ local function DropdownModel(dropdown)
                 assert(type(enabled) == "boolean", "enabled or not")
                 self.enabled = enabled
             end
+            function entry:SetResponse(response)
+                assert(response == MenuResponse.Open or response == MenuResponse.Refresh or response == MenuResponse.Close
+                    or response == MenuResponse.CloseAll, "one of MenuResponse")
+                self.response = response
+            end
             return entry
         end
-        function root:CreateRadio(text, isSelected, setSelected, data)
-            local radio = Description({ text = text, isSelected = isSelected, setSelected = setSelected, data = data })
-            self.radios[#self.radios + 1] = radio
-            return radio
+        -- Lines are added to the menu itself, and to any line of it but a rule: the game
+        -- gives every line it describes the functions that add lines (MenuUtil.lua; "not made
+        -- available on dividers"). A line with lines of its own opens them as a menu beside
+        -- it, and has an arrow at its right end to say so.
+        --   holder.elements   its lines, the rules among them, in their order
+        local Holder
+        Holder = function(holder)
+            holder.radios, holder.checks, holder.buttons, holder.rules = {}, {}, {}, {}
+            holder.dividers, holder.dividersAfter, holder.elements = 0, {}, {}
+            local function Add(self, list, kind, entry)
+                entry.kind = kind
+                list[#list + 1] = entry
+                self.elements[#self.elements + 1] = entry
+                return entry
+            end
+            function holder:CreateRadio(text, isSelected, setSelected, data)
+                return Add(self, self.radios, "radio",
+                    Holder(Description({ text = text, isSelected = isSelected, setSelected = setSelected, data = data })))
+            end
+            function holder:CreateCheckbox(text, isSelected, setSelected, data)
+                assert(type(text) == "string" and type(isSelected) == "function" and type(setSelected) == "function",
+                    "a label and two functions")
+                return Add(self, self.checks, "check",
+                    Holder(Description({ text = text, isSelected = isSelected, setSelected = setSelected, data = data })))
+            end
+            -- A line that is no choice of the menu: it does something when clicked, or, given
+            -- no function, opens the lines added to it. `after` says which radio it follows.
+            function holder:CreateButton(text, callback)
+                assert(type(text) == "string" and (callback == nil or type(callback) == "function"),
+                    "a label, and a function or none")
+                return Add(self, self.buttons, "button", Holder(Description({ text = text, callback = callback, after = #self.radios })))
+            end
+            -- A line across the menu; `dividersAfter` says which radio each one follows, the
+            -- rule's `afterCheck` which tick box.
+            function holder:CreateDivider()
+                self.dividers = self.dividers + 1
+                self.dividersAfter[#self.dividersAfter + 1] = #self.radios
+                return Add(self, self.rules, "rule", Description({ afterCheck = #self.checks }))
+            end
+            return holder
         end
-        function root:CreateCheckbox(text, isSelected, setSelected, data)
-            assert(type(text) == "string" and type(isSelected) == "function" and type(setSelected) == "function",
-                "a label and two functions")
-            local check = Description({ text = text, isSelected = isSelected, setSelected = setSelected, data = data })
-            self.checks[#self.checks + 1] = check
-            return check
-        end
-        -- A line that does something when clicked and is no choice of the menu; `after` says
-        -- which radio it follows.
-        function root:CreateButton(text, callback)
-            assert(type(text) == "string" and type(callback) == "function", "a label and a function")
-            local button = Description({ text = text, callback = callback, after = #self.radios })
-            self.buttons[#self.buttons + 1] = button
-            return button
-        end
-        -- A line across the menu; `after` says which radio each one follows, `afterCheck`
-        -- which tick box.
-        function root:CreateDivider()
-            self.dividers = self.dividers + 1
-            self.after = self.after or {}
-            self.after[#self.after + 1] = #self.radios
-            local rule = Description({ afterCheck = #self.checks })
-            self.rules[#self.rules + 1] = rule
-            return rule
-        end
+        local root = Holder({})
         function root:SetScrollMode(extent)
             assert(type(extent) == "number" and extent > 0, "a height in pixels")
             self.scroll = extent
         end
         self._generator(self, root)
+        -- A line that does nothing when clicked is there for the menu it opens.
+        local function Sound(holder)
+            for _, entry in ipairs(holder.elements) do
+                if entry.kind == "button" then
+                    assert(entry.callback or #entry.elements > 0, "a line with nothing to do and nothing to open: " .. entry.text)
+                end
+                if entry.elements then Sound(entry) end
+            end
+        end
+        Sound(root)
         self.radios, self.checks, self.buttons = root.radios, root.checks, root.buttons
-        self.dividers, self.dividersAfter, self.scroll = root.dividers, root.after or {}, root.scroll
-        self.rules = root.rules
+        self.dividers, self.dividersAfter, self.scroll = root.dividers, root.dividersAfter, root.scroll
+        self.rules, self.elements = root.rules, root.elements
         ShowSelection(self)
     end
     function dropdown:SetupMenu(generator)
@@ -959,29 +997,60 @@ local function DropdownModel(dropdown)
         end
         return frame
     end
-    local function MenuLine(check)
+    -- The other lines the same way. One of which one is chosen (MenuVariants.CreateRadio) has
+    -- a round mark where a tick box has its square, and a second one when it is the line
+    -- chosen. A line that opens a menu of its own has an arrow at its right end
+    -- (MenuVariants.CreateSubmenuArrow), and a rule is a line drawn across (CreateDivider).
+    local MARKS = {
+        check = { "common-dropdown-ticksquare", "common-dropdown-icon-checkmark-yellow" },
+        radio = { "common-dropdown-tickradial", "common-dropdown-icon-radialtick-yellow" },
+    }
+    local function MenuLine(entry)
         local line = Attachable(Widget("Button"))
-        line._check = check
+        line._check = entry
         -- A menu is in the layer over the game's windows, its lines above its own frame.
         line._strata, line._level = "FULLSCREEN_DIALOG", 520
-        line.leftTexture1, line.highlight = line:AttachTexture(), line:AttachTexture()
-        line.leftTexture1:SetAtlas("common-dropdown-ticksquare")
-        if check.isSelected(check.data) then
-            line.leftTexture2 = line:AttachTexture()
-            line.leftTexture2:SetAtlas("common-dropdown-icon-checkmark-yellow")
+        if entry.kind == "rule" then
+            line.divider = line:AttachTexture()
+        else
+            local marks = MARKS[entry.kind]
+            if #entry.elements > 0 then line.arrow = line:AttachTexture() end
+            if marks then
+                line.leftTexture1, line.highlight = line:AttachTexture(), line:AttachTexture()
+                line.leftTexture1:SetAtlas(marks[1])
+                if entry.isSelected(entry.data) then
+                    line.leftTexture2 = line:AttachTexture()
+                    line.leftTexture2:SetAtlas(marks[2])
+                end
+            else
+                line.highlight = line:AttachTexture()
+            end
+            line.fontString = line:AttachFontString()
+            line.fontString:SetTextToFit(entry.text)
         end
-        line.fontString = line:AttachFontString()
-        line.fontString:SetTextToFit(check.text)
-        for _, dress in ipairs(check.initializers) do
-            local width, height = dress(line, check, dropdown)
+        for _, dress in ipairs(entry.initializers) do
+            local width, height = dress(line, entry, dropdown)
             if width and height then line._size = { width, height } end
         end
-        line:SetEnabled(check.enabled ~= false)
+        line:SetEnabled(entry.enabled ~= false)
         return line
     end
+    -- Every line of a menu, in their order. Those the game drew before go back to it.
+    local function Draw(holder, before)
+        for _, line in ipairs(before or {}) do line:Hide() end
+        local lines = {}
+        for i, entry in ipairs(holder.elements) do lines[i] = MenuLine(entry) end
+        return lines
+    end
     local function DrawLines(self)
+        self.all = Draw(self, self.all)
         self.lines = {}
-        for i, check in ipairs(self.checks) do self.lines[i] = MenuLine(check) end
+        for i, entry in ipairs(self.elements) do
+            if entry.kind == "check" then self.lines[#self.lines + 1] = self.all[i] end
+        end
+    end
+    local function DrawSub(self)
+        self.sub.lines = Draw(self.sub.owner, self.sub.lines)
     end
     -- The player opens the menu: the game describes it anew and draws it.
     function dropdown:Open()
@@ -991,9 +1060,58 @@ local function DropdownModel(dropdown)
     end
     function dropdown:Close()
         assert(self._open, "an open menu")
-        -- The frames of its lines go back to the game: what is in them is hidden.
-        for _, line in ipairs(self.lines) do line:Hide() end
-        self._open, self.lines = false, nil
+        -- The frames of its lines go back to the game: what is in them is hidden. So do
+        -- those of the menu a line of it had opened.
+        for _, line in ipairs(self.all) do line:Hide() end
+        for _, line in ipairs(self.sub and self.sub.lines or {}) do line:Hide() end
+        self._open, self.lines, self.all, self.sub = false, nil, nil, nil
+    end
+    -- The mouse goes onto a line that opens a menu of its own, by its label: the game draws
+    -- that menu beside the first. Returns it (dropdown.sub).
+    function dropdown:OpenSub(text)
+        assert(self._open, "an open menu")
+        local owner
+        for _, button in ipairs(self.buttons) do
+            if button.text == text and #button.elements > 0 then owner = button end
+        end
+        assert(owner, "no line labelled " .. tostring(text) .. " that opens a menu")
+        assert(owner.enabled ~= false, "a line that is not enabled opens nothing")
+        self.sub = { owner = owner, elements = owner.elements }
+        DrawSub(self)
+        return self.sub
+    end
+    -- A click on a line of that menu, by its label: a tick box, or a line of which one is
+    -- chosen. The game plays a sound, tells the line's function, and does with the menus
+    -- what the line was told to have done (SetResponse), or what its function answers: that
+    -- goes first. Left to itself a tick box has the lines drawn again and both menus stay
+    -- (MenuResponse.Refresh), and a line of which one is chosen closes them all
+    -- (MenuTemplates.CreateCheckbox and CreateRadio; MenuManagerMixin:AttributeRespond).
+    function dropdown:ClickSub(text)
+        local sub = assert(self.sub, "a menu open beside the first")
+        local entry
+        for _, element in ipairs(sub.elements) do
+            if element.text == text and MARKS[element.kind] then entry = element end
+        end
+        assert(entry, "no line to click labelled " .. tostring(text))
+        if entry.enabled == false then return end
+        local response = entry.response
+        if entry.kind == "check" then
+            PlaySound(entry.isSelected(entry.data) and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
+            response = response or MenuResponse.Refresh
+        else
+            PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+        end
+        response = entry.setSelected(entry.data) or response
+        if response == nil or response == MenuResponse.CloseAll then
+            self:Close()
+        elseif response == MenuResponse.Close then
+            for _, line in ipairs(sub.lines) do line:Hide() end
+            self.sub = nil
+        elseif response == MenuResponse.Refresh then
+            -- The lines of the menu the click was in, and of the one it hangs from.
+            DrawSub(self)
+            DrawLines(self)
+        end
     end
     -- The tick box of the open menu with this label: its place among the tick boxes.
     function dropdown:Find(text)
@@ -1451,9 +1569,17 @@ end
 W.subNames = { [1] = "Potions", [2] = "Elixirs", [5] = "Food & Drink", [7] = "Bandages" }
 -- And for the kinds of armor.
 W.armorNames = { [1] = "Cloth", [2] = "Leather", [3] = "Mail", [4] = "Plate" }
+-- And of weapons, by the numbers the game has for them.
+W.weaponNames = {
+    [0] = "One-Handed Axes", [1] = "Two-Handed Axes", [2] = "Bows", [3] = "Guns", [4] = "One-Handed Maces",
+    [5] = "Two-Handed Maces", [6] = "Polearms", [7] = "One-Handed Swords", [8] = "Two-Handed Swords", [10] = "Staves",
+    [13] = "Fist Weapons", [14] = "Miscellaneous", [15] = "Daggers", [16] = "Thrown", [18] = "Crossbows", [19] = "Wands",
+    [20] = "Fishing Poles",
+}
 function C_Item.GetItemSubClassInfo(classID, subClassID)
     if classID == 0 then return W.subNames[subClassID] end
     if classID == 4 then return W.armorNames[subClassID] end
+    if classID == 2 then return W.weaponNames[subClassID] end
 end
 -- `neverCached`: an item the client has all there is to know of and never says it has loaded.
 function C_Item.IsItemDataCachedByID(id)
@@ -1553,9 +1679,12 @@ end
 
 local function InBucket(key)
     local out = {}
+    local text = KeyText(key)
     for i = 1, #A.auctions do
         local auction = A.auctions[i]
-        if KeyText(KeyOf(auction)) == KeyText(key) then out[#out + 1] = auction end
+        -- (A row is of one item: the rest of its key is looked at for that item's auctions
+        -- alone, which keeps an auction house of thousands of rows quick to ask.)
+        if auction.id == key.itemID and KeyText(KeyOf(auction)) == text then out[#out + 1] = auction end
     end
     table.sort(out, function(a, b) return a.buyout < b.buyout end)
     return out

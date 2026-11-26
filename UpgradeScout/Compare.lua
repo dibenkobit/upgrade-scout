@@ -130,7 +130,7 @@ local function Placement(group, slot, value, base, replaced, note, whole)
         -- nothing is there, or what is there scores nothing.
         percent = whole > 0 and (value - base) / whole or nil,
         replaced = replaced,   -- links of the items that come off, nil for an empty slot
-        note = note,           -- "BOTH_HANDS" | "OFFHAND_EMPTY" | nil
+        note = note,           -- "BOTH_HANDS" | "OFFHAND_EMPTY" | "NEEDS_ONE_HAND" | nil
     }
 end
 
@@ -146,7 +146,12 @@ end
 -- A weapon for one hand may come with two scores: `value`, which is what it is worth in the
 -- main hand, and `offValue`, what it is worth in the off hand, where the one who scores tells
 -- the two apart (Score.OffValue). Without the second the first holds for either hand.
-local function Places(item, ctx, beats)
+-- `hands` is how the character means to fill its hands, where it has said so (Wants.lua). It
+-- changes one thing here, for one who holds a two-hander and said "ONE", a weapon for one
+-- hand with something beside it: see where the off hand is offered. What such a choice
+-- leaves out is not left out here: an item that is an upgrade and unwanted is counted as
+-- that (Wants.Fits).
+local function Places(item, ctx, beats, hands)
     local out = {}
     local value = item.value
     local invType = item.invType
@@ -188,12 +193,19 @@ local function Places(item, ctx, beats)
     local mainValue = main and main.value or 0
     local offValue = off and off.value or 0
     local holdingTwoHander = main ~= nil and main.invType == "INVTYPE_2HWEAPON"
+    -- Nothing goes into the off hand beside a two-hander. But a character that has said it
+    -- is going over to a weapon for one hand is shown the way there: what it would hold in
+    -- the other hand is offered for the off hand as it will be then, empty, and the row says
+    -- what it takes ("NEEDS_ONE_HAND"). The gain is the item's own worth there and no share
+    -- of anything: what the hands gain in all depends on the weapon that is yet to come.
+    local offFree = holdingTwoHander and hands == "ONE"
 
     -- The addon that scores may have a say of its own on an item for the hands (ctx.hands,
     -- see Score.Context and Leveling.Hands), for the main hand and for the off hand: false,
     -- the item has no place in that hand; a number, the most it may be said to gain there.
+    -- (It is told when the off hand is asked about as free of the two-hander.)
     local mainMost, offMost
-    if ctx.hands then mainMost, offMost = ctx.hands(item) end
+    if ctx.hands then mainMost, offMost = ctx.hands(item, offFree) end
     -- The item's worth in a hand, with that say heeded: nil where it has no place there.
     local function Worth(there, base, most)
         if most == false then return nil end
@@ -230,11 +242,12 @@ local function Places(item, ctx, beats)
         end
     end
 
-    if invType ~= "INVTYPE_WEAPONMAINHAND" and not holdingTwoHander then
+    if invType ~= "INVTYPE_WEAPONMAINHAND" and (not holdingTwoHander or offFree) then
         local isWeapon = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONOFFHAND"
         local there = Worth(item.offValue or value, offValue, offMost)
         if there and (not isWeapon or ctx.dualWield) and beats(there, offValue) then
-            out[#out + 1] = Placement("OFFHAND", OFF_HAND, there, offValue, off and { off.link } or nil)
+            out[#out + 1] = Placement("OFFHAND", OFF_HAND, there, offValue, off and { off.link } or nil,
+                offFree and "NEEDS_ONE_HAND" or nil)
         end
     end
 
@@ -247,23 +260,32 @@ end
 
 -- item: { invType, value, itemID, unique, offValue (see Places), link (for ctx.hands) }
 -- ctx:  { equipped = { [slot] = { link, itemID, invType, value } }, dualWield, show1H, show2H, hands }
+-- hands: how the character means to fill its hands (a character's wants have it: Wants.lua),
+--       nil where it has not said or the question is not about its list (see Places)
 -- Returns a list of placements; empty when the item is not an upgrade anywhere.
 -- A one-hand weapon can appear twice (main hand and off hand) for a dual wielder.
-function C.Place(item, ctx)
-    return Places(item, ctx, Beats)
+function C.Place(item, ctx, hands)
+    return Places(item, ctx, Beats, hands)
+end
+
+-- Is the item an upgrade somewhere, whichever way the character says it fills its hands?
+-- What a scan keeps of the auction house: the choice may be another by the time its list is
+-- read. ("ONE" adds places to those there are without a choice, and takes none away.)
+function C.Possible(item, ctx)
+    return #Places(item, ctx, Beats, "ONE") > 0
 end
 
 -- Every place the item can go, upgrade or not: placements as C.Place makes them, with a delta
 -- below zero where it would be worse than what is worn. Empty when it cannot be worn at all
 -- (a second copy of a unique item, a tabard).
-function C.Gains(item, ctx)
-    return Places(item, ctx, Anywhere)
+function C.Gains(item, ctx, hands)
+    return Places(item, ctx, Anywhere, hands)
 end
 
 -- The same in one slot group only; nil when the item cannot go there (an off-hand weapon for
 -- one who cannot hold two).
-function C.Gain(item, ctx, group)
-    local placements = Places(item, ctx, Anywhere)
+function C.Gain(item, ctx, group, hands)
+    local placements = Places(item, ctx, Anywhere, hands)
     for i = 1, #placements do
         if placements[i].group == group then return placements[i] end
     end

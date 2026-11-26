@@ -141,6 +141,9 @@ end
 -- The offers the list can show, as entries per slot group (unsorted): one entry for every
 -- slot an offer is an upgrade in, unless a filter leaves it out: the character's own
 -- (Wants.lua), which may also leave out one slot of two, or one of the two price filters.
+-- (An offer may be an upgrade nowhere as the character fills its hands: a scan keeps what
+-- another choice of that would have a place for, see Compare.Possible. It is no row then,
+-- and is not counted as left out either.)
 -- opts: { money = copper the player has, affordableOnly = bool, net = bool (see Results.Cost),
 --         cap = the most an offer may cost, in copper ("Buyout up to", Wants.Price), nil for any sum,
 --         wants = what the character wants of its gear (Wants.Of), nil for anything }
@@ -152,8 +155,10 @@ function Results.Collect(offers, ctx, opts)
     local byGroup, hidden, unwanted = {}, 0, 0
     local money = opts.money or 0
     local cap = opts.cap
+    -- (How the character means to fill its hands has a say in where an item can go.)
+    local hands = opts.wants and opts.wants.hands
     for _, offer in pairs(offers) do
-        local placements = ns.Compare.Place(offer, ctx)
+        local placements = ns.Compare.Place(offer, ctx, hands)
         if #placements > 0 then
             placements = ns.Wants.Keep(opts.wants, offer, placements)
             -- (Whether it can be paid for is a matter of the purse alone: a row says so.)

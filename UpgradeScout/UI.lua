@@ -180,9 +180,14 @@ local function ProfileGains(entry)
     local gains = {}
     local ctx = S.ctx
     if ctx then
+        -- (The hands as the list fills them: a row may stand where only the character's
+        -- choice of that has a place for it, and the other profiles are asked about the same
+        -- place.)
+        local wants = Wanted()
+        local hands = wants and wants.hands
         -- The gear the list measured against: with the best set for a budget, the items
         -- bought for it count as worn (see Plan.Wearing).
-        if view == "gear" and ns.db.plan then ctx = ns.Plan.Wearing(ctx, S.acquired) end
+        if view == "gear" and ns.db.plan then ctx = ns.Plan.Wearing(ctx, S.acquired, hands) end
         local offer = entry.offer
         local scored = ns.Score.Item(offer.link)
         for _, profile in ipairs(ns.Score.Profiles(ctx.who)) do
@@ -195,7 +200,7 @@ local function ProfileGains(entry)
                     value = ns.Score.Value(scored, profile.name, ctx.level),
                     offValue = ns.Score.OffValue(scored, profile.name, ctx.level),
                 }
-                gain = ns.Compare.Gain(item, ns.Score.Rescore(ctx, profile.name), entry.group)
+                gain = ns.Compare.Gain(item, ns.Score.Rescore(ctx, profile.name), entry.group, hands)
             end
             if gain then gains[#gains + 1] = { title = profile.title, gain = gain } end
         end
@@ -242,6 +247,10 @@ local function AddNotes(tooltip, entry, who)
         GameTooltip_AddNormalLine(tooltip, who and L.TT_OFFHAND_EMPTY_WHO or L.TT_OFFHAND_EMPTY)
     elseif entry.note == "BOTH_HANDS" then
         GameTooltip_AddNormalLine(tooltip, L.TT_BOTH_HANDS)
+    elseif entry.note == "NEEDS_ONE_HAND" then
+        -- For the off hand of a character that holds a two-hander and is going over to a
+        -- weapon for one hand (see Compare.Places): it is no use beside the two-hander.
+        GameTooltip_AddNormalLine(tooltip, who and L.TT_NEEDS_ONE_HAND_WHO or L.TT_NEEDS_ONE_HAND)
     end
     if offer.effects then
         GameTooltip_AddNormalLine(tooltip, L.TT_EFFECTS)
@@ -261,7 +270,8 @@ end
 -- Has AddNotes anything to say of this row?
 local function HasNotes(entry)
     local note = entry.note
-    return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or entry.offer.effects or entry.offer.unsure or not entry.affordable
+    return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or note == "NEEDS_ONE_HAND"
+        or entry.offer.effects or entry.offer.unsure or not entry.affordable
 end
 
 -- Our lines under the tooltip of a row of gear. They are of two kinds, and each has a box
@@ -1136,7 +1146,7 @@ local function PlanRows()
         or planCache.bought ~= #S.acquired or planCache.wants ~= wants then
         planCache = {
             changes = S.changes, ctx = S.ctx, money = money, bought = #S.acquired, wants = wants,
-            ladder = ns.Plan.Ladder(S.offers, ns.Plan.Wearing(S.ctx, S.acquired), money, wants),
+            ladder = ns.Plan.Ladder(S.offers, ns.Plan.Wearing(S.ctx, S.acquired, wants and wants.hands), money, wants),
         }
     end
     return ns.Plan.Rows(ns.Plan.Choose(planCache.ladder, S.PlanCap()), ns.db.net)

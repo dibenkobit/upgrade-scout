@@ -208,8 +208,9 @@ local L = {
     -- the heaviest armor the character wears, the same words for every class, and
     -- ARMOR_BEST_SHORT its name beside the Filters field. GAIN_MIN stands before a field with
     -- a number and a percent sign; GAIN_MIN_SHORT names it beside the Filters field,
-    -- GAIN_MIN_FULL in that field's tooltip. ST_NONE_WANTED is the status line when those two,
-    -- or the third of the character's filters (LEVEL_MIN, below), leave every upgrade out.
+    -- GAIN_MIN_FULL in that field's tooltip. ST_NONE_WANTED is the status line when the
+    -- character's own filters, those two, the one about levels (LEVEL_MIN, below) and the
+    -- ones about its weapons (WEAPONS, below), leave every upgrade out.
     FILTERS = "Filters",
     FILTERS_COUNT = "Filters on: %d",
     FILTERS_NONE = "No filter is on.",
@@ -234,6 +235,33 @@ local L = {
     PRICE_MAX_TIP = "Leaves out items that cost more than this. The best upgrade in each slot is then the best one for that price. Each character has a sum of its own.",
     ST_DONE_OVER = "%d upgrades in %d slots. %d more cost more than %s.",
     ST_NONE_OVER = "Nothing at that price. %d upgrades cost more than %s.",
+    -- The line "Weapons" of the Filters menu, and the menu it opens (Filters.lua): what a
+    -- character is to be offered for its hands, kept with the character as its armor is
+    -- (Wants.lua). WEAPONS is that line. HANDS_ANY, HANDS_TWO and HANDS_ONE are the three
+    -- ways to fill the hands, of which one is chosen, each with a tooltip (..._TIP).
+    -- HANDS_ONE_SHORT names the third beside the Filters field, where the second goes by its
+    -- own name. HANDS_BY_PROFILE ends the tooltip of the one a profile chose, and not the
+    -- player: it takes the profile's name. Under the three stand the kinds of weapon, by the
+    -- game's own names, each with a tick box whose tooltip is KINDS_TIP. KINDS_SHORT says
+    -- beside the Filters field that some are unticked, and KINDS_FULL in that field's
+    -- tooltip: how many are ticked, of how many.
+    -- TT_NEEDS_ONE_HAND is a note of a row's tooltip, as TT_OFFHAND_EMPTY is: under a shield
+    -- or another item for the off hand, offered to a character that holds a two-hand weapon
+    -- and chose HANDS_ONE. TT_NEEDS_ONE_HAND_WHO is the same in a list for another character.
+    WEAPONS = "Weapons",
+    HANDS_ANY = "Any",
+    HANDS_ANY_TIP = "One-hand and two-hand weapons alike. Each character has a choice of its own.",
+    HANDS_TWO = "Two-hand",
+    HANDS_TWO_TIP = "Leaves out one-hand weapons, shields and items held in the off hand.",
+    HANDS_ONE = "One-hand, shield and off-hand",
+    HANDS_ONE_SHORT = "One-hand",
+    HANDS_ONE_TIP = "Leaves out two-hand weapons. While the character holds one, shields and other off-hand items are listed all the same: they need a one-hand weapon beside them.",
+    HANDS_BY_PROFILE = "Chosen by the profile \"%s\" until you choose.",
+    KINDS_TIP = "Unticked, weapons of this type are left out. Each character has ticks of its own.",
+    KINDS_SHORT = "Weapons %d/%d",
+    KINDS_FULL = "Weapon types: %d of %d",
+    TT_NEEDS_ONE_HAND = "Needs a one-hand weapon in your main hand",
+    TT_NEEDS_ONE_HAND_WHO = "Needs a one-hand weapon in the main hand",
     -- Forever Companion in place of the addon's own weights (Companion.lua), as Pawn above:
     -- the choice in the welcome window, and what the tab says of its scales.
     -- WELCOME_SCALE_COMPANION and WELCOME_NO_SCALE_COMPANION take the character's name.
@@ -504,6 +532,21 @@ if GetLocale() == "ruRU" then
         PRICE_MAX_TIP = "Убирает вещи дороже этой суммы. Лучшее улучшение в каждом слоте тогда лучшее за эти деньги. У каждого персонажа своя сумма.",
         ST_DONE_OVER = "Улучшений: %d, слотов: %d. Ещё %d стоят больше %s.",
         ST_NONE_OVER = "За эту цену ничего нет. Улучшений: %d, и все дороже %s.",
+        -- The line "Weapons" of the Filters menu, and the menu it opens
+        WEAPONS = "Оружие",
+        HANDS_ANY = "Любое",
+        HANDS_ANY_TIP = "И одноручное оружие, и двуручное. У каждого персонажа свой выбор.",
+        HANDS_TWO = "Двуручное",
+        HANDS_TWO_TIP = "Убирает из списка одноручное оружие, щиты и предметы для левой руки.",
+        HANDS_ONE = "Одноручное, щит и левая рука",
+        HANDS_ONE_SHORT = "Одноручное",
+        HANDS_ONE_TIP = "Убирает из списка двуручное оружие. Пока персонаж держит двуручное, щиты и другие предметы для левой руки всё равно показываются: к ним нужно одноручное оружие.",
+        HANDS_BY_PROFILE = "Выбрано по профилю «%s», пока ты не выберешь здесь.",
+        KINDS_TIP = "Без галочки оружие этого типа в список не попадает. У каждого персонажа свои галочки.",
+        KINDS_SHORT = "Оружие %d/%d",
+        KINDS_FULL = "Типы оружия: %d из %d",
+        TT_NEEDS_ONE_HAND = "Нужно одноручное оружие в правой руке",
+        TT_NEEDS_ONE_HAND_WHO = "Нужно одноручное оружие в правой руке",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "оценка Forever Companion",
         WELCOME_NO_COMPANION = "Forever Companion не установлен или выключен.",
@@ -751,6 +794,21 @@ if GetLocale() == "deDE" then
         PRICE_MAX_TIP = "Lässt Gegenstände weg, die mehr kosten. Die beste Verbesserung in jedem Slot ist dann die beste für diesen Preis. Jeder Charakter hat seine eigene Summe.",
         ST_DONE_OVER = "Verbesserungen: %d, Slots: %d. Weitere %d kosten mehr als %s.",
         ST_NONE_OVER = "Nichts zu diesem Preis. Verbesserungen: %d, alle teurer als %s.",
+        -- The line "Weapons" of the Filters menu, and the menu it opens
+        WEAPONS = "Waffen",
+        HANDS_ANY = "Beliebig",
+        HANDS_ANY_TIP = "Einhand- und Zweihandwaffen gleichermaßen. Jeder Charakter hat seine eigene Wahl.",
+        HANDS_TWO = "Zweihändig",
+        HANDS_TWO_TIP = "Lässt Einhandwaffen, Schilde und in der Schildhand geführte Gegenstände weg.",
+        HANDS_ONE = "Einhändig, Schild und Schildhand",
+        HANDS_ONE_SHORT = "Einhändig",
+        HANDS_ONE_TIP = "Lässt Zweihandwaffen weg. Solange der Charakter eine führt, bleiben Schilde und andere Gegenstände für die Schildhand trotzdem in der Liste: Sie brauchen eine Einhandwaffe.",
+        HANDS_BY_PROFILE = "Vom Profil »%s« gewählt, bis du selbst wählst.",
+        KINDS_TIP = "Ohne Häkchen bleiben Waffen dieser Art weg. Jeder Charakter hat seine eigenen Häkchen.",
+        KINDS_SHORT = "Waffen %d/%d",
+        KINDS_FULL = "Waffenarten: %d von %d",
+        TT_NEEDS_ONE_HAND = "Braucht eine Einhandwaffe in deiner Waffenhand",
+        TT_NEEDS_ONE_HAND_WHO = "Braucht eine Einhandwaffe in der Waffenhand",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever-Companion-Wertung",
         WELCOME_NO_COMPANION = "Forever Companion ist nicht installiert oder deaktiviert.",
@@ -999,6 +1057,21 @@ if GetLocale() == "frFR" then
         PRICE_MAX_TIP = "Écarte les objets qui coûtent plus cher. La meilleure amélioration de chaque emplacement est alors la meilleure à ce prix. Chaque personnage a sa propre somme.",
         ST_DONE_OVER = "Améliorations : %d, emplacements : %d. %d de plus coûtent plus de %s.",
         ST_NONE_OVER = "Rien à ce prix. Améliorations : %d, toutes à plus de %s.",
+        -- The line "Weapons" of the Filters menu, and the menu it opens
+        WEAPONS = "Armes",
+        HANDS_ANY = "Toutes",
+        HANDS_ANY_TIP = "Les armes à une main comme les armes à deux mains. Chaque personnage a son propre choix.",
+        HANDS_TWO = "Deux mains",
+        HANDS_TWO_TIP = "Écarte les armes à une main, les boucliers et les objets tenus en main gauche.",
+        HANDS_ONE = "Une main, bouclier et main gauche",
+        HANDS_ONE_SHORT = "Une main",
+        HANDS_ONE_TIP = "Écarte les armes à deux mains. Tant que le personnage en tient une, les boucliers et les autres objets de main gauche restent dans la liste : il leur faut une arme à une main.",
+        HANDS_BY_PROFILE = "Choisi par le profil « %s » tant que vous n'avez pas choisi.",
+        KINDS_TIP = "Case décochée, les armes de ce type sont écartées. Chaque personnage a ses propres cases.",
+        KINDS_SHORT = "Armes %d/%d",
+        KINDS_FULL = "Types d'armes : %d sur %d",
+        TT_NEEDS_ONE_HAND = "Nécessite une arme à une main dans votre main droite",
+        TT_NEEDS_ONE_HAND_WHO = "Nécessite une arme à une main en main droite",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "score Forever Companion",
         WELCOME_NO_COMPANION = "Forever Companion n'est pas installé ou est désactivé.",
@@ -1247,6 +1320,21 @@ if GetLocale() == "zhCN" then
         PRICE_MAX_TIP = "不显示价格高于这个数目的物品。每个部位的最大提升就是这个价位内提升最多的一件。每个角色各有自己的数目。",
         ST_DONE_OVER = "找到%d件提升装备，涉及%d个部位。另有%d件价格高于 %s。",
         ST_NONE_OVER = "这个价位内没有提升装备。有%d件价格高于 %s。",
+        -- The line "Weapons" of the Filters menu, and the menu it opens
+        WEAPONS = "武器",
+        HANDS_ANY = "不限",
+        HANDS_ANY_TIP = "单手武器和双手武器都显示。每个角色各有自己的选择。",
+        HANDS_TWO = "双手",
+        HANDS_TWO_TIP = "不显示单手武器、盾牌和副手物品。",
+        HANDS_ONE = "单手、盾牌和副手",
+        HANDS_ONE_SHORT = "单手",
+        HANDS_ONE_TIP = "不显示双手武器。角色拿着双手武器时，盾牌和其他副手物品照样列出：它们需要搭配一把单手武器。",
+        HANDS_BY_PROFILE = "由方案“%s”选定，直到你自己选择为止。",
+        KINDS_TIP = "取消勾选后，不显示这一类武器。每个角色各有自己的勾选。",
+        KINDS_SHORT = "武器 %d/%d",
+        KINDS_FULL = "武器类型：%d/%d",
+        TT_NEEDS_ONE_HAND = "需要主手装备单手武器",
+        TT_NEEDS_ONE_HAND_WHO = "需要主手装备单手武器",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever Companion 评分",
         WELCOME_NO_COMPANION = "Forever Companion 未安装或未启用。",
@@ -1496,6 +1584,21 @@ if GetLocale() == "ptBR" then
         PRICE_MAX_TIP = "Deixa de fora os itens que custam mais que isso. A maior melhoria de cada espaço passa a ser a maior por esse preço. Cada personagem tem a sua própria quantia.",
         ST_DONE_OVER = "Melhorias: %d, espaços: %d. Mais %d custam mais de %s.",
         ST_NONE_OVER = "Nada por esse preço. Melhorias: %d, todas por mais de %s.",
+        -- The line "Weapons" of the Filters menu, and the menu it opens
+        WEAPONS = "Armas",
+        HANDS_ANY = "Qualquer",
+        HANDS_ANY_TIP = "Armas de uma mão e de duas mãos, tanto faz. Cada personagem tem a sua própria escolha.",
+        HANDS_TWO = "Duas mãos",
+        HANDS_TWO_TIP = "Deixa de fora as armas de uma mão, os escudos e os itens empunhados na mão secundária.",
+        HANDS_ONE = "Uma mão, escudo e mão secundária",
+        HANDS_ONE_SHORT = "Uma mão",
+        HANDS_ONE_TIP = "Deixa de fora as armas de duas mãos. Enquanto o personagem empunha uma, os escudos e os outros itens de mão secundária continuam na lista: eles precisam de uma arma de uma mão.",
+        HANDS_BY_PROFILE = "Escolhido pelo perfil \"%s\" até você escolher.",
+        KINDS_TIP = "Desmarcada, as armas deste tipo ficam de fora. Cada personagem tem as suas próprias marcações.",
+        KINDS_SHORT = "Armas %d/%d",
+        KINDS_FULL = "Tipos de arma: %d de %d",
+        TT_NEEDS_ONE_HAND = "Precisa de uma arma de uma mão na sua mão principal",
+        TT_NEEDS_ONE_HAND_WHO = "Precisa de uma arma de uma mão na mão principal",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "pontuação do Forever Companion",
         WELCOME_NO_COMPANION = "O Forever Companion não está instalado ou está desativado.",
@@ -1744,6 +1847,21 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         PRICE_MAX_TIP = "Omite los objetos que cuestan más que esto. La mayor mejora de cada ranura es entonces la mayor por ese precio. Cada personaje tiene su propia suma.",
         ST_DONE_OVER = "Mejoras: %d, ranuras: %d. %d más cuestan más de %s.",
         ST_NONE_OVER = "Nada por ese precio. Mejoras: %d, todas por más de %s.",
+        -- The line "Weapons" of the Filters menu, and the menu it opens
+        WEAPONS = "Armas",
+        HANDS_ANY = "Cualquiera",
+        HANDS_ANY_TIP = "Armas de una mano y de dos manos por igual. Cada personaje tiene su propia elección.",
+        HANDS_TWO = "Dos manos",
+        HANDS_TWO_TIP = "Omite las armas de una mano, los escudos y los objetos que se sostienen con la mano izquierda.",
+        HANDS_ONE = "Una mano, escudo y mano izquierda",
+        HANDS_ONE_SHORT = "Una mano",
+        HANDS_ONE_TIP = "Omite las armas de dos manos. Mientras el personaje lleve una, los escudos y los demás objetos de mano izquierda siguen en la lista: necesitan un arma de una mano.",
+        HANDS_BY_PROFILE = "Elegido por el perfil «%s» hasta que elijas tú.",
+        KINDS_TIP = "Sin marcar, las armas de este tipo se omiten. Cada personaje tiene sus propias marcas.",
+        KINDS_SHORT = "Armas %d/%d",
+        KINDS_FULL = "Tipos de arma: %d de %d",
+        TT_NEEDS_ONE_HAND = "Necesita un arma de una mano en tu mano derecha",
+        TT_NEEDS_ONE_HAND_WHO = "Necesita un arma de una mano en la mano derecha",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "puntuación de Forever Companion",
         WELCOME_NO_COMPANION = "Forever Companion no está instalado o está desactivado.",
@@ -1994,6 +2112,21 @@ if GetLocale() == "koKR" then
         PRICE_MAX_TIP = "이보다 비싼 아이템은 목록에서 뺍니다. 그러면 부위마다 최고 향상은 이 가격 안에서 가장 좋은 것입니다. 캐릭터마다 금액을 따로 둡니다.",
         ST_DONE_OVER = "향상 %d개, 부위 %d곳. %d개는 %s보다 비쌉니다.",
         ST_NONE_OVER = "이 가격에는 없습니다. 향상 %d개가 %s보다 비쌉니다.",
+        -- The line "Weapons" of the Filters menu, and the menu it opens
+        WEAPONS = "무기",
+        HANDS_ANY = "모두",
+        HANDS_ANY_TIP = "한손 무기와 양손 무기를 모두 보여줍니다. 캐릭터마다 따로 선택합니다.",
+        HANDS_TWO = "양손",
+        HANDS_TWO_TIP = "한손 무기, 방패, 보조장비 칸에 드는 아이템은 목록에서 뺍니다.",
+        HANDS_ONE = "한손, 방패, 보조장비",
+        HANDS_ONE_SHORT = "한손",
+        HANDS_ONE_TIP = "양손 무기는 목록에서 뺍니다. 캐릭터가 양손 무기를 들고 있어도 방패와 다른 보조장비 아이템은 그대로 보여줍니다. 이런 아이템은 한손 무기와 함께 써야 합니다.",
+        HANDS_BY_PROFILE = "직접 고르기 전까지는 프로필 “%s”에 따라 선택됩니다.",
+        KINDS_TIP = "체크를 끄면 이 종류의 무기는 목록에서 뺍니다. 캐릭터마다 따로 설정됩니다.",
+        KINDS_SHORT = "무기 %d/%d",
+        KINDS_FULL = "무기 종류: %d/%d",
+        TT_NEEDS_ONE_HAND = "주장비 칸에 한손 무기가 필요합니다",
+        TT_NEEDS_ONE_HAND_WHO = "주장비 칸에 한손 무기가 필요합니다",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever Companion 점수",
         WELCOME_NO_COMPANION = "Forever Companion이 설치되어 있지 않거나 꺼져 있습니다.",
@@ -2243,6 +2376,21 @@ if GetLocale() == "zhTW" then
         PRICE_MAX_TIP = "不顯示價格高於這個數目的物品。每個部位的最大提升就是這個價位內提升最多的一件。每個角色各有自己的數目。",
         ST_DONE_OVER = "找到%d件提升裝備，涵蓋%d個部位。另有%d件價格高於 %s。",
         ST_NONE_OVER = "這個價位內沒有提升裝備。有%d件價格高於 %s。",
+        -- The line "Weapons" of the Filters menu, and the menu it opens
+        WEAPONS = "武器",
+        HANDS_ANY = "不限",
+        HANDS_ANY_TIP = "單手武器和雙手武器都顯示。每個角色各有自己的選擇。",
+        HANDS_TWO = "雙手",
+        HANDS_TWO_TIP = "不顯示單手武器、盾牌和副手物品。",
+        HANDS_ONE = "單手、盾牌和副手",
+        HANDS_ONE_SHORT = "單手",
+        HANDS_ONE_TIP = "不顯示雙手武器。角色拿著雙手武器時，盾牌和其他副手物品照樣列出：它們需要搭配一把單手武器。",
+        HANDS_BY_PROFILE = "由方案「%s」選定，直到你自己選擇為止。",
+        KINDS_TIP = "取消勾選後，不顯示這一類武器。每個角色各有自己的勾選。",
+        KINDS_SHORT = "武器 %d/%d",
+        KINDS_FULL = "武器類型：%d/%d",
+        TT_NEEDS_ONE_HAND = "需要主手裝備單手武器",
+        TT_NEEDS_ONE_HAND_WHO = "需要主手裝備單手武器",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever Companion 評分",
         WELCOME_NO_COMPANION = "Forever Companion 未安裝或未啟用。",
