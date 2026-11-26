@@ -610,12 +610,21 @@ end
 --              every slot it fits
 --   price      a price filter is on ("only what I can afford", "buyout up to") and even the
 --              row's lowest price is more than it lets through (see S.Ceiling)
---   dominated  "top N per slot" is on and, in every slot it fits, an offer already verified
---              is stronger and no dearer per point than this could possibly be. That must
---              hold both by buyout and by net cost (Results.Cost), where the least the
---              candidate can cost is its row's lowest price less what a vendor pays for the
---              item: the "Net cost" box only changes how the prices are shown, so ticking it
---              must not leave the list short of one. The box has no say here for that reason.
+--   outranked  "top N per slot" is on and, in every slot it fits, the slot has no row for it
+--              (Results.LeftOut). N offers already verified are bigger upgrades, or as big
+--              for less than this could possibly cost: it is not one of the N biggest. And
+--              it cannot be the slot's best value: one of those offers is no dearer per
+--              point than this could possibly be, or this gives too little beside the
+--              strongest of them to be a best value at any price. What is verified later
+--              takes none of that away: another offer is one more that may stand before
+--              this, and a stronger one asks more of a best value. Meanwhile the candidate
+--              is in the list at its row's lowest price (ListCandidates), which is one of
+--              the prices the proof is for: it has no row there either, and the picks are
+--              the same with it as without. All of that must hold both by buyout and by net
+--              cost (Results.Cost), where the least the candidate can cost is its row's
+--              lowest price less what a vendor pays for the item: the "Net cost" box only
+--              changes how the prices are shown, so ticking it must not leave the list short
+--              of one. The box has no say here for that reason.
 -- The last two rest on the row's lowest price being a floor under its buyouts. ReadJob checks
 -- that against every row it reads; if the server turns out to mean something else by that
 -- number (scan.floorBroken), nothing is skipped for its price any more.
@@ -643,17 +652,18 @@ local function SkipReason(cand, wants, ceiling)
     if ceiling and cand.minPrice > ceiling then return "price" end
     if ns.db.topOnly then
         local groups = Front()
+        local top = ns.Results.TOP_COUNT
         local least, leastNet = cand.minPrice, ns.Results.Net(cand.minPrice, cand.eval.sell)
         for i = 1, #placements do
             local p = placements[i]
             local entries = groups[p.group]
             if not entries
-                or not ns.Results.Dominated(entries, p.delta, least, false)
-                or not ns.Results.Dominated(entries, p.delta, leastNet, true) then
+                or not ns.Results.LeftOut(entries, p.delta, least, false, top)
+                or not ns.Results.LeftOut(entries, p.delta, leastNet, true, top) then
                 return nil
             end
         end
-        return "dominated"
+        return "outranked"
     end
     return nil
 end
@@ -673,9 +683,10 @@ local function PickCandidate()
     return first, left
 end
 
--- Biggest upgrades first: each verified offer then rules out the weaker candidates that
--- cannot beat its price per point. When everything is going to be listed anyway, the rows
--- the player can pay for go first so that the useful part of the list fills in early.
+-- Biggest upgrades first: those are the rows "top N per slot" shows, and once a slot has
+-- them verified they rule out the weaker candidates that cannot be its best value either
+-- (see SkipReason). When everything is going to be listed anyway, the rows the player can
+-- pay for go first so that the useful part of the list fills in early.
 local function SortCandidates()
     local list = scan.candidates
     local money = GetMoney()

@@ -10,7 +10,8 @@ ns.Results = Results
 -- +0.1 upgrade for two copper never wins.
 Results.VALUE_MIN_SHARE = 0.25
 
--- How many rows a slot keeps at most when "Top N per slot" is ticked.
+-- How many of its biggest upgrades a slot shows when "Top N per slot" is ticked. The best
+-- value has a row besides when it is not one of them (see Shortlist).
 Results.TOP_COUNT = 5
 
 -- What gear costs in the end: its buyout less what a vendor pays for it (`sell`) once the
@@ -21,8 +22,9 @@ function Results.Net(buyout, sell)
 end
 
 -- What the list prices an offer at: its buyout, or with `net` (the "Net cost" box of the tab)
--- its net cost. The price per point, and so the best value and "Top N per slot", go by the
--- same. What the player can pay for is always a matter of the buyout.
+-- its net cost. The price per point, and so the best value and the row "Top N per slot"
+-- keeps for it, go by the same, and so does the order of two offers that gain the same. What
+-- the player can pay for is always a matter of the buyout.
 function Results.Cost(offer, net)
     if net then return Results.Net(offer.buyout, offer.sell) end
     return offer.buyout
@@ -33,78 +35,6 @@ local function ByDelta(a, b)
     if a.cost ~= b.cost then return a.cost < b.cost end
     if a.offer.buyout ~= b.offer.buyout then return a.offer.buyout < b.offer.buyout end
     return a.offer.id < b.offer.id
-end
-
--- The offers worth looking at: an entry stays only if it costs less per point than everything
--- stronger. What is left reads top to bottom as "weaker, but cheaper per point", which also
--- means cheaper outright. Comparing prices alone is not enough: +0.5 for one copper less than
--- +2.7 would stay in the list.
--- The best upgrade is always the first of them, and the best value is always among them:
--- everything stronger than it costs more per point. entries must be sorted by ByDelta.
-local function Sensible(entries)
-    local kept, lowest = {}, math.huge
-    for i = 1, #entries do
-        local entry = entries[i]
-        if entry.costPer < lowest then
-            lowest = entry.costPer
-            kept[#kept + 1] = entry
-        end
-    end
-    return kept
-end
-
--- Would Sensible() drop an item that gives `delta` in this slot and costs at least `minCost`,
--- whatever its real price turns out to be? True when an entry that sorts before it already
--- costs no more per point than the item's best case. The scanner uses this to skip item
--- searches whose result "Top N per slot" would hide; it must stay in step with Sensible().
--- `net` says which list is asked about, the one by buyout or the one by net cost (see
--- Results.Cost): `minCost` is a cost of that kind, and the entries are priced the same way
--- here, however they were priced when they were made.
-function Results.Dominated(entries, delta, minCost, net)
-    local bestCase = minCost / delta
-    for i = 1, #entries do
-        local entry = entries[i]
-        if entry.delta >= delta then
-            local cost = Results.Cost(entry.offer, net)
-            if entry.delta > delta then
-                if cost / entry.delta <= bestCase then return true end
-            elseif cost < minCost then
-                return true
-            end
-        end
-    end
-    return false
-end
-
--- The rows a slot shows under "Top N per slot". When there are more sensible offers than rows,
--- the best upgrade, the best value and the step below the best value are kept, and the rest of
--- the rows go to the steps right below the best upgrade.
-local function Shortlist(entries, limit)
-    local sensible = Sensible(entries)
-    if #sensible <= limit then return sensible end
-
-    local take, left = {}, limit
-    local function Take(i)
-        if left > 0 and sensible[i] and not take[i] then
-            take[i] = true
-            left = left - 1
-        end
-    end
-    Take(1)
-    for i = 2, #sensible do
-        if sensible[i].pick == "VALUE" then
-            Take(i)
-            Take(i + 1)
-            break
-        end
-    end
-    for i = 2, #sensible do Take(i) end
-
-    local kept = {}
-    for i = 1, #sensible do
-        if take[i] then kept[#kept + 1] = sensible[i] end
-    end
-    return kept
 end
 
 -- entries must already be sorted by ByDelta.
@@ -127,6 +57,66 @@ local function MarkPicks(entries)
         bestUpgrade.pick = "UPGRADE"
         bestValue.pick = "VALUE"
     end
+end
+
+-- The rows a slot shows under "Top N per slot": its `limit` biggest upgrades, whatever they
+-- cost, and the best value as well when it is not one of them. So a slot takes one row more
+-- than `limit` at most, and the best value then stands last, where its gain puts it.
+-- entries must be sorted by ByDelta, with the picks marked (MarkPicks).
+local function Shortlist(entries, limit)
+    if #entries <= limit then return entries end
+    local kept = {}
+    for i = 1, limit do kept[i] = entries[i] end
+    for i = limit + 1, #entries do
+        if entries[i].pick == "VALUE" then
+            kept[#kept + 1] = entries[i]
+            break
+        end
+    end
+    return kept
+end
+
+-- Would Shortlist() leave out an item that gives `delta` in this slot and costs at least
+-- `minCost`, whatever its real price turns out to be and whatever else is found for the slot
+-- after this? `entries` are offers the slot is known to have, in any order. True when both
+-- of these hold:
+--   * `limit` of the entries stand before the item in the order of ByDelta whatever it
+--     costs: they give more, or the same for less than `minCost`. The item is then not one
+--     of the `limit` biggest upgrades, and more offers in the slot cannot make it one.
+--   * It cannot be the best value. Either one of those entries costs no more per point than
+--     the item's best case, `minCost` for its gain: that entry gives at least as much, so it
+--     is weighed for the best value wherever the item is, and MarkPicks prefers it. Or the
+--     item gives less than the share of the strongest entry's gain that a best value must
+--     give (VALUE_MIN_SHARE): a stronger offer found later only asks for more.
+-- An entry that gives the same for exactly `minCost` proves neither: which of the two stands
+-- first is not a matter of the price then.
+-- The scanner uses this to skip item searches whose result "Top N per slot" would not show;
+-- it must stay in step with Shortlist(), MarkPicks() and ByDelta().
+-- `net` says which list is asked about, the one by buyout or the one by net cost (see
+-- Results.Cost): `minCost` is a cost of that kind, and the entries are priced the same way
+-- here, however they were priced when they were made.
+function Results.LeftOut(entries, delta, minCost, net, limit)
+    local bestCase = minCost / delta
+    local before, strongest, undersold = 0, 0, false
+    for i = 1, #entries do
+        local entry = entries[i]
+        if entry.delta > strongest then strongest = entry.delta end
+        if entry.delta >= delta then
+            local cost = Results.Cost(entry.offer, net)
+            if entry.delta > delta then
+                before = before + 1
+                if cost / entry.delta <= bestCase then undersold = true end
+            elseif cost < minCost then
+                before = before + 1
+                undersold = true
+            end
+            -- (Both proven: the entries still unread can only add to them.)
+            if undersold and before >= limit then return true end
+        end
+    end
+    if before < limit then return false end
+    -- (No entry undersells it: only too small a gain can rule it out as the best value.)
+    return delta < strongest * Results.VALUE_MIN_SHARE
 end
 
 -- What the list shows of an offer in one of the slots it would go into (see Compare.Place).
@@ -194,7 +184,8 @@ end
 --             cap = the most an offer may cost ("Buyout up to", see Results.Collect),
 --             net = the offers are priced at their net cost (see Results.Cost),
 --             wants = what the character wants of its gear (Wants.Of),
---             limit = nil for everything, or the most rows a slot may take (see Shortlist),
+--             limit = nil for everything, or how many of its biggest upgrades a slot shows,
+--                     with the best value besides (see Shortlist),
 --             unchecked = upgrades whose price the scanner has not looked up (Scanner.Unchecked) }
 -- Returns rows, summary
 --   rows:    { { kind = "header", group = id, shown = n, total = n, approx = bool },

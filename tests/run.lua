@@ -11,7 +11,7 @@ local names = {
     "scan_cold", "scan_unloaded", "scan_late_slow", "scan_stats_late", "scan_warm_tail", "pawn_blind_scan", "roster_names",
     "leveling_no_realm", "supplies_unloaded", "scan_junk",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
-    "scan_lazy", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_slow_answer", "scan_pieces", "scan_eta",
+    "scan_lazy", "scan_top_five", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_slow_answer", "scan_pieces", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "fonts", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
@@ -440,7 +440,9 @@ function scenarios.picks()
     rows = ns.Results.Build(offers, nil, { money = 1 })
     eq(#rows, 0, "no context, no rows")
 
-    -- Top N per slot. u1..u8 each cost less per point than the one before; x1 and x2 are poor buys.
+    -- Top N per slot: the five biggest upgrades of the slot, whatever they cost, and the best
+    -- value in a row of its own when it is not one of them. u1..u8 each cost less per point
+    -- than the one before; x1 and x2 are poor buys, and are listed for what they add.
     local many = {
         u1 = offer("u1", 50, 800000), u2 = offer("u2", 48, 700000), u3 = offer("u3", 46, 600000),
         u4 = offer("u4", 44, 500000), u5 = offer("u5", 42, 400000), u6 = offer("u6", 40, 300000),
@@ -458,27 +460,57 @@ function scenarios.picks()
         return table.concat(out, " ")
     end
     rows, summary = ns.Results.Build(many, ctx, { money = 1e9, limit = 5 })
-    eq(summary.upgrades, 6, "six offers listed: one head, five chest")
+    eq(summary.upgrades, 7, "seven offers listed: one head, six chest")
     eq(rows[1].shown, 1, "head block untouched"); eq(rows[1].total, 1, "head total")
-    eq(rows[3].group, "CHEST", "chest block"); eq(rows[3].shown, 5, "five rows kept"); eq(rows[3].total, 10, "of ten")
-    eq(Ids(4), "u1 u2 u3 u7 u8", "best upgrade and two steps down, best value and one step down")
-    eq(rows[4].entry.pick, "UPGRADE", "best upgrade marked"); eq(rows[7].entry.pick, "VALUE", "best value marked")
+    eq(rows[3].group, "CHEST", "chest block"); eq(rows[3].shown, 6, "six rows kept"); eq(rows[3].total, 10, "of ten")
+    eq(Ids(4), "u1 u2 x1 u3 x2 u7", "the five biggest upgrades, poor buys or not, and the best value under them")
+    eq(rows[4].entry.pick, "UPGRADE", "best upgrade marked"); eq(rows[9].entry.pick, "VALUE", "best value marked")
+    -- (u8 costs the least per point of them all, and has no row: it is neither.)
 
-    -- Nothing is cheaper than the best value: its spare row goes to the steps below the best upgrade.
-    many.u8 = nil
+    -- Of two offers that gain the same the cheaper stands first, and so has the last of the five rows.
+    many.e = offer("e", 45, 600000)
     rows = ns.Results.Build(many, ctx, { money = 1e9, limit = 5 })
-    eq(Ids(4), "u1 u2 u3 u4 u7", "best value last")
+    eq(Ids(4), "u1 u2 x1 u3 x2 u7", "x2 and not e, which gains as much for more")
+    eq(rows[3].total, 11, "of eleven")
+    many.e = nil
 
-    -- Few offers worth looking at: the block is not padded with pointless ones.
-    many.u7 = nil
-    many.u2.buyout = 100            -- +38 for a silver beats everything below it
+    -- The best value is one of the five: they are all there is to show.
+    many.u2.buyout = 100            -- +38 for a silver: no cheaper point in the slot
     rows = ns.Results.Build(many, ctx, { money = 1e9, limit = 5 })
-    eq(Ids(4), "u1 u2", "only the best upgrade and the best value are left")
-    eq(rows[3].shown, 2, "two rows"); eq(rows[3].total, 8, "of eight"); eq(rows[5].entry.pick, "VALUE", "u2 is the best value")
+    eq(Ids(4), "u1 u2 x1 u3 x2", "five rows, the best value among them")
+    eq(rows[3].shown, 5, "five rows"); eq(rows[3].total, 10, "of ten"); eq(rows[5].entry.pick, "VALUE", "u2 is the best value")
 
     rows = ns.Results.Build(many, ctx, { money = 1e9 })
-    eq(rows[3].shown, 8, "no limit: everything listed"); eq(#rows, 2 + 1 + 8, "row count without the limit")
-    eq(Ids(4), "u1 u2 x1 u3 x2 u4 u5 u6", "in order of size")
+    eq(rows[3].shown, 10, "no limit: everything listed"); eq(#rows, 2 + 1 + 10, "row count without the limit")
+    eq(Ids(4), "u1 u2 x1 u3 x2 u4 u5 u6 u7 u8", "in order of size")
+    eq(rows[5].entry.pick, "VALUE", "with the same pick: the limit has no say in the picks")
+
+    -- No more offers than rows: all of them, and nothing for the header to count.
+    rows = ns.Results.Build(offers, ctx, { money = 1e9, limit = 5 })
+    eq(Ids(4), "a b c", "three chests, three rows"); eq(rows[3].shown, 3, "all three"); eq(rows[3].total, 3, "of three")
+
+    -- What a player wrote of the list: "it shows like top 2, then 2 middle of the pack, then
+    -- the best value". Ten chests, of which g2, g6, g8 and g9 each cost less per point than
+    -- everything stronger. By the rule the list had then only those had rows beside the best
+    -- upgrade: g1 g2 g6 g8 g9. The five biggest upgrades are g1 to g5.
+    local GOLD = 10000
+    local wrote = {
+        g1 = offer("g1", 50, 40 * GOLD),    -- +40, a gold a point
+        g2 = offer("g2", 48, 30 * GOLD),    -- +38, 79 silver a point
+        g3 = offer("g3", 46, 35 * GOLD),    -- +36, 97 silver
+        g4 = offer("g4", 44, 32 * GOLD),    -- +34, 94 silver
+        g5 = offer("g5", 42, 28 * GOLD),    -- +32, 88 silver
+        g6 = offer("g6", 35, 15 * GOLD),    -- +25, 60 silver
+        g7 = offer("g7", 32, 16 * GOLD),    -- +22, 73 silver
+        g8 = offer("g8", 28, 9 * GOLD),     -- +18, 50 silver
+        g9 = offer("g9", 22, 1 * GOLD),     -- +12, 8 silver: the best value
+        g10 = offer("g10", 13, 50 * 100),   -- +3, 17 silver
+    }
+    rows = ns.Results.Build(wrote, ctx, { money = 1e9, limit = 5 })
+    eq(Ids(2), "g1 g2 g3 g4 g5 g9", "the real top five, and the best value")
+    eq(rows[1].shown, 6, "six rows"); eq(rows[1].total, 10, "of ten")
+    eq(rows[2].entry.pick, "UPGRADE", "the best upgrade first"); eq(rows[7].entry.pick, "VALUE", "the best value last")
+    for i = 3, 6 do eq(rows[i].entry.pick, nil, "no pick between them: " .. rows[i].entry.offer.id) end
 
     -- Small numbers keep two digits, so that a tiny upgrade does not read as zero.
     eq(ns.Num(12.44), "12.4", "one decimal"); eq(ns.Num(7), "7", "whole number"); eq(ns.Num(0), "0", "zero")
@@ -885,6 +917,187 @@ function scenarios.scan_lazy()
     eq(W.AH.calls.browse, 5, "five scans, five browse queries")
     realPrint(string.format("      item searches: %d with both filters off, %d by default, %d with only the price filter, %d with only top five",
         all, used[1], used[2], used[3]))
+end
+
+-- "Top 5 per slot" as a player asked for it: "real top 5 + best value". Eleven chests against a
+-- worn one worth 10, in the order of what they add:
+--   Top Chest 1..5   +40 to +32, from 79 silver to a gold a point: the five biggest upgrades
+--   Mid Chest A      +25 for 15 gold, 60 silver a point: less than any of those five
+--   Mid Chest B      +22 for 16 gold, 73 silver a point: more than A
+--   Resale Chest     +20 for 14 gold, 70 silver a point: more than A as well. A vendor pays
+--                    13 gold 50 for it, and so it costs 2 silver 50 a point in the end
+--   Mid Chest C      +18 for 9 gold, 50 silver a point
+--   Value Chest      +12 for a gold, 8 silver a point: the best value by buyout
+--   Tiny Chest       +3 for 10 copper: the cheapest point of all, and under a quarter of +40
+local function TopFiveWorld()
+    local GOLD = 10000
+    W.AddItem({ id = 100, name = "Worn Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 10, level = 5 })
+    W.equipped[5] = W.Link(100)
+    local chests = {
+        { "Top Chest 1", 50, 40 * GOLD }, { "Top Chest 2", 48, 30 * GOLD }, { "Top Chest 3", 46, 35 * GOLD },
+        { "Top Chest 4", 44, 32 * GOLD }, { "Top Chest 5", 42, 28 * GOLD },
+        { "Mid Chest A", 35, 15 * GOLD }, { "Mid Chest B", 32, 16 * GOLD },
+        { "Resale Chest", 30, 14 * GOLD, 13 * GOLD + 5000 },
+        { "Mid Chest C", 28, 9 * GOLD }, { "Value Chest", 22, 1 * GOLD }, { "Tiny Chest", 13, 10 },
+    }
+    for i, def in ipairs(chests) do
+        W.AddItem({ id = 300 + i, name = def[1], equipLoc = "INVTYPE_CHEST", subClassID = 3, value = def[2], level = 8, sell = def[4] })
+        W.AddAuction(300 + i, def[3])
+    end
+end
+
+-- The list under "Top 5 per slot" is the five biggest upgrades of a slot and its best value,
+-- and the scan looks up no price that such a list cannot show.
+function scenarios.scan_top_five()
+    TopFiveWorld()
+    local GOLD = 10000
+    W.player.money = 100 * GOLD
+    LoadAddon()
+    local R, S = ns.Results, ns.Scanner
+
+    -- The question the scan asks of a slot before an item search (Results.LeftOut): has the
+    -- list no row for an item that gives so much and costs so much at the least, whatever
+    -- it turns out to cost? Asked of five chests known to be for sale, +40 to +32, each for a
+    -- gold a point.
+    local ctx = { equipped = { [5] = { link = "WORN", value = 10, invType = "INVTYPE_CHEST", itemID = 1 } } }
+    local function offer(id, value, buyout)
+        return { id = id, name = id, value = value, buyout = buyout, invType = "INVTYPE_CHEST", itemID = 100, count = 1 }
+    end
+    local known = {}
+    for i = 1, 5 do known["v" .. i] = offer("v" .. i, 52 - 2 * i, (42 - 2 * i) * GOLD) end
+    local five = R.Collect(known, ctx, { money = 1e12 }).CHEST
+    eq(#five, 5, "five chests known")
+    eq(R.LeftOut(five, 33, 1e12, false, 5), false, "+33 is one of the five biggest upgrades whatever it costs")
+    eq(R.LeftOut(five, 30, 30 * GOLD, false, 5), true, "+30 for a gold a point at the least: sixth by its gain, and no cheaper a point than the five")
+    eq(R.LeftOut(five, 30, 30 * GOLD - 1, false, 5), false, "a copper less and it may be the best value, which has a row")
+    eq(R.LeftOut(five, 9, 1, false, 5), true, "+9 is under a quarter of +40: no best value, were it for a copper")
+    eq(R.LeftOut(five, 10, 1, false, 5), false, "+10 is a quarter of it: for a copper it would be the best value")
+    -- As much as the fifth of them gives, +32 for 32 gold: which of the two stands first is a
+    -- matter of the price, and at the same price of neither.
+    eq(R.LeftOut(five, 32, 32 * GOLD + 1, false, 5), true, "the fifth one's gain for a copper more: after it, and dearer a point")
+    eq(R.LeftOut(five, 32, 32 * GOLD, false, 5), false, "for the same price nothing says that it stands after the fifth")
+    eq(R.LeftOut(five, 32, 32 * GOLD - 1, false, 5), false, "and for less it stands before it")
+    -- Four known: the fifth row is still to be had.
+    known.v5 = nil
+    eq(R.LeftOut(R.Collect(known, ctx, { money = 1e12 }).CHEST, 9, 1e12, false, 5), false, "four chests known: any fifth has a row")
+    -- A cheaper point in a weaker chest proves nothing. w gives +12 for a copper a point, u
+    -- +20 for 50 silver a point, less than the five: w is the best value, and u has no row.
+    -- But u may not be passed over: a chest of +60 found later asks +15 of a best value,
+    -- w falls short of that, and the row goes to u.
+    known.v5 = offer("v5", 42, 32 * GOLD)
+    known.w = offer("w", 22, 12)
+    local six = R.Collect(known, ctx, { money = 1e12 }).CHEST
+    eq(R.LeftOut(six, 20, 10 * GOLD, false, 5), false, "a weaker chest that costs less a point does not rule u out")
+    local function Ids(offers)
+        local out = {}
+        for _, row in ipairs(R.Build(offers, ctx, { money = 1e12, limit = 5 })) do
+            if row.kind == "item" then out[#out + 1] = row.entry.offer.id .. (row.entry.pick and "!" .. row.entry.pick or "") end
+        end
+        return table.concat(out, " ")
+    end
+    known.u = offer("u", 30, 10 * GOLD)
+    eq(Ids(known), "v1!UPGRADE v2 v3 v4 v5 w!VALUE", "as things stand the weak chest is the best value, and u has no row")
+    known.z = offer("z", 70, 90 * GOLD)
+    eq(Ids(known), "z!UPGRADE v1 v2 v3 v4 u!VALUE", "with a chest of +60 in the slot the row is u's")
+
+    -- The scan. Reference: "top five" off, so every price is looked up.
+    W.OpenAuctionHouse()
+    -- The rows of the chest slot under "top five", top to bottom, by buyout or by net cost;
+    -- of the offers the scan has, or of a list of the test's own.
+    local function Shown(net, offers)
+        local rows = R.Build(offers or S.offers, S.ctx, { money = GetMoney(), affordableOnly = true, net = net, limit = R.TOP_COUNT })
+        local out = {}
+        for _, row in ipairs(rows) do
+            if row.kind == "item" then out[#out + 1] = row.entry.offer.name .. (row.entry.pick and " (" .. row.entry.pick .. ")" or "") end
+        end
+        return table.concat(out, ", "), rows[1]
+    end
+    local function Scan(topOnly)
+        SetView(true, topOnly)
+        W.RunUntil(function() return W.AH.ready end, 5)
+        local before = W.AH.calls.search
+        ScanToEnd()
+        return W.AH.calls.search - before
+    end
+    local function More()
+        local before = W.AH.calls.search
+        if not S.Demand() then return 0 end
+        W.RunUntil(function() return S.state == "idle" end, 600)
+        return W.AH.calls.search - before
+    end
+    local all = Scan(false)
+    eq(all, 11, "eleven chests, eleven item searches"); eq(OfferCount(), 11, "and eleven offers")
+    local full = {}
+    for id, found in pairs(S.offers) do full[id] = found end
+    local FIVE = "Top Chest 1 (UPGRADE), Top Chest 2, Top Chest 3, Top Chest 4, Top Chest 5"
+    local want = { buyout = FIVE .. ", Value Chest (VALUE)", net = FIVE .. ", Resale Chest (VALUE)" }
+    local list, header = Shown(false)
+    eq(list, want.buyout, "the five biggest upgrades, whatever a point of them costs, and the best value")
+    eq(header.shown, 6, "six rows"); eq(header.total, 11, "of eleven")
+    eq(Shown(true), want.net, "by net cost the same five, and the best value by that")
+
+    -- Scanned with "top five" on: the same two lists for fewer searches. Two chests are not
+    -- looked up. Mid Chest B is the seventh by its gain and at the least dearer a point than
+    -- Mid Chest A, by buyout and by net cost. Tiny Chest is the last by its gain and adds too
+    -- little to be the best value. Mid Chest A and C are looked up: each might have been the
+    -- best value. So is Resale Chest, though A costs less a point by buyout: by net cost it
+    -- may be the best value, and it is.
+    local used = Scan(true)
+    eq(used, 9, "nine item searches of eleven"); eq(S.stats.skipped, 2, "statistics: two candidates skipped")
+    eq(Offer("Mid Chest B"), nil, "no price for a chest that is neither among the five nor the best value")
+    eq(Offer("Tiny Chest"), nil, "nor for one that adds too little to be the best value, cheap as its point is")
+    check(Unsure("Mid Chest B") ~= nil and Unsure("Tiny Chest") ~= nil, "both are counted at the lowest price of their rows")
+    check(Offer("Mid Chest A") ~= nil and Offer("Mid Chest C") ~= nil and Offer("Resale Chest") ~= nil, "what might have been the best value has its price")
+    list, header = Shown(false)
+    eq(list, want.buyout, "the same list by buyout as the full scan")
+    eq(header.shown, 6, "six rows"); eq(header.total, 11, "of eleven: the two not looked up are counted")
+    eq(Shown(true), want.net, "and the same list by net cost")
+    eq(S.Demand(), false, "nothing more is needed for the list as it is")
+
+    -- The two that were passed over could not have had a row, whatever a search had found:
+    -- at the lowest price of its row or at any price above it each leaves both lists as they
+    -- are, rows and picks.
+    local function With(name, buyout)
+        local offers = {}
+        for id, found in pairs(S.offers) do offers[id] = found end
+        local priced = {}
+        for key, value in pairs(Unsure(name)) do priced[key] = value end
+        priced.buyout, priced.unsure = buyout, nil
+        offers[priced.id] = priced
+        return offers
+    end
+    for _, name in ipairs({ "Mid Chest B", "Tiny Chest" }) do
+        local least = Unsure(name).buyout
+        for _, buyout in ipairs({ least, least + 1, least * 2, 99 * GOLD }) do
+            eq(Shown(false, With(name, buyout)), want.buyout, name .. " for " .. buyout .. ": no row by buyout")
+            eq(Shown(true, With(name, buyout)), want.net, name .. " for " .. buyout .. ": no row by net cost")
+        end
+    end
+    -- That rests on the lowest price of the row. For a gold, which its row rules out, Mid
+    -- Chest B would have been the best value. Tiny Chest has no row at any price.
+    eq(Shown(false, With("Mid Chest B", 1 * GOLD)), FIVE .. ", Mid Chest B (VALUE)", "under its row's lowest price the chest would have had a row")
+    eq(Shown(false, With("Tiny Chest", 1)), want.buyout, "the tiny chest for a copper: no row")
+
+    -- The list starts to need a price it did not have. With 29 gold four of the five biggest
+    -- upgrades cost too much, and Mid Chest B is one of the five that are left: its price is
+    -- asked for, and no other. Tiny Chest still has six before it.
+    W.player.money = 29 * GOLD
+    eq(More(), 1, "29 gold: one item search"); eq(W.AH.calls.browse, 2, "sent as a follow-up, not by a new scan")
+    check(Offer("Mid Chest B") ~= nil, "for Mid Chest B"); eq(Offer("Tiny Chest"), nil, "and not for Tiny Chest")
+    eq(Shown(false), "Top Chest 5 (UPGRADE), Mid Chest A, Mid Chest B, Resale Chest, Mid Chest C, Value Chest (VALUE)",
+        "the five biggest upgrades for 29 gold, and the best value")
+    eq(Shown(false), Shown(false, full), "as the scan that looked everything up has it")
+    eq(Shown(true), "Top Chest 5 (UPGRADE), Mid Chest A, Mid Chest B, Resale Chest (VALUE), Mid Chest C", "by net cost the best value is one of the five")
+    eq(Shown(true), Shown(true, full), "the same there")
+    W.player.money = 100 * GOLD
+    eq(More(), 0, "a hundred gold again: every price that list needs is known")
+    eq(Shown(false), want.buyout, "and it is the list it was")
+
+    -- "Top five" off: the one price still missing is looked up.
+    SetView(true, false)
+    eq(More(), 1, "'top five' off: one search, for Tiny Chest")
+    eq(used + 2, all, "in all each chest was searched once")
+    eq(UnsureCount(), 0, "no price in the list that was not looked up")
 end
 
 -- If the rows' lowest price turns out not to be a floor under their buyouts, the scan notices
@@ -1361,10 +1574,9 @@ function scenarios.scan_listed()
     W.RunUntil(function() return UnsureCount() > 0 end, 10)
     W.Run(0.1)
     eq(S.CanBuy(), true, "a purchase can begin while the prices are looked up")
-    -- (For a moment the chest that takes bids alone, listed at a copper, is the one row of its
-    -- slot: no chest can stand beside it at that price. Its search comes first, the biggest
-    -- upgrade there is, and takes it out.)
-    check(Row("Bid Only Chest") ~= nil and Row("Good Chest") == nil, "the chest slot for now: the one listed at a bid")
+    -- (For a moment the chest that takes bids alone is in the list at a copper, and the good
+    -- chest beside it at its bid: the slot has no more than five chests, and a row for each.)
+    check(Row("Bid Only Chest") ~= nil and Row("Good Chest") ~= nil, "the chest slot for now: the ones listed at a bid among its rows")
     local good = Unsure("Good Chest")
     eq(good.buyout, 1, "the good chest is still at the bid")
     S.Buy(good)
@@ -2446,7 +2658,8 @@ function scenarios.ui()
         W.AddItem({ id = 900 + i, name = "Legs " .. i, equipLoc = "INVTYPE_LEGS", subClassID = 3, value = i, level = 5 })
         W.AddAuction(900 + i, i * i)     -- i copper per point: weaker legs are cheaper per point
     end
-    -- Weaker than Legs 40 and far dearer per point: "top five" never shows it.
+    -- Weaker than twenty of them and far dearer per point than Legs 40: neither one of the
+    -- five biggest upgrades nor the best value, so "top five" never shows it.
     W.AddItem({ id = 990, name = "Poor Deal Legs", equipLoc = "INVTYPE_LEGS", subClassID = 3, value = 20, level = 5 })
     W.AddAuction(990, 5000)
     ns.Scanner.offers, ns.Scanner.ctx, ns.Scanner.finishedAt = {}, nil, nil
@@ -2455,28 +2668,32 @@ function scenarios.ui()
     W.Run(0.3)
     eq(dropdown:GetText(), "Arms", "the dropdown follows a scale changed elsewhere")
 
-    -- Top five: the forty legs shrink to five, and the header says how many there are.
-    -- Best upgrade (40) and two steps down, best value (10: the cheapest per point that gives
-    -- at least a quarter of +40) and one step down.
+    -- Top five: the forty legs shrink to six, and the header says how many there are. The
+    -- five biggest upgrades (40 down to 36), and under them the best value (10: the cheapest
+    -- per point that gives at least a quarter of +40).
     local legs
     rows = Rows()
     for i, row in ipairs(rows) do
         if Data(row).kind == "header" and Data(row).group == "LEGS" then legs = i end
     end
     eq(rows[legs].Title:GetText(), "LEGS", "the legs block")
-    eq(rows[legs].Count:GetText(), "5 of about 41", "its header counts the cut and the one not looked up")
+    eq(rows[legs].Count:GetText(), "6 of about 41", "its header counts the cut and the ones not looked up")
     eq(Offer("Poor Deal Legs"), nil, "no item search for an offer the list would hide")
+    -- (Nor for the nine weakest: cheaper per point than anything, and too small a gain to be
+    -- the best value. The legs from 35 down to 10 each might have been it, and were looked up.)
+    eq(Offer("Legs 9"), nil, "nor for legs that add too little to be the best value"); check(Unsure("Legs 9") ~= nil, "which are counted at their row's price")
+    check(Offer("Legs 35") ~= nil and Offer("Legs 10") ~= nil, "the legs that might have been the best value have their prices")
     eq(rows[legs + 1].Name:GetText(), "|cff1eff00Legs 40|r", "best legs first")
-    eq(rows[legs + 3].Name:GetText(), "|cff1eff00Legs 38|r", "two steps below the best")
-    eq(rows[legs + 4].Name:GetText(), "|cff1eff00Legs 10|r", "best value")
-    eq(rows[legs + 4].Pick.Text:GetText(), "Best value", "marked as best value")
-    eq(rows[legs + 3].Pick:IsShown(), false, "no plate on a row that is neither pick")
-    eq(rows[legs + 4].Price:GetAmount(), 100, "for a silver: ten copper a point, the least of them all")
-    eq(rows[legs + 5].Name:GetText(), "|cff1eff00Legs 9|r", "one step below the best value")
-    check(rows[legs + 6] == nil or Data(rows[legs + 6]).kind == "header", "no sixth legs row")
+    eq(rows[legs + 5].Name:GetText(), "|cff1eff00Legs 36|r", "the fifth of them four steps below the best")
+    eq(rows[legs + 6].Name:GetText(), "|cff1eff00Legs 10|r", "then the best value")
+    eq(rows[legs + 6].Pick.Text:GetText(), "Best value", "marked as best value")
+    eq(rows[legs + 5].Pick:IsShown(), false, "no plate on a row that is neither pick")
+    eq(rows[legs + 6].Price:GetAmount(), 100, "for a silver: ten copper a point, the least of those that add enough")
+    check(rows[legs + 7] == nil or Data(rows[legs + 7]).kind == "header", "no seventh legs row")
     topBox:Tooltip()
     eq(GameTooltip._lines[1].text, "Top 5 per slot", "the filter's tooltip is titled with its label")
-    check(GameTooltip._lines[2].text:find("Up to 5 options", 1, true) ~= nil, "and explains it")
+    check(GameTooltip._lines[2].text:find("The 5 biggest upgrades in each slot.", 1, true) ~= nil, "and explains it")
+    check(GameTooltip._lines[2].text:find("The best value is listed as well", 1, true) ~= nil, "with the row the best value has besides")
 
     -- Unticked, everything is listed again.
     topBox:Click()
@@ -2870,9 +3087,16 @@ end
 -- The strip under the list, and the list showing the set.
 function scenarios.plan_ui()
     StandardWorld()
-    -- A chest that "top five" has no use for: weaker than the Good Chest and dearer per point.
+    -- A chest that "top five" has no row for: the weakest of six, and dearer per point than the
+    -- Good Chest. Three of the five before it are weaker than the Good Chest and dearer, so
+    -- no set has a use for them, and dearer than the plain one, which a set can need for all
+    -- of them.
     W.AddItem({ id = 220, name = "Plain Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 13, level = 8 })
     W.AddAuction(220, 2000)
+    for i = 1, 3 do
+        W.AddItem({ id = 220 + i, name = "Dear Chest " .. i, equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 13 + i, level = 8 })
+        W.AddAuction(220 + i, 5000 + 500 * i)
+    end
     LoadAddon()
     W.OpenAuctionHouse()
     local S = ns.Scanner
@@ -3092,12 +3316,22 @@ function scenarios.net()
     eq(Read(), "a@4000!BOTH b@18000 c@6000", "by net cost: the dear chest is the best value too")
     near(rows[2].entry.costPer, 100, "a point of it costs a silver in the end")
     eq(rows[2].entry.offer.buyout, 100000, "the offer keeps its buyout")
-    -- "Top N per slot" goes by the same price: nothing weaker is cheaper per point than the dear chest.
+    -- "Top N per slot" has a row for each of three chests, whichever price the picks go by.
     rows = R.Build(offers, ctx, { money = 1e9, net = true, limit = 5 })
-    eq(Read(), "a@4000!BOTH", "top five by net cost: the dear chest alone")
-    eq(rows[1].shown, 1, "one row"); eq(rows[1].total, 3, "of three")
+    eq(Read(), "a@4000!BOTH b@18000 c@6000", "top five by net cost: the three of them")
+    eq(rows[1].shown, 3, "three rows"); eq(rows[1].total, 3, "of three")
     rows = R.Build(offers, ctx, { money = 1e9, limit = 5 })
-    eq(Read(), "a@100000!UPGRADE b@20000 c@6000!VALUE", "top five by buyout: each cheaper per point than the one above")
+    eq(Read(), "a@100000!UPGRADE b@20000 c@6000!VALUE", "top five by buyout: the same three")
+    -- With more than five the row it keeps for the best value goes by the same price as the
+    -- pick. Five chests stronger than those, which no vendor buys: the five rows either way.
+    local seven = { a = offers.a, c = offers.c }
+    for i = 1, 5 do seven["s" .. i] = offer("s" .. i, 56 - i, 510000 - 10000 * i, 0) end   -- +45 to +41
+    rows = R.Build(seven, ctx, { money = 1e9, limit = 5 })
+    eq(Read(), "s1@500000!UPGRADE s2@490000 s3@480000 s4@470000 s5@460000 c@6000!VALUE", "by buyout the sixth row is the cheap chest's")
+    eq(rows[1].shown, 6, "six rows"); eq(rows[1].total, 7, "of seven")
+    rows = R.Build(seven, ctx, { money = 1e9, net = true, limit = 5 })
+    eq(Read(), "s1@500000!UPGRADE s2@490000 s3@480000 s4@470000 s5@460000 a@4000!VALUE", "by net cost it is the dear chest's")
+    eq(rows[1].shown, 6, "six rows there too")
     -- What can be paid for is a matter of the buyout: ten gold are not there, whatever comes back later.
     local summary
     rows, summary = R.Build(offers, ctx, { money = 50000, affordableOnly = true, net = true })
@@ -3115,22 +3349,25 @@ function scenarios.net()
     -- An offer below the vendor's price costs nothing a point: no better value than that.
     offers = { a = offer("a", 50, 100000, 96000), f = offer("f", 40, 300, 500), g = offer("g", 35, 300, 500) }
     rows = R.Build(offers, ctx, { money = 1e9, net = true, limit = 5 })
-    eq(Read(), "a@4000!UPGRADE f@0!VALUE", "free in the end: the best value, and nothing weaker has a place beside it")
+    eq(Read(), "a@4000!UPGRADE f@0!VALUE g@0", "free in the end: the best value, and of two that are free the stronger")
 
-    -- What the scanner asks before an item search: would "top five" hide an item whatever its
-    -- price turns out to be? It asks that of the list by net cost and of the one by buyout, and
-    -- the least the item can cost is a cost of the same kind.
+    -- What the scanner asks before an item search: would "top N" leave an item out whatever
+    -- its price turns out to be? It asks that of the list by net cost and of the one by buyout,
+    -- and the least the item can cost is a cost of the same kind. Asked here of a list with a
+    -- row for the one biggest upgrade and the best value, where one stronger chest stands
+    -- before the item: what is left to prove is that it cannot be the best value.
     local entries = R.Collect({ a = offer("a", 50, 100000, 96000) }, ctx, { money = 1e9 }).CHEST
-    eq(R.Dominated(entries, 20, 2000, true), true, "by net cost, +20 for a silver a point at the least: no cheaper than the dear chest")
-    eq(R.Dominated(entries, 20, 1999, true), false, "a copper less and it may be worth a row")
-    eq(R.Dominated(entries, 40, 4001, true), true, "the same gain for more")
-    eq(R.Dominated(entries, 40, 4000, true), false, "but not for the same")
-    eq(R.Dominated(entries, 20, 2000, false), false, "by buyout the dear chest rules that item out no more")
-    eq(R.Dominated(entries, 20, 50000, false), true, "+20 for 25 silver a point at the least: by buyout no cheaper than it")
-    eq(R.Dominated(entries, 20, 49999, false), false, "a copper less and it may be worth a row there too")
+    eq(R.LeftOut(entries, 20, 2000, true, 1), true, "by net cost, +20 for a silver a point at the least: no cheaper than the dear chest")
+    eq(R.LeftOut(entries, 20, 1999, true, 1), false, "a copper less and it may be the best value")
+    eq(R.LeftOut(entries, 40, 4001, true, 1), true, "the same gain for more")
+    eq(R.LeftOut(entries, 40, 4000, true, 1), false, "but not for the same")
+    eq(R.LeftOut(entries, 20, 2000, false, 1), false, "by buyout the dear chest rules that item out no more")
+    eq(R.LeftOut(entries, 20, 50000, false, 1), true, "+20 for 25 silver a point at the least: by buyout no cheaper than it")
+    eq(R.LeftOut(entries, 20, 49999, false, 1), false, "a copper less and it may be the best value there too")
     entries = R.Collect({ a = offer("a", 50, 100000, 96000) }, ctx, { money = 1e9, net = true }).CHEST
-    eq(R.Dominated(entries, 20, 2000, false), false, "the answer is the same for entries that were priced at their net cost")
-    eq(R.Dominated(entries, 20, 2000, true), true, "either way")
+    eq(R.LeftOut(entries, 20, 2000, false, 1), false, "the answer is the same for entries that were priced at their net cost")
+    eq(R.LeftOut(entries, 20, 2000, true, 1), true, "either way")
+    eq(R.LeftOut(entries, 20, 2000, true, 2), false, "a list with rows for the two biggest upgrades has one for it, whatever it costs")
 
     -- A set is chosen by its buyouts, and says what it costs in the end.
     local plan = ns.Plan
@@ -3221,9 +3458,8 @@ function scenarios.net_ui()
     W.items["200:0"].sell = 1000
     W.items["211:0"].sell = 0
     W.items["210:0"].sell = 900
-    -- A chest that adds little, +4 for 18 silver. By buyout that is less per point than the
-    -- good chest's 50 copper, so "top five" lists it; too small a gain to be the best value.
-    -- By net cost the robe costs less per point, and the list has no use for it.
+    -- A chest that adds little, +4 for 18 silver: too small a gain to be the best value by
+    -- either price. One of three chests, it has its row under "top five" all the same.
     W.AddItem({ id = 221, name = "Slight Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 14, level = 8 })
     W.AddAuction(221, 1800)
     LoadAddon()
@@ -3337,9 +3573,9 @@ function scenarios.net_ui()
     eq(robe.Price:GetAmount(), 90000, "the robe's buyout, where it was"); eq(robe.Net:GetAmount(), 2000, "and its net cost")
     eq(robe.Net._font, PriceFontWhite, "the net cost in white: the picks go by it"); eq(robe.Price._font, PriceFontGray, "the buyout in grey")
     eq(robe.Pick.Text:GetText(), "Best of both", "the strongest chest is the cheapest per point too: 20 silver for +20")
-    eq(Row("Good Chest"), nil, "top five has no use for the good chest now: weaker, and 30 silver for +8")
-    eq(Row("Slight Chest"), nil, "nor for the slight one: 17 silver for +4")
-    eq(Heading("CHEST").Count:GetText(), "1 of 3", "the heading counts them")
+    eq(Row("Good Chest").Pick:IsShown(), false, "the good chest is no pick now, at 30 silver for +8, and keeps its row: one of the five biggest upgrades")
+    check(Row("Slight Chest") ~= nil, "as the slight one does, 17 silver for +4")
+    eq(Heading("CHEST").Count:GetText(), "", "three chests, three rows: nothing for the heading to count")
     eq(Row("Helm").Price:GetAmount(), 2500, "the helm's buyout"); eq(Row("Helm").Net:GetAmount(), 2500, "and all of it again")
     eq(Row("Helm").Upgrade:GetText(), "New", "the gains are what they were")
 
@@ -3351,24 +3587,23 @@ function scenarios.net_ui()
     robe:GetScript("OnLeave")(robe)
 
     -- A scan with the box ticked sends the searches a scan without it sends: it looks up what
-    -- the list needs either way, so that the box can be ticked and unticked without one. (The
-    -- list by net cost has no use for the slight chest; its price is looked up for the list
-    -- by buyout, which has a row for it.)
+    -- the list needs either way, so that the box can be ticked and unticked without one. (In
+    -- a bigger world the two lists differ by a row, the best value's: see the scenario "net".)
     eq(searches, 9, "the scan by buyout: nine item searches")
     W.RunUntil(function() return W.AH.ready end, 5)
     ScanToEnd()
     W.Run(0.3)
     eq(W.AH.calls.search - searches, 9, "the scan by net cost: the same nine")
     check(Offer("Slight Chest") ~= nil, "the slight chest's price is known")
-    eq(Row("Slight Chest"), nil, "and the list by net cost has no row for it")
-    eq(Heading("CHEST").Count:GetText(), "1 of 3", "its heading counts it")
+    check(Row("Slight Chest") ~= nil, "and the list by net cost has its row")
+    eq(Row("Great Chest").Pick.Text:GetText(), "Best of both", "over it the robe, both picks by net cost")
     Tick(net, false)
     eq(W.AH.calls.search - searches, 9, "unticked: no search")
     check(Row("Slight Chest") ~= nil, "and the slight chest is in the list by buyout")
     eq(Row("Good Chest").Pick.Text:GetText(), "Best value", "under the best value")
     Tick(net, true)
     eq(W.AH.calls.search - searches, 9, "ticked again: no search")
-    eq(Row("Slight Chest"), nil, "and it is out of the list once more")
+    eq(Row("Good Chest").Pick:IsShown(), false, "and the good chest is no pick once more")
 
     -- The best set for a budget is chosen by buyouts, as ever. Its rows have both prices as
     -- the list's do, and the strip says both sums, with the line ticked or not.
@@ -9547,9 +9782,14 @@ function scenarios.wants()
     Wants.SetGain(me, false)
     eq(More(), 1, "nothing asked any more: the fair chest's price is looked up")
 
-    -- "Top 5 per slot" is judged among what the character would have. The leather cap is
-    -- stronger than the mail helm and cheaper per point, so top five has no use for the helm;
-    -- with mail alone the helm is the best there is for the head.
+    -- "Top 5 per slot" is judged among what the character would have. With three more for the
+    -- head, of leather and of cloth, the mail helm is the weakest of six and the dearest per
+    -- point: five stand before it, the leather cap among them, and top five has no row for
+    -- it. With mail alone the helm is the best there is for the head.
+    for i, def in ipairs({ { "Bear Cap", 2, 17, 500 }, { "Wolf Cap", 2, 16, 400 }, { "Linen Hood", 1, 13, 250 } }) do
+        W.AddItem({ id = 250 + i, name = def[1], equipLoc = "INVTYPE_HEAD", subClassID = def[2], value = def[3], level = 9 })
+        W.AddAuction(250 + i, def[4])
+    end
     SetView(false, true)
     Scan()
     eq(Offer("Helm"), nil, "top five: no price for the helm"); check(Offer("Hide Cap") ~= nil, "the cap outdoes it")
@@ -10004,7 +10244,7 @@ end
 -- kept with the character the list is for (Wants.lua)
 ---------------------------------------------------------------------------
 -- The world of the wants, and one chest more: weaker than the good chest (+60% against +80%)
--- and dearer per point, so "top five" has no use for it while the good chest is in the list.
+-- and dearer per point, so it is not the best value while the good chest is in the list.
 --   chest   Great Chest 9g, Good Chest 40s, Plain Chest 35s, Fine Chest 15s, Fair Chest 3s
 --   head    Helm 25s, Hide Cap 3s, Silk Hood 2s
 --   others  Big Axe 30s, New Ring 8s, Shield 7s, Wool Cloak 1s 50c
@@ -10158,9 +10398,14 @@ function scenarios.price_max()
     eq(More(), 2, "unticked: the two prices still missing are looked up, the robe's and the plain chest's")
     eq(OfferCount(), 12, "and every upgrade has its price"); eq(Shown(), EVERYTHING, "and is listed")
 
-    -- "Top 5 per slot" is judged among what the sum lets through. The good chest outdoes the
-    -- plain one; with no more than 36 silver to pay the good chest is out, and the plain one
-    -- is the best chest there is.
+    -- "Top 5 per slot" is judged among what the sum lets through. With three more chests, each
+    -- stronger than the plain one and dearer, five stand before it, and the good chest costs
+    -- less per point: top five has no row for it. With no more than 36 silver to pay those
+    -- five are out, and the plain one is the best chest there is.
+    for i = 1, 3 do
+        W.AddItem({ id = 250 + i, name = "Dear Chest " .. i, equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 18 + i, level = 9 })
+        W.AddAuction(250 + i, (40 + 5 * i) * SILVER)
+    end
     SetView(false, true)
     Scan()
     eq(Offer("Plain Chest"), nil, "top five: no price for the plain chest"); check(Offer("Good Chest") ~= nil, "the good chest outdoes it")
