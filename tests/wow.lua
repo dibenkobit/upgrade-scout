@@ -1379,6 +1379,7 @@ function W.Logout()
     W.ResetPawn()
     W.ResetCompanion()
     W.ResetLeveling()
+    W.ResetEllesmere()
 end
 
 -- Another character of the account comes into the world: `player` as W.player, `equipped`
@@ -2802,6 +2803,207 @@ end
 
 function W.EnterLeveling()
     if W.leveling then LevelingEnter() end
+end
+
+---------------------------------------------------------------------------
+-- EllesmereUI's Bags module, for the scenarios that have it installed (W.InstallEllesmere).
+-- Written after EllesmereUI Bags 9.9.5: the place it keeps for addons that draw on its
+-- slots, and as much of its windows as it takes to have them drawn. Each piece names the
+-- file and the lines of theirs it follows.
+--   * EUI_Bags, the bag window, is a global: a frame made hidden as the module's first file
+--     runs (EllesmereUIBags.lua:10-12). The bank window is a frame by the name of
+--     EUI_BankFrame, hidden too (EllesmereUIBags_Bank.lua:201, 211).
+--   * EUI_Bags.itemOverlayIcons is its list of other addons' functions, by name;
+--     RegisterItemOverlayIcon(name, func) and UnregisterItemOverlayIcon(name) write in it,
+--     and RunItemOverlays(button, data) calls each on its own (EUI_Bags_Slots.lua:741-757).
+--   * A slot is a frame with an item button on it, out of a pool that only grows
+--     (EllesmereUIBags_Grid.lua:75-85, 132; the bank's: EllesmereUIBags_Bank.lua:1520-1525,
+--     1549). The button has _textOverlay, a frame of its own over the icon, three levels
+--     above it (EUI_Bags_Shared.lua:411-414). Which slot of which bag a button shows is
+--     told by its number and its frame's (EllesmereUIBags_Grid.lua:249-250).
+--   * EUI_Bags:RefreshInventory() does nothing while the window is out of sight. Otherwise
+--     it goes through bags 0 to 5 and draws every item on the next button of the pool, then
+--     calls RunItemOverlays with { bag, slot, info, itemLink }, a table it takes back for
+--     the next pass (EUI_Bags_Refresh.lua:606-607, 630, 639-665;
+--     EllesmereUIBags_Grid.lua:242-250, 520). Buttons the pass had no use for are hidden by
+--     their frames (EllesmereUIBags_Grid.lua:2028-2032).
+--   * The window opens with a Show and a RefreshInventory and closes with a Hide
+--     (EUI_Bags_Start.lua:435-437, 461-462). While it is open, a change in the bags has it
+--     drawn again a tenth of a second later, once for a burst (EUI_Bags_Start.lua:986-1010,
+--     1298-1313).
+--   * EUI_BankFrame:RefreshBank() does nothing while the bank is out of sight. Otherwise it
+--     draws every slot of the tab, the empty ones too, and calls RunItemOverlays, while the
+--     list has a function, with one table for all of them, filled anew for each: bag, slot,
+--     info, and itemLink where there is an item (EllesmereUIBags_Bank.lua:2310-2311,
+--     2714-2752, 2805, 2942-2946, 2997-3011). Buttons left over are hidden by their frames
+--     (EllesmereUIBags_Bank.lua:3019-3022). The bank opens with a Show and closes with a
+--     Hide (EllesmereUIBags_Bank.lua:3803, 3858).
+-- Left out, as nothing an addon is called with depends on them: its list and compact
+-- layouts (a row of the list has the same _textOverlay, over the row's icon:
+-- EllesmereUIBags_List.lua:227-232), the reagent bag's own window, the categories, the
+-- search, the layout hold, and the bank drawing a hundred slots a frame.
+---------------------------------------------------------------------------
+-- The link of the item in a slot of a bag: what EllesmereUI asks the game for an item by.
+function C_Container.GetContainerItemLink(bag, slot)
+    local item = W.bags[bag] and W.bags[bag][slot]
+    return item and item.link or nil
+end
+
+local function Fields(tbl)
+    local fields = {}
+    for field in pairs(tbl) do fields[field] = true end
+    return fields
+end
+
+local function EllesmereWindows(E)
+    local bags = CreateFrame("Frame", "EUI_MainBagFrame", UIParent)
+    bags:Hide()
+    EUI_Bags = bags
+    local bank = CreateFrame("Frame", "EUI_BankFrame", UIParent)
+    bank:Hide()
+
+    bags.itemOverlayIcons = {}
+    function bags.RegisterItemOverlayIcon(name, updateFn) bags.itemOverlayIcons[name] = updateFn end
+    function bags.UnregisterItemOverlayIcon(name) bags.itemOverlayIcons[name] = nil end
+    function bags.RunItemOverlays(btn, data)
+        local fns = bags.itemOverlayIcons
+        if next(fns) == nil then return end
+        for _, fn in pairs(fns) do securecallfunction(fn, btn, data) end
+    end
+
+    local function SetID(self, id) self._id = id end
+    local function GetID(self) return self._id end
+    local function Slot(pool, idx, window)
+        if pool[idx] then return pool[idx] end
+        local slotParent = CreateFrame("Frame", nil, window)
+        local btn = Widget("ItemButton", nil, slotParent)
+        slotParent.SetID, slotParent.GetID, slotParent._id = SetID, GetID, 0
+        btn.SetID, btn.GetID, btn._id = SetID, GetID, 0
+        local textOverlay = CreateFrame("Frame", nil, btn)
+        textOverlay:SetAllPoints()
+        textOverlay:SetFrameLevel(btn:GetFrameLevel() + 3)
+        btn._textOverlay = textOverlay
+        pool[idx] = btn
+        return btn
+    end
+
+    -- A slot's frame and button shown and numbered. What the button has for fields before it
+    -- is first handed to another addon is kept (E.fields), for a scenario to see that the
+    -- addon leaves it alone.
+    local function Place(btn, bag, slot)
+        local parent = btn:GetParent()
+        parent:Show()
+        btn:Show()
+        btn:SetID(slot)
+        parent:SetID(bag)
+        E.fields[btn] = E.fields[btn] or Fields(btn)
+    end
+
+    function bags:RefreshInventory()
+        if not bags:IsVisible() then return end
+        E.refreshes = E.refreshes + 1
+        local slotIdx = 0
+        for bag = 0, 5 do
+            for slot = 1, C_Container.GetContainerNumSlots(bag) do
+                local info = C_Container.GetContainerItemInfo(bag, slot)
+                if info then
+                    slotIdx = slotIdx + 1
+                    local d = E.tables[slotIdx] or {}
+                    E.tables[slotIdx] = d
+                    d.bag, d.slot, d.info, d.itemLink = bag, slot, info, C_Container.GetContainerItemLink(bag, slot)
+                    local btn = Slot(E.itemSlots, slotIdx, bags)
+                    Place(btn, bag, slot)
+                    bags.RunItemOverlays(btn, d)
+                end
+            end
+        end
+        for i = slotIdx + 1, #E.itemSlots do E.itemSlots[i]:GetParent():Hide() end
+    end
+
+    local refreshPending = false
+    bags:RegisterEvent("BAG_UPDATE")
+    bags:SetScript("OnEvent", function()
+        if not bags:IsVisible() or refreshPending then return end
+        refreshPending = true
+        C_Timer.After(0.1, function()
+            refreshPending = false
+            if bags:IsVisible() then bags:RefreshInventory() end
+        end)
+    end)
+
+    function bank:RefreshBank()
+        if not bank:IsVisible() then return end
+        E.bankRefreshes = E.bankRefreshes + 1
+        local overlayData = {}
+        local bagID = E.bankTab
+        local slotIdx = 0
+        for slot = 1, C_Container.GetContainerNumSlots(bagID) do
+            local info = C_Container.GetContainerItemInfo(bagID, slot)
+            slotIdx = slotIdx + 1
+            local btn = Slot(E.bankSlots, slotIdx, bank)
+            Place(btn, bagID, slot)
+            if next(bags.itemOverlayIcons) ~= nil then
+                overlayData.bag, overlayData.slot, overlayData.info = bagID, slot, info
+                overlayData.itemLink = info and C_Container.GetContainerItemLink(bagID, slot) or nil
+                bags.RunItemOverlays(btn, overlayData)
+            end
+        end
+        for i = slotIdx + 1, #E.bankSlots do E.bankSlots[i]:GetParent():Hide() end
+    end
+end
+
+-- EllesmereUI is installed with its Bags module switched on, and the module loads now: before
+-- the addon where a scenario calls this first, after it where it loads the addon first.
+--   W.ellesmere.refreshes, .bankRefreshes   how many times it has drawn its bag window, and
+--                                            its bank
+function W.InstallEllesmere()
+    W.ellesmere = { refreshes = 0, bankRefreshes = 0, itemSlots = {}, bankSlots = {}, tables = {}, fields = {} }
+    EllesmereWindows(W.ellesmere)
+    W.AddOnLoaded("EllesmereUIBags")
+end
+
+-- The player opens its bag window, and closes it.
+function W.OpenEllesmereBags()
+    EUI_Bags:Show()
+    EUI_Bags:RefreshInventory()
+end
+function W.CloseEllesmereBags()
+    EUI_Bags:Hide()
+end
+
+-- The bank opens in its window, on the tab whose items are W.bags[bag], and closes.
+function W.OpenEllesmereBank(bag)
+    W.ellesmere.bankTab = bag
+    EUI_BankFrame:Show()
+    EUI_BankFrame:RefreshBank()
+end
+function W.CloseEllesmereBank()
+    EUI_BankFrame:Hide()
+end
+
+-- The button its windows show a slot of a bag on, while they show it.
+function W.EllesmereButton(bag, slot)
+    for _, pool in ipairs({ W.ellesmere.itemSlots, W.ellesmere.bankSlots }) do
+        for _, btn in ipairs(pool) do
+            if btn:IsVisible() and btn:GetParent():GetID() == bag and btn:GetID() == slot then return btn end
+        end
+    end
+end
+
+-- The fields a button of its has now that it had not when EllesmereUI first drew a slot on
+-- it, by name and in order: what somebody else wrote on it.
+function W.EllesmereWrittenOn(btn)
+    local written = {}
+    for field in pairs(btn) do
+        if not W.ellesmere.fields[btn][field] then written[#written + 1] = tostring(field) end
+    end
+    table.sort(written)
+    return table.concat(written, " ")
+end
+
+-- A new session has its windows made anew, with nobody's function in its list (see W.Logout).
+function W.ResetEllesmere()
+    if W.ellesmere then W.InstallEllesmere() end
 end
 
 return W

@@ -131,9 +131,11 @@ end
 -- Companion and Forever Leveling BiS do while their own options say so; Pawn's arrow does
 -- not reach the bags of this game. This addon then draws none (Bags.lua).
 -- where: "bank" when the question is about the bank, where Forever Leveling BiS draws none.
-function Score.DrawsArrows(where)
+-- addon: whose windows the question is about, where they are not the game's own
+-- ("ellesmere": in EllesmereUI's bank Forever Leveling BiS does draw).
+function Score.DrawsArrows(where, addon)
     local other = Other()
-    return other ~= nil and other.DrawsArrows ~= nil and other.DrawsArrows(where)
+    return other ~= nil and other.DrawsArrows ~= nil and other.DrawsArrows(where, addon)
 end
 
 -- Fills a tooltip in for another character of the account, with what the other addons

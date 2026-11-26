@@ -932,11 +932,16 @@ end
 -- Does it draw its own arrow on an upgrade there? In the bags it does, while its switch is
 -- on, and this addon then draws none of its own (Bags.lua): two arrows on one icon, by the
 -- same score, would say one thing twice. It draws none in the bank, where ours stay.
+-- That is so in the game's own windows. In EllesmereUI's it draws on every slot, those of
+-- the bank too: EllesmereUI calls it for each slot it draws, as it calls us (Ellesmere.lua),
+-- and it marks what it is called for (its BagMarks.lua, as of 1.6.2). There ours stay out of
+-- the bank as well.
 -- where: "bank" for a slot of the bank; anything else is the bags.
-function F.DrawsArrows(where)
+-- addon: "ellesmere" for a slot of EllesmereUI's windows; nil for one of the game's.
+function F.DrawsArrows(where, addon)
     Noticed()
     local _, arrows = Shows()
-    return arrows and where ~= "bank"
+    return arrows and (where ~= "bank" or addon == "ellesmere")
 end
 
 -- Forever Leveling BiS writes into every item tooltip, and means the character being

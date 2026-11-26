@@ -16,6 +16,9 @@ local _, ns = ...
 -- The arrow is the game's own, the one its bag slots have a place for and Forever leaves
 -- unused. It is drawn on a texture of our own in that place: another addon that shows or
 -- hides the game's does not take ours with it.
+-- Where another addon shows the bags and the bank in windows of its own, the slots of those
+-- get the same arrow by the same rule, once a file that knows the addon says what they show
+-- (B.Other; for EllesmereUI that is Ellesmere.lua).
 local B = {}
 ns.Bags = B
 
@@ -67,11 +70,12 @@ end
 -- "now" when the item gets the green arrow, "later" when it gets the grey one, false when it
 -- gets none, nil while that cannot be told yet.
 -- where: "bank" for an item in the bank; nil for one in the bags.
-function B.Arrow(link, where)
+-- addon: whose windows the item is in, where they are not the game's own ("ellesmere").
+function B.Arrow(link, where, addon)
     -- Switched off in the welcome window: no item gets one.
     if not ns.Shows("arrows") then return false end
     -- The addon that scores draws its own there: none of ours beside them.
-    if ns.Score.DrawsArrows(where) then return false end
+    if ns.Score.DrawsArrows(where, addon) then return false end
     local upgrade = ns.Tooltip.Upgrade(link)
     if not upgrade then return upgrade end
     if TooLight(link) then return false end
@@ -85,14 +89,26 @@ local pending = false           -- an item on view could not be judged yet
 local retries, retryQueued = 0, false
 local MarkAll
 
--- Shows or hides the arrow on an item button for the item it holds (link nil: none).
+-- What B.Arrow says of the item a slot holds (link nil: none, and no arrow), with a note of
+-- an item that could not be judged yet.
+local function Kind(link, where, addon)
+    if not link then return false end
+    local kind = B.Arrow(link, where, addon)
+    if kind == nil then pending = true end
+    return kind
+end
+
+-- An arrow as that says: green, grey, or out of sight.
+local function Paint(arrow, kind)
+    arrow:SetShown(kind and true or false)
+    arrow:SetDesaturated(kind == "later")
+end
+
+-- Shows or hides the arrow on an item button of the game's for the item it holds (link nil:
+-- none).
 -- where: "bank" for a slot of the bank.
 local function Mark(button, link, where)
-    local kind = false
-    if link then
-        kind = B.Arrow(link, where)
-        if kind == nil then pending = true end
-    end
+    local kind = Kind(link, where)
     local arrow = button.UpgradeScoutArrow
     if kind and not arrow then
         arrow = button:CreateTexture(nil, "OVERLAY", nil, 1)
@@ -100,10 +116,7 @@ local function Mark(button, link, where)
         arrow:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
         button.UpgradeScoutArrow = arrow
     end
-    if arrow then
-        arrow:SetShown(kind and true or false)
-        arrow:SetDesaturated(kind == "later")
-    end
+    if arrow then Paint(arrow, kind) end
 end
 
 -- An item not judged yet (the game still loads it, or what is worn): a look again in a moment.
@@ -115,6 +128,59 @@ local function AfterMarking()
         retryQueued = false
         MarkAll()
     end)
+end
+
+---------------------------------------------------------------------------
+-- The windows of another addon
+---------------------------------------------------------------------------
+-- An addon that shows the bags and the bank in windows of its own has slots of its own,
+-- which the hooks further down never hear of. The file that knows such an addon is told by
+-- it when a slot has been drawn, and says so here (B.Other). What each slot shows is kept
+-- from then on, and its arrow once it has needed one: by the slot's button and not on it.
+-- The button is one of the game's secure ones and the other addon's to write on, not ours;
+-- the table does not keep a button that is no more.
+-- With that kept, the arrows of such a window are put right here whenever the answers
+-- change (MarkAll), as the game's are. The other addon is never asked to draw its window
+-- again for it: that would have it sort and lay out every slot anew, for a change that is
+-- nothing to it, and as often as an item is looked at again while the game loads it.
+local theirs = setmetatable({}, { __mode = "k" })       -- [button] = { addon, place, host, link, where, arrow }
+
+-- Shows or hides the arrow of such a slot for the item it shows. The arrow is a texture on
+-- a frame of the other addon's that lies over the item's icon (slot.host): made when the
+-- slot first needs one, and the same one for whatever the slot shows later.
+local function MarkTheirs(slot)
+    local kind = Kind(slot.link, slot.where, slot.addon)
+    local arrow = slot.arrow
+    if kind and not arrow then
+        arrow = slot.host:CreateTexture(nil, "OVERLAY", nil, 1)
+        arrow:SetAtlas(ATLAS)
+        slot.place(arrow, slot.host)
+        slot.arrow = arrow
+    end
+    if arrow then Paint(arrow, kind) end
+end
+
+-- The windows of another addon, for the file that knows it. Gives the function to call
+-- whenever a slot of theirs has been drawn: Drawn(button, host, link, where).
+--   addon    whose windows they are, as B.Arrow is asked: "ellesmere"
+--   place    function(arrow, host): puts a slot's new arrow where it goes in such a window,
+--            which need not be where the game's own slots have it
+--   button   the slot's button
+--   host     the frame of theirs over the item's icon, for the arrow to be drawn on: the
+--            same one for a button every time
+--   link     the item the slot shows now; nil for none
+--   where    "bank" for a slot of the bank
+function B.Other(addon, place)
+    return function(button, host, link, where)
+        local slot = theirs[button]
+        if not slot then
+            slot = { addon = addon, place = place }
+            theirs[button] = slot
+        end
+        slot.host, slot.link, slot.where = host, link, where
+        MarkTheirs(slot)
+        AfterMarking()
+    end
 end
 
 local function MarkBag(frame)
@@ -146,6 +212,15 @@ MarkAll = function()
     end
     if BankPanel and BankPanel:IsShown() and BankPanel.EnumerateValidItems then
         for button in BankPanel:EnumerateValidItems() do MarkBankButton(button) end
+    end
+    -- The slots of another addon's windows, those in sight. One out of sight is left as it
+    -- is, as a closed window of the game's is: nothing is judged for it, and its addon
+    -- draws it, and says so, when its window opens. While the whole screen is hidden (by
+    -- the player, or for a cinematic) nothing is in sight, open or not, and nothing opens
+    -- when the screen comes back: then no slot is passed over.
+    local hidden = not UIParent:IsShown()
+    for _, slot in pairs(theirs) do
+        if slot.link and (hidden or slot.host:IsVisible()) then MarkTheirs(slot) end
     end
     AfterMarking()
 end

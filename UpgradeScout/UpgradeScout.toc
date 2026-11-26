@@ -15,7 +15,7 @@
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323
 ## X-Wago-ID: O67bPXN3
-## OptionalDeps: Pawn, ForeverCompanion, ForeverLevelingBiS
+## OptionalDeps: Pawn, ForeverCompanion, ForeverLevelingBiS, EllesmereUIBags
 ## SavedVariables: UpgradeScoutDB
 ## SavedVariablesPerCharacter: UpgradeScoutCharDB
 ## Category: Auctions
@@ -49,6 +49,7 @@ Results.lua
 Plan.lua
 Tooltip.lua
 Bags.lua
+Ellesmere.lua
 SupplyData.lua
 Supplies.lua
 Scanner.lua

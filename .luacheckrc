@@ -69,6 +69,9 @@ read_globals = {
     -- the table it keeps for other addons, and what it saves (its switch for its lines in a
     -- tooltip is set there for the length of a call and put back: Leveling.Hushed)
     "ForeverLevelingBiS_API", "ForeverLevelingBiSDB",
+    -- and EllesmereUI's Bags module, for a player who has it: its bag window, which has the
+    -- function an addon that draws on its slots is given to it with (Ellesmere.lua)
+    "EUI_Bags",
 }
 
 -- What the addon writes: its saved variables and its slash command.

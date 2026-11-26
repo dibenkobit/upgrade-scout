@@ -27,6 +27,7 @@ local names = {
     "scan_listed",
     "leveling_scan", "leveling_hands", "leveling_absent", "leveling_tooltips", "leveling_welcome", "leveling_supplies", "leveling_alt",
     "levels", "levels_ui", "scan_levels",
+    "ellesmere", "ellesmere_absent", "ellesmere_late", "ellesmere_leveling", "ellesmere_companion",
 }
 
 if not scenario then
@@ -11821,6 +11822,375 @@ function scenarios.levels_ui()
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScoutSupplies")
     W.Run(0.5)
     eq(below:IsShown(), false, "no such line in the menu of the consumables")
+end
+
+---------------------------------------------------------------------------
+-- The arrows in EllesmereUI's bag windows (Ellesmere.lua)
+---------------------------------------------------------------------------
+-- The arrow of ours on the button EllesmereUI shows a slot of a bag on, and that button: the
+-- one texture there is on the frame it keeps over the icon. No arrow where the slot never
+-- had one; neither where the slot is not shown.
+local function EllesmereMark(bag, slot)
+    local button = W.EllesmereButton(bag, slot)
+    local textures = button and button._textOverlay._textures
+    return textures and textures[1] or nil, button
+end
+
+-- Whether that slot shows the arrow, and whether its arrow is the grey one.
+local function EllesmereArrow(bag, slot)
+    local arrow = EllesmereMark(bag, slot)
+    return arrow ~= nil and arrow:IsShown()
+end
+local function EllesmereGrey(bag, slot) return (EllesmereMark(bag, slot))._grey end
+
+-- EllesmereUI's windows in place of the game's: its slots have the arrows the game's would
+-- have, and it is never asked to draw a window for their sake.
+function scenarios.ellesmere()
+    StandardWorld()
+    -- On the second profile nothing but the two chests has a score.
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.AddItem({ id = 240, name = "Hide Cap", equipLoc = "INVTYPE_HEAD", subClassID = 2, value = 15, level = 9 })
+    W.AddItem({ id = 250, name = "Tinker's Bracers", equipLoc = "INVTYPE_WRIST", subClassID = 3, value = 5, level = 5,
+        skill = { "Engineering", 150 } })
+    W.InstallEllesmere()
+    LoadAddon()
+    W.Run(1)
+    local E = W.ellesmere
+    eq(type(EUI_Bags.itemOverlayIcons.UpgradeScout), "function", "EllesmereUI has a function of ours, under the addon's name")
+    local listed = 0
+    for _ in pairs(EUI_Bags.itemOverlayIcons) do listed = listed + 1 end
+    eq(listed, 1, "and that one alone")
+
+    -- What Bags.Arrow is asked about the slots of EllesmereUI's windows.
+    local asked = {}
+    local Judge = ns.Bags.Arrow
+    ns.Bags.Arrow = function(link, where, addon)
+        if addon == "ellesmere" then asked[#asked + 1] = { link = link, where = where } end
+        return Judge(link, where, addon)
+    end
+    local function Forget()
+        for i = #asked, 1, -1 do asked[i] = nil end
+    end
+
+    local slot = {}
+    for _, id in ipairs({ 200, 203, 202, 204, 214, 240, 250 }) do slot[id] = W.PutInBags(W.Link(id)) end
+    W.bags[5] = { [2] = { link = W.Link(210) } }
+    eq(E.refreshes, 0, "its window is closed: it draws nothing"); eq(#asked, 0, "and nothing is judged")
+    W.OpenEllesmereBags()
+    eq(E.refreshes, 1, "opened, it draws its slots")
+    local arrow, button = EllesmereMark(0, slot[200])
+    eq(EllesmereArrow(0, slot[200]), true, "a better chest: 18 against 10 on the profile in use")
+    eq(arrow._atlas, "bags-greenarrow", "the game's own green arrow"); eq(arrow._grey, false, "green: the character can put it on now")
+    eq(arrow:GetParent(), button._textOverlay, "drawn on the frame EllesmereUI keeps over the icon")
+    eq(#arrow._points, 2, "held by two of its corners")
+    local corner, middle = arrow._points[1], arrow._points[2]
+    eq(corner.point .. ">" .. corner.toPoint, "TOPRIGHT>TOPRIGHT", "the top right one in that frame's top right corner")
+    eq(corner.to, button._textOverlay, "of that frame"); eq(corner.x .. "," .. corner.y, "-1,-1", "a pixel inside it")
+    eq(middle.point .. ">" .. middle.toPoint, "BOTTOMLEFT>CENTER", "the bottom left one in the middle: a quarter of the icon")
+    eq(middle.to, button._textOverlay, "of the same frame")
+    eq(W.EllesmereWrittenOn(button), "", "nothing is written on EllesmereUI's button")
+    eq(EllesmereArrow(0, slot[203]), true, "a better chest above the character's level")
+    eq(EllesmereGrey(0, slot[203]), true, "grey: its tooltip says in red that it asks for level 14")
+    eq(EllesmereArrow(0, slot[240]), true, "a cap for the empty head")
+    eq(EllesmereArrow(0, slot[202]), false, "not a weaker chest"); eq(EllesmereArrow(0, slot[204]), false, "not mail the character has not learned")
+    eq(EllesmereArrow(0, slot[250]), false, "not bracers that ask for a profession it has not")
+    eq(EllesmereArrow(0, slot[214]), false, "not a potion")
+    local _, potion = EllesmereMark(0, slot[214])
+    eq(potion._textOverlay._textures, nil, "a slot that never had an arrow gets no texture")
+    eq(EllesmereArrow(5, 2), true, "a ring in the reagent bag, for the empty second finger")
+    eq(#asked, 8, "every item it drew was judged, once")
+    for _, ask in ipairs(asked) do eq(ask.where, nil, "each as an item of the bags") end
+    eq(ContainerFrameCombinedBags.Items[slot[200]].UpgradeScoutArrow, nil, "the game's own bag window is closed: nothing is drawn there")
+
+    -- An item leaves the bags. EllesmereUI draws its window again a moment later, and every
+    -- item after that one on the button before the one it had.
+    local first = button
+    local frames = #W.frames
+    W.bags[0][slot[200]] = nil
+    W.Fire("BAG_UPDATE", 0)
+    W.Run(0.2)
+    eq(E.refreshes, 2, "the bags changed: EllesmereUI draws its window again")
+    eq(W.EllesmereButton(0, slot[203]), first, "the button that had the good chest has the future chest now")
+    eq(EllesmereArrow(0, slot[203]), true, "with its arrow"); eq(EllesmereGrey(0, slot[203]), true, "the grey one")
+    eq(#first._textOverlay._textures, 1, "which is the texture that was there: none is made for a button that has one")
+    eq(EllesmereArrow(0, slot[202]), false, "the next button had the future chest and has the weak one: no arrow")
+    eq(#W.frames, frames, "and no frame is made for any of it")
+
+    -- An item the game is still loading gets its arrow once the game has it, with EllesmereUI
+    -- drawing nothing for that.
+    W.items["201:0"].cached = false
+    local robe = W.PutInBags(W.Link(201))
+    W.Run(0.2)
+    eq(E.refreshes, 3, "a robe comes into the bags: EllesmereUI draws")
+    eq(EllesmereArrow(0, robe), false, "no arrow while the game loads the robe")
+    W.items["201:0"].cached = true
+    W.Run(1.5)
+    eq(EllesmereArrow(0, robe), true, "then its arrow"); eq(E.refreshes, 3, "which EllesmereUI was not asked to draw its window for")
+
+    -- Whatever changes the answers puts the arrows right on the slots as EllesmereUI last
+    -- drew them. A level up: the chest that asked for level 14.
+    local drawn = E.refreshes
+    W.player.level = 14
+    W.Fire("PLAYER_LEVEL_UP", 14)
+    W.Run(2)
+    eq(EllesmereArrow(0, slot[203]), true, "a level up: the chest of level 14 keeps its arrow"); eq(EllesmereGrey(0, slot[203]), false, "green now")
+    -- A profession learned.
+    W.player.professions = { { "Engineering", 150 } }
+    W.Fire("SKILL_LINES_CHANGED")
+    W.Run(1)
+    eq(EllesmereArrow(0, slot[250]), true, "the skills changed: the bracers that asked for the profession")
+    -- Mail learned: the game no longer says so in red.
+    W.items["204:0"].red = nil
+    W.Fire("SPELLS_CHANGED")
+    W.Run(1)
+    eq(EllesmereArrow(0, slot[204]), true, "the spells changed: the mail, now that it is learned")
+    -- Another profile chosen: on the second nothing in the bags has a score.
+    W.OpenAuctionHouse()
+    UpgradeScoutFrame.ProfileDropdown:Pick(2)
+    W.Run(1)
+    eq(ns.Roster.Me().profile, "S2", "the second profile chosen")
+    eq(EllesmereArrow(0, slot[240]), false, "another profile: the cap loses its arrow"); eq(EllesmereArrow(0, robe), false, "and the robe")
+    UpgradeScoutFrame.ProfileDropdown:Pick(1)
+    W.Run(1)
+    eq(EllesmereArrow(0, slot[240]), true, "and has it again on the first"); eq(EllesmereArrow(0, robe), true, "as the robe has")
+    -- The character asks for the best armor of its class alone: mail.
+    ns.Wants.SetArmorOnly(ns.Roster.Me(), true)
+    W.Run(1)
+    eq(EllesmereArrow(0, slot[240]), false, "only the best armor wanted: the leather cap loses its arrow")
+    eq(EllesmereArrow(0, slot[204]), true, "the mail keeps its own")
+    ns.Wants.SetArmorOnly(ns.Roster.Me(), false)
+    W.Run(1)
+    eq(EllesmereArrow(0, slot[240]), true, "any armor again: the cap has it back")
+    -- New gear: the future chest goes on.
+    W.equipped[5] = W.Link(203)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    eq(EllesmereArrow(0, robe), false, "new gear: the robe against the chest now worn, 30 against 60")
+    eq(EllesmereArrow(0, slot[204]), false, "and the mail, 40 against 60"); eq(EllesmereArrow(0, slot[240]), true, "the cap still")
+    -- The arrows switched off in the welcome window, and on.
+    UpgradeScoutDB.arrows = false
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(EllesmereArrow(0, slot[240]), false, "switched off in the welcome window: gone at once")
+    eq(E.refreshes, drawn, "and through all of that EllesmereUI was never asked to draw its window")
+    EUI_Bags:RefreshInventory()
+    eq(EllesmereArrow(0, slot[240]), false, "they stay away when it draws its window again")
+    UpgradeScoutDB.arrows = nil
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(EllesmereArrow(0, slot[240]), true, "switched on: back at once")
+    eq(E.refreshes, drawn + 1, "with no drawing of EllesmereUI's but its own")
+
+    -- Its window closed: nothing of it is judged, whatever changes. It draws every slot when
+    -- it opens, and the arrows are right then.
+    W.CloseEllesmereBags()
+    Forget()
+    W.equipped[5] = W.Link(100)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    eq(#asked, 0, "its window closed: nothing of it is judged for new gear"); eq(E.refreshes, drawn + 1, "and it draws nothing")
+    W.OpenEllesmereBags()
+    eq(EllesmereArrow(0, robe), true, "opened again: the robe against the old chest worn again, 30 against 10")
+    check(#asked > 0, "judged as EllesmereUI drew it")
+    -- The whole screen hidden, as the player's key for it does, with the window open: nothing
+    -- opens when the screen comes back, so the arrows are put right while it is away.
+    UIParent:Hide()
+    W.equipped[5] = W.Link(203)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    UIParent:Show()
+    eq(EllesmereArrow(0, robe), false, "new gear with the screen hidden: the robe has no arrow when the screen is back")
+    UIParent:Hide()
+    W.equipped[5] = W.Link(100)
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    UIParent:Show()
+    eq(EllesmereArrow(0, robe), true, "and has it again after the old chest went on behind the hidden screen")
+    eq(E.refreshes, drawn + 2, "EllesmereUI drew nothing for either: it has drawn its window twice by itself, and no more")
+
+    -- Its bank: every slot of the tab is drawn, the empty ones too, and handed over in one
+    -- table that is filled anew for each.
+    W.bags[6] = { [3] = { link = W.Link(211) }, [4] = { link = W.Link(202) } }
+    Forget()
+    W.OpenEllesmereBank(6)
+    eq(E.bankRefreshes, 1, "the bank opens: EllesmereUI draws it")
+    eq(EllesmereArrow(6, 3), true, "the helm in the bank"); eq(EllesmereArrow(6, 4), false, "not the weaker chest in the bank")
+    eq(#asked, 2, "the two items in it were judged")
+    for _, ask in ipairs(asked) do eq(ask.where, "bank", "each as an item of the bank") end
+    local _, empty = EllesmereMark(6, 1)
+    check(empty ~= nil and empty._textOverlay._textures == nil, "an empty slot of the bank has a button, and nothing of ours on it")
+    local _, helm = EllesmereMark(6, 3)
+    eq(W.EllesmereWrittenOn(helm), "", "nothing is written on a button of the bank either")
+    -- EllesmereUI's table has gone on to the last slot, an empty one. What the arrows are
+    -- put right from is not that table.
+    UpgradeScoutDB.arrows = false
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(EllesmereArrow(6, 3), false, "switched off: gone from the bank too")
+    UpgradeScoutDB.arrows = nil
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(EllesmereArrow(6, 3), true, "switched on: the helm has its arrow, from what was kept of its slot")
+    eq(EllesmereArrow(6, 4), false, "and the weaker chest none"); eq(E.bankRefreshes, 1, "with the bank not drawn again")
+    -- The helm is taken out.
+    W.bags[6][3] = nil
+    EUI_BankFrame:RefreshBank()
+    eq(EllesmereArrow(6, 3), false, "the helm taken out: its slot is empty, and has no arrow")
+    eq(#helm._textOverlay._textures, 1, "the texture stays for what the slot holds next")
+    W.CloseEllesmereBank()
+end
+
+-- No EllesmereUI: nothing is looked for twice, nothing fails, and the game's own windows have
+-- their arrows. Nor does an EllesmereUI that has no place for other addons get anything.
+function scenarios.ellesmere_absent()
+    StandardWorld()
+    LoadAddon()
+    W.Run(1)
+    eq(EUI_Bags, nil, "there is no EllesmereUI")
+    W.AddOnLoaded("SomeOtherAddon")
+    local chest = W.PutInBags(W.Link(200))
+    W.OpenBags()
+    local arrow = ContainerFrameCombinedBags.Items[chest].UpgradeScoutArrow
+    check(arrow ~= nil and arrow:IsShown(), "the game's own bag window has its arrow on the better chest")
+    eq(arrow._points[1].point, "TOPLEFT", "in the top left corner, where the game has it")
+    W.Fire("PLAYER_EQUIPMENT_CHANGED")
+    W.Run(1)
+    UpgradeScoutDB.arrows = false
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(arrow:IsShown(), false, "switched off, it goes")
+    UpgradeScoutDB.arrows = nil
+    ns.Fire("SETTING_CHANGED", "arrows")
+    eq(arrow:IsShown(), true, "and comes back: the arrows are put right with no window of another addon to look at")
+
+    -- An EllesmereUI from before it kept a place for other addons: its bag window, with no
+    -- function to give ours to.
+    EUI_Bags = W.Widget("Frame", "EUI_MainBagFrame", UIParent)
+    W.AddOnLoaded("EllesmereUIBags")
+    eq(EUI_Bags.itemOverlayIcons, nil, "an EllesmereUI too old to take a function is given none")
+    eq(#W.errors, 0, "and nothing of this is an error")
+end
+
+-- EllesmereUI's Bags module loaded after the addon: it is given our function when it has
+-- loaded, once.
+function scenarios.ellesmere_late()
+    StandardWorld()
+    LoadAddon()
+    W.Run(1)
+    local chest = W.PutInBags(W.Link(200))
+    W.AddOnLoaded("SomeOtherAddon")
+    eq(EUI_Bags, nil, "EllesmereUI has not loaded yet")
+    W.InstallEllesmere()
+    eq(type(EUI_Bags.itemOverlayIcons.UpgradeScout), "function", "loaded after the addon: it is given our function then")
+    W.OpenEllesmereBags()
+    eq(EllesmereArrow(0, chest), true, "and its slots have their arrows")
+    -- What loads after that is nothing to it.
+    local given = 0
+    local Register = EUI_Bags.RegisterItemOverlayIcon
+    EUI_Bags.RegisterItemOverlayIcon = function(name, func)
+        given = given + 1
+        Register(name, func)
+    end
+    W.AddOnLoaded("YetAnotherAddon")
+    eq(given, 0, "the function is given once: an addon loaded later changes nothing")
+    W.bags[0][chest] = nil
+    W.Fire("BAG_UPDATE", 0)
+    W.Run(0.2)
+    eq(EllesmereArrow(0, chest), false, "the chest gone from the bags: so is its slot")
+end
+
+-- Forever Leveling BiS scores and draws its own arrows. On EllesmereUI's slots it draws on
+-- every one, those of the bank too: none of ours beside them, in the bags or in the bank.
+function scenarios.ellesmere_leveling()
+    StandardWorld()
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.items["212:0"].value2 = 40
+    LevelingWorld()
+    -- It was chosen in an earlier session.
+    UpgradeScoutDB = { engine = "leveling" }
+    W.InstallEllesmere()
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local E, kept = W.ellesmere, ForeverLevelingBiSDB
+    eq(ns.Score.Engine(), "leveling", "Forever Leveling BiS scores, as chosen before")
+
+    local asked = {}
+    local Judge = ns.Bags.Arrow
+    ns.Bags.Arrow = function(link, where, addon)
+        if addon == "ellesmere" then asked[#asked + 1] = where or "bags" end
+        return Judge(link, where, addon)
+    end
+    local slot = {}
+    for _, id in ipairs({ 200, 203, 212, 202 }) do slot[id] = W.PutInBags(W.Link(id)) end
+    W.bags[6] = { [3] = { link = W.Link(211) }, [4] = { link = W.Link(202) } }
+    W.OpenEllesmereBags()
+    W.OpenEllesmereBank(6)
+    W.Run(1)
+    eq(table.concat(asked, " "), "bags bags bags bags bank bank", "every slot is asked about as what it is: of the bags, or of the bank")
+    eq(EllesmereArrow(0, slot[200]), false, "a better chest: no arrow of ours, Forever Leveling BiS draws its own")
+    eq(EllesmereArrow(0, slot[203]), false, "nor on one of a higher level"); eq(EllesmereArrow(0, slot[212]), false, "nor on a two-hander")
+    eq(EllesmereArrow(6, 3), false, "nor on the helm in EllesmereUI's bank: there it draws as well")
+    eq(Judge(W.Link(211), "bank"), "now", "in the game's own bank, where it draws none, ours stay")
+    eq(Judge(W.Link(211), "bank", "ellesmere"), false, "and in EllesmereUI's they do not")
+
+    -- Its arrows switched off in its settings: ours are drawn, by its score, in both windows.
+    local drawn, bankDrawn = E.refreshes, E.bankRefreshes
+    kept.bagMarks = false
+    W.LevelingChanged()
+    W.Run(1)
+    eq(EllesmereArrow(0, slot[200]), true, "its own arrows switched off: ours, on a better chest, 18 against 10 by its score")
+    eq(EllesmereGrey(0, slot[200]), false, "green: it can be put on now")
+    eq(EllesmereArrow(0, slot[203]), true, "a better chest of a higher level"); eq(EllesmereGrey(0, slot[203]), true, "grey")
+    eq(EllesmereArrow(0, slot[212]), true, "a two-hander against the sword"); eq(EllesmereArrow(0, slot[202]), false, "not a weaker chest")
+    eq(EllesmereArrow(6, 3), true, "the helm in the bank"); eq(EllesmereArrow(6, 4), false, "not the weaker chest in the bank")
+    -- Another main spec chosen in Forever Leveling BiS: the arrows follow.
+    W.LevelingChar().spec = "fury"
+    W.LevelingChanged()
+    W.Run(1)
+    eq(EllesmereArrow(0, slot[200]), false, "for the other spec the chest is no upgrade: 9 against 12")
+    eq(EllesmereArrow(0, slot[212]), true, "and the two-hander is one: 40 against nothing")
+    W.LevelingChar().spec = nil
+    W.LevelingChanged()
+    W.Run(1)
+    eq(EllesmereArrow(0, slot[200]), true, "back on the first spec the chest has its arrow")
+    -- Its arrows switched on again: ours go, from the bank too.
+    kept.bagMarks = nil
+    W.LevelingChanged()
+    W.Run(1)
+    eq(EllesmereArrow(0, slot[200]), false, "its arrows switched on again: ours go from the bags")
+    eq(EllesmereArrow(6, 3), false, "and from the bank")
+    eq(E.refreshes, drawn, "with EllesmereUI never asked to draw its bag window"); eq(E.bankRefreshes, bankDrawn, "or its bank")
+end
+
+-- Forever Companion scores and draws its own arrows: none of ours on EllesmereUI's slots
+-- while it does, as on the game's.
+function scenarios.ellesmere_companion()
+    StandardWorld()
+    W.player.talents = { { name = "Arms", points = 7 }, { name = "Fury", points = 0 }, { name = "Protection", points = 1 } }
+    CompanionWorld()
+    -- It was chosen in an earlier session.
+    UpgradeScoutDB = { engine = "companion" }
+    W.InstallEllesmere()
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local E, options = W.ellesmere, ForeverCompanion.db.global
+    eq(ns.Score.Engine(), "companion", "Forever Companion scores, as chosen before")
+
+    local chest = W.PutInBags(W.Link(200))
+    W.bags[6] = { [3] = { link = W.Link(211) } }
+    W.OpenEllesmereBags()
+    W.OpenEllesmereBank(6)
+    W.Run(1)
+    eq(EllesmereArrow(0, chest), false, "a better chest: no arrow of ours while Forever Companion draws its own")
+    eq(EllesmereArrow(6, 3), false, "nor on the helm in the bank")
+    local drawn, bankDrawn = E.refreshes, E.bankRefreshes
+    options.scale_arrows = false
+    W.CompanionChanged()
+    W.Run(1)
+    eq(EllesmereArrow(0, chest), true, "its arrows switched off in its options: ours, on its scale")
+    eq(EllesmereArrow(6, 3), true, "in the bank too")
+    options.scale_arrows = nil
+    W.CompanionChanged()
+    W.Run(1)
+    eq(EllesmereArrow(0, chest), false, "and on again: ours go"); eq(EllesmereArrow(6, 3), false, "from the bank too")
+    eq(E.refreshes, drawn, "with EllesmereUI never asked to draw its bag window"); eq(E.bankRefreshes, bankDrawn, "or its bank")
 end
 
 local fn = scenarios[scenario]
