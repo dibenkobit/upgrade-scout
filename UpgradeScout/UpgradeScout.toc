@@ -15,7 +15,7 @@
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1802323
 ## X-Wago-ID: O67bPXN3
-## OptionalDeps: Pawn, ForeverCompanion, ForeverLevelingBiS, EllesmereUIBags
+## OptionalDeps: Pawn, ForeverCompanion, ForeverLevelingBiS, GearQuestForever, EllesmereUIBags
 ## SavedVariables: UpgradeScoutDB
 ## SavedVariablesPerCharacter: UpgradeScoutCharDB
 ## Category: Auctions
@@ -43,6 +43,7 @@ Score.lua
 Pawn.lua
 Companion.lua
 Leveling.lua
+GearQuest.lua
 Compare.lua
 Wants.lua
 Results.lua

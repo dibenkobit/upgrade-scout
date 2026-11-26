@@ -456,6 +456,8 @@ function M:SetHyperlink(link)
     W.CompanionWrites(self, link)
     -- And Forever Leveling BiS its block.
     W.LevelingWrites(self, link)
+    -- And GearQuest its line.
+    W.GearQuestWrites(self, link)
     self._shown = true
 end
 
@@ -1498,6 +1500,7 @@ function W.Logout()
     W.ResetCompanion()
     W.ResetLeveling()
     W.ResetEllesmere()
+    W.ResetGearQuest()
 end
 
 -- Another character of the account comes into the world: `player` as W.player, `equipped`
@@ -1508,6 +1511,7 @@ function W.Login(player, equipped)
     UpgradeScoutCharDB = W.charSaved[player.name]
     W.EnterCompanion()
     W.EnterLeveling()
+    W.EnterGearQuest()
 end
 HEADSLOT, CHESTSLOT, FINGER0SLOT, MAINHANDSLOT, SECONDARYHANDSLOT = "Head", "Chest", "Finger", "Main Hand", "Off Hand"
 -- The game's text for two of the weapon kinds; the addon has its own for the rest.
@@ -3133,6 +3137,204 @@ end
 -- A new session has its windows made anew, with nobody's function in its list (see W.Logout).
 function W.ResetEllesmere()
     if W.ellesmere then W.InstallEllesmere() end
+end
+
+---------------------------------------------------------------------------
+-- GearQuest, for the scenarios that have it installed (W.InstallGearQuest). Written after
+-- GearQuest Forever 1.4.1, which keeps no table for other addons: what the addon asks of
+-- its own, each with what matters of how it behaves there. The specs, the weights and the
+-- scores here are the tests' own.
+--   * The addon's own table is a global, GearQuest. Its lists are made as the character
+--     logs in: before that it has no Data.byItemId (W.gearquest.ready = false).
+--   * What it saves: GearQuestForeverDB for the account (`settings`, with its switches for
+--     its lines in a tooltip, showGearScore and showGearScoreMiss, each on until set to
+--     false, and `preview.enabled` for its simulation of another character; `customSpecs`,
+--     by class, the specs the player made: { id = "c:1", name, base = the spec it was made
+--     from, overrides = { [stat] = weight } }), and GearQuestForeverCharDB for the character
+--     alone (`specPick`, by class: the spec picked in it).
+--   * GetEffectiveClass, GetEffectiveSpec and GetEffectiveLevel say whom it scores for: the
+--     character being played, or the one it simulates (IsPreviewEnabled; here a paladin).
+--     The spec is the one picked; with none picked, the first of the class.
+--   * Spec:GetOptions lists the specs of a class ({ id, label }), Spec:GetSpecLabel names
+--     one, the player's own by the name they gave it. Spec:SetSelectedSpec picks one for the
+--     character being played and has its windows drawn anew (RefreshUI), which is all it
+--     says of any change.
+--   * Custom:Weights gives the weights of a spec by its record: those of the record's base,
+--     with what the record changes; and beside them the weight of a weapon's damage per
+--     second, of a ranged weapon's, and of a weapon's speed. Nothing at all for a base it
+--     has not. A kind of armor may count for a share to a spec (StatWeightsArmorClass).
+--   * Data:EntryForItemLink gives the row an item has in its list at the character's level:
+--     { itemId, pipelineScore, suffix }. Here every item of gear has one, with the score the
+--     tests gave it (`value` for the class's first spec, `value2` for its second, or
+--     `rows = { [spec] = score }`), but for an item marked `unranked` (it lists it nowhere)
+--     or `elsewhere` (it lists it at another level). A random enchantment marked `best` has
+--     the row of its enchantment, with the score of the best roll. Data:EquippedPipelineScore
+--     gives the score of an item's row at whatever level it has one.
+--   * Three of its rules on weapons, each a question about the spec in use
+--     (W.gearquest.twoOnly, noTwo, daggers).
+--   * It writes into the game's main tooltip and the one for a link in the chat, about the
+--     character being played: a line of a rank for an item with a row, and for any other
+--     that it is not scoring it. A tooltip marked gqSkipScoreHook gets neither.
+---------------------------------------------------------------------------
+local GEARQUEST_GEAR = LEVELING_GEAR
+
+local function GearQuestFunctions(Q)
+    local G = { VERSION = "1.4.1", Spec = {}, Custom = {}, Data = {} }
+    GearQuest = G
+    G.StatWeightsArmorClass = Q.kinds
+    G.ScoringWeightLabels = { str = "Strength", agi = "Agility", sta = "Stamina", int = "Intellect", crit = "Critical strike" }
+    G.L = setmetatable({}, { __index = function(_, key) return key end })
+    if Q.ready then G.Data.byItemId = {} end
+
+    local function Simulating()
+        local preview = GearQuestForeverDB.settings.preview
+        return type(preview) == "table" and preview.enabled == true
+    end
+    function G:IsPreviewEnabled() return Simulating() end
+    function G:GetEffectiveClass() return Simulating() and "PALADIN" or W.player.class end
+    function G:GetEffectiveLevel() return W.player.level end
+    function G:GetEffectiveSpec()
+        Q.specAsked = Q.specAsked + 1
+        local class = self:GetEffectiveClass()
+        local specs = Q.specs[class]
+        if not specs then return nil end
+        local picked = not Simulating() and GearQuestForeverCharDB.specPick and GearQuestForeverCharDB.specPick[class]
+        return picked or specs[1].id
+    end
+    function G:RefreshUI() Q.refreshed = Q.refreshed + 1 end
+
+    function G.Spec:GetOptions(class) return Q.specs[class] end
+    function G.Spec:GetDefaultSpec(class) return Q.specs[class] and Q.specs[class][1].id or nil end
+    function G.Spec:GetSpecLabel(spec, class)
+        for _, option in ipairs(Q.specs[class] or {}) do
+            if option.id == spec then return option.label end
+        end
+        local record = G.Custom:Get(class, spec)
+        return record and record.name or nil
+    end
+    function G.Spec:SetSelectedSpec(spec, class)
+        Q.picked[#Q.picked + 1] = class .. ":" .. tostring(spec)
+        if Q.refusesPick then error("GearQuest fails to pick a spec") end
+        GearQuestForeverCharDB.specPick = GearQuestForeverCharDB.specPick or {}
+        GearQuestForeverCharDB.specPick[class] = spec
+        G:RefreshUI({ reason = "spec" })
+        return true
+    end
+
+    function G.Custom:List(class)
+        local store = GearQuestForeverDB.customSpecs
+        return store and store[class] or {}
+    end
+    function G.Custom:Get(class, spec)
+        for _, record in ipairs(self:List(class)) do
+            if record.id == spec then return record end
+        end
+    end
+    function G.Custom:Weights(class, record, level)
+        Q.weighed[#Q.weighed + 1] = { class = class, base = record.base, level = level }
+        local shipped = Q.weights[class .. ":" .. tostring(record.base)]
+        if type(shipped) == "function" then shipped = shipped(level) end
+        if not shipped then return {}, 0, 0, 0 end
+        local weights = {}
+        for key, weight in pairs(shipped.weights or {}) do weights[key] = weight end
+        for key, weight in pairs(record.overrides or {}) do weights[key] = weight end
+        return weights, shipped.dps or 0, shipped.ranged or 0, shipped.speed or 0
+    end
+    function G.Custom:SpecIsIndexed(_, spec) return Q.built[spec] == true end
+
+    -- The score of an item's row for the spec in use (as the tests keep it), wherever the row is.
+    local function RowScore(item)
+        if not item or item.unranked or item.noStats or not GEARQUEST_GEAR[item.equipLoc or ""] then return nil end
+        local class = G:GetEffectiveClass()
+        local spec = G:GetEffectiveSpec()
+        if item.rows and item.rows[spec] then return item.rows[spec] end
+        local specs = Q.specs[class] or {}
+        if specs[1] and spec == specs[1].id then return item.value end
+        if specs[2] and spec == specs[2].id then return item.value2 end
+        return nil
+    end
+    function G.Data:EntryForItemLink(link)
+        Q.asked[#Q.asked + 1] = link
+        local item, id = ParseItem(link)
+        if not item or not item.cached or item.elsewhere then return nil end
+        local score = RowScore(item)
+        if not score then return nil end
+        -- An enchantment adds a thousand, as to the game's own count: a score that reads an
+        -- enchanted link is found out.
+        if link:match("item:%d+:%d") then score = score + 1000 end
+        return { itemId = id, pipelineScore = score, suffix = item.best and "of the Best Roll" or nil }
+    end
+    function G.Data:EquippedPipelineScore(itemId, slot)
+        Q.stored[#Q.stored + 1] = { itemId = itemId, slot = slot }
+        return RowScore(W.items[itemId .. ":0"])
+    end
+    function G.Data:UsesTwoHandOnlyWeapons() return Q.twoOnly == true end
+    function G.Data:UsesOneHandAndShield() return Q.noTwo == true end
+    function G.Data:AssassinationDaggerOnly() return Q.daggers == true end
+end
+
+-- GearQuest is installed. Its specs are named with W.AddGearQuestSpecs and given weights
+-- with W.SetGearQuestWeights.
+function W.InstallGearQuest()
+    W.gearquest = { asked = {}, stored = {}, weighed = {}, picked = {}, specs = {}, weights = {}, kinds = {}, built = {},
+        ready = true, specAsked = 0, refreshed = 0 }
+    GearQuestForeverDB = { settings = {} }
+    GearQuestForeverCharDB = {}
+    GearQuestFunctions(W.gearquest)
+end
+
+-- GearQuest is taken away, or switched off: the next session has none of it.
+function W.RemoveGearQuest()
+    W.gearquest = nil
+    GearQuest, GearQuestForeverDB, GearQuestForeverCharDB = nil, nil, nil
+end
+
+-- specs: { { id = "arms", label = "Arms" }, ... }, in its order.
+function W.AddGearQuestSpecs(class, specs)
+    W.gearquest.specs[class] = specs
+end
+
+-- weights: { weights = { [its name for a stat] = weight }, dps, ranged, speed }, or a
+-- function of the level that gives such a table.
+function W.SetGearQuestWeights(class, spec, weights)
+    W.gearquest.weights[class .. ":" .. spec] = weights
+end
+
+-- It draws its windows anew, as it does when something changed in it, and for other reasons.
+function W.GearQuestChanged()
+    GearQuest:RefreshUI()
+end
+
+-- Its line in a tooltip the game has just filled in (M:SetHyperlink).
+function W.GearQuestWrites(tooltip, link)
+    if not W.gearquest or (tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip) then return end
+    if rawget(tooltip, "gqSkipScoreHook") then return end
+    local settings = GearQuestForeverDB.settings
+    if settings.showGearScore == false then return end
+    local item = ParseItem(link)
+    if not item or not GEARQUEST_GEAR[item.equipLoc or ""] then return end
+    local asked = #W.gearquest.asked
+    local row = GearQuest.Data:EntryForItemLink(link)
+    -- (What it asks itself is not what the addon asked it.)
+    W.gearquest.asked[asked + 1] = nil
+    if row then
+        tooltip:AddLine("GearQuest: Rank #1 for your level")
+    elseif settings.showGearScoreMiss ~= false then
+        tooltip:AddLine("GearQuest is not scoring this item for your class.")
+    end
+end
+
+-- A new session has its own table, with nothing hooked to it, and what it keeps for the
+-- character that comes into the world is that character's own (see W.Logout and W.Login).
+W.gearquestSaved = {}
+function W.ResetGearQuest()
+    if not W.gearquest then return end
+    W.gearquestSaved[W.player.name] = GearQuestForeverCharDB
+    GearQuestFunctions(W.gearquest)
+end
+
+function W.EnterGearQuest()
+    if W.gearquest then GearQuestForeverCharDB = W.gearquestSaved[W.player.name] or {} end
 end
 
 return W

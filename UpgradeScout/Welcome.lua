@@ -10,15 +10,16 @@ local L = ns.L
 -- been seen.
 --
 -- It comes up by itself once more for a player who has Pawn, the first time since Pawn could
--- be chosen in it, and likewise for one who has Forever Companion or Forever Leveling BiS
--- (see Due).
+-- be chosen in it, and likewise for one who has Forever Companion, Forever Leveling BiS or
+-- GearQuest (see Due).
 --
 -- Top to bottom:
 --   what the addon is, in a sentence
 --   who scores gear: the addon by its own weights, Pawn by the player's Pawn scales,
---     Forever Companion by its gear scales, or Forever Leveling BiS by the spec chosen in it
---     (Score.Engine). A button for each, side by side; another addon's is grey while that
---     addon is not there, and says why in a tooltip of its own
+--     Forever Companion by its gear scales, Forever Leveling BiS by the spec chosen in it,
+--     or GearQuest by its lists and weights (Score.Engine). A button for each, side by
+--     side; another addon's is grey while that addon is not there, and says why in a tooltip
+--     of its own
 --   the talent tree the character is played with, a button for each profile of its class
 --     (the one in use is lit: see Score.Current). With another addon scoring, the
 --     character's scales there; with Forever Leveling BiS the one button, its main spec there
@@ -566,9 +567,9 @@ end
 ---------------------------------------------------------------------------
 -- The answers are buttons of the same make as the trees', side by side: the addon itself,
 -- and each of the addons that can score in its place (Score.Others: Pawn, Forever
--- Companion, Forever Leveling BiS). `engine` is what a click on one makes of Score.Engine:
--- nil, "pawn", "companion" or "leveling". Another addon's cannot be chosen while that addon
--- is not there (`off`, see
+-- Companion, Forever Leveling BiS, GearQuest). `engine` is what a click on one makes of
+-- Score.Engine: nil, "pawn", "companion", "leveling" or "gearquest". Another addon's cannot
+-- be chosen while that addon is not there (`off`, see
 -- Paint): it is grey, a click does nothing, and with the mouse on it a tooltip says why
 -- (`absent`). (The button is not switched off the game's way: one that is hears nothing of
 -- the mouse.)
@@ -611,9 +612,10 @@ local function Layout()
 
     -- Who scores: the question, and its answers side by side, each as wide as the others.
     -- That holds while every name has room on such a button with the diamond before it, as
-    -- on the one that is lit; in the game's own fonts the longest has some to spare. In a
-    -- wider font (a player may have another addon change the game's) the buttons share the
-    -- row by the length of their names instead, each with the same room around its name.
+    -- on the one that is lit. With five answers the longest names have not: the buttons
+    -- share the row by the length of their names instead, each with the same room around
+    -- its name. (So they did with four in a wider font than the game's own: a player may
+    -- have another addon change the game's.)
     frame.Who:ClearAllPoints()
     frame.Who:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + 2, -down)
     down = down + frame.Who:GetStringHeight() + 9
@@ -875,8 +877,12 @@ Paint = function()
     local block = frame.Tips
     local tabs, elsewhere, notes = PaintSwitch(block.Tabs), PaintSwitch(block.Elsewhere), PaintSwitch(block.Notes)
     local others = #ns.Roster.List() > (me and 1 or 0)
+    -- GearQuest writes its own line for the items it lists for the character and leaves the
+    -- rest to us (Score.Writes says so of an item): the block is in use as ever, and its
+    -- sentence says which lines are whose (Score.Text "SHARED").
     local writes = ns.Score.Writes()
-    block.Body:SetText(not writes and L.WELCOME_TOOLTIP_TEXT or ns.Score.Text(others and "WRITES_OTHERS" or "WRITES"))
+    block.Body:SetText(writes and ns.Score.Text(others and "WRITES_OTHERS" or "WRITES")
+        or ns.Score.Text("SHARED") or L.WELCOME_TOOLTIP_TEXT)
     -- (Each box with what it is held at while the addon that scores writes the score.)
     for _, case in ipairs({ { block.Tabs, others }, { block.Elsewhere, false } }) do
         local switch, held = case[1], case[2]
@@ -1058,7 +1064,7 @@ ns.On("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
 -- The same once more for a player who has Pawn and saw the window before Pawn could be
 -- chosen in it (2.6.0): nothing else would tell them of the choice. And once more for one
 -- who has Forever Companion, which could be chosen from 2.8.0, or Forever Leveling BiS, from
--- 2.11.0.
+-- 2.11.0, or GearQuest, from the version after that.
 local waiting = false
 
 -- Has the window a reason to come up by itself?

@@ -72,6 +72,9 @@ read_globals = {
     -- and EllesmereUI's Bags module, for a player who has it: its bag window, which has the
     -- function an addon that draws on its slots is given to it with (Ellesmere.lua)
     "EUI_Bags",
+    -- and GearQuest, for a player who has it and chose it to score (GearQuest.lua): the
+    -- addon's own table, which is all it has for another addon to ask, and what it saves
+    "GearQuest", "GearQuestForeverDB",
 }
 
 -- What the addon writes: its saved variables and its slash command.

@@ -9,10 +9,10 @@ local _, ns = ...
 -- nothing else: there are no weights to edit.
 --
 -- A player who would sooner go by another addon's scales can say so in the welcome window
--- (Welcome.lua): by Pawn's (Pawn.lua), by Forever Companion's (Companion.lua) or by the
--- stat weights of Forever Leveling BiS (Leveling.lua). Then that addon scores, and the rest
--- of this one notices nothing: it asks this file the same questions, and a "profile" is one
--- of the character's scales there. See Score.Engine.
+-- (Welcome.lua): by Pawn's (Pawn.lua), by Forever Companion's (Companion.lua), by the
+-- stat weights of Forever Leveling BiS (Leveling.lua) or by GearQuest's (GearQuest.lua).
+-- Then that addon scores, and the rest of this one notices nothing: it asks this file the
+-- same questions, and a "profile" is one of the character's scales there. See Score.Engine.
 --
 -- Throughout this file `who` is the character the question is about: a card from Roster for
 -- one that is not being played, nil for the one that is.
@@ -34,13 +34,15 @@ local OTHERS = {
     { engine = "pawn", file = "Pawn" },
     { engine = "companion", file = "Companion" },
     { engine = "leveling", file = "Leveling" },
+    { engine = "gearquest", file = "GearQuest" },
 }
 local FILE = {}
 for i = 1, #OTHERS do FILE[OTHERS[i].engine] = OTHERS[i].file end
 
 -- nil: this addon, by its own weights. "pawn": Pawn, by the player's Pawn scales.
 -- "companion": Forever Companion, by its gear scales. "leveling": Forever Leveling BiS, by
--- the weights of the spec chosen in it. Another addon scores only while it
+-- the weights of the spec chosen in it. "gearquest": GearQuest, by its lists and the
+-- weights of the spec in use in it. Another addon scores only while it
 -- was chosen (ns.account.engine, for the whole account) and is there to be asked: switched
 -- off or taken away, it leaves this one scoring by itself, and the choice stands for when
 -- it is back.
@@ -75,20 +77,25 @@ end
 -- Our words about the addon that scores, by what they are for: "SCORE" (whose score a line
 -- of ours is), "TIP" (the profile field's tooltip), "NO_SCALE" (why there is no scan), "ASK"
 -- and "NONE" (the welcome window's question about the scale, and its answer with none to
--- choose from), "CHANGE" (the way to where the scale is chosen: Score.ChosenThere), "WRITES" and "WRITES_OTHERS" (who writes the score into a tooltip). nil
--- while this addon scores by itself.
+-- choose from), "CHANGE" (the way to where the scale is chosen: Score.ChosenThere), "WRITES" and "WRITES_OTHERS" (who writes the score into a tooltip),
+-- "SHARED" (the same, where it writes the score of some items and leaves the others to us:
+-- GearQuest). nil while this addon scores by itself, and for what the addon that scores has
+-- no words of ours for.
 function Score.Text(what)
     local other = Other()
     if not other then return nil end
-    -- (Its own choice of words where it has more than one for the same place: Leveling.Words.)
+    -- (Its own choice of words where it has more than one for the same place: Leveling.Words,
+    -- GearQuest.Words.)
     local key = other.Words and other.Words(what) or other.TEXT[what]
+    if key == nil then return nil end
     return ns.L[key]
 end
 
--- The choice made in the welcome window: "pawn", "companion", "leveling", or nil for the
--- addon's own weights. Every score there is was made by another, so everything that keeps
--- scores hears SCORING_CHANGED and makes them again. (The same is said when the scales of
--- the addon that scores change: see Pawn.lua, Companion.lua and Leveling.lua.)
+-- The choice made in the welcome window: "pawn", "companion", "leveling", "gearquest", or
+-- nil for the addon's own weights. Every score there is was made by another, so everything
+-- that keeps scores hears SCORING_CHANGED and makes them again. (The same is said when the
+-- scales of the addon that scores change: see Pawn.lua, Companion.lua, Leveling.lua and
+-- GearQuest.lua.)
 function Score.SetEngine(engine)
     local before = Score.Engine()
     ns.account.engine = engine ~= nil and FILE[engine] and engine or nil
@@ -122,14 +129,18 @@ end
 -- the character being played? Pawn does; Forever Companion and Forever Leveling BiS do
 -- while their own option for that is on. This addon then leaves its lines about the score
 -- out of them: they would say it twice (Tooltip.lua, AddOfferLines in UI.lua).
-function Score.Writes()
+-- link: an item, when the question is about that item's tooltip. Those three write every
+-- item's or none. GearQuest writes the score of the items it lists for the character and of
+-- no other: asked about every item's it says no, and about one item as that item is.
+function Score.Writes(link)
     local other = Other()
-    return other ~= nil and other.WritesTooltip()
+    return other ~= nil and other.WritesTooltip(link)
 end
 
 -- Does the addon that scores draw its own arrow on an upgrade in the bags? Forever
 -- Companion and Forever Leveling BiS do while their own options say so; Pawn's arrow does
--- not reach the bags of this game. This addon then draws none (Bags.lua).
+-- not reach the bags of this game, and GearQuest draws none there. This addon then draws
+-- none (Bags.lua).
 -- where: "bank" when the question is about the bank, where Forever Leveling BiS draws none.
 -- addon: whose windows the question is about, where they are not the game's own
 -- ("ellesmere": in EllesmereUI's bank Forever Leveling BiS does draw).
@@ -140,11 +151,12 @@ end
 
 -- Fills a tooltip in for another character of the account, with what the other addons
 -- would write there about the character being played left out (Pawn.Hushed,
--- Companion.Hushed, Leveling.Hushed), whoever scores: each of them writes while it is
--- installed.
--- fill: what fills the tooltip in; it is called with the arguments that follow it.
+-- Companion.Hushed, Leveling.Hushed, GearQuest.Hushed), whoever scores: each of them writes
+-- while it is installed.
+-- fill: what fills the tooltip in; it is called with the arguments that follow it, the
+-- first of which is the tooltip.
 function Score.Hushed(fill, ...)
-    ns.Pawn.Hushed(ns.Companion.Hushed, ns.Leveling.Hushed, fill, ...)
+    ns.Pawn.Hushed(ns.Companion.Hushed, ns.Leveling.Hushed, ns.GearQuest.Hushed, fill, ...)
 end
 
 local WEAPON_CLASS = Enum.ItemClass.Weapon
@@ -456,7 +468,8 @@ end
 -- character has learned the kind of weapon is another question, answered where the item's
 -- tooltip is read.
 -- The addon that scores may have a say of its own on top: Forever Leveling BiS knows which
--- weapons a spec's abilities cannot use (Leveling.Refuses).
+-- weapons a spec's abilities cannot use (Leveling.Refuses), and GearQuest has a spec that
+-- fights with daggers alone (GearQuest.Refuses).
 function Score.ClassCanUse(item, who)
     local scorer = item.scorer
     if scorer and scorer.Refuses and scorer.Refuses(item, who) then return false end
@@ -489,7 +502,7 @@ end
 -- arrows in the bags (Tooltip.lua).
 -- With another addon scoring the context also says what the scale wants no upgrades of:
 -- show1H and show2H, false for the one-handed or the two-handed weapons it is not to be
--- offered (a Pawn scale can say so).
+-- offered (a Pawn scale can say so, and so can the spec in use in GearQuest).
 -- And, for the character being played, what the addon itself makes of an item for the hands
 -- (ctx.hands, see Compare.Places): Forever Leveling BiS has rules for them that this addon
 -- has not.

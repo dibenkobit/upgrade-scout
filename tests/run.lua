@@ -30,6 +30,7 @@ local names = {
     "ellesmere", "ellesmere_absent", "ellesmere_late", "ellesmere_leveling", "ellesmere_companion",
     "hands", "weapons", "weapons_scan", "weapons_spare", "weapons_ui", "weapons_rogue", "weapons_warlock", "weapons_paladin",
     "weapons_others", "weapons_leveling",
+    "gearquest_scan", "gearquest_absent", "gearquest_tooltips", "gearquest_welcome", "gearquest_supplies", "gearquest_alt",
 }
 
 if not scenario then
@@ -7984,7 +7985,7 @@ function scenarios.companion_welcome()
     W.Fire("PLAYER_ENTERING_WORLD")
     W.RunUntil(function() return UpgradeScoutWelcome ~= nil end, 10)
     local window = UpgradeScoutWelcome
-    eq(#window.Engines, 4, "who scores: four answers, Forever Companion's the third")
+    eq(#window.Engines, 5, "who scores: five answers, Forever Companion's the third")
     local own, pawn, theirs = window.Engines[1], window.Engines[2], window.Engines[3]
     eq(own.Label:GetText(), "Upgrade Scout", "the addon"); eq(pawn.Label:GetText(), "Pawn", "Pawn")
     eq(theirs.Label:GetText(), "Forever Companion", "and Forever Companion, each by its name")
@@ -8003,7 +8004,8 @@ function scenarios.companion_welcome()
     theirs:Click()
     eq(UpgradeScoutDB.engine, nil, "a click on the grey button does nothing")
     check(own._points[1].x < pawn._points[1].x and pawn._points[1].x < theirs._points[1].x, "the three side by side")
-    eq(own._points[1].y, theirs._points[1].y, "in one row"); near(own:GetWidth(), theirs:GetWidth(), "each as wide as the others")
+    eq(own._points[1].y, theirs._points[1].y, "in one row")
+    check(theirs.Label:GetUnboundedStringWidth() + 17 <= theirs:GetWidth(), "its name has room on its button")
     check(theirs._points[1].x + theirs:GetWidth() <= window:GetWidth() - 20 + 0.01, "and all of them inside the window")
     local height = window:GetHeight()
     window.Done:Click()
@@ -9171,8 +9173,8 @@ function scenarios.leveling_welcome()
     W.Fire("PLAYER_ENTERING_WORLD")
     W.RunUntil(function() return UpgradeScoutWelcome ~= nil end, 10)
     local window = UpgradeScoutWelcome
-    eq(#window.Engines, 4, "who scores: four answers")
-    local own, pawn, companion, theirs = unpack(window.Engines)
+    eq(#window.Engines, 5, "who scores: five answers")
+    local own, pawn, companion, theirs, last = unpack(window.Engines)
     eq(theirs.Label:GetText(), "Forever Leveling BiS", "the fourth is Forever Leveling BiS, by its name")
     eq(own.Mark:IsShown(), true, "the addon is the one that does"); eq(theirs.Mark:IsShown(), false, "Forever Leveling BiS is not")
     eq(theirs:GetAlpha(), 0.45, "it cannot be chosen while it is not there: its button is grey")
@@ -9187,23 +9189,25 @@ function scenarios.leveling_welcome()
     eq(Hint(theirs), L.WELCOME_NO_LEVELING, "the mouse on its grey button: a tooltip says why")
     theirs:Click()
     eq(UpgradeScoutDB.engine, nil, "a click on the grey button does nothing")
-    -- The four in one row, each as wide as the others, every name with room on its button.
+    -- The five in one row. The longest names have no room on a fifth of it, so the buttons
+    -- share the row by the length of their names, each with the same room around its name.
     check(own._points[1].x < pawn._points[1].x and pawn._points[1].x < companion._points[1].x
-        and companion._points[1].x < theirs._points[1].x, "the four side by side")
-    eq(own._points[1].y, theirs._points[1].y, "in one row"); near(own:GetWidth(), theirs:GetWidth(), "each as wide as the others")
-    check(theirs._points[1].x + theirs:GetWidth() <= window:GetWidth() - 20 + 0.01, "and all of them inside the window")
-    check(theirs.Label:GetUnboundedStringWidth() + 17 <= theirs:GetWidth(), "the longest name has room on its button, with the diamond of the one that is lit")
-    -- In a wider font a name may not have that room: the buttons then share the row by the
-    -- length of their names.
-    theirs.Label:SetText("Forever Leveling BiS in a wider font")
-    ns.Welcome.Show()
+        and companion._points[1].x < theirs._points[1].x and theirs._points[1].x < last._points[1].x, "the five side by side")
+    eq(own._points[1].y, last._points[1].y, "in one row")
     check(theirs:GetWidth() > own:GetWidth() and own:GetWidth() > pawn:GetWidth(), "a name too long for an equal share: the buttons go by their names")
-    check(theirs.Label:GetUnboundedStringWidth() + 17 <= theirs:GetWidth(), "and the long one has its room")
+    check(theirs.Label:GetUnboundedStringWidth() + 17 <= theirs:GetWidth(), "the longest name has room on its button, with the diamond of the one that is lit")
     near(pawn._points[1].x, own._points[1].x + own:GetWidth() + 11, "one after another, with the same gap")
-    near(theirs._points[1].x + theirs:GetWidth(), window:GetWidth() - 20, "the row as wide as before")
+    near(last._points[1].x + last:GetWidth(), window:GetWidth() - 20, "the row as wide as the window has room")
+    -- Names that all have room on an equal share: each button is as wide as the others.
+    companion.Label:SetText("Companion")
+    theirs.Label:SetText("Leveling BiS")
+    ns.Welcome.Show()
+    near(own:GetWidth(), theirs:GetWidth(), "shorter names: each as wide as the others"); near(pawn:GetWidth(), last:GetWidth(), "all five")
+    near(last._points[1].x + last:GetWidth(), window:GetWidth() - 20, "the row as wide as before")
+    companion.Label:SetText("Forever Companion")
     theirs.Label:SetText("Forever Leveling BiS")
     ns.Welcome.Show()
-    near(own:GetWidth(), theirs:GetWidth(), "the name as it is: each as wide as the others again")
+    check(theirs:GetWidth() > own:GetWidth(), "the names as they are: by their length again")
     local height = window:GetHeight()
     window.Done:Click()
     eq(UpgradeScoutDB.welcomed, true, "seen"); eq(UpgradeScoutDB.levelingOffered, nil, "but not with Forever Leveling BiS there to choose")
@@ -9671,6 +9675,908 @@ function scenarios.leveling_alt()
     local filled
     ns.Leveling.Hushed(function(what) filled = what end, "a link")
     eq(filled, "a link", "no Forever Leveling BiS: what fills the tooltip in is called")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+---------------------------------------------------------------------------
+-- GearQuest as the one who scores (GearQuest.lua)
+---------------------------------------------------------------------------
+-- The warrior's three specs and the druid's four, as the tests have that addon name them,
+-- each with weights under its own names for the stats. Of the warrior's, Arms has a row for
+-- an item of the tests with the score their first profile gives it and Fury with the
+-- second's (see W.InstallGearQuest), so the standard world reads by Arms as it does by the
+-- addon itself.
+local MINE_ARMS, MINE_FURY = "@WARRIOR:arms", "@WARRIOR:fury"
+
+local function GearQuestWorld()
+    W.InstallGearQuest()
+    W.AddGearQuestSpecs("WARRIOR", { { id = "arms", label = "Arms" }, { id = "fury", label = "Fury" },
+        { id = "protection", label = "Protection" } })
+    W.AddGearQuestSpecs("DRUID", { { id = "feral", label = "Feral" }, { id = "bear", label = "Bear" },
+        { id = "balance", label = "Balance" }, { id = "restoration", label = "Restoration" } })
+    W.SetGearQuestWeights("WARRIOR", "arms", { weights = { str = 1.5, agi = 1, sta = 0.5, ap = 0.4, crit = 8, health = 0.05 }, dps = 2 })
+    W.SetGearQuestWeights("WARRIOR", "fury", { weights = { str = 1, sta = 1 }, dps = 1 })
+    W.SetGearQuestWeights("WARRIOR", "protection", { weights = { sta = 2, armor = 0.1, blockValue = 0.5, resist = 1 }, dps = 1, speed = 3 })
+    W.SetGearQuestWeights("DRUID", "feral", { weights = { agi = 1, str = 1, feralAp = 0.5 }, dps = 3 })
+    W.SetGearQuestWeights("DRUID", "bear", { weights = { sta = 1.5, agi = 1, armor = 0.1 } })
+    W.SetGearQuestWeights("DRUID", "balance", { weights = { int = 1, sp = 1, crit = 6, mana = 0.1 }, ranged = 4 })
+    W.SetGearQuestWeights("DRUID", "restoration", { weights = { heal = 1, sp_from_heal = 0.6, int = 0.5 } })
+    -- (A kind of armor a spec would rather not wear counts for a share of its worth.)
+    W.gearquest.kinds.DRUID = { balance = { Leather = 0.5 }, default = { Leather = 1 } }
+end
+
+-- GearQuest was asked about no item with its enchantment on.
+local function CheckGearQuestAsked(label)
+    for _, link in ipairs(W.gearquest.asked) do
+        check(not link:match("item:%d+:%d"), label .. ": GearQuest is asked about an item without its enchantment")
+    end
+end
+
+-- What GearQuest wrote into the tooltip: "rank" for its line of a score, "miss" for its
+-- word that it is not scoring the item, nil for nothing.
+local function GearQuestLine(tooltip)
+    for _, line in ipairs(tooltip._lines) do
+        if line.text:find("GearQuest: Rank", 1, true) then return "rank" end
+        if line.text:find("GearQuest is not scoring", 1, true) then return "miss" end
+    end
+    return nil
+end
+
+-- The road of a player who has GearQuest: the addon scores by itself until it is chosen,
+-- then by GearQuest's rows for the spec in use in it, and by its weights for what it has no
+-- row for.
+function scenarios.gearquest_scan()
+    StandardWorld()
+    -- The worn chest is enchanted. On the second score: the two chests 9 (for sale) and 12
+    -- (worn), a helm, a two-hander and a shield.
+    W.equipped[5] = (W.Link(100):gsub("item:100:", "item:100:66", 1))
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.items["211:0"].value2, W.items["212:0"].value2, W.items["213:0"].value2 = 5, 40, 8
+    GearQuestWorld()
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score, S, me = ns.Score, ns.Scanner, ns.Roster.Me()
+    local function Idle() return S.state == "idle" end
+
+    -- It is there and not chosen: the addon scores by itself and asks it about no item.
+    eq(ns.GearQuest.Usable(), true, "GearQuest is there to be asked"); eq(Score.Engine(), nil, "and is not, until chosen")
+    eq(Score.Current().name, "S1", "the profiles are the addon's own")
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local frame = UpgradeScoutFrame
+    local dropdown = frame.ProfileDropdown
+    ScanToEnd()
+    CheckStandardOffers("the addon's own weights, with GearQuest installed")
+    eq(#W.gearquest.asked, 0, "GearQuest is asked about no item"); eq(#W.gearquest.weighed, 0, "and for no weights")
+    eq(#dropdown.radios, 2, "the field lists the addon's profiles"); eq(dropdown:GetText(), "Arms", "the one in use")
+
+    -- Chosen, as the welcome window does it: for the whole account, and at once.
+    local told, expected = 0, 0
+    ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
+    local function Told(label)
+        expected = expected + 1
+        eq(told, expected, label)
+    end
+    Score.SetEngine("gearquest")
+    eq(UpgradeScoutDB.engine, "gearquest", "the choice is written down for the account"); eq(Score.Engine(), "gearquest", "and GearQuest scores")
+    Told("what keeps scores is told")
+    local current, list = Score.Current()
+    eq(#list, 3, "the character being played can go by every spec GearQuest has for its class")
+    eq(current.name, MINE_ARMS, "the one in use is the one in use there: with none picked, the first of its class")
+    eq(current.title, "Arms", "by GearQuest's own name for it")
+    eq(list[2].name, MINE_FURY, "each by its class and its name there, marked as the character's own"); eq(list[3].title, "Protection", "the last")
+    eq(Score.Title(MINE_ARMS), "Arms", "a spec's title by its profile"); eq(Score.IsApprox(MINE_ARMS), false, "no spec is marked as an estimate")
+    eq(#Score.Trees(), 2, "the addon's own profiles are still there to be asked for")
+
+    -- The list that was there is made again, by its rows.
+    check(S.state ~= "idle", "a list that was made on the addon's weights is made again")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, MINE_ARMS, "on the spec in use")
+    CheckStandardOffers("GearQuest, on the first spec")
+    near(S.ctx.equipped[5].value, 10, "what is worn is scored by its row, without its enchantment")
+    near(S.ctx.equipped[16].value, 20, "every piece of it")
+    eq(S.ctx.show1H, true, "a spec is offered one-handed weapons"); eq(S.ctx.show2H, true, "and two-handed ones")
+    eq(#W.gearquest.stored, 1, "an item with a row at the character's level is asked about once")
+    eq(W.gearquest.stored[1].itemId, 208, "a row of another level is looked for where there is none: for the chest with nothing to read")
+    CheckGearQuestAsked("a scan")
+    eq(#dropdown.radios, 3, "the field lists its specs"); eq(dropdown.radios[2].text, "Fury", "by its names for them")
+    eq(dropdown:GetText(), "Arms", "and shows the one in use"); eq(#dropdown.buttons, 0, "with no line that leads elsewhere: a spec is chosen here")
+    dropdown._tooltip(GameTooltip)
+    local tip = {}
+    for _, line in ipairs(GameTooltip._lines) do tip[#tip + 1] = line.text end
+    check(table.concat(tip, " | "):find(ns.L.PROFILE_TIP_GEARQUEST, 1, true) ~= nil, "its tooltip says that the choice is GearQuest's as well")
+    -- Finding an item's rows is slow there: what it answered is remembered.
+    local before = #W.gearquest.asked
+    ScanToEnd()
+    CheckStandardOffers("GearQuest, the list made again")
+    eq(#W.gearquest.asked, before, "a list made again: it is asked about no item twice")
+
+    -- Another spec chosen in the addon's field: it is picked in GearQuest, whose own lines
+    -- then go by it, and the list follows.
+    dropdown:Pick(2)
+    W.Run(0.5)
+    eq(#W.gearquest.picked, 1, "another spec chosen in the field: GearQuest is asked to pick it, once")
+    eq(W.gearquest.picked[1], "WARRIOR:fury", "by the function its own window picks one with")
+    eq(GearQuestForeverCharDB.specPick.WARRIOR, "fury", "which keeps it")
+    eq(Score.Current().name, MINE_FURY, "the profile in use is the spec in use there")
+    Told("its rows are another spec's now: what keeps scores is told")
+    eq(me.gearquest, nil, "nothing is written on the card of the character being played")
+    eq(me.profile, nil, "the addon's own profile is left alone")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, MINE_FURY, "the list follows"); eq(dropdown:GetText(), "Fury", "and so does the field")
+    check(Offer("Helm") ~= nil, "a helm for the empty head, by its row for that spec")
+    check(Offer("Shield") ~= nil, "a shield for the empty off hand")
+    check(Offer("Big Axe") ~= nil, "and a two-hander")
+    eq(Offer("Good Chest"), nil, "the chest is no upgrade for it: 9 against 12")
+    eq(OfferCount(), 3, "and nothing else")
+    dropdown:Pick(2)
+    W.Run(0.5)
+    eq(#W.gearquest.picked, 1, "the spec in use clicked: nothing is picked"); eq(told, expected, "and nothing told")
+
+    -- A spec picked in GearQuest's own window: it draws its windows anew, which is heard.
+    GearQuestForeverCharDB.specPick.WARRIOR = "arms"
+    W.GearQuestChanged()
+    W.Run(0.5)
+    Told("another spec picked there: what keeps scores is told")
+    eq(Score.Current().name, MINE_ARMS, "the profile is the spec it has in use now")
+    W.RunUntil(Idle, 600)
+    CheckStandardOffers("GearQuest, back on the first spec")
+    -- It draws them anew for other reasons too: nothing of what the scores rest on changed.
+    W.GearQuestChanged()
+    W.Run(0.5)
+    eq(told, expected, "its windows drawn anew, with its answers as they were: nothing is told"); eq(S.state, "idle", "and the list stays")
+    -- The spec's weights are other ones.
+    W.SetGearQuestWeights("WARRIOR", "arms", { weights = { str = 1.5, agi = 1, sta = 2, crit = 8 }, dps = 2 })
+    W.GearQuestChanged()
+    W.Run(0.5)
+    Told("the weights of the spec in use changed: what keeps scores is told")
+    W.RunUntil(Idle, 600)
+    W.SetGearQuestWeights("WARRIOR", "arms", { weights = { str = 1.5, agi = 1, sta = 3, crit = 8 }, dps = 2 })
+    W.GearQuestChanged()
+    W.SetGearQuestWeights("WARRIOR", "arms", { weights = { str = 1.5, agi = 1, sta = 0.5, ap = 0.4, crit = 8, health = 0.05 }, dps = 2 })
+    W.GearQuestChanged()
+    W.Run(0.5)
+    Told("a burst of changes is one telling")
+    W.RunUntil(Idle, 600)
+
+    -- A spec found changed with nothing drawn anew: its answer is asked for again after a
+    -- moment, and not each time.
+    Score.Current()
+    GearQuestForeverCharDB.specPick.WARRIOR = "fury"
+    local asked = W.gearquest.specAsked
+    for _ = 1, 20 do Score.Current() end
+    eq(W.gearquest.specAsked, asked, "asked many times in a moment, the spec in use is not asked for each time")
+    W.Run(3)
+    eq(Score.Current().name, MINE_FURY, "an answer grown old is asked for again")
+    W.Run(0.5)
+    Told("and, being new, told")
+    W.RunUntil(Idle, 600)
+    GearQuestForeverCharDB.specPick.WARRIOR = nil
+    W.GearQuestChanged()
+    W.Run(0.5)
+    Told("no spec picked there any more: the class's first again")
+    W.RunUntil(Idle, 600)
+    CheckStandardOffers("GearQuest, on the first spec again")
+
+    -- An item it has no row for is scored here, on the spec's weights: each stat times its
+    -- weight, a chance by the percent.
+    local function Value(link, id) return Score.Value(Score.Item(link), id or MINE_ARMS, 10) end
+    W.AddItem({ id = 240, name = "Odd Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, level = 9, unranked = true, value = 99,
+        game = { ITEM_MOD_STRENGTH_SHORT = 4, ITEM_MOD_CRIT_RATING_SHORT = 14, ITEM_MOD_SPIRIT_SHORT = 7 } })
+    near(Value(W.Link(240)), 4 * 1.5 + 8, "an item it has no row for: its stats on the spec's weights, 14 points of rating the 1% it weighs")
+    near(Value(W.Link(240), MINE_FURY), 4, "another spec of the character's: the sum on that one's weights")
+    -- One it lists at another level than the character's: the score of that row, as it takes
+    -- one for a piece that is worn.
+    W.AddItem({ id = 241, name = "Old Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, level = 5, elsewhere = true, value = 7,
+        game = { ITEM_MOD_STRENGTH_SHORT = 1 } })
+    near(Value(W.Link(241)), 7, "an item it lists at another level: the score it has there")
+    local last = W.gearquest.stored[#W.gearquest.stored]
+    eq(last.itemId, 241, "asked for by the item"); eq(last.slot, "Head", "and the slot of its lists")
+    near(Value(W.Link(241), MINE_FURY), 1, "its rows are for the spec in use: another spec is the sum")
+    near(Value(W.Link(200), "WARRIOR:arms"), 0, "and so is the same spec of another warrior of the account, of whom it knows nothing")
+    -- A random enchantment has a row with the score of its best roll. The one at hand is
+    -- one roll: it scores what it adds up to, and never more than the row says.
+    W.AddItem({ id = 242, name = "Scout Band", equipLoc = "INVTYPE_FINGER", level = 8, unranked = true })
+    W.AddItem({ id = 242, suffix = 1, name = "Scout Band of the Tiger", equipLoc = "INVTYPE_FINGER", level = 8, best = true, value = 12,
+        game = { ITEM_MOD_STRENGTH_SHORT = 4 } })
+    W.AddItem({ id = 242, suffix = 2, name = "Scout Band of the Bear", equipLoc = "INVTYPE_FINGER", level = 8, best = true, value = 12,
+        game = { ITEM_MOD_STRENGTH_SHORT = 20 } })
+    W.AddItem({ id = 242, suffix = 3, name = "Scout Band of the Whale", equipLoc = "INVTYPE_FINGER", level = 8, unranked = true,
+        game = { ITEM_MOD_STRENGTH_SHORT = 2 } })
+    near(Value(W.Link(242, 1)), 6, "a random enchantment, a lesser roll than the best its row is scored by: what it adds up to")
+    near(Value(W.Link(242, 2)), 12, "one that adds up to more: no more than its row says")
+    local stored = #W.gearquest.stored
+    near(Value(W.Link(242, 3)), 3, "an enchantment it has no row for: the sum")
+    eq(#W.gearquest.stored, stored, "its item's row of another level is not asked for: that may be another enchantment's")
+    CheckGearQuestAsked("items of every kind")
+
+    -- Its say on weapons, for the spec in use: one of its specs holds a two-hander and
+    -- nothing else, one never a two-hander, one daggers alone.
+    W.gearquest.twoOnly = true
+    local ctx = Score.Context(MINE_ARMS)
+    eq(ctx.show1H, false, "a spec of two-handers alone: no one-handed weapon is offered"); eq(ctx.show2H, true, "two-handed ones are")
+    eq(Score.Context(MINE_FURY).show1H, true, "a spec that is not the one in use is offered every weapon")
+    W.gearquest.twoOnly, W.gearquest.noTwo = false, true
+    ctx = Score.Context(MINE_ARMS)
+    eq(ctx.show1H, true, "a spec of a weapon and a shield: one-handed weapons"); eq(ctx.show2H, false, "and no two-handed ones")
+    W.gearquest.noTwo, W.gearquest.daggers = false, true
+    W.AddItem({ id = 243, name = "Keen Dagger", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 15, value = 30, level = 9 })
+    eq(Score.ClassCanUse(Score.Item(W.Link(243)), nil), true, "a spec of daggers alone: a dagger is for it")
+    eq(Score.ClassCanUse(Score.Item(W.Link(212)), nil), false, "an axe is not"); eq(Score.ClassCanUse(Score.Item(W.Link(213)), nil), true, "a shield is no weapon")
+    eq(Score.ClassCanUse(Score.Item(W.Link(212)), { class = "WARRIOR", level = 10, key = "P", name = "P" }), true,
+        "of another character it has no say")
+    W.gearquest.daggers = false
+
+    -- /upscout stats: the stats as the game counts them on the spec's weights, by GearQuest's
+    -- words for them, and its own score for the item, which counts more than those.
+    local good = W.items["200:0"]
+    good.game = { ITEM_MOD_STRENGTH_SHORT = 4 }
+    local at = #W.printed + 1
+    SlashCmdList.UPGRADESCOUT("stats " .. W.Link(200))
+    local said = Said(at)
+    check(said:find('on the profile "Arms": score 18', 1, true) ~= nil, "the spec in use and GearQuest's own score for the item: " .. said)
+    check(said:find("Strength: 4 × 1.5 = 6", 1, true) ~= nil, "a stat by its word for it, with the spec's weight")
+    check(said:find("TEST_S1", 1, true) == nil, "a stat it has no weight for is left out")
+    good.game = nil
+
+    -- A spec of the player's own making there: listed after the ones that come with it, by
+    -- the name the player gave it, with the weights of the spec it was made from and what
+    -- was changed. A weight changed later is found out when the answer has grown old.
+    GearQuestForeverDB.customSpecs = { WARRIOR = { { id = "c:1", name = "My Tank", base = "protection", overrides = { sta = 3 } } } }
+    list = select(2, Score.Current())
+    eq(#list, 4, "a spec the player made there is listed"); eq(list[4].name, "@WARRIOR:c:1", "by its own name there")
+    eq(list[4].title, "My Tank", "and shown by the name the player gave it")
+    W.AddItem({ id = 244, name = "Stout Belt", equipLoc = "INVTYPE_WAIST", subClassID = 3, level = 9, unranked = true,
+        game = { ITEM_MOD_STAMINA_SHORT = 5, RESISTANCE2_NAME = 4, RESISTANCE5_NAME = 6 } })
+    near(Value(W.Link(244), "@WARRIOR:protection"), 5 * 2 + 6, "the spec it was made from; of an item's resistances the greatest counts")
+    near(Value(W.Link(244), "@WARRIOR:c:1"), 5 * 3 + 6, "the player's own: the same, with what was changed")
+    GearQuestForeverDB.customSpecs.WARRIOR[1].overrides.sta = 4
+    W.Run(11)
+    near(Value(W.Link(244), "@WARRIOR:c:1"), 5 * 4 + 6, "a weight changed there with no word: an answer grown old is asked for again")
+    W.Run(0.5)
+    Told("and, found changed, told")
+    W.RunUntil(Idle, 600)
+
+    -- It has no spec for the class: none in use, no scan, and the reason.
+    local specs = W.gearquest.specs.WARRIOR
+    W.gearquest.specs.WARRIOR = nil
+    W.GearQuestChanged()
+    W.Run(0.5)
+    Told("its specs gone: what keeps scores is told")
+    eq(Score.Current(), nil, "no spec to be had: none in use")
+    eq(S.Start(), false, "and no scan"); eq(S.message, ns.L.ERR_NO_SCALE_GEARQUEST, "which says why")
+    W.gearquest.specs.WARRIOR = specs
+    W.GearQuestChanged()
+    W.Run(0.5)
+    Told("its specs back")
+    W.RunUntil(Idle, 600)
+    eq(Score.Current().name, MINE_ARMS, "the spec in use back")
+    ScanToEnd()
+    CheckStandardOffers("GearQuest, with its specs back")
+
+    -- GearQuest can show another character's lists (its "simulation"). All it says is then
+    -- about that one: it cannot be asked, and the addon scores by itself meanwhile.
+    GearQuestForeverDB.settings.preview = { enabled = true }
+    W.GearQuestChanged()
+    W.Run(0.5)
+    Told("its simulation switched on: who scores is another, and what keeps scores is told")
+    eq(ns.GearQuest.Usable(), false, "it cannot be asked while it simulates another character"); eq(Score.Engine(), nil, "the addon scores")
+    eq(Score.Current().name, "S1", "on its own profiles"); eq(UpgradeScoutDB.engine, "gearquest", "and the choice stands")
+    W.RunUntil(Idle, 600)
+    CheckStandardOffers("GearQuest simulating: the addon's own weights")
+    -- Switched off again with nothing drawn anew: found out after a moment.
+    GearQuestForeverDB.settings.preview.enabled = false
+    W.Run(3)
+    eq(Score.Engine(), "gearquest", "its simulation switched off: it scores again")
+    W.Run(0.5)
+    Told("which is told")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, MINE_ARMS, "the list is by its spec again")
+    CheckStandardOffers("GearQuest, after its simulation")
+
+    -- A level gained: its lists are another level's.
+    W.player.level = 11
+    W.Fire("PLAYER_LEVEL_UP", 11)
+    W.Run(2.5)
+    Told("a level gained: what keeps scores is told")
+    W.RunUntil(Idle, 600)
+
+    -- Back to the addon's own weights: its profile is where it was left.
+    Score.SetEngine(nil)
+    Told("the addon's own weights chosen again")
+    eq(UpgradeScoutDB.engine, nil, "nothing is left written"); eq(Score.Current().name, "S1", "the addon's profile as it was")
+    W.RunUntil(Idle, 600)
+    eq(#dropdown.radios, 2, "the field lists the addon's profiles again")
+    before = #W.gearquest.asked
+    ScanToEnd()
+    eq(#W.gearquest.asked, before, "and GearQuest is asked about no item")
+
+    -- Another character of the account can be scored on any spec of its class: the one
+    -- chosen for it in the addon's field, then the one for its talents, then the one
+    -- GearQuest starts the class on.
+    Score.SetEngine("gearquest")
+    local function Other(card)
+        card.key, card.name, card.realm = card.key or "P", card.name or "P", card.realm or "Testrealm"
+        return card
+    end
+    local picked, all = Score.Current(Other({ class = "DRUID", talents = "DRUID_FERAL_BEAR" }))
+    eq(#all, 4, "another character: every spec GearQuest has for its class")
+    eq(all[1].name, "DRUID:feral", "each by its class and its name there, without the mark"); eq(all[2].title, "Bear", "and GearQuest's name for it")
+    eq(picked.name, "DRUID:bear", "the one in use: the spec for the tree its talents are in")
+    eq(Score.Current(Other({ class = "DRUID", talents = "DRUID_FERAL_CAT" })).name, "DRUID:feral", "a druid's other shape")
+    eq(Score.Current(Other({ class = "DRUID", talents = "DRUID_RESTORATION" })).name, "DRUID:restoration", "a tree by its name")
+    eq(Score.Current(Other({ class = "DRUID" })).name, "DRUID:feral", "with nothing to go by: the one it starts the class on")
+    eq(Score.Current(Other({ class = "DRUID", talents = "DRUID_BALANCE", gearquest = "restoration" })).name, "DRUID:restoration",
+        "under the spec chosen for it in the addon's field")
+    eq(Score.Current(Other({ class = "DRUID", talents = "DRUID_BALANCE", gearquest = "gone" })).name, "DRUID:balance",
+        "a choice that is no spec any more gives way to the talents")
+    eq(Score.Current(Other({ class = "WARRIOR", talents = "S2" })).name, "WARRIOR:arms", "talents that name no spec of its: the first")
+    eq(Score.Current(Other({ class = "MAGE" })), nil, "a class it has no specs for: none")
+    eq(Score.Title("DRUID:bear"), "Bear", "a profile's title"); eq(Score.Title("no such thing"), "no such thing", "what is no profile is its own title")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- GearQuest chosen and not there, there and not ready, in a version without what is asked of
+-- it, and without what is asked only where it is there.
+function scenarios.gearquest_absent()
+    StandardWorld()
+    UpgradeScoutDB = { engine = "gearquest" }
+    LoadAddon()
+    local Score = ns.Score
+    eq(ns.GearQuest.Usable(), false, "GearQuest is not installed"); eq(Score.Engine(), nil, "so the addon scores, though it was chosen")
+    eq(Score.Current().name, "S1", "on its own profiles")
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    CheckStandardOffers("GearQuest chosen and not installed")
+    eq(UpgradeScoutDB.engine, "gearquest", "the choice stands for when it is back")
+
+    -- It is there but has not made its lists yet, as in the moments of logging in.
+    GearQuestWorld()
+    GearQuest.Data.byItemId = nil
+    eq(ns.GearQuest.Usable(), false, "before its lists are made it cannot be asked"); eq(Score.Engine(), nil, "and is not")
+    eq(Score.Current().name, "S1", "the addon's profiles meanwhile")
+    -- A version without a function the addon calls, or without a part of it, is one that
+    -- cannot be asked.
+    GearQuest.Data.byItemId = {}
+    local weights, spec = GearQuest.Custom.Weights, GearQuest.Spec
+    GearQuest.Custom.Weights = nil
+    eq(ns.GearQuest.Usable(), false, "one that lacks a function the addon calls"); eq(Score.Engine(), nil, "leaves the scoring to the addon")
+    GearQuest.Custom.Weights, GearQuest.Spec = weights, nil
+    eq(ns.GearQuest.Usable(), false, "one that lacks a part of it"); eq(Score.Engine(), nil, "does too")
+    GearQuest.Spec = spec
+    eq(Score.Engine(), "gearquest", "with everything in place it scores, as chosen")
+    eq(Score.Current().name, MINE_ARMS, "on the spec in use in it")
+    local asked = W.gearquest.specAsked
+    for _ = 1, 50 do Score.Engine() end
+    eq(W.gearquest.specAsked, asked, "whom it scores for is not found out anew each time")
+
+    -- What it is asked only where it is there can be missing.
+    local data = GearQuest.Data
+    data.EquippedPipelineScore, data.UsesTwoHandOnlyWeapons, data.UsesOneHandAndShield, data.AssassinationDaggerOnly = nil, nil, nil, nil
+    GearQuest.Spec.SetSelectedSpec, GearQuest.Spec.GetDefaultSpec, GearQuest.Custom.SpecIsIndexed = nil, nil, nil
+    GearQuest.ScoringWeightLabels, GearQuest.L, GearQuest.StatWeightsArmorClass, GearQuest.RefreshUI = nil, nil, nil, nil
+    eq(ns.GearQuest.Usable(), true, "without those it still scores")
+    W.AddItem({ id = 241, name = "Old Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, level = 5, elsewhere = true, value = 7,
+        game = { ITEM_MOD_STRENGTH_SHORT = 2 } })
+    near(Score.Value(Score.Item(W.Link(241)), MINE_ARMS, 10), 3, "an item it lists at another level, with no way to ask for that row: the sum")
+    eq(Score.ClassCanUse(Score.Item(W.Link(212)), nil), true, "no weapon is refused for it")
+    local ctx = Score.Context(MINE_ARMS)
+    eq(ctx.show1H, true, "a spec is offered every weapon"); eq(ctx.show2H, true, "of either kind")
+    W.items["200:0"].game = { ITEM_MOD_STRENGTH_SHORT = 4 }
+    local parts, total = Score.Parts(Score.Item(W.Link(200)), MINE_ARMS, 10)
+    eq(#parts, 1, "a sum without its words for the stats is no error"); eq(parts[1].label, "str", "a stat then goes by its name there")
+    near(total, 18, "and the total is its row's as ever")
+    W.items["200:0"].game = nil
+    Score.Choose(ns.Roster.Me(), MINE_FURY)
+    W.Run(0.5)
+    eq(Score.Current().name, MINE_ARMS, "with no way to pick a spec there, a choice in the field changes nothing")
+    eq(Score.Current({ class = "DRUID", key = "P", name = "P", realm = "Testrealm" }).name, "DRUID:feral",
+        "another character with nothing to go by: the first of its class")
+    -- With nothing drawn anew to listen for, a spec picked there is found out by asking.
+    GearQuestForeverCharDB.specPick = { WARRIOR = "fury" }
+    W.Run(3)
+    eq(Score.Current().name, MINE_FURY, "a spec picked there: found out after a moment")
+    GearQuestForeverCharDB.specPick = nil
+
+    -- Switched off for the next session: the addon's weights again, without a word.
+    Relog(W.player, W.equipped)
+    W.RemoveGearQuest()
+    eq(ns.Score.Engine(), nil, "GearQuest switched off: the addon scores")
+    W.OpenAuctionHouse()
+    ScanToEnd()
+    CheckStandardOffers("GearQuest switched off")
+    eq(UpgradeScoutDB.engine, "gearquest", "and the choice still stands")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- With GearQuest scoring: under an item it has a row for it writes its own line, and none of
+-- ours stand beside it; under any other the lines are ours, on its weights. The arrows in
+-- the bags are ours whatever the item: it draws none there.
+function scenarios.gearquest_tooltips()
+    StandardWorld()
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    W.items["212:0"].value2 = 40
+    -- A chest GearQuest has no row for: 10 Strength, which Arms weighs at 15 against the
+    -- worn chest's 10.
+    W.AddItem({ id = 245, name = "Odd Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, level = 8, unranked = true,
+        game = { ITEM_MOD_STRENGTH_SHORT = 10 } })
+    W.AddAuction(245, 3000)
+    -- A shirt and a trinket that is only used, as most characters wear.
+    W.AddItem({ id = 230, name = "Lucky Charm", equipLoc = "INVTYPE_TRINKET", value = 0, level = 1, noStats = true })
+    W.equipped[4] = W.Link(207)
+    W.equipped[13] = W.Link(230)
+    GearQuestWorld()
+    -- It was chosen in an earlier session.
+    UpgradeScoutDB = { engine = "gearquest" }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local Score = ns.Score
+    local settings = GearQuestForeverDB.settings
+    eq(ns.GearQuest.Item(W.Link(207)).gearquest, false, "a shirt is not gear: there is nothing to read, and that is an answer")
+    eq(Score.Context(MINE_ARMS).unread, nil, "wearing one, the gear is whole")
+    eq(Score.Engine(), "gearquest", "GearQuest scores, as chosen before"); eq(Score.Current().name, MINE_ARMS, "on the spec in use in it")
+
+    -- What an item does beyond its stats: a use and a chance on hit count as not scored;
+    -- what it does while worn is a stat where the game's tables say so.
+    local function Effects(id) return Score.HasUnscoredEffects(Score.Item(W.Link(id))) end
+    local good = W.items["200:0"]
+    eq(Effects(201), true, "a use: not counted"); eq(Effects(200), false, "an item of plain stats")
+    good.equipLine = true
+    eq(Effects(200), true, "what it does while worn, which the game's tables know no stat for")
+    ns.GearData.extra[200] = { ITEM_MOD_ATTACK_POWER_SHORT = 14 }
+    eq(Effects(200), false, "the same where they do: counted")
+    ns.GearData.extra[200] = nil
+    good.equipLine, good.procLine = nil, true
+    eq(Effects(200), true, "a chance on hit")
+    good.procLine = nil
+
+    -- Does the tooltip have lines of ours? Our header, then what is under it, joined by " | ".
+    local function Ours(tooltip)
+        local header
+        for i, line in ipairs(tooltip._lines) do
+            if line.text:find("Upgrade Scout", 1, true) then header = i end
+        end
+        if not header then return nil end
+        local out = {}
+        for i = header + 1, #tooltip._lines do
+            local line = tooltip._lines[i]
+            out[#out + 1] = line.text .. (line.right and " " .. line.right or "")
+        end
+        return table.concat(out, " | ")
+    end
+    local function Shown(tooltip, id)
+        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:SetHyperlink(W.Link(id))
+        return Ours(tooltip)
+    end
+    local function Has(text, part) return text ~= nil and text:find(part, 1, true) ~= nil end
+    eq(Shown(GameTooltip, 200), nil, "an item GearQuest has a row for: no lines of ours, it writes its own")
+    eq(GearQuestLine(GameTooltip), "rank", "which is there")
+    local ours = Shown(GameTooltip, 245)
+    check(Has(ours, "Arms +50%"), "an item it has no row for: our lines, on its weights: " .. tostring(ours))
+    check(Has(ours, "Fury +10 pts"), "a line for every spec it has for the class")
+    eq(GearQuestLine(GameTooltip), "miss", "beside its own word that it is not scoring the item")
+    local heading
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.text:find("Upgrade Scout", 1, true) then heading = line.text end
+    end
+    check(heading:find("Upgrade Scout (GearQuest weights)", 1, true) ~= nil, "under a heading that says whose weights they are: " .. heading)
+    eq(Shown(ItemRefTooltip, 200), nil, "the same for a link in the chat: none of ours where it has a row")
+    check(Has(Shown(ItemRefTooltip, 245), "Arms +50%"), "and ours where it has none")
+    UpgradeScoutDB.ownTree = true
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    Shown(GameTooltip, 245)
+    local single
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.text:find("(GearQuest weights)", 1, true) then single = line end
+    end
+    check(single ~= nil and single.text:find("Arms (GearQuest weights)", 1, true) ~= nil, "\"Only my spec\": one line, with whose weights they are")
+    eq(single.right, "+50%", "and the gain")
+    UpgradeScoutDB.ownTree = nil
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    UpgradeScoutDB.tooltip = false
+    ns.Fire("SETTING_CHANGED", "tooltip")
+    eq(Shown(GameTooltip, 245), nil, "they go by their box in the welcome window, as with the addon scoring")
+    UpgradeScoutDB.tooltip = nil
+    ns.Fire("SETTING_CHANGED", "tooltip")
+    -- Its line switched off in its settings. It tells nobody of that: it is found out the
+    -- next time a tooltip is up. Then our lines stand under every item, by its score.
+    settings.showGearScore = false
+    check(Has(Shown(GameTooltip, 200), "Arms +80%"), "its line switched off: ours under an item it has a row for, by that row")
+    eq(GearQuestLine(GameTooltip), nil, "with nothing of its own")
+    settings.showGearScore = nil
+    eq(Shown(GameTooltip, 200), nil, "switched on again: its line, and none of ours")
+    eq(GearQuestLine(GameTooltip), "rank", "its own is back")
+    W.Run(0.5)
+
+    -- The arrows in the bags are ours: GearQuest draws none there. By its row where it has
+    -- one, by its weights where it has none.
+    local function Arrow(button)
+        local arrow = button.UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    local function Bag(slot) return Arrow(ContainerFrameCombinedBags.Items[slot]) end
+    local function Grey(slot) return ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow._grey end
+    local slot = {}
+    for _, id in ipairs({ 200, 202, 203, 204, 208, 212, 214, 245 }) do slot[id] = W.PutInBags(W.Link(id)) end
+    W.OpenBags()
+    W.Run(1)
+    eq(Bag(slot[200]), true, "a better chest: an arrow of ours, 18 against 10 by its rows"); eq(Grey(slot[200]), false, "green: it can be put on now")
+    eq(Bag(slot[245]), true, "a chest it has no row for: an arrow by its weights, 15 against 10")
+    eq(Bag(slot[203]), true, "a better chest of a higher level"); eq(Grey(slot[203]), true, "grey")
+    eq(Bag(slot[212]), true, "a two-hander against the sword")
+    eq(Bag(slot[202]), false, "not a weaker chest"); eq(Bag(slot[204]), false, "not mail the character has not learned")
+    eq(Bag(slot[208]), false, "not a chest with nothing to read"); eq(Bag(slot[214]), false, "not a potion")
+    -- Another spec picked in GearQuest: the arrows follow.
+    GearQuestForeverCharDB.specPick = { WARRIOR = "fury" }
+    W.GearQuestChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), false, "for the other spec the chest is no upgrade: 9 against 12")
+    eq(Bag(slot[212]), true, "and the two-hander is one: 40 against nothing")
+    GearQuestForeverCharDB.specPick = nil
+    W.GearQuestChanged()
+    W.Run(1)
+    eq(Bag(slot[200]), true, "back on the first spec the chest has its arrow")
+
+    -- A row of the list at the auction house.
+    W.player.money = 50000
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    SetView(false, false)
+    ScanToEnd()
+    W.Run(1)
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            local entry = w._shown and w._kind == "Button" and w.entry or nil
+            if entry and entry.offer and entry.offer.name == name then return w end
+        end
+    end
+    local function Under(name)
+        local row = Row(name)
+        check(row ~= nil, name .. " is in the list")
+        W.compared = nil
+        row:GetScript("OnEnter")(row)
+        local lines, theirs = Ours(GameTooltip), GearQuestLine(GameTooltip)
+        row:GetScript("OnLeave")(row)
+        return lines, theirs
+    end
+    near(Offer("Odd Chest").value, 15, "an item it has no row for is in the list, by its weights")
+    local theirs
+    ours, theirs = Under("Good Chest")
+    eq(ours, nil, "a row of an item it has a row for, with nothing to add: no lines of ours, not even the addon's name")
+    eq(theirs, "rank", "GearQuest's line stands there, as anywhere"); eq(W.compared, GameTooltip, "and the worn item beside it as ever")
+    ours, theirs = Under("Odd Chest")
+    check(Has(ours, "Arms +50%"), "a row of an item it has none for: the gains are ours to write: " .. tostring(ours))
+    eq(theirs, "miss", "under its word that it is not scoring the item")
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(Under("Odd Chest"), nil, "and they go by their box")
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    eq(Under("Great Chest"), "Has effects the score does not count | You are 4g short",
+        "a row with something to say about buying: that, under the addon's name, and no gains")
+    CheckGearQuestAsked("tooltips and arrows")
+
+    -- The addon's own weights chosen again: its lines are back under every item, and
+    -- GearQuest's own after them.
+    Score.SetEngine(nil)
+    W.Run(1)
+    eq(Shown(GameTooltip, 200), "Arms +80% | Protection ~ -25% | GearQuest: Rank #1 for your level",
+        "the addon scores again: its lines in the tooltip, and GearQuest's own after them")
+    eq(Bag(slot[200]), true, "and its arrows, by its own profile")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- The welcome window with GearQuest: the fifth answer to who scores, its specs in place of
+-- the trees, the tooltip's block in use with a sentence on whose lines are whose, and the
+-- window coming up once for a player who has it.
+function scenarios.gearquest_welcome()
+    StandardWorld()
+    W.AddItem({ id = 16999, name = "Royal Seal", equipLoc = "INVTYPE_FINGER", quality = 3, level = 54 })
+    W.AddItem({ id = 5000, name = "Coral Band", equipLoc = "INVTYPE_FINGER", level = 21 })
+    W.items["200:0"].value2, W.items["100:0"].value2 = 9, 12
+    local L
+
+    -- Without it: the answer is there, and out of reach.
+    LoadAddon()
+    L = ns.L
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome ~= nil end, 10)
+    local window = UpgradeScoutWelcome
+    eq(#window.Engines, 5, "who scores: five answers")
+    local own, theirs = window.Engines[1], window.Engines[5]
+    eq(theirs.Label:GetText(), "GearQuest", "the fifth is GearQuest, by the name it goes by in the game")
+    eq(own.Mark:IsShown(), true, "the addon is the one that does"); eq(theirs.Mark:IsShown(), false, "GearQuest is not")
+    eq(theirs:GetAlpha(), 0.45, "it cannot be chosen while it is not there: its button is grey")
+    local function Hint(button)
+        GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        button:GetScript("OnEnter")(button)
+        local said = GameTooltip._lines[1] and GameTooltip._lines[1].text or nil
+        button:GetScript("OnLeave")(button)
+        return said
+    end
+    eq(Hint(theirs), L.WELCOME_NO_GEARQUEST, "the mouse on its grey button: a tooltip says why")
+    theirs:Click()
+    eq(UpgradeScoutDB.engine, nil, "a click on the grey button does nothing")
+    check(theirs._points[1].x + theirs:GetWidth() <= window:GetWidth() - 20 + 0.01, "the five inside the window")
+    check(theirs.Label:GetUnboundedStringWidth() + 17 <= theirs:GetWidth(), "its name has room on its button")
+    local height = window:GetHeight()
+    window.Done:Click()
+    eq(UpgradeScoutDB.welcomed, true, "seen"); eq(UpgradeScoutDB.gearquestOffered, nil, "but not with GearQuest there to choose")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(window:IsShown(), false, "without it the window does not come up by itself again")
+
+    -- The player installs GearQuest. The window comes up once more, and says why.
+    GearQuestWorld()
+    Relog(W.player, W.equipped)
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.RunUntil(function() return UpgradeScoutWelcome:IsShown() end, 10)
+    L = ns.L
+    window = UpgradeScoutWelcome
+    eq(window.About:GetText(), L.WELCOME_GEARQUEST_NEW, "it is there now: the window comes up to say that it can be chosen")
+    own, theirs = window.Engines[1], window.Engines[5]
+    eq(theirs:GetAlpha(), 1, "its button is no longer grey"); eq(theirs.Glow.parts[1]:IsShown(), true, "and lights up under the mouse")
+    eq(Hint(theirs), nil, "with nothing left to explain in a tooltip")
+    eq(window.Engines[2]:GetAlpha(), 0.45, "Pawn's is still grey: Pawn is not there")
+    eq(own.Mark:IsShown(), true, "the addon scores until another is chosen")
+    eq(window:GetHeight(), height, "the window is as tall as without it")
+
+    -- Chosen.
+    local told = 0
+    ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
+    theirs:Click()
+    eq(UpgradeScoutDB.engine, "gearquest", "a click chooses GearQuest, for the account"); eq(told, 1, "and what keeps scores is told")
+    eq(theirs.Mark:IsShown(), true, "its button is lit"); eq(own.Mark:IsShown(), false, "the addon's goes dark")
+    local trees = window.Trees
+    eq(trees[1].Label:GetText(), "Arms", "its specs in place of the trees"); eq(trees[2].Label:GetText(), "Fury", "by its names for them")
+    eq(trees[3]:IsShown(), true, "every one it has for the class"); check(trees[4] == nil or not trees[4]:IsShown(), "and no more")
+    eq(trees[1].Mark:IsShown(), true, "the one in use in it is lit"); eq(trees[2].Mark:IsShown(), false, "the others are not")
+    eq(window.Ask:GetText(), L.WELCOME_SCALE_GEARQUEST:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")), "over them: which of them the character goes by")
+    eq(window.There:IsShown(), false, "no button that leads elsewhere: a spec is chosen here")
+    trees[2]:Click()
+    W.Run(0.5)
+    eq(W.gearquest.picked[1], "WARRIOR:fury", "a click on another: it is picked in GearQuest")
+    eq(ns.Score.Current().name, MINE_FURY, "and is the one in use")
+    eq(trees[2].Mark:IsShown(), true, "lit"); eq(trees[1].Mark:IsShown(), false, "the first no more")
+    eq(ns.Roster.Me().gearquest, nil, "nothing is written on the character's card")
+    theirs:Click()
+    W.Run(0.5)
+    eq(told, 2, "the one that scores clicked again: nothing changes beyond the spec picked before")
+
+    -- The tooltip's block is in use as ever: GearQuest writes its own line for the items it
+    -- has a row for and leaves the rest to us, and the block's sentence says so. The arrows
+    -- in the bags are ours.
+    local block, arrows = window.Tips, window.Pair[2]
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_GEARQUEST, "the tooltip's block says whose lines are whose")
+    for name, box in pairs({ ["the addon's tabs"] = block.Tabs, ["the rest of the game"] = block.Elsewhere }) do
+        eq(box:IsEnabled(), true, "the score's box for " .. name .. " is in use"); eq(box:GetChecked(), true, "and ticked: " .. name)
+    end
+    eq(block.All:IsEnabled(), true, "the two buttons are in use"); eq(block.Notes:IsEnabled(), true, "and the box of the notes")
+    eq(arrows.Switch:IsEnabled(), true, "the arrows' box is in use"); eq(arrows.Body:GetText(), L.WELCOME_ARROWS_TEXT, "with its sentence as ever")
+    -- Its line switched off in its settings: the lines are all ours, and the block says
+    -- what it always says.
+    GearQuestForeverDB.settings.showGearScore = false
+    window:Hide()
+    ns.Welcome.Show()
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "its line switched off: the block's own sentence")
+    GearQuestForeverDB.settings.showGearScore = nil
+    window:Hide()
+    ns.Welcome.Show()
+    eq(block.Body:GetText(), L.WELCOME_TOOLTIP_GEARQUEST, "switched on again: whose lines are whose")
+    window.Done:Click()
+    eq(UpgradeScoutDB.gearquestOffered, true, "the choice has been seen with GearQuest there")
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(12)
+    eq(window:IsShown(), false, "and the window does not come up for it again")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- What a consumable adds, scored on a spec's weights as GearQuest names the stats.
+function scenarios.gearquest_supplies()
+    StandardWorld()
+    SuppliesWorld()
+    GearQuestWorld()
+    UpgradeScoutDB = { engine = "gearquest" }
+    LoadAddon()
+    SupplyFacts()
+    local Score = ns.Score
+    eq(Score.Engine(), "gearquest", "GearQuest scores")
+    local CASTS, HEALS = "DRUID:balance", "DRUID:restoration"
+    local DAMAGE, HEALING, BOTH = "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT", "ITEM_MOD_SPELL_HEALING_DONE_SHORT", "ITEM_MOD_SPELL_POWER_SHORT"
+    local function Value(stats, id, level) return Score.StatsValue(stats, id, level) end
+
+    near(Value({ ITEM_MOD_STRENGTH_SHORT = 8, ITEM_MOD_AGILITY_SHORT = 4 }, MINE_ARMS), 8 * 1.5 + 4, "stats under its names, by the spec's weights")
+    near(Value({ ITEM_MOD_CRIT_RATING_SHORT = 28 }, MINE_ARMS), 2 * 8, "a chance: 28 points of rating are the 2% it weighs")
+    near(Value({ ITEM_MOD_CRIT_MELEE_RATING_SHORT = 28 }, MINE_ARMS), 2 * 8, "a chance with weapons counts on a fighter's weights")
+    near(Value({ ITEM_MOD_CRIT_MELEE_RATING_SHORT = 28 }, CASTS, 20), 0, "and not on a caster's")
+    near(Value({ ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, CASTS, 20), 6, "a chance with spells counts on a caster's weights")
+    near(Value({ ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14 }, MINE_ARMS), 0, "and not on a fighter's")
+    near(Value({ ITEM_MOD_ATTACK_POWER_SHORT = 10 }, MINE_ARMS), 4, "attack power")
+    near(Value({ ITEM_MOD_RANGED_ATTACK_POWER_SHORT = 10 }, MINE_ARMS), 4, "attack power with a ranged weapon is attack power there")
+    near(Value({ ITEM_MOD_MELEE_ATTACK_POWER_SHORT = 10 }, MINE_ARMS), 4, "and so is attack power with weapons in hand, of a consumable")
+    -- What adds to spells is two stats there: to their damage and to their healing.
+    near(Value({ [DAMAGE] = 36 }, CASTS, 20), 36, "spell damage: its spell power")
+    near(Value({ [BOTH] = 20 }, CASTS, 20), 20, "damage and healing alike: spell power, to weights without one for healing")
+    near(Value({ [DAMAGE] = 20, [HEALING] = 20 }, CASTS, 20), 20, "the same under the game's two other names")
+    near(Value({ [HEALING] = 30 }, CASTS, 20), 0, "healing alone is nothing to those")
+    near(Value({ [HEALING] = 30 }, HEALS, 20), 30 + 10 * 0.6, "to a healer's it is healing, and a third of it spell power under a weight of its own")
+    near(Value({ [DAMAGE] = 30, [HEALING] = 40 }, HEALS, 20), 40, "with something for damage beside it: healing alone")
+    near(Value({ ITEM_MOD_HEALTH_SHORT = 20 }, MINE_ARMS), 1, "health under its own weight")
+    near(Value({ ITEM_MOD_MANA_SHORT = 30 }, CASTS, 20), 3, "and mana")
+    near(Value({ ITEM_MOD_UNHEARD_OF_SHORT = 99 }, MINE_ARMS), 0, "a stat it has no name for counts for nothing")
+    near(Value({ ITEM_MOD_SPIRIT_SHORT = 8 }, MINE_ARMS), 0, "nor does one the spec does not weigh")
+    eq(Value({ ITEM_MOD_STRENGTH_SHORT = 8 }, "MAGE:frost", 20), nil, "no answer for a spec it has no weights for")
+    eq(Value({ ITEM_MOD_STRENGTH_SHORT = 8 }, "S1"), nil, "nor for one of the addon's own profiles")
+
+    -- Its weights are asked for by the class, the spec and the level, and not twice.
+    W.SetGearQuestWeights("DRUID", "bear", function(level) return { weights = { sta = level >= 40 and 2 or 1 } } end)
+    near(Value({ ITEM_MOD_STAMINA_SHORT = 10 }, "DRUID:bear", 20), 10, "a druid of 20: the weights it has for that level")
+    near(Value({ ITEM_MOD_STAMINA_SHORT = 10 }, "DRUID:bear", 45), 20, "one of 45: another level's")
+    local last = W.gearquest.weighed[#W.gearquest.weighed]
+    eq(last.class, "DRUID", "asked for by the class"); eq(last.base, "bear", "the spec"); eq(last.level, 45, "and the level")
+    local times = #W.gearquest.weighed
+    Value({ ITEM_MOD_STAMINA_SHORT = 10 }, "DRUID:bear", 45)
+    Value({ ITEM_MOD_STAMINA_SHORT = 10 }, "DRUID:bear", 20)
+    eq(#W.gearquest.weighed, times, "the same weights are not asked for twice")
+
+    -- The list of consumables is scored on the spec.
+    W.OpenAuctionHouse()
+    ScanSupplies()
+    local rows = ns.Supplies.Build(ns.Scanner.supplies, SupplyOpts(MINE_ARMS, { mana = false }))
+    local function Worth(name)
+        for _, row in ipairs(rows) do
+            if row.kind == "supply" and row.entry.supply.name == name then return row.entry.value end
+        end
+    end
+    near(Worth("Elixir of Giants"), 25 * 1.5, "an elixir of Strength on a fighter's weights"); near(Worth("Elixir of Agility"), 15, "one of Agility")
+    eq(Worth("Elixir of Wisdom"), nil, "Intellect is of no use to that spec")
+    rows = ns.Supplies.Build(ns.Scanner.supplies, SupplyOpts(CASTS, { mana = true }))
+    near(Worth("Elixir of Wisdom"), 6, "and worth its weight to a caster's")
+    -- The heading over a consumable's score says whose weights they are.
+    GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    ns.Tooltip.AddHeader(GameTooltip, "Arms", true)
+    local heading = GameTooltip._lines[#GameTooltip._lines]
+    check(heading.text:find("Upgrade Scout (GearQuest weights)", 1, true) ~= nil, "a heading over a score, with GearQuest scoring: " .. heading.text)
+    eq(heading.right, "Arms", "with what stands on its right")
+    ns.Tooltip.AddHeader(GameTooltip)
+    heading = GameTooltip._lines[#GameTooltip._lines]
+    eq(heading.text:find("GearQuest", 1, true), nil, "a heading over notes alone names no other addon")
+    eq(#W.gearquest.asked, 0, "no item was asked about for any of it")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- Another character of the account: the specs of its class, its items scored from the
+-- weights of its spec, its own choice written on its card, and GearQuest's line, which is
+-- about the character being played, kept out of the rows of its list.
+function scenarios.gearquest_alt()
+    StandardWorld()
+    local warrior, warriorGear = W.player, W.equipped
+    -- The druid's chests, by the game's own count of their stats: Intellect, Agility, and on
+    -- the one for sale 1% to crit, which the game counts as 14 points of rating. Both are
+    -- leather, which GearQuest's Balance counts for half.
+    W.AddItem({ id = 300, name = "Alt's Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, level = 15,
+        values = { D1 = 0 }, game = { ITEM_MOD_INTELLECT_SHORT = 12, ITEM_MOD_AGILITY_SHORT = 3 } })
+    W.AddItem({ id = 310, name = "Druid Jerkin", equipLoc = "INVTYPE_CHEST", subClassID = 2, value = 0, level = 18,
+        values = { D1 = 0 }, game = { ITEM_MOD_INTELLECT_SHORT = 14, ITEM_MOD_AGILITY_SHORT = 2, ITEM_MOD_CRIT_RATING_SHORT = 14 } })
+    W.AddAuction(310, 2000)
+    GearQuestWorld()
+    UpgradeScoutDB = { engine = "gearquest" }
+
+    -- The druid is played once, and a spec picked for it in GearQuest, which keeps that with
+    -- what it saves for the druid alone.
+    W.Login(Druid())
+    W.equipped = { [5] = W.Link(300) }
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    eq(ns.Score.Current().name, "@DRUID:feral", "the druid, played: the spec in use in GearQuest, the first of its class")
+    GearQuestForeverCharDB.specPick = { DRUID = "bear" }
+    W.ResetBags()
+    Relog(warrior, warriorGear)
+    local Score, S = ns.Score, ns.Scanner
+    local card = UpgradeScoutDB.chars["Alty-Testrealm"]
+    check(card ~= nil, "the druid is remembered")
+    eq(GearQuestForeverCharDB.specPick, nil, "what was picked for the druid in GearQuest is not there to be read while the warrior plays")
+
+    local current, theirs = Score.Current(card)
+    eq(#theirs, 4, "another character: every spec GearQuest has for its class")
+    eq(theirs[1].name, "DRUID:feral", "by its class and its name there"); eq(theirs[3].title, "Balance", "and GearQuest's name for it")
+    eq(current.name, "DRUID:feral", "the one in use, with no talents known and none chosen here: the one it starts the class on")
+    eq(#Score.Profiles(ns.Roster.Me()), 3, "the card of the character being played is that character")
+
+    -- At the auction house the field lists them under the warrior's own.
+    W.OpenAuctionHouse()
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local frame = UpgradeScoutFrame
+    local dropdown = frame.ProfileDropdown
+    local ALTY = "|cffff7c0aAlty|r"
+    eq(#dropdown.radios, 7, "the warrior's three specs and the druid's four")
+    eq(dropdown.radios[1].text, "Arms", "the warrior's own"); eq(dropdown.radios[4].text, ALTY .. ": Feral", "the druid's by its name and the spec's")
+    eq(dropdown.radios[6].text, ALTY .. ": Balance", "each of them")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    dropdown:Pick(5)
+    eq(ns.Roster.Target(), card, "the lists are for the druid"); eq(card.gearquest, "bear", "on the spec chosen, written on its card by its name there")
+    dropdown:Pick(6)
+    eq(card.gearquest, "balance", "another of its specs chosen")
+    eq(#W.gearquest.picked, 0, "and nothing is picked in GearQuest: that is for the character being played")
+    eq(card.profile, nil, "apart from the addon's own profile"); eq(card.scale, nil, "from the Pawn scale")
+    eq(card.companion, nil, "from Forever Companion's"); eq(card.leveling, nil, "and from Forever Leveling BiS's")
+    local asked = #W.gearquest.asked
+    frame.ScanButton:Click()
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    W.Run(1)
+    eq(S.ctx.who, card, "the scan was for the druid"); eq(S.ctx.profile, "DRUID:balance", "on its spec")
+    near(S.ctx.equipped[5].value, 12 * 0.5, "its chest: 12 Intellect by the weights of that spec, for the half its leather counts")
+    check(Offer("Druid Jerkin") ~= nil, "a jerkin better than the druid's")
+    near(Offer("Druid Jerkin").value, 20 * 0.5, "14 Intellect and the 1% to crit: the game's 14 points of rating, weighed by the percent")
+    eq(Offer("Good Chest"), nil, "the warrior's upgrades are not the druid's")
+    eq(#W.gearquest.asked, asked, "GearQuest is asked for the row of no item: its rows are for the character being played")
+    local levels = {}
+    for _, weighed in ipairs(W.gearquest.weighed) do
+        if weighed.class == "DRUID" and weighed.base == "balance" then levels[weighed.level] = true end
+    end
+    eq(levels[20], true, "its weights are asked for by the druid's class, spec and level"); eq(levels[10], nil, "not by the warrior's")
+
+    -- A row's tooltip has our lines here: GearQuest's line is about the character being
+    -- played, and is kept out.
+    local scrollBox
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then scrollBox = w end
+    end
+    local function Row(name)
+        for _, w in ipairs(scrollBox:GetFrames()) do
+            local entry = w._shown and w._kind == "Button" and w.entry or nil
+            if entry and entry.offer and entry.offer.name == name then return w end
+        end
+    end
+    local function Ours(tooltip)
+        local header
+        for i, line in ipairs(tooltip._lines) do
+            if line.text:find("Upgrade Scout", 1, true) then header = i end
+        end
+        if not header then return nil end
+        local out = {}
+        for i = header + 1, #tooltip._lines do
+            local line = tooltip._lines[i]
+            out[#out + 1] = line.text .. (line.right and " " .. line.right or "")
+        end
+        return table.concat(out, " | ")
+    end
+    local row = Row("Druid Jerkin")
+    check(row ~= nil, "the jerkin is in the druid's list")
+    row:GetScript("OnEnter")(row)
+    local ours = Ours(GameTooltip)
+    check(ours ~= nil and ours:find("Balance +67%", 1, true) ~= nil, "a row of the druid's list: our lines, on its spec: " .. tostring(ours))
+    eq(GearQuestLine(GameTooltip), nil, "GearQuest's own line, which is about the warrior, is kept out")
+    eq(rawget(GameTooltip, "gqSkipScoreHook"), nil, "and the tooltip is left as it was found")
+    row:GetScript("OnLeave")(row)
+    GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    GameTooltip:SetHyperlink(W.Link(310))
+    eq(GearQuestLine(GameTooltip), "rank", "elsewhere in the game it writes about the character being played, as ever")
+    -- Whatever happens while such a tooltip is filled in, its mark is taken off again.
+    local ok = pcall(Score.Hushed, function() error("the game fails to fill a tooltip in") end, GameTooltip)
+    eq(ok, false, "an error while a tooltip is filled in is passed on"); eq(rawget(GameTooltip, "gqSkipScoreHook"), nil, "and the mark does not stay")
+    Score.Hushed(function(tooltip, link)
+        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:SetHyperlink(link)
+    end, GameTooltip, W.Link(200))
+    eq(GearQuestLine(GameTooltip), nil, "filled in for another character: none of its lines")
+
+    -- The warrior's own list is by GearQuest's rows again.
+    dropdown:Pick(1)
+    W.Run(0.5)
+    if S.state == "idle" then frame.ScanButton:Click() end
+    W.RunUntil(function() return S.state == "idle" end, 300)
+    eq(S.ctx.who, nil, "back to the warrior's own list"); eq(S.ctx.profile, MINE_ARMS, "on the spec in use in GearQuest")
+    CheckStandardOffers("the warrior's list, after the druid's")
+    CheckGearQuestAsked("lists for two characters")
     eq(#W.errors, 0, "nothing of it is an error")
 end
 

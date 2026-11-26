@@ -295,7 +295,10 @@ end
 -- written at all.
 local function AddOfferLines(entry, who)
     local score = ns.Shows("rowTooltip")
-    if ns.Score.Writes() then score = who ~= nil end
+    -- (GearQuest writes its own line for the items it lists for the character being played,
+    -- and for no other: it is asked about the row's item. Under a row for another character
+    -- nothing of it stands, and the score is the box's to switch as ever.)
+    if ns.Score.Writes(not who and entry.offer and entry.offer.link or nil) then score = who ~= nil end
     local notes = ns.Shows("rowNotes") and HasNotes(entry)
     if score and ns.OwnTree() and S.ctx then
         -- The tree in use alone: one line, for the profile the list is made on, which reads
@@ -327,11 +330,11 @@ local function ShowItemTooltip(row)
     -- No vendor price, as on the Buy tab: this is something to buy, not to sell.
     local hideVendorPrice = true
     if who then
-        -- A list for another character. Pawn, Forever Companion or Forever Leveling BiS,
-        -- where the player has one, would write here how much of an upgrade the item is for
-        -- the character being played, which is no part of a tooltip about someone else: they
-        -- are kept from it (Score.Hushed). What the item is to that character is in our
-        -- lines below.
+        -- A list for another character. Pawn, Forever Companion, Forever Leveling BiS or
+        -- GearQuest, where the player has one, would write here how much of an upgrade the
+        -- item is for the character being played, which is no part of a tooltip about
+        -- someone else: they are kept from it (Score.Hushed). What the item is to that
+        -- character is in our lines below.
         ns.Score.Hushed(GameTooltip.SetHyperlink, GameTooltip, offer.link, nil, nil, hideVendorPrice)
     else
         GameTooltip:SetHyperlink(offer.link, nil, nil, hideVendorPrice)

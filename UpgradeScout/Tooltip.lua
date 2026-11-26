@@ -24,10 +24,11 @@ local BRAND = ICON .. "Upgrade Scout"
 local BRAND_R, BRAND_G, BRAND_B = 0.53, 0.78, 0.96
 
 -- With another addon scoring (Score.Engine) the lines are ours and the score in them is
--- that addon's: what an item is worth on a scale of Pawn's or of Forever Companion's, or
--- to Forever Leveling BiS, measured our way against what is worn. Such lines say so, lest
--- they be taken for the addon's own weights or for the other addon's own lines: the heading
--- after the addon's name, "Upgrade Scout (Pawn score)", a single line after its scale's.
+-- that addon's: what an item is worth on a scale of Pawn's or of Forever Companion's, to
+-- Forever Leveling BiS or on GearQuest's weights, measured our way against what is worn.
+-- Such lines say so, lest they be taken for the addon's own weights or for the other
+-- addon's own lines: the heading after the addon's name, "Upgrade Scout (Pawn score)", a
+-- single line after its scale's.
 local function WhoseScore()
     local whose = ns.Score.Text("SCORE")
     return whose and " (" .. whose .. ")" or ""
@@ -99,8 +100,8 @@ ns.On("PLAYER_LEVEL_UP", function()
     -- The game may tell the new level a moment after the event.
     C_Timer.After(1, Forget)
 end)
--- Another one scores (the addon, Pawn, Forever Companion or Forever Leveling BiS), or the
--- scales of the one that does changed.
+-- Another one scores (the addon, Pawn, Forever Companion, Forever Leveling BiS or
+-- GearQuest), or the scales of the one that does changed.
 ns.Listen("SCORING_CHANGED", Forget)
 -- With another addon scoring an answer may be about the scale in use alone (see Answer):
 -- another scale chosen, and it is to be made again.
@@ -229,6 +230,9 @@ local function OnItem(tooltip)
     if owner and owner.upgradeScoutRow then return end
     local _, link = TooltipUtil.GetDisplayedItem(tooltip)
     if not link or Wears(link) then return end
+    -- GearQuest writes its own line for the items it lists for the character, and for no
+    -- other: under those ours are left out, and under the rest they stand, on its weights.
+    if ns.Score.Writes(link) then return end
     local answer = Answer(link)
     if not answer then return end
 
