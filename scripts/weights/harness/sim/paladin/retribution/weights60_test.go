@@ -11,7 +11,8 @@ import (
 // with the spec's options. The build's rotation is the UI's Simple rotation, which only the browser turns into
 // APL rows: sent as it is, the sim casts nothing. The rows it expands to are apls/default.apl.siml, whose
 // variables and groups already stand as the Simple defaults set them (Retribution Aura, Judgement of the
-// Crusader assigned, pull range 25, both seals in use), so that file is the rotation here.
+// Crusader assigned, pull range 25, both seals in use, the swap at three Echo of Command stacks and one Echo of
+// Righteousness stack), so that file is the rotation here.
 func TestWeights60(t *testing.T) {
 	const specs = "../../../ui/specs/paladin/retribution"
 	player := weights60.SimlPlayer(specs+"/defaults.siml", "")
@@ -25,7 +26,7 @@ func TestWeights60(t *testing.T) {
 			Rotation:    "ui/specs/paladin/retribution/apls/default.apl.siml (DefaultAplPreset 'Default'), which is the UI's Simple rotation at the build's defaults",
 			Consumables: "ui/specs/paladin/retribution/builds/unsealed_wrath.siml",
 			Quality:     "preset",
-			Note:        "UI preset build 'Unsealed Wrath', the spec's default. The gear preset is marked devOnly in the UI. The UI also has the build 'Holy Shock', a caster hybrid with its own gear.",
+			Note:        "UI preset build 'Unsealed Wrath', the spec's default, on its pre-raid gear set. The UI also has the build 'Holy Shock', a caster hybrid with its own gear.",
 		},
 	}})
 }

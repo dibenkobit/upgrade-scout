@@ -133,7 +133,7 @@ func main() {
 	output.Engine.Repo, output.Engine.Commit, output.Engine.CommitDate = *repo, *commit, *commitDate
 	output.RanAt = time.Now().UTC().Format(time.RFC3339)
 	output.Method.Level = core.CharacterLevel
-	output.Method.Weights = "core.StatWeights of the engine: the metric per one unit of the stat, the mean of paired differences against the baseline at the same seeds, from a run above the baseline and, except for hit and expertise, one below it. step is the size of that run."
+	output.Method.Weights = "core.StatWeights of the engine: the metric per one unit of the stat, the mean of paired differences against the baseline at the same seeds, from a run above the baseline and, except for hit, expertise and spell penetration, one below it. step is the size of that run."
 	output.Method.Ep = "ep is the weight divided by the weight of the tree's reference stat, with its sign kept: a negative ep is a stat that moves the metric against the reference stat. In tank.dtps and tank.tmi it divides by the weight of StatArmor, so a positive ep there lowers damage taken as armor does. The engine's own EP values are absolute and are not used."
 	output.Method.Interval = "stdev is the standard deviation of the paired differences and n their count; ci90 = z90 * stdev / sqrt(n), and epCi90 the same for ep. The engine adds iterations to a stat until epCi90 is at or under precision.epCi90Target or its top-up passes run out."
 	output.Method.Fight = "Every tree sims the Go test suites' default fight: full raid, party and individual buffs, full debuffs, one level 63 target, 180 s. Each tree records the values under baseline.buffs and baseline.encounter."

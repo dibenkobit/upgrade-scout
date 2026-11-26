@@ -10,7 +10,8 @@ import (
 
 // The three trees as the UI's preset builds 'Asn Muti', 'Combat SS' and 'Subtlety Hemo' of
 // ui/specs/rogue/dps/presets.ts. Each build's rotation is the UI's Simple rotation at its defaults, which is
-// apls/default.apl.json as the file stands: Start In Stealth, Use Backstab and Use Expose Armor are false in both.
+// apls/default.apl.json as the file stands: Start In Stealth, Use Backstab and Use Expose Armor are false in both,
+// and neither book rank is chosen.
 func TestWeights60(t *testing.T) {
 	const specs = "../../ui/specs/rogue/dps"
 
@@ -18,7 +19,8 @@ func TestWeights60(t *testing.T) {
 	// Juju Might, Swiftstrike Steak, Major Frenzy Potion, Thistle Tea, Dense Weightstone and Dense Sharpening Stone,
 	// Instant Poison VI on the main hand and Deadly Poison IV on the off hand.
 	consumables := &proto.ConsumesSpec{
-		ElixirIds:       []int32{13452, 250335, 250350, 12460},
+		ElixirIds:       []int32{13452, 250335, 250350},
+		ExtraIds:        []int32{12460},
 		FoodId:          250072,
 		OffensivePotId:  250943,
 		ConjuredId:      7676,
@@ -45,40 +47,38 @@ func TestWeights60(t *testing.T) {
 	weights60.Run(t, "sim/rogue", []weights60.Tree{
 		{
 			Class: "Rogue", Tree: "Assassination", SimStatus: "Alpha", Reference: proto.Stat_StatAttackPower,
-			Config: build("p1_muti", "00530311231251031-32030302020103-001"),
+			Config: build("muti", "00530311231251031-32030302020103-001"),
 			Baseline: weights60.Baseline{
-				Gear:        "ui/specs/rogue/dps/gear_sets/p1_muti.gear.json (P1_MUTI_GEAR 'Mutilate')",
+				Gear:        "ui/specs/rogue/dps/gear_sets/muti.gear.json (MUTI_GEAR 'Mutilate')",
 				Talents:     "TALENTS_MUTILATE_ASN 'Asn Muti'",
 				Rotation:    rotation,
 				Consumables: consumablesName,
 				Quality:     "preset",
-				Note:        "UI preset build 'Asn Muti'. The gear preset is marked devOnly in the UI.",
+				Note:        "UI preset build 'Asn Muti'.",
 			},
 		},
 		{
 			Class: "Rogue", Tree: "Combat", SimStatus: "Alpha", Reference: proto.Stat_StatAttackPower,
-			Config: build("p1_slowmh", "00530320201-3200132202012321551"),
+			Config: build("sinister", "00530320201-3200132202012321551"),
 			Baseline: weights60.Baseline{
-				Gear:           "ui/specs/rogue/dps/gear_sets/p1_slowmh.gear.json (P1_SLOW_MH_GEAR 'Slow Main Hand')",
-				Talents:        "TALENTS_COMBAT_SS 'Combat SS'",
-				Rotation:       rotation,
-				Consumables:    consumablesName,
-				Quality:        "preset",
-				Note:           "UI preset build 'Combat SS', the spec's default. The gear preset is marked devOnly in the UI. The UI also has the builds 'Combat BS' and 'Combat Venom'.",
-				GearSharedWith: []string{"Subtlety"},
+				Gear:        "ui/specs/rogue/dps/gear_sets/sinister.gear.json (SINISTER_GEAR 'Slow Main Hand')",
+				Talents:     "TALENTS_COMBAT_SS 'Combat SS'",
+				Rotation:    rotation,
+				Consumables: consumablesName,
+				Quality:     "preset",
+				Note:        "UI preset build 'Combat SS', the spec's default. The UI also has the builds 'Combat BS' and 'Combat Venom'.",
 			},
 		},
 		{
 			Class: "Rogue", Tree: "Subtlety", SimStatus: "Alpha", Reference: proto.Stat_StatAttackPower,
-			Config: build("p1_slowmh", "00530301-320003-305230031321001151"),
+			Config: build("hemo", "00530301-320003-005233031321001151"),
 			Baseline: weights60.Baseline{
-				Gear:           "ui/specs/rogue/dps/gear_sets/p1_slowmh.gear.json (P1_SLOW_MH_GEAR 'Slow Main Hand')",
-				Talents:        "TALENTS_SUB_HEMO 'Subtlety Hemo'",
-				Rotation:       rotation,
-				Consumables:    consumablesName,
-				Quality:        "preset",
-				Note:           "UI preset build 'Subtlety Hemo', which the UI itself pairs with the Combat SS build's gear set: the tree has no gear set of its own. The gear preset is marked devOnly in the UI.",
-				GearSharedWith: []string{"Combat"},
+				Gear:        "ui/specs/rogue/dps/gear_sets/hemo.gear.json (HEMO_GEAR 'Backstab Subtlety')",
+				Talents:     "TALENTS_SUB_HEMO 'Subtlety Hemo'",
+				Rotation:    rotation,
+				Consumables: consumablesName,
+				Quality:     "preset",
+				Note:        "UI preset build 'Subtlety Hemo'. The UI also has the build 'Hemo Seal Fate', on the same gear set.",
 			},
 		},
 	})
