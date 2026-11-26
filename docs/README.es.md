@@ -37,7 +37,10 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
   más ligeras que la más pesada que lleva tu personaje. **Mejora de al menos** omite las mejoras
   menores que el porcentaje que escribas. **Compra hasta** omite los objetos que cuestan más
   que la suma que escribas: la **Mayor mejora** de cada ranura es entonces la mayor por ese
-  precio.
+  precio. **Equipo de como mucho 10 niveles por debajo** omite el equipo hecho para niveles muy
+  por debajo del de tu personaje, y el escaneo es más corto. **Armas** dice cómo ocupa las manos
+  tu personaje, con un arma de dos manos o con un arma de una mano y un escudo, y qué tipos de
+  arma se le ofrecen.
 - Compra también para tus otros personajes. Un botón en el buzón mete el equipo que compraste en
   una carta para ellos.
 - La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, para
@@ -45,7 +48,8 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
   ventana del addon puedes dejar una sola línea, la de tu rama, y elegir dónde se muestran: en
   las pestañas del addon en la casa de subastas, en el resto del juego o en ningún sitio.
 - Una flecha verde en el icono de un objeto de tus bolsas o del banco indica una mejora que
-  puedes equiparte ahora mismo. Una gris: una mejora en cuanto alcances su nivel.
+  puedes equiparte ahora mismo. Una gris: una mejora en cuanto alcances su nivel. Las flechas se
+  muestran también en las ventanas de bolsas y de banco de EllesmereUI.
 - Funciona en cuanto lo instalas. La lista **Perfil** empieza en la rama de talentos donde tienes
   más puntos.
 - La primera vez que entras, una ventana muestra lo que hace el addon. Ahí puedes desactivar las
@@ -62,6 +66,10 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
 - ¿Usas Forever Leveling BiS? Elige **Forever Leveling BiS** ahí mismo y el equipo se puntúa como
   lo puntúa él, para la especialización principal que elegiste en él. Las líneas de la descripción
   y las flechas de las bolsas son las de Forever Leveling BiS.
+- ¿Usas GearQuest? Elige **GearQuest** ahí mismo y el equipo se puntúa como lo puntúa él: un
+  objeto de sus listas recibe su propia puntuación, y cualquier otro se puntúa con sus pesos.
+  Las listas y las flechas de las bolsas se guían por ellos, y para los objetos de sus listas la
+  línea de la descripción es la de GearQuest.
 
 Cualquier clase, cualquier nivel. Inglés, chino (simplificado y tradicional), alemán, ruso,
 francés, español, portugués de Brasil y coreano.
@@ -100,8 +108,9 @@ A mano:
 - Con **Rentabilidad por precio neto** marcado, **Más rentable** va por el precio neto y no por la
   compra inmediata. Lo que puedes pagar y **Mejor conjunto por** siguen yendo por la compra
   inmediata: es lo que pagas.
-- **Top 5 por ranura** mantiene la lista corta. Desactívalo para ver todas las mejoras. Comprobar
-  todos sus precios tarda entonces más, hasta unos minutos en una casa de subastas con mucho
+- **Top 5 por ranura** deja las cinco mayores mejoras de cada ranura, y además el **Más
+  rentable** cuando no está entre ellas. Desactívalo para ver todas las mejoras. Comprobar todos
+  sus precios tarda entonces más, hasta unos minutos en una casa de subastas con mucho
   movimiento.
 - **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **Nuevo**
   significa que la ranura está vacía. Los puntos, como `+6 pts`, significan que lo que llevas ahí
@@ -114,9 +123,28 @@ A mano:
   vacía se queda siempre.
 - **Compra hasta** es lo máximo que se paga por un solo objeto. **Mejor conjunto por** tiene su
   propio presupuesto y no la usa.
+- **Equipo de como mucho 10 niveles por debajo** está desactivado hasta que lo marques. Omite el
+  equipo hecho para un nivel que quede más que ese número por debajo del de tu personaje.
+  Puedes escribir otro número, del 1 al 59. Un escaneo con este filtro también se salta ese
+  equipo, así que es más corto: cuanto más alto es tu nivel, más ahorra. Si subes el número o
+  quitas la marca después de un escaneo, vuelve a escanear: la línea de estado dice desde qué
+  nivel leyó el último. Las flechas de las bolsas no se guían por este filtro.
+- **Armas** abre un menú propio. **Cualquiera** ofrece armas de una mano y de dos manos por
+  igual. **Dos manos** omite las armas de una mano, los escudos y los objetos de mano izquierda.
+  **Una mano, escudo y mano izquierda** omite las armas de dos manos. Debajo hay una casilla por
+  cada tipo de arma que tu clase puede usar: sin marcar, las armas de ese tipo se omiten. Las
+  flechas de las bolsas también se guían por todo esto.
+- Un guerrero o un paladín con el perfil **Protección** empieza en **Una mano, escudo y mano
+  izquierda** mientras puntúan los pesos del addon: son los de un tanque con escudo. Elige
+  **Cualquiera** para ver también las armas de dos manos.
+- Con **Una mano, escudo y mano izquierda** elegido, a un personaje que lleva un arma de dos
+  manos se le ofrecen armas de una mano, escudos y objetos de mano izquierda como **Nuevo**:
+  cada uno cuenta por lo que vale por sí solo, no frente al arma de dos manos. Cuando puntúa
+  Forever Leveling BiS, un arma se sigue comparando con el arma de dos manos.
 - Cada personaje tiene su propia casilla **Mejor tipo de armadura de la clase**, su propio
-  número en **Mejora de al menos** y su propia suma en **Compra hasta**. Cuando compras para
-  otro personaje, ves y cambias los suyos.
+  número en **Mejora de al menos**, su propia suma en **Compra hasta**, su propia casilla y su
+  propio número en **Equipo de como mucho 10 niveles por debajo** y sus propias elecciones en
+  **Armas**. Cuando compras para otro personaje, ves y cambias los suyos.
 - Un `*` amarillo tras el nombre: el objeto tiene efectos que la puntuación no cuenta.
 - Las pociones de salud y de maná no tienen puntuación: ningún peso pone número a «restaura
   700 p. de salud».

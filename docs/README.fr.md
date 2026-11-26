@@ -40,7 +40,11 @@ chat.
   armures plus légères que la plus lourde que porte votre personnage. **Amélioration d'au moins**
   écarte les améliorations inférieures au pourcentage que vous saisissez. **Achat immédiat
   jusqu'à** écarte les objets qui coûtent plus que la somme que vous saisissez : la **Meilleure
-  amélioration** de chaque emplacement est alors la meilleure à ce prix.
+  amélioration** de chaque emplacement est alors la meilleure à ce prix. **Équipement d'au plus
+  10 niveaux en dessous** écarte l'équipement prévu pour des niveaux bien inférieurs à celui de
+  votre personnage, et le scan est plus court. **Armes** dit comment votre personnage occupe ses
+  mains, avec une arme à deux mains ou avec une arme à une main et un bouclier, et quels types
+  d'armes lui sont proposés.
 - Sert aussi à acheter pour vos autres personnages. Un bouton à la boîte aux lettres met
   l'équipement acheté dans une lettre pour eux.
 - L'infobulle de chaque objet montre de combien il est meilleur que ce que vous portez, pour chaque
@@ -50,7 +54,8 @@ chat.
   reste du jeu, ou nulle part.
 - Une flèche verte sur l'icône d'un objet dans vos sacs ou à la banque signale une amélioration
   que vous pouvez équiper tout de suite. Une flèche grise : une amélioration dès que vous aurez
-  atteint son niveau.
+  atteint son niveau. Les flèches s'affichent aussi dans les fenêtres de sacs et de banque
+  d'EllesmereUI.
 - Fonctionne dès l'installation. La liste **Profil** commence sur l'arbre de talents où vous avez
   le plus de points.
 - À la première connexion, une fenêtre montre ce que fait l'addon. Vous pouvez y désactiver les
@@ -67,6 +72,10 @@ chat.
 - Vous utilisez Forever Leveling BiS ? Choisissez **Forever Leveling BiS** au même endroit :
   l'équipement est alors évalué comme il l'évalue, pour la spé principale que vous y avez choisie.
   Les lignes de l'infobulle et les flèches des sacs sont celles de Forever Leveling BiS.
+- Vous utilisez GearQuest ? Choisissez **GearQuest** au même endroit : l'équipement est alors
+  évalué comme il l'évalue. Un objet de ses listes reçoit son propre score, tout autre objet est
+  évalué selon ses poids. Les listes et les flèches des sacs les suivent, et pour les objets de
+  ses listes la ligne de l'infobulle est celle de GearQuest.
 
 Toutes les classes, tous les niveaux. Anglais, chinois (simplifié et traditionnel), allemand,
 russe, français, espagnol, portugais du Brésil et coréen.
@@ -105,9 +114,10 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 - Avec **Meilleure affaire selon le coût net** coché, la **Meilleure affaire** suit le coût net et
   non l'achat immédiat. Ce que vous pouvez payer et **Meilleur ensemble pour** suivent toujours
   l'achat immédiat : c'est ce que vous payez.
-- **Top 5 par emplacement** garde la liste courte. Désactivez-le pour voir toutes les améliorations.
-  Vérifier tous leurs prix dure alors plus longtemps, jusqu'à quelques minutes dans un hôtel des
-  ventes bien rempli.
+- **Top 5 par emplacement** garde les cinq plus grandes améliorations de chaque emplacement, plus
+  la **Meilleure affaire** lorsqu'elle n'en fait pas partie. Désactivez-le pour voir toutes les
+  améliorations. Vérifier tous leurs prix dure alors plus longtemps, jusqu'à quelques minutes
+  dans un hôtel des ventes bien rempli.
 - **Amélioration** dit de combien l'objet est meilleur que celui qu'il remplace, en pour cent.
   **Nouveau** : l'emplacement est vide. Des points, comme `+6 pts` : ce que vous y portez
   n'apporte rien à votre profil.
@@ -119,9 +129,30 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
   emplacement vide reste toujours.
 - **Achat immédiat jusqu'à** est le prix maximum d'un seul objet. **Meilleur ensemble pour** a
   son propre budget et n'en tient pas compte.
+- **Équipement d'au plus 10 niveaux en dessous** est désactivé tant que vous ne cochez pas la
+  case. Il écarte l'équipement prévu pour un niveau inférieur de plus que ce nombre à celui de
+  votre personnage. Vous pouvez saisir un autre nombre, de 1 à 59. Un scan avec ce filtre saute
+  lui aussi cet équipement, il est donc plus court : plus votre niveau est élevé, plus il y
+  gagne. Si vous augmentez le nombre ou décochez la case après un scan, relancez le scan : la
+  ligne d'état dit à partir de quel niveau le dernier scan a lu. Les flèches des sacs ne suivent
+  pas ce filtre.
+- **Armes** ouvre son propre menu. **Toutes** propose les armes à une main comme les armes à
+  deux mains. **Deux mains** écarte les armes à une main, les boucliers et les objets de main
+  gauche. **Une main, bouclier et main gauche** écarte les armes à deux mains. En dessous, il y
+  a une case pour chaque type d'arme que votre classe peut manier : case décochée, les armes de
+  ce type sont écartées. Les flèches des sacs suivent tout cela.
+- Un guerrier ou un paladin sur le profil **Protection** commence sur **Une main, bouclier et
+  main gauche** tant que ce sont les poids de l'addon qui évaluent : ce sont ceux d'un tank au
+  bouclier. Choisissez **Toutes** pour voir aussi les armes à deux mains.
+- Avec **Une main, bouclier et main gauche**, un personnage qui tient une arme à deux mains se
+  voit proposer les armes à une main, les boucliers et les objets de main gauche comme
+  **Nouveau** : chacun compte pour ce qu'il vaut seul, et non par rapport à l'arme à deux
+  mains. Quand Forever Leveling BiS évalue, une arme reste comparée à l'arme à deux mains.
 - Chaque personnage a sa propre case **Meilleur type d'armure pour la classe**, son propre
-  nombre pour **Amélioration d'au moins** et sa propre somme pour **Achat immédiat jusqu'à**.
-  Quand vous achetez pour un autre personnage, vous voyez et réglez les siens.
+  nombre pour **Amélioration d'au moins**, sa propre somme pour **Achat immédiat jusqu'à**, sa
+  propre case et son propre nombre pour **Équipement d'au plus 10 niveaux en dessous** et ses
+  propres choix dans **Armes**. Quand vous achetez pour un autre personnage, vous voyez et
+  réglez les siens.
 - Un `*` jaune après un nom : l'objet a des effets que le score ne compte pas.
 - Les potions de vie et de mana n'ont pas de score : aucun poids ne chiffre « rend 700 points
   de vie ».

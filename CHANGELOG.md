@@ -1,5 +1,57 @@
 # Changelog
 
+## 2.12.0
+
+- **Top 5 per slot** now shows the five biggest upgrades of each slot, and the **Best value** as
+  well when it is not one of them. Before, it kept only the items that cost less per point than
+  every stronger one, and that hid some of the strongest.
+- With more rows in the list, more prices are checked after it appears. You can buy meanwhile,
+  as before.
+- **Gear at most 10 levels below**, a new filter in the **Filters** menu of the Upgrades tab.
+  Tick it, and the list leaves out gear made for a level more than ten below your character's.
+  Type another number, from 1 to 59, to move the line.
+- A scan with it on skips that gear too, so it takes less time: the higher your level, the more
+  it saves.
+- Each character has its own box and its own number. If you raise the number or untick the box
+  after a scan, the status line says from which level that scan read, and to scan again.
+- **Weapons**, a new line in the **Filters** menu, says how your character fills its hands.
+  **Two-hand** leaves out one-hand weapons, shields and off-hand items. **One-hand, shield and
+  off-hand** leaves out two-hand weapons. **Any** offers both.
+- Under them is a tick box for every type of weapon your class can use. Untick a type, and it
+  is left out: a rogue who wants swords can untick daggers. Each character has its own choice
+  and its own ticks, and the bag arrows follow them.
+- A warrior or a paladin on the **Protection** profile starts on **One-hand, shield and
+  off-hand**: the addon's weights for that profile are a shield tank's. Choose **Any** to see
+  two-hand weapons as well. With Pawn or another addon scoring, everyone starts on **Any**.
+- With **One-hand, shield and off-hand** chosen, a character that still holds a two-hand weapon
+  is offered one-hand weapons, shields and off-hand items as **New**: each counts for what it
+  is worth by itself, not against the two-hand weapon. The row's tooltip says that it takes the
+  two-hand weapon's place, or that it needs a one-hand weapon beside it. With Forever Leveling
+  BiS scoring, a weapon is still measured against the two-hand weapon.
+- **GearQuest** can score your gear, as Pawn, Forever Companion and Forever Leveling BiS can.
+  In the addon's window, under **Who scores your gear?**, choose **GearQuest**: the lists at
+  the auction house and the bag arrows then go by it, not by the addon's weights.
+- An item GearQuest ranks for your character gets the score GearQuest gives it. Every other
+  item is scored on GearQuest's weights for the spec. The **Profile** dropdown lists its
+  specs, for your other characters too. Choose another for the character you play, and it is
+  chosen in GearQuest as well.
+- GearQuest keeps writing its own tooltip line for the items it ranks, so the addon leaves its
+  own out under those. Under any other item the addon's lines stay and say what they go by:
+  **Upgrade Scout (GearQuest weights)**.
+- Where GearQuest says a spec takes only two-hand weapons, no two-hand weapons, or only
+  daggers, the lists go by that.
+- The choice is for the whole account. Without GearQuest, with it switched off, or while it is
+  in its simulation mode, the addon scores by its own weights.
+- If you have GearQuest, the window comes up once after the update to show you the choice.
+- With EllesmereUI's Bags module, the bag arrows show in its bag and bank windows, in the top
+  right corner of a slot. Before, no arrow showed there.
+- The stat weights are measured again, with the simulator as it is now. For an Enhancement
+  shaman, Strength now counts for more than Intellect, and spell damage for much less than
+  either. The simulator's Enhancement build was one with Flametongue Weapon and a lot of spell
+  damage; now it is one with Windfury Weapon. Every other profile changed somewhat, with the
+  simulator's new builds. On every profile that is not a tank's, armor, defense, dodge, parry
+  and shield block count about a third more.
+
 ## 2.11.0
 
 - **Forever Leveling BiS** can score your gear. In the addon's window, under **Who scores your

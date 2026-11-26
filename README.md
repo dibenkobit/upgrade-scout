@@ -58,7 +58,10 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
 - The **Filters** menu narrows the list. **Best armor type for the class** leaves out armor
   lighter than the heaviest your character wears. **Upgrade at least** leaves out upgrades
   smaller than the percent you type. **Buyout up to** leaves out items that cost more than the
-  sum you type: the **Best upgrade** in each slot is then the best one for that price.
+  sum you type: the **Best upgrade** in each slot is then the best one for that price. **Gear
+  at most 10 levels below** leaves out gear made for levels far below your character's, and
+  the scan gets shorter. **Weapons** says how your character fills its hands, with a two-hand
+  weapon or with a one-hand weapon and a shield, and which types of weapon it is offered.
 - Shops for your other characters too. A button at the mailbox puts the gear you bought into a
   letter to them.
 - Any item's tooltip shows how much better it is than what you wear, for every spec of your class,
@@ -66,7 +69,8 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
   for the tree you play, and choose where the lines show: on the addon's tabs at the auction
   house, in the rest of the game, or nowhere.
 - A green arrow on the icon of an item in your bags or bank means it is an upgrade you can put
-  on now. A grey one: an upgrade once you reach its level.
+  on now. A grey one: an upgrade once you reach its level. The arrows show in EllesmereUI's bag
+  and bank windows too.
 - Works right after you install it. The **Profile** dropdown starts on the talent tree you have
   the most points in.
 - A window on your first login shows what the addon does. There you can switch off the tooltip
@@ -79,6 +83,9 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
   lists go by them, and the tooltip line and the bag arrows are Forever Companion's own.
 - Use Forever Leveling BiS? Choose **Forever Leveling BiS** there, and gear is scored the way it
   scores it, for the main spec you chose in it. The tooltip lines and the bag arrows are its own.
+- Use GearQuest? Choose **GearQuest** there, and gear is scored the way it scores it: an item it
+  ranks gets its own score, any other is scored on its weights. The lists and the bag arrows go
+  by them, and the tooltip line of an item it ranks is GearQuest's own.
 
 Any class, any level. English, Chinese (Simplified and Traditional), German, Russian, French,
 Spanish, Brazilian Portuguese and Korean.
@@ -114,8 +121,9 @@ To install by hand:
   checked before any purchase.
 - With **Value by net cost** ticked, **Best value** goes by the net cost, not the buyout. What you
   can afford, and **Best set for**, still go by the buyout: that is what you pay.
-- **Top 5 per slot** keeps the list short. Turn it off to see every upgrade. Checking all their
-  prices then takes longer, up to a few minutes on a busy auction house.
+- **Top 5 per slot** keeps the five biggest upgrades of each slot, and the **Best value** as
+  well when it is not one of them. Turn it off to see every upgrade. Checking all their prices
+  then takes longer, up to a few minutes on a busy auction house.
 - **Upgrade** is how much better an item is than the one it replaces, in percent. **New** means
   the slot is empty. Points, such as `+6 pts`, mean what you wear there adds nothing on your profile.
 - **Best armor type for the class** keeps the heaviest armor your character has learned to
@@ -125,8 +133,26 @@ To install by hand:
   always stays.
 - **Buyout up to** is the most to pay for one item. **Best set for** has its own budget and
   does not use it.
+- **Gear at most 10 levels below** is off until you tick it. It leaves out gear made for a
+  level more than that many below your character's. Type another number, from 1 to 59. A scan
+  with it on skips that gear too, so it is shorter: the higher your level, the more it saves.
+  If you raise the number or untick the box after a scan, scan again: the status line says
+  from which level the last scan read. The bag arrows do not go by this filter.
+- **Weapons** opens a menu of its own. **Any** offers one-hand and two-hand weapons alike.
+  **Two-hand** leaves out one-hand weapons, shields and off-hand items. **One-hand, shield and
+  off-hand** leaves out two-hand weapons. Under them is a tick box for every type of weapon
+  your class can use: untick one, and weapons of that type are left out. The bag arrows follow
+  all of this.
+- A warrior or a paladin on the **Protection** profile starts on **One-hand, shield and
+  off-hand** while the addon's own weights score: those weights are a shield tank's. Choose
+  **Any** to see two-hand weapons as well.
+- With **One-hand, shield and off-hand** chosen, a character that holds a two-hand weapon is
+  offered one-hand weapons, shields and off-hand items as **New**: each counts for what it is
+  worth by itself, not against the two-hand weapon. With Forever Leveling BiS scoring, a
+  weapon is still measured against the two-hand weapon.
 - Each character has its own **Best armor type for the class** box, its own **Upgrade at
-  least** number and its own **Buyout up to** sum. When you shop for another character, you
+  least** number, its own **Buyout up to** sum, its own **Gear at most 10 levels below** box
+  and number, and its own choices under **Weapons**. When you shop for another character, you
   see and set that character's.
 - A yellow `*` after a name means the item has effects the score does not count, such as procs.
 - Health and mana potions have no score: no weight puts a number on "restores 700 health".

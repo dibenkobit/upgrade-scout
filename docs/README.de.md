@@ -39,7 +39,11 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
   weg, die leichter ist als die schwerste, die dein Charakter trägt. **Verbesserung ab** lässt
   Verbesserungen weg, die kleiner sind als der Prozentwert, den du eintippst. **Sofortkauf bis**
   lässt Gegenstände weg, die mehr kosten als der Betrag, den du eintippst: **Beste
-  Verbesserung** ist dann in jedem Slot die beste für diesen Preis.
+  Verbesserung** ist dann in jedem Slot die beste für diesen Preis. **Ausrüstung höchstens 10
+  Stufen darunter** lässt Ausrüstung weg, die für Stufen weit unter der deines Charakters
+  gemacht ist, und der Scan wird kürzer. **Waffen** legt fest, wie dein Charakter seine Hände
+  füllt, mit einer Zweihandwaffe oder mit Einhandwaffe und Schild, und welche Waffenarten er
+  angeboten bekommt.
 - Kauft auch für deine anderen Charaktere ein. Ein Button am Briefkasten legt die gekaufte
   Ausrüstung in einen Brief an sie.
 - Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden
@@ -48,7 +52,7 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
   den Tabs des Addons im Auktionshaus, im Rest des Spiels oder nirgends.
 - Ein grüner Pfeil auf dem Symbol eines Gegenstands in deinen Taschen oder der Bank heißt: eine
   Verbesserung, die du jetzt anlegen kannst. Ein grauer: eine Verbesserung, sobald du ihre Stufe
-  erreichst.
+  erreichst. Die Pfeile erscheinen auch in den Taschen- und Bankfenstern von EllesmereUI.
 - Funktioniert gleich nach der Installation. In der Liste **Profil** steht anfangs der Talentbaum,
   in dem du die meisten Punkte hast.
 - Beim ersten Einloggen zeigt ein Fenster, was das Addon macht. Dort kannst du die Zeilen im
@@ -65,6 +69,10 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
 - Du nutzt Forever Leveling BiS? Wähle dort **Forever Leveling BiS**, dann wird Ausrüstung so
   bewertet, wie es sie bewertet: für die primäre Spezialisierung, die du dort gewählt hast. Die
   Zeilen im Tooltip und die Pfeile in den Taschen kommen von Forever Leveling BiS selbst.
+- Du nutzt GearQuest? Wähle dort **GearQuest**, dann wird Ausrüstung so bewertet, wie es sie
+  bewertet: Ein Gegenstand aus seinen Listen bekommt seine eigene Wertung, jeder andere wird
+  nach seinen Gewichten bewertet. Die Listen und die Pfeile in den Taschen richten sich danach,
+  und für Gegenstände aus seinen Listen schreibt GearQuest die Zeile im Tooltip selbst.
 
 Jede Klasse, jede Stufe. Englisch, Chinesisch (vereinfacht und traditionell), Deutsch, Russisch,
 Französisch, Spanisch, brasilianisches Portugiesisch und Koreanisch.
@@ -103,8 +111,10 @@ Von Hand:
 - Mit **Preis-Leistung nach Nettokosten** richtet sich **Beste Preis-Leistung** nach den
   Nettokosten statt nach dem Sofortkauf. Was du dir leisten kannst und **Bestes Set für** richten
   sich weiter nach dem Sofortkauf: Den zahlst du.
-- **Top 5 pro Slot** hält die Liste kurz. Schalte es aus, um jede Verbesserung zu sehen. Alle
-  Preise zu prüfen dauert dann länger, in einem vollen Auktionshaus bis zu ein paar Minuten.
+- **Top 5 pro Slot** behält die fünf größten Verbesserungen jedes Slots und zusätzlich die
+  **Beste Preis-Leistung**, wenn sie nicht darunter ist. Schalte es aus, um jede Verbesserung zu
+  sehen. Alle Preise zu prüfen dauert dann länger, in einem vollen Auktionshaus bis zu ein paar
+  Minuten.
 - **Verbesserung** zeigt in Prozent, wie viel besser ein Gegenstand ist als der, den er ersetzt.
   **Neu** heißt: Der Slot ist leer. Punkte wie `+6 Pkt.` heißen: Was du dort trägst, bringt
   deinem Profil nichts.
@@ -116,9 +126,30 @@ Von Hand:
   Gegenstand für einen leeren Slot bleibt immer.
 - **Sofortkauf bis** ist die Obergrenze für einen einzelnen Gegenstand. **Bestes Set für** hat
   sein eigenes Budget und richtet sich nicht danach.
+- **Ausrüstung höchstens 10 Stufen darunter** ist aus, bis du das Häkchen setzt. Der Filter
+  lässt Ausrüstung weg, die für eine Stufe gemacht ist, die um mehr als diese Zahl unter der
+  deines Charakters liegt. Du kannst eine andere Zahl eintippen, von 1 bis 59. Ein Scan mit
+  diesem Filter überspringt solche Ausrüstung ebenfalls und ist deshalb kürzer: je höher deine
+  Stufe, desto mehr spart er. Erhöhst du nach einem Scan die Zahl oder entfernst das Häkchen,
+  scanne erneut: Die Statuszeile sagt, ab welcher Stufe der letzte Scan gelesen hat. Die Pfeile
+  in den Taschen richten sich nicht nach diesem Filter.
+- **Waffen** öffnet ein eigenes Menü. **Beliebig** zeigt Einhand- und Zweihandwaffen
+  gleichermaßen. **Zweihändig** lässt Einhandwaffen, Schilde und Gegenstände für die Schildhand
+  weg. **Einhändig, Schild und Schildhand** lässt Zweihandwaffen weg. Darunter steht ein Häkchen
+  für jede Waffenart, die deine Klasse führen kann: Ohne Häkchen bleiben Waffen dieser Art weg.
+  Die Pfeile in den Taschen richten sich ebenfalls nach alldem.
+- Ein Krieger oder Paladin mit dem Profil **Schutz** beginnt mit **Einhändig, Schild und
+  Schildhand**, solange die Gewichte des Addons bewerten: Es sind die eines Tanks mit Schild.
+  Wähle **Beliebig**, um auch Zweihandwaffen zu sehen.
+- Ist **Einhändig, Schild und Schildhand** gewählt und führt der Charakter eine Zweihandwaffe,
+  stehen Einhandwaffen, Schilde und Gegenstände für die Schildhand als **Neu** in der Liste:
+  Jeder zählt für sich, nicht im Vergleich zur Zweihandwaffe. Bewertet Forever Leveling BiS,
+  wird eine Waffe weiterhin mit der Zweihandwaffe verglichen.
 - Jeder Charakter hat sein eigenes Häkchen **Beste Rüstungsart für die Klasse**, seine eigene
-  Zahl bei **Verbesserung ab** und seinen eigenen Betrag bei **Sofortkauf bis**. Kaufst du für
-  einen anderen Charakter ein, siehst und änderst du dessen Einstellungen.
+  Zahl bei **Verbesserung ab**, seinen eigenen Betrag bei **Sofortkauf bis**, sein eigenes
+  Häkchen und seine eigene Zahl bei **Ausrüstung höchstens 10 Stufen darunter** und seine
+  eigene Auswahl unter **Waffen**. Kaufst du für einen anderen Charakter ein, siehst und
+  änderst du dessen Einstellungen.
 - Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die die Wertung nicht mitzählt.
 - Heil- und Manatränke haben keine Wertung: Kein Gewicht macht aus „stellt 700 Gesundheit wieder her“
   eine Zahl.

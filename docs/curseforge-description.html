@@ -33,9 +33,13 @@
 <li><strong>Best set for</strong> picks the upgrades that give the most together for your gold, or for a sum you type.</li>
 <li>The <strong>Filters</strong> menu narrows the list. <strong>Only what I can afford</strong> leaves out what costs more than your gold.</li>
 <li><strong>Buyout up to</strong> leaves out items that cost more than the sum you type: the <strong>Best upgrade</strong> in each slot is then the best one for that price. Each character has its own sum.</li>
-<li><strong>Top 5 per slot</strong> keeps the list short. Turn it off to see every upgrade; checking all their prices then takes longer, up to a few minutes on a busy auction house.</li>
+<li><strong>Top 5 per slot</strong> keeps the five biggest upgrades of each slot, and the <strong>Best value</strong> as well when it is not one of them. Turn it off to see every upgrade; checking all their prices then takes longer, up to a few minutes on a busy auction house.</li>
 <li><strong>Best armor type for the class</strong> leaves out armor lighter than the heaviest your character wears. Cloaks, rings, weapons and shields stay.</li>
 <li><strong>Upgrade at least</strong> leaves out upgrades smaller than the percent you type. An item for an empty slot always stays. Each character has its own box and its own number.</li>
+<li><strong>Gear at most 10 levels below</strong> leaves out gear made for a level more than that many below your character's. Type another number, from 1 to 59. A scan with it on skips that gear too, so it is shorter: the higher your level, the more it saves. It is off until you tick it. Each character has its own box and its own number.</li>
+<li><strong>Weapons</strong> says how your character fills its hands. <strong>Two-hand</strong> leaves out one-hand weapons, shields and off-hand items. <strong>One-hand, shield and off-hand</strong> leaves out two-hand weapons. <strong>Any</strong> offers both. Under them is a tick box for every type of weapon your class can use: untick one, and weapons of that type are left out. Each character has its own choice and its own ticks.</li>
+<li>A warrior or a paladin on the <strong>Protection</strong> profile starts on <strong>One-hand, shield and off-hand</strong> while the addon's own weights score: those weights are a shield tank's. Choose <strong>Any</strong> to see two-hand weapons as well.</li>
+<li>With <strong>One-hand, shield and off-hand</strong> chosen, a character that holds a two-hand weapon is offered one-hand weapons, shields and off-hand items as <strong>New</strong>: each counts for what it is worth by itself, not against the two-hand weapon. With Forever Leveling BiS scoring, a weapon is still measured against the two-hand weapon.</li>
 <li><strong>Value by net cost</strong> has <strong>Best value</strong> go by the net cost, not the buyout. What you can afford, and <strong>Best set for</strong>, still go by the buyout: that is what you pay.</li>
 <li>Prices are buyouts. Auctions that only take bids are skipped.</li>
 <li>The list appears before the prices are checked. Until an item is checked, its price is the lowest among its auctions and may turn out to be a bid. You can buy right away: the price is checked before any purchase.</li>
@@ -52,7 +56,7 @@
 <h2><strong>Tooltips and bags</strong></h2>
 <ul>
 <li>Any item's tooltip shows how much better it is than what you wear, for every spec of your class, such as Arms, Fury and Protection for a warrior: in your bags, in loot, in a quest reward and in a chat link.</li>
-<li>A green arrow on the icon of an item in your bags or bank means it is an upgrade you can put on now. A grey one: an upgrade once you reach its level.</li>
+<li>A green arrow on the icon of an item in your bags or bank means it is an upgrade you can put on now. A grey one: an upgrade once you reach its level. The arrows show in EllesmereUI's bag and bank windows too.</li>
 <li>In the addon's window, <strong>Only my spec</strong> keeps one line in the tooltip: the one for the spec you play.</li>
 <li>Two boxes there say where the lines show: on the addon's tabs at the auction house, and elsewhere in the game. Untick both and the addon writes nothing into tooltips.</li>
 <li>The bag arrows can be switched off as well.</li>
@@ -103,6 +107,14 @@
 <li>Your character is scored for the main spec you chose in Forever Leveling BiS, with the numbers its own tooltip shows. Choose another main spec there, and the lists follow: <strong>Change in Forever Leveling BiS</strong>, beside the spec, opens its settings.</li>
 <li>The tooltip lines and the arrows in your bags are Forever Leveling BiS's own, so the addon leaves its own out. Switch either off in its settings, and the addon's come back, by its scores.</li>
 <li>A list made for another of your characters goes by its weights for that character's class, spec and level. Its tooltips have the addon's lines, and they say so: <strong>Upgrade Scout (Forever Leveling BiS score)</strong>.</li>
+</ul>
+
+<h2><strong>For GearQuest users</strong></h2>
+<ul>
+<li>Use GearQuest? In the addon's window, under <strong>Who scores your gear?</strong>, choose <strong>GearQuest</strong>. Gear is then scored the way it scores it, not on the addon's weights.</li>
+<li>An item GearQuest ranks for your character gets the score GearQuest gives it. Every other item is scored on GearQuest's weights for the spec. The <strong>Profile</strong> dropdown lists its specs, for your other characters too. Choose another for the character you play, and it is chosen in GearQuest as well.</li>
+<li>GearQuest writes its own tooltip line for the items it ranks, so the addon leaves its own out under those. Under any other item the addon's lines stay and say what they go by: <strong>Upgrade Scout (GearQuest weights)</strong>. The arrows in your bags are the addon's, by GearQuest's scores.</li>
+<li>A list made for another of your characters goes by GearQuest's weights for that character's class and spec.</li>
 </ul>
 
 <h2><strong>Requirements</strong></h2>

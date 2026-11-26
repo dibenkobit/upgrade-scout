@@ -38,7 +38,10 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
   armaduras mais leves que a mais pesada que o seu personagem usa. **Melhoria de pelo menos**
   deixa de fora as melhorias menores que a porcentagem que você digitar. **Arremate de até**
   deixa de fora os itens que custam mais que o valor que você digitar: a **Maior melhoria** de
-  cada espaço passa a ser a maior por esse preço.
+  cada espaço passa a ser a maior por esse preço. **Equipamento até 10 níveis abaixo** deixa de
+  fora o equipamento feito para níveis muito abaixo do nível do seu personagem, e o
+  escaneamento fica mais curto. **Armas** diz como o seu personagem ocupa as mãos, com uma arma
+  de duas mãos ou com uma arma de uma mão e um escudo, e que tipos de arma são oferecidos a ele.
 - Compra também para os seus outros personagens. Um botão na caixa de correio coloca os
   equipamentos comprados numa carta para eles.
 - A dica de qualquer item mostra quanto ele é melhor do que o que você usa, para cada árvore de
@@ -46,7 +49,8 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
   dá para deixar uma linha só, a da sua árvore, e escolher onde as linhas aparecem: nas abas
   do addon na Casa de Leilões, no resto do jogo ou em lugar nenhum.
 - Uma seta verde no ícone de um item nas bolsas ou no banco indica uma melhoria que você pode
-  equipar agora. Uma cinza: uma melhoria assim que você chegar ao nível dela.
+  equipar agora. Uma cinza: uma melhoria assim que você chegar ao nível dela. As setas aparecem
+  também nas janelas de bolsas e de banco do EllesmereUI.
 - Funciona logo depois de instalado. A lista **Perfil** já começa na árvore de talentos em que
   você tem mais pontos.
 - No primeiro login, uma janela mostra o que o addon faz. Nela você pode desligar as linhas na
@@ -63,6 +67,10 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
 - Usa o Forever Leveling BiS? Escolha **Forever Leveling BiS** no mesmo lugar e os equipamentos
   passam a ser avaliados como ele avalia, para a spec principal que você escolheu nele. As linhas na
   dica de contexto e as setas nas bolsas são as do próprio Forever Leveling BiS.
+- Usa o GearQuest? Escolha **GearQuest** no mesmo lugar e os equipamentos passam a ser avaliados
+  como ele avalia: um item das listas dele recebe a pontuação dele, e qualquer outro é avaliado
+  pelos pesos dele. As listas e as setas nas bolsas seguem isso, e para os itens das listas dele
+  a linha na dica de contexto é a do próprio GearQuest.
 
 Qualquer classe, qualquer nível. Inglês, chinês (simplificado e tradicional), alemão, russo,
 francês, espanhol, português do Brasil e coreano.
@@ -101,8 +109,10 @@ Manualmente:
 - Com **Custo-benefício pelo custo líquido** marcado, o **Melhor custo-benefício** segue o custo
   líquido, não o arremate. O que você pode pagar e o **Melhor conjunto por** continuam seguindo o
   arremate: é o que você paga.
-- **Top 5 por espaço** deixa a lista curta. Desative para ver todas as melhorias. Verificar todos
-  os preços então demora mais, até alguns minutos em uma Casa de Leilões movimentada.
+- **Top 5 por espaço** mantém as cinco maiores melhorias de cada espaço, e também o **Melhor
+  custo-benefício** quando ele não está entre elas. Desative para ver todas as melhorias.
+  Verificar todos os preços então demora mais, até alguns minutos em uma Casa de Leilões
+  movimentada.
 - **Melhoria** diz quanto um item é melhor do que o que ele substitui, em porcentagem. **Novo**
   quer dizer que o espaço está vazio. Pontos, como `+6 pts`, querem dizer que o que você usa ali
   não acrescenta nada ao seu perfil.
@@ -113,9 +123,29 @@ Manualmente:
   vazio sempre fica.
 - **Arremate de até** é o máximo a pagar por um único item. **Melhor conjunto por** tem o seu
   próprio orçamento e não o usa.
+- **Equipamento até 10 níveis abaixo** fica desligado até você marcar. Deixa de fora o
+  equipamento feito para um nível que fique mais do que esse número abaixo do nível do seu
+  personagem. Você pode digitar outro número, de 1 a 59. Um escaneamento com esse filtro também
+  pula esse equipamento, então é mais curto: quanto mais alto o seu nível, mais ele economiza.
+  Se você aumentar o número ou desmarcar a caixa depois de um escaneamento, escaneie de novo: a
+  linha de status diz a partir de que nível o último leu. As setas nas bolsas não seguem esse
+  filtro.
+- **Armas** abre um menu próprio. **Qualquer** oferece armas de uma mão e de duas mãos, tanto
+  faz. **Duas mãos** deixa de fora as armas de uma mão, os escudos e os itens de mão secundária.
+  **Uma mão, escudo e mão secundária** deixa de fora as armas de duas mãos. Abaixo há uma caixa
+  para cada tipo de arma que a sua classe pode usar: desmarcada, as armas desse tipo ficam de
+  fora. As setas nas bolsas também seguem tudo isso.
+- Um guerreiro ou um paladino no perfil **Proteção** começa em **Uma mão, escudo e mão
+  secundária** enquanto os pesos do addon avaliam: são os de um tanque com escudo. Escolha
+  **Qualquer** para ver também as armas de duas mãos.
+- Com **Uma mão, escudo e mão secundária** escolhido, um personagem que empunha uma arma de duas
+  mãos recebe armas de uma mão, escudos e itens de mão secundária como **Novo**: cada um conta
+  pelo que vale sozinho, não em comparação com a arma de duas mãos. Quando o Forever Leveling
+  BiS avalia, uma arma continua sendo comparada com a arma de duas mãos.
 - Cada personagem tem a sua própria caixa **Melhor tipo de armadura da classe**, o seu próprio
-  número em **Melhoria de pelo menos** e o seu próprio valor em **Arremate de até**. Ao comprar
-  para outro personagem, você vê e muda os dele.
+  número em **Melhoria de pelo menos**, o seu próprio valor em **Arremate de até**, a sua
+  própria caixa e o seu próprio número em **Equipamento até 10 níveis abaixo** e as suas
+  próprias escolhas em **Armas**. Ao comprar para outro personagem, você vê e muda os dele.
 - Um `*` amarelo depois do nome: o item tem efeitos que a pontuação não conta.
 - Poções de vida e de mana não têm pontuação: nenhum peso dá um número para "restaura 700 de vida".
 - Botas "do Tigre" e botas "da Baleia" são itens diferentes, com preços diferentes. A aba "Vender"
