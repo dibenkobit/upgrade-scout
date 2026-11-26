@@ -27,7 +27,7 @@ local _, ns = ...
 --               played, for when that addon scores (see Leveling.lua)
 --   talents     the profile for the talent tree it has the most points in; what it is
 --               scored on while none is chosen
---   armorOnly, minGain, minGainOn
+--   armorOnly, minGain, minGainOn, maxBelow, maxBelowOn
 --               what it wants of its gear: the list's filters that are its own (see Wants.lua)
 --   maxPrice, maxPriceOn
 --               the most to pay for one item for it: "Buyout up to" (see Wants.lua)

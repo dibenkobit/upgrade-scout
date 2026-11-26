@@ -1,30 +1,37 @@
 local _, ns = ...
 
--- What a character wants of its gear: the two filters of the Upgrades list that are about the
--- character the list is for, and not about the purchase. They are written on the character's
--- card (Roster.lua), which is kept for the whole account. So they go with the character the
--- list is for, and not with the one who shops: what is set while shopping for an alt is the
--- alt's, the alt finds it so when it is played and shops for itself, and what it changes then
--- is what the next one to shop for it finds.
+-- What a character wants of its gear: the three filters of the Upgrades list that are about
+-- the character the list is for, and not about the purchase. They are written on the
+-- character's card (Roster.lua), which is kept for the whole account. So they go with the
+-- character the list is for, and not with the one who shops: what is set while shopping for
+-- an alt is the alt's, the alt finds it so when it is played and shops for itself, and what
+-- it changes then is what the next one to shop for it finds.
 --   armorOnly   true: only the best armor type for its class, which is the heaviest armor the
 --               character has learned to wear. A hunter is then offered leather, and mail
 --               once it has learned mail; cloth is left out.
 --   minGain     the least an upgrade has to add, in percent of what it takes the place of;
 --   minGainOn   true while that is asked for. The number stays when its box is unticked.
+--   maxBelow    how many levels below the character's own gear may be made for and still be
+--               offered: with 10, a character of level 30 is offered nothing that asks for
+--               less than level 20;
+--   maxBelowOn  true while that is asked for. The number stays when its box is unticked.
+--               This one is also about the scan: gear that is not to be offered is not asked
+--               of the auction house, and the scan is the shorter for it (see Scanner.lua).
 -- ("Only what I can afford" and "Top N per slot" are about the buyer: those are in ns.db.)
 --
--- A third filter is kept on the card and is not one of the wants: "Buyout up to", the most to
--- pay for one item. It is about the purchase, as "Only what I can afford" is, and like that
+-- A fourth filter is kept on the card and is not one of the wants: "Buyout up to", the most
+-- to pay for one item. It is about the purchase, as "Only what I can afford" is, and like that
 -- one it has no say in the best set for a budget or in the arrows of the bags. But what is a
 -- fair price for an item depends on whom the item is for (a rich character shops for an alt
--- of level 20), so the sum goes with the character, as the other two do.
+-- of level 20), so the sum goes with the character, as the other three do.
 --   maxPrice    that sum, in copper;
 --   maxPriceOn  true while it is asked for. The sum stays when its box is unticked.
 --
 -- What is asked of a character's gear right now is its "wants": { armor = the one kind of
--- armor to offer (an item subclass: 2 leather, 3 mail, 4 plate), gain = the least percent },
--- either of them nil when it is not asked for. Nothing asked for is nil, and every function
--- here takes that for wants that leave nothing out.
+-- armor to offer (an item subclass: 2 leather, 3 mail, 4 plate), gain = the least percent,
+-- level = the lowest level gear may ask for }, each of them nil when it is not asked for.
+-- Nothing asked for is nil, and every function here takes that for wants that leave nothing
+-- out.
 local Wants = {}
 ns.Wants = Wants
 
@@ -33,6 +40,8 @@ local CLOTH, PLATE = 1, 4
 
 Wants.DEFAULT_GAIN = 10         -- the percent in the field before one is typed
 Wants.MAX_GAIN = 9999
+Wants.DEFAULT_BELOW = 10        -- the levels in their field before a number is typed
+Wants.MAX_BELOW = 59            -- from the last level down to the first: more leaves nothing out
 
 -- Armor is of a kind where it covers the body. A cloak is cloth for every class, and a ring,
 -- a shield or something held in the hand is of no kind there is a choice between.
@@ -69,6 +78,40 @@ function Wants.Gain(card)
     return math.min(math.floor(gain), Wants.MAX_GAIN)
 end
 
+-- The number of levels typed for a character, asked for or not. (A card comes out of a saved
+-- file: what is no number there, or none to go by, gives way to the first one.)
+function Wants.Below(card)
+    local below = card and card.maxBelow
+    if type(below) ~= "number" or below ~= below or below < 1 then return Wants.DEFAULT_BELOW end
+    return math.min(math.floor(below), Wants.MAX_BELOW)
+end
+
+-- The level of the character of a card, as the gear snapshot has it (Score.Context): the
+-- game is asked about the one being played, whose card may be a moment behind it.
+local function LevelOf(card)
+    local level
+    if card == ns.Roster.Me() then level = UnitLevel("player") else level = card.level end
+    if type(level) ~= "number" or level ~= level or level < 1 then return 1 end
+    return math.floor(level)
+end
+
+-- The lowest level gear may ask for by the number typed for a character, asked for or not:
+-- the character's own level less that number. nil when the number reaches down to the first
+-- level, which the least of gear is made for: nothing is left out then.
+function Wants.LevelTyped(card)
+    if not card then return nil end
+    local from = LevelOf(card) - Wants.Below(card)
+    if from <= 1 then return nil end
+    return from
+end
+
+-- The lowest level gear may ask for and still be offered to the character of a card; nil
+-- when nothing is left out for its level.
+function Wants.FromLevel(card)
+    if not card or card.maxBelowOn ~= true then return nil end
+    return Wants.LevelTyped(card)
+end
+
 -- One table for each thing that can be asked, so that whoever keeps a result made for some
 -- wants can tell by the table itself whether they are still the same.
 local made = {}
@@ -78,20 +121,27 @@ function Wants.Of(card)
     if not card then return nil end
     local armor = card.armorOnly == true and Wants.Armor(card) or nil
     local gain = card.minGainOn == true and Wants.Gain(card) or nil
-    if not armor and not gain then return nil end
-    local key = (armor or 0) .. ":" .. (gain or 0)
+    local level = Wants.FromLevel(card)
+    if not armor and not gain and not level then return nil end
+    local key = (armor or 0) .. ":" .. (gain or 0) .. ":" .. (level or 0)
     local wants = made[key]
     if not wants then
-        wants = { armor = armor, gain = gain }
+        wants = { armor = armor, gain = gain, level = level }
         made[key] = wants
     end
     return wants
 end
 
 -- Would the character have the item at all? `item` is what the scanner knows of one (an
--- offer, or what EvalLink in Scanner.lua makes of a link): its `armor` is Wants.ArmorOf.
+-- offer, or what EvalLink in Scanner.lua makes of a link): its `armor` is Wants.ArmorOf, and
+-- its `reqLevel` the level it asks for. Gear that asks for no level is 0 there: anybody can
+-- put it on, so it is made for the first level, where the game's own auction window writes
+-- it too, and is out as soon as any level is.
 function Wants.Fits(wants, item)
-    return not wants or not wants.armor or not item.armor or item.armor == wants.armor
+    if not wants then return true end
+    if wants.armor and item.armor and item.armor ~= wants.armor then return false end
+    if wants.level and item.reqLevel and item.reqLevel < wants.level then return false end
+    return true
 end
 
 -- Is the gain of a placement (see Compare.Place) enough? The percent is held against the
@@ -130,6 +180,16 @@ function Wants.SetGain(card, on, percent)
     if percent then card.minGain = Clamp(math.floor(percent), 1, Wants.MAX_GAIN) end
     card.minGainOn = on and true or nil
     ns.Fire("WANTS_CHANGED", card)
+end
+
+-- levels: the number that was typed; nil leaves the one there is. Nobody but the list shows
+-- what it changes, and the menu that sets it tells the list itself (Filters.lua). The arrows
+-- in the bags do not go by it: the filter spares the scan what is not worth reading, and an
+-- item that is in the bags already costs nothing to judge. Where an old piece still beats
+-- what is worn, its arrow is the truth.
+function Wants.SetBelow(card, on, levels)
+    if levels then card.maxBelow = Clamp(math.floor(levels), 1, Wants.MAX_BELOW) end
+    card.maxBelowOn = on and true or nil
 end
 
 ---------------------------------------------------------------------------

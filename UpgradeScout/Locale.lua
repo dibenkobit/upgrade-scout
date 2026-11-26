@@ -208,8 +208,8 @@ local L = {
     -- the heaviest armor the character wears, the same words for every class, and
     -- ARMOR_BEST_SHORT its name beside the Filters field. GAIN_MIN stands before a field with
     -- a number and a percent sign; GAIN_MIN_SHORT names it beside the Filters field,
-    -- GAIN_MIN_FULL in that field's tooltip. ST_NONE_WANTED is the status line when those two
-    -- leave every upgrade out.
+    -- GAIN_MIN_FULL in that field's tooltip. ST_NONE_WANTED is the status line when those two,
+    -- or the third of the character's filters (LEVEL_MIN, below), leave every upgrade out.
     FILTERS = "Filters",
     FILTERS_COUNT = "Filters on: %d",
     FILTERS_NONE = "No filter is on.",
@@ -281,6 +281,24 @@ local L = {
     SUP_ALL_SHORT = "Everything",
     SUP_ALL_TIP = "Adds what has no score: food and drink, potions that restore health or mana, bandages and the like. Unticked, the list keeps only what adds to your character.",
     ST_SUP_NONE_SCORED = "Nothing for sale has a score on this profile. Tick \"Everything I can use\" in Filters to see the rest.",
+    -- "Gear at most N levels below" (Filters.lua, Wants.lua): leaves out gear made for a level
+    -- more than N below that of the character the list is for, and spares the scan the
+    -- reading of it. LEVEL_MIN stands before a field with the number and LEVEL_MIN_AFTER
+    -- after it (empty in a language that ends the line with the number); LEVEL_MIN_FULL is
+    -- the whole line, in the tooltip of the Filters field. LEVEL_MIN_SHORT names the filter
+    -- beside that field by the level the number comes to, and stands after the character's
+    -- name in the tooltip of the tick box. ST_LEVEL_SHORT ends the status line when the
+    -- filter was made wider or switched off after a scan, with the level that scan read
+    -- from. STATS_LEVEL or STATS_LEVEL_PLAIN follows STATS after such a scan: that level,
+    -- the rows that came back below it, and the rows that came back with no level.
+    LEVEL_MIN = "Gear at most",
+    LEVEL_MIN_AFTER = "levels below",
+    LEVEL_MIN_SHORT = "From level %d",
+    LEVEL_MIN_FULL = "Gear at most %d levels below",
+    LEVEL_MIN_TIP = "Leaves out gear made for a level more than this many below the character's own. The scan gets shorter too: it reads less of the auction house. Each character has a number of its own.",
+    ST_LEVEL_SHORT = "The scan read no gear below level %d. Scan again to see it.",
+    STATS_LEVEL = "The search asked for gear from level %d up: %d rows below it came back all the same and were dropped (none means the auction house goes by the level), %d rows had no level.",
+    STATS_LEVEL_PLAIN = "Gear from level %d up was wanted, but the search that asked for it brought nothing back: %d rows below it were dropped here, %d rows had no level.",
 }
 
 if GetLocale() == "ruRU" then
@@ -517,6 +535,15 @@ if GetLocale() == "ruRU" then
         SUP_ALL_SHORT = "Всё подряд",
         SUP_ALL_TIP = "Добавляет то, у чего нет оценки: еду и питьё, зелья здоровья и маны, бинты и прочее. Без галочки в списке только то, что прибавляет персонажу.",
         ST_SUP_NONE_SCORED = "В продаже нет ничего с оценкой по этому профилю. Остальное покажет фильтр «Всё, что могу использовать».",
+        -- "Gear at most N levels below"
+        LEVEL_MIN = "Вещи не более чем на",
+        LEVEL_MIN_AFTER = "ур. ниже",
+        LEVEL_MIN_SHORT = "С %d-го уровня",
+        LEVEL_MIN_FULL = "Вещи не более чем на %d ур. ниже",
+        LEVEL_MIN_TIP = "Убирает вещи, рассчитанные на уровень, который ниже уровня персонажа больше чем на это число. Скан тоже становится короче: аддон читает меньше лотов. У каждого персонажа своё число.",
+        ST_LEVEL_SHORT = "Скан не читал вещи ниже %d-го уровня. Запусти скан ещё раз, чтобы их увидеть.",
+        STATS_LEVEL = "Поиск запросил вещи от %d-го уровня: строк ниже всё равно пришло и отброшено: %d (ни одной значит, что аукцион учитывает уровень), строк без уровня: %d.",
+        STATS_LEVEL_PLAIN = "Нужны были вещи от %d-го уровня, но поиск с таким запросом ничего не принёс: строк ниже отброшено на месте: %d, строк без уровня: %d.",
     }
     for k, v in pairs(R) do L[k] = v end
 end
@@ -755,6 +782,15 @@ if GetLocale() == "deDE" then
         SUP_ALL_SHORT = "Alles",
         SUP_ALL_TIP = "Zeigt auch, was keine Wertung hat: Essen und Trinken, Heil- und Manatränke, Verbände und Ähnliches. Ohne Haken bleibt nur, was deinem Charakter etwas bringt.",
         ST_SUP_NONE_SCORED = "Nichts im Angebot hat nach diesem Profil eine Wertung. Der Filter »Alles, was ich benutzen kann« zeigt den Rest.",
+        -- "Gear at most N levels below"
+        LEVEL_MIN = "Ausrüstung höchstens",
+        LEVEL_MIN_AFTER = "Stufen darunter",
+        LEVEL_MIN_SHORT = "Ab Stufe %d",
+        LEVEL_MIN_FULL = "Ausrüstung höchstens %d Stufen darunter",
+        LEVEL_MIN_TIP = "Lässt Ausrüstung weg, die für eine Stufe gemacht ist, die um mehr als diese Zahl unter der des Charakters liegt. Der Scan wird dadurch auch kürzer: Er liest weniger vom Auktionshaus. Jeder Charakter hat seine eigene Zahl.",
+        ST_LEVEL_SHORT = "Der Scan hat keine Ausrüstung unter Stufe %d gelesen. Scanne erneut, um sie zu sehen.",
+        STATS_LEVEL = "Die Suche hat Ausrüstung ab Stufe %d verlangt: Trotzdem kamen %d Zeilen darunter und wurden verworfen (keine heißt, das Auktionshaus richtet sich nach der Stufe), %d Zeilen hatten keine Stufe.",
+        STATS_LEVEL_PLAIN = "Gewünscht war Ausrüstung ab Stufe %d, aber die Suche danach brachte nichts: %d Zeilen darunter wurden hier verworfen, %d Zeilen hatten keine Stufe.",
     }
     for k, v in pairs(D) do L[k] = v end
 end
@@ -994,6 +1030,15 @@ if GetLocale() == "frFR" then
         SUP_ALL_SHORT = "Tout",
         SUP_ALL_TIP = "Ajoute ce qui n'a pas de score : nourriture et boissons, potions de soins et de mana, bandages et autres. Décochée, la liste ne garde que ce qui apporte quelque chose à votre personnage.",
         ST_SUP_NONE_SCORED = "Rien en vente n'a de score selon ce profil. Le filtre « Tout ce que je peux utiliser » affiche le reste.",
+        -- "Gear at most N levels below"
+        LEVEL_MIN = "Équipement d'au plus",
+        LEVEL_MIN_AFTER = "niveaux en dessous",
+        LEVEL_MIN_SHORT = "Dès le niveau %d",
+        LEVEL_MIN_FULL = "Équipement d'au plus %d niveaux en dessous",
+        LEVEL_MIN_TIP = "Écarte l'équipement prévu pour un niveau inférieur de plus que ce nombre à celui du personnage. Le scan est aussi plus court : il lit moins de l'hôtel des ventes. Chaque personnage a son propre nombre.",
+        ST_LEVEL_SHORT = "Le scan n'a lu aucun équipement sous le niveau %d. Relancez le scan pour le voir.",
+        STATS_LEVEL = "La recherche a demandé l'équipement à partir du niveau %d : %d lignes en dessous sont arrivées quand même et ont été écartées (aucune : l'hôtel des ventes tient compte du niveau), %d lignes sans niveau.",
+        STATS_LEVEL_PLAIN = "L'équipement à partir du niveau %d était voulu, mais la recherche qui le demandait n'a rien rapporté : %d lignes en dessous ont été écartées ici, %d lignes sans niveau.",
     }
     for k, v in pairs(F) do L[k] = v end
 end
@@ -1233,6 +1278,15 @@ if GetLocale() == "zhCN" then
         SUP_ALL_SHORT = "全部",
         SUP_ALL_TIP = "加上没有评分的：食物和饮料、恢复生命或法力的药水、绷带等。不勾选时，列表只保留对你的角色有提升的。",
         ST_SUP_NONE_SCORED = "在售的消耗品按这个方案都没有评分。勾选筛选中的“所有我能用的”可查看其余的。",
+        -- "Gear at most N levels below"
+        LEVEL_MIN = "装备最多低",
+        LEVEL_MIN_AFTER = "级",
+        LEVEL_MIN_SHORT = "%d级起",
+        LEVEL_MIN_FULL = "装备最多低 %d 级",
+        LEVEL_MIN_TIP = "不显示所需等级比角色等级低出这个数以上的装备。扫描也会更短：读取的拍卖行内容更少。每个角色各有自己的数值。",
+        ST_LEVEL_SHORT = "这次扫描没有读取%d级以下的装备。重新扫描即可看到。",
+        STATS_LEVEL = "搜索只要求%d级及以上的装备：仍有%d行低于该等级并被丢弃（一行都没有则说明拍卖行按等级筛选），%d行没有等级。",
+        STATS_LEVEL_PLAIN = "本应只读取%d级及以上的装备，但带等级的搜索没有带回任何结果：在本地丢弃了%d行低于该等级的，%d行没有等级。",
     }
     for k, v in pairs(Z) do L[k] = v end
 end
@@ -1473,6 +1527,15 @@ if GetLocale() == "ptBR" then
         SUP_ALL_SHORT = "Tudo",
         SUP_ALL_TIP = "Acrescenta o que não tem pontuação: comida e bebida, poções de vida e de mana, ataduras e afins. Desmarcada, a lista mantém só o que acrescenta algo ao seu personagem.",
         ST_SUP_NONE_SCORED = "Nada à venda tem pontuação neste perfil. O filtro \"Tudo o que posso usar\" mostra o resto.",
+        -- "Gear at most N levels below"
+        LEVEL_MIN = "Equipamento até",
+        LEVEL_MIN_AFTER = "níveis abaixo",
+        LEVEL_MIN_SHORT = "A partir do nível %d",
+        LEVEL_MIN_FULL = "Equipamento até %d níveis abaixo",
+        LEVEL_MIN_TIP = "Deixa de fora o equipamento feito para um nível que fique mais do que este número abaixo do nível do personagem. O escaneamento também fica mais curto: lê menos da Casa de Leilões. Cada personagem tem o seu próprio número.",
+        ST_LEVEL_SHORT = "O escaneamento não leu equipamento abaixo do nível %d. Escaneie de novo para vê-lo.",
+        STATS_LEVEL = "A busca pediu equipamento a partir do nível %d: mesmo assim vieram %d linhas abaixo dele, que foram descartadas (nenhuma significa que a Casa de Leilões respeita o nível), e %d linhas sem nível.",
+        STATS_LEVEL_PLAIN = "Queria-se equipamento a partir do nível %d, mas a busca que o pedia não trouxe nada: %d linhas abaixo dele foram descartadas aqui, e %d linhas não tinham nível.",
     }
     for k, v in pairs(P) do L[k] = v end
 end
@@ -1712,6 +1775,15 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         SUP_ALL_SHORT = "Todo",
         SUP_ALL_TIP = "Añade lo que no tiene puntuación: comida y bebida, pociones de salud y de maná, vendas y similares. Sin marcar, la lista deja solo lo que aporta algo a tu personaje.",
         ST_SUP_NONE_SCORED = "Nada de lo que está en venta tiene puntuación con este perfil. El filtro «Todo lo que puedo usar» muestra el resto.",
+        -- "Gear at most N levels below"
+        LEVEL_MIN = "Equipo de como mucho",
+        LEVEL_MIN_AFTER = "niveles por debajo",
+        LEVEL_MIN_SHORT = "Desde el nivel %d",
+        LEVEL_MIN_FULL = "Equipo de como mucho %d niveles por debajo",
+        LEVEL_MIN_TIP = "Omite el equipo hecho para un nivel que quede más que este número por debajo del nivel del personaje. El escaneo también es más corto: lee menos de la casa de subastas. Cada personaje tiene su propio número.",
+        ST_LEVEL_SHORT = "El escaneo no leyó equipo por debajo del nivel %d. Vuelve a escanear para verlo.",
+        STATS_LEVEL = "La búsqueda pidió equipo desde el nivel %d: aun así llegaron %d filas por debajo, que se descartaron (ninguna significa que la casa de subastas respeta el nivel), y %d filas sin nivel.",
+        STATS_LEVEL_PLAIN = "Se quería equipo desde el nivel %d, pero la búsqueda que lo pedía no trajo nada: %d filas por debajo se descartaron aquí, y %d filas no tenían nivel.",
     }
     for k, v in pairs(E) do L[k] = v end
 end
@@ -1953,6 +2025,15 @@ if GetLocale() == "koKR" then
         SUP_ALL_SHORT = "전부",
         SUP_ALL_TIP = "점수가 없는 것도 보여줍니다: 음식과 음료, 생명력이나 마나를 회복하는 물약, 붕대 등. 끄면 캐릭터에게 보탬이 되는 것만 남습니다.",
         ST_SUP_NONE_SCORED = "판매 중인 소비용품 가운데 이 프로필로 점수가 있는 것이 없습니다. 필터에서 “내가 쓸 수 있는 모든 것”을 켜면 나머지가 보입니다.",
+        -- "Gear at most N levels below"
+        LEVEL_MIN = "레벨이 최대",
+        LEVEL_MIN_AFTER = "낮은 장비까지",
+        LEVEL_MIN_SHORT = "%d레벨부터",
+        LEVEL_MIN_FULL = "레벨이 최대 %d 낮은 장비까지",
+        LEVEL_MIN_TIP = "요구 레벨이 캐릭터 레벨보다 이 숫자 넘게 낮은 장비는 목록에서 뺍니다. 경매장을 덜 읽으므로 스캔도 짧아집니다. 캐릭터마다 숫자를 따로 둡니다.",
+        ST_LEVEL_SHORT = "이번 스캔은 %d레벨 미만 장비를 읽지 않았습니다. 보려면 다시 스캔하세요.",
+        STATS_LEVEL = "검색에서 %d레벨 이상 장비만 요청했습니다. 그래도 그보다 낮은 줄이 %d개 와서 버렸습니다(하나도 없으면 경매장이 레벨을 따른다는 뜻입니다). 레벨이 없는 줄은 %d개였습니다.",
+        STATS_LEVEL_PLAIN = "%d레벨 이상 장비만 읽으려 했지만 레벨을 넣은 검색이 아무것도 가져오지 못했습니다. 그보다 낮은 줄 %d개는 여기서 버렸고, 레벨이 없는 줄은 %d개였습니다.",
     }
     for k, v in pairs(K) do L[k] = v end
 end
@@ -2193,6 +2274,15 @@ if GetLocale() == "zhTW" then
         SUP_ALL_SHORT = "全部",
         SUP_ALL_TIP = "加上沒有評分的：食物和飲料、恢復生命或法力的藥水、繃帶等。不勾選時，列表只保留對你的角色有提升的。",
         ST_SUP_NONE_SCORED = "販售中的消耗品按這個方案都沒有評分。勾選篩選中的「所有我能用的」可查看其餘的。",
+        -- "Gear at most N levels below"
+        LEVEL_MIN = "裝備最多低",
+        LEVEL_MIN_AFTER = "級",
+        LEVEL_MIN_SHORT = "%d級起",
+        LEVEL_MIN_FULL = "裝備最多低 %d 級",
+        LEVEL_MIN_TIP = "不顯示所需等級比角色等級低出這個數以上的裝備。掃描也會更短：讀取的拍賣場內容更少。每個角色各有自己的數值。",
+        ST_LEVEL_SHORT = "這次掃描沒有讀取%d級以下的裝備。重新掃描即可看到。",
+        STATS_LEVEL = "搜尋只要求%d級及以上的裝備：仍有%d筆低於該等級並被捨棄（一筆都沒有則表示拍賣場按等級篩選），%d筆沒有等級。",
+        STATS_LEVEL_PLAIN = "本應只讀取%d級及以上的裝備，但帶等級的搜尋沒有帶回任何結果：在本機捨棄了%d筆低於該等級的，%d筆沒有等級。",
     }
     for k, v in pairs(T) do L[k] = v end
 end

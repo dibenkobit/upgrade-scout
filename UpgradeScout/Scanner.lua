@@ -16,6 +16,11 @@ local AH = C_AuctionHouse
 -- The player does not wait for the third step: the candidates are in the list as soon as the
 -- second is over, each at its row's lowest price, and the third puts those prices right as
 -- it goes (see ListCandidates). A purchase can begin meanwhile (S.CanBuy).
+-- How long a scan takes grows with what it reads, which is every row from the first level up
+-- to the character's own. A character that is to be offered nothing made for levels far
+-- below its own ("Gear at most N levels below", Wants.lua) has a shorter one: the first step
+-- asks the auction house for nothing below that level, and drops what comes below it all
+-- the same (see BrowseQuery and AddRow).
 local S = {}
 ns.Scanner = S
 
@@ -220,6 +225,14 @@ local function NewStats()
         stalled = false,                    -- the scoring stood still for the client, and the status line said so
         forced = 0,                         -- rows read though the client never said it had loaded their item
         dead = 0,                           -- items the client said it could not load
+        -- A scan that read no gear below a level (scan.fromLevel, see S.Start). Whether the
+        -- auction house goes by the level it is asked for is told by these after one scan:
+        fromLevel = 0,                      -- that level; 0 for a scan that read gear of every level
+        levelAsked = false,                 -- the search named it (see BrowseQuery); false again when that
+                                            -- search brought nothing and went out without (SendUnbounded)
+        belowLevel = 0,                     -- rows that came back below it all the same, and were dropped:
+                                            -- none from an auction house that goes by it
+        noLevel = 0,                        -- rows that came back with no level to them (see AddRow)
     }
 end
 
@@ -291,12 +304,20 @@ function S.StatsText()
     local stats = S.stats or ns.db.lastScan
     if type(stats) ~= "table" then return L.STATS_NONE end
     local function Sec(value) return math.floor((value or 0) + 0.5) end
-    return L.STATS:format(
+    local text = L.STATS:format(
         Sec((stats.browse or 0) + (stats.score or 0) + (stats.verify or 0)),
         Sec(stats.browse), stats.requests or 0, stats.rows or 0,
         Sec(stats.score), stats.candidates or 0,
         Sec(stats.verify), stats.searches or 0, stats.pages or 0, stats.timeouts or 0,
         stats.skipped or 0)
+    -- A scan that read no gear below a level: what the auction house made of being asked so.
+    -- (The numbers may come out of a saved file, written by a version that had none of them.)
+    local from = tonumber(stats.fromLevel) or 0
+    if from > 0 then
+        text = text .. " " .. (stats.levelAsked and L.STATS_LEVEL or L.STATS_LEVEL_PLAIN):format(
+            from, tonumber(stats.belowLevel) or 0, tonumber(stats.noLevel) or 0)
+    end
+    return text
 end
 
 ---------------------------------------------------------------------------
@@ -584,8 +605,9 @@ end
 -- whatever the search found, so skipping it never changes what the list shows:
 --   worse      it no longer beats the player's gear
 --   unwanted   the character's own filters leave it out (Wants.lua): it is armor lighter than
---              the character is to be offered, or it adds less than was asked for in every
---              slot it fits
+--              the character is to be offered, or made for a level further below the
+--              character's than it is to be offered, or it adds less than was asked for in
+--              every slot it fits
 --   price      a price filter is on ("only what I can afford", "buyout up to") and even the
 --              row's lowest price is more than it lets through (see S.Ceiling)
 --   dominated  "top N per slot" is on and, in every slot it fits, an offer already verified
@@ -1167,6 +1189,15 @@ local function ScoreRow(row, force)
     local eval = EvalLink(link)
     if eval == nil then return false, cached and "link" or "data" end
 
+    -- A row that came without a level, and was kept for its item to say (see AddRow): made
+    -- for less than this scan reads, it is nothing for the list, as the rows dropped when
+    -- they came are not. So a scan keeps the same rows whatever the auction house sends it.
+    -- (Not among the rows dropped by score either: no search of it could find anything.)
+    if eval and scan.fromLevel and eval.reqLevel < scan.fromLevel then
+        if not cached and run.stats then run.stats.forced = run.stats.forced + 1 end
+        return true
+    end
+
     if eval and #ns.Compare.Place(eval, S.ctx) > 0 then
         -- Red text is about the item, not the auction, so the sample answers for the row.
         if eval.usable == nil then ReadTooltip(eval) end
@@ -1514,7 +1545,7 @@ local function BrowseQuery(variant)
         sorts = { { sortOrder = order.Price, reverseSort = false } }
     end
     local filter = Enum.AuctionHouseFilter
-    return {
+    local query = {
         searchString = "",
         sorts = sorts,
         -- Every quality, as the Buy tab has them ticked by default.
@@ -1525,13 +1556,32 @@ local function BrowseQuery(variant)
         itemClassFilters = run.mode == "supplies" and { { classID = CONSUMABLE_CLASS } }
             or { { classID = WEAPON_CLASS }, { classID = ARMOR_CLASS } },
     }
+    -- A scan that reads no gear below a level (run.fromLevel) asks for none, in the two
+    -- fields the game's own auction window fills from the "Level Range" of its filter menu.
+    -- That window sends 0 for a level that was not typed, so this is its search with the
+    -- lower level alone typed in (Blizzard_AuctionHouseFrame.lua, SendBrowseQueryInternal).
+    -- The higher level is not named: what is above the character's is left to the level
+    -- sort and the early stop, as before. Rows that a lower bound should have left out can
+    -- be seen and dropped (AddRow), and counted; rows that an upper bound wrongly left out
+    -- would simply be missing.
+    -- A scan without such a level sends neither field, as every scan did before there was one.
+    if run.bounded then
+        query.minLevel, query.maxLevel = run.fromLevel, 0
+    end
+    return query
 end
 
 local function ResetOrder()
-    run.order = { last = -1, count = 0, inversions = 0, above = 0 }
+    run.order = { last = -1, count = 0, inversions = 0, above = 0, below = 0, noLevel = 0 }
 end
 
--- Notes the required level of each row in arrival order.
+-- Notes the required level of each row in arrival order: of every row that arrives, kept or
+-- not. A row below the level the scan reads from (run.fromLevel) is a row of the order like
+-- any other, where the auction house sends such rows at all; where it does not, the rows
+-- begin at that level and go up as before. Either way the run of rows above the character's
+-- level, which is what ends the browse early, is neither made nor broken by the lower bound.
+-- Such rows are counted, and so are the rows without a level: the scan's numbers say by
+-- them whether the auction house goes by the level it was asked for (see NewStats).
 local function TrackOrder(required)
     local order = run.order
     order.count = order.count + 1
@@ -1541,6 +1591,12 @@ local function TrackOrder(required)
         order.above = order.above + 1
     else
         order.above = 0
+    end
+    local from = run.fromLevel
+    if from and required == 0 then
+        order.noLevel = order.noLevel + 1
+    elseif from and required < from then
+        order.below = order.below + 1
     end
 end
 
@@ -1562,6 +1618,14 @@ local function AddRow(result)
     local required = AH.GetItemKeyRequiredLevel(key) or 0
     TrackOrder(required)
     if required > run.level then return end
+    -- Gear made for a level further below the character's than it is to be offered: dropped
+    -- here whether or not the auction house was asked to leave it out, so the list is the
+    -- same from one that does not go by what it is asked.
+    -- A row without a level stays. The game gives 0 for gear that asks for no level, and
+    -- nothing at all for a row it cannot tell the level of yet, which reads as 0 here too:
+    -- the two cannot be told apart, and to drop both would lose real upgrades whenever the
+    -- client is slow. The row's item says which it is when it is scored (ScoreRow).
+    if run.fromLevel and required > 0 and required < run.fromLevel then return end
 
     local ks = ns.KeyString(key)
     if run.rows[ks] then return end
@@ -1611,6 +1675,31 @@ local function FinishBrowse(partial)
     SetState("score")
 end
 
+local function SendBrowse()
+    run.sent = false
+    run.answered = false
+    run.deadline = GetTime() + BROWSE_TIMEOUT
+    Send(function()
+        run.deadline = GetTime() + BROWSE_TIMEOUT
+        run.seen = 0
+        run.sent = true
+        run.stats.requests = run.stats.requests + 1
+        sendingBrowse = true
+        AH.SendBrowseQuery(BrowseQuery(run.variant))
+        sendingBrowse = false
+    end)
+end
+
+-- The search that names the lowest level to read (run.bounded, see BrowseQuery) brought
+-- nothing: it goes out once more without the level, and is then the search every scan sent
+-- before there was one. The scan reads more that way and its list is the same: the rows
+-- below the level are dropped here either way (AddRow). Its numbers say that it went so.
+local function SendUnbounded()
+    run.bounded = false
+    run.stats.levelAsked = false
+    SendBrowse()
+end
+
 local function ReadBrowse()
     local results = AH.GetBrowseResults() or {}
     local count = #results
@@ -1618,8 +1707,20 @@ local function ReadBrowse()
         AddRow(results[i])
     end
     run.seen = count
+    -- Asked for nothing below a level, and answered with nothing at all: an auction house
+    -- without one piece of gear from that level up is less likely than one that makes
+    -- something else of the two fields than the game's own window means by them.
+    if run.bounded and count == 0 and AH.HasFullBrowseResults() then
+        SendUnbounded()
+        return
+    end
     run.answered = true
     S.info.rows = run.rowCount
+    -- (What the auction house sent of what it was asked to leave out, as far as the rows
+    -- read so far tell: kept up with them, so that a scan stopped half way has it too.)
+    if run.fromLevel then
+        run.stats.belowLevel, run.stats.noLevel = run.order.below, run.order.noLevel
+    end
     ns.Fire("SCAN_PROGRESS")
 
     if CanStopEarly() or AH.HasFullBrowseResults() then
@@ -1637,25 +1738,12 @@ local function ReadBrowse()
     end
 end
 
-local function SendBrowse()
-    run.sent = false
-    run.answered = false
-    run.deadline = GetTime() + BROWSE_TIMEOUT
-    Send(function()
-        run.deadline = GetTime() + BROWSE_TIMEOUT
-        run.seen = 0
-        run.sent = true
-        run.stats.requests = run.stats.requests + 1
-        sendingBrowse = true
-        AH.SendBrowseQuery(BrowseQuery(run.variant))
-        sendingBrowse = false
-    end)
-end
-
 local function StepBrowse(now)
     if now <= run.deadline then return end
     if run.answered then
         FinishBrowse(true)              -- keep the rows that did arrive
+    elseif run.bounded then
+        SendUnbounded()                 -- no answer to the search that names a level
     elseif run.variant == 1 then
         run.variant = 2                 -- no answer: try the plain price-sorted search
         SendBrowse()
@@ -1837,8 +1925,20 @@ function S.Start()
         listed = 0,         -- candidates put into the list before their search
         floorBroken = false,-- so many of them that the row's lowest price cannot be relied on
     }
+    -- The lowest level gear may ask for and still be offered to the character (Wants.lua),
+    -- as it is asked for when the scan begins: nothing below it is read, or kept. nil for a
+    -- character that is offered gear of every level. The scan goes by this to its end,
+    -- whatever is ticked meanwhile; what the list shows goes by what is asked then
+    -- (Wants.Fits), and S.ReadFrom says when that is more than was read.
+    local wants = Wanted()
+    scan.fromLevel = wants and wants.level or nil
     NewRun("scan")
     run.armorLimit = ns.Roster.HeaviestArmor(S.ctx.class)
+    -- The level is named in the search itself (BrowseQuery), until a search that names it
+    -- brings nothing (SendUnbounded).
+    run.fromLevel = scan.fromLevel
+    run.bounded = run.fromLevel ~= nil
+    S.stats.fromLevel, S.stats.levelAsked = run.fromLevel or 0, run.bounded
     SetState("browse")
     SendBrowse()
     return true
@@ -1887,6 +1987,20 @@ function S.Resume()
     if not S.halted then return end
     S.halted = false
     S.message = nil
+end
+
+-- The level the last scan read gear from, when the list is now to show gear made for less:
+-- the character's filter of levels (Wants.lua) was made wider or switched off since. What
+-- a scan did not read is not there to be shown, and nothing short of a scan brings it
+-- (S.Demand looks up prices of rows that were read): the list says that it takes a new
+-- scan. nil when the list has all it is to show. (A filter made narrower since needs
+-- nothing: the rows it leaves out are hidden at once.)
+function S.ReadFrom()
+    local from = scan and scan.fromLevel
+    if not from then return nil end
+    local wants = Wanted()
+    if wants and wants.level and wants.level >= from then return nil end
+    return from
 end
 
 -- Looks up the prices the list needs now and does not have. Called whenever the list is

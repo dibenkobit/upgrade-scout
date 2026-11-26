@@ -937,7 +937,13 @@ end
 
 -- Why the list of gear may be short of something, for the end of its status line; nil when
 -- it is not, or when a note of the scanner's already says what happened.
+-- First of all: gear the character's filter of levels lets in now and the scan did not read
+-- (the filter was made wider or switched off since, see Scanner.ReadFrom). No lookup brings
+-- those rows, so the line says outright that it takes a new scan, whatever else there is
+-- to say: the list is not to pass for whole.
 local function Shortfall()
+    local from = S.ReadFrom()
+    if from then return L.ST_LEVEL_SHORT:format(from) end
     if S.message then return nil end
     if S.partial or S.halted then return L.ST_PARTIAL end
     -- The game told nothing of many rows: it was still loading its items (Scanner.unread).

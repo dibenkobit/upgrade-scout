@@ -5,9 +5,9 @@ local L = ns.L
 -- field, whose menu has a tick box for every filter of the list in view. (The tick boxes once
 -- stood in a row above the list, and three of them filled it.)
 --   Upgrades      Only what I can afford, Buyout up to (a sum), Top N per slot, Best armor
---                 type for the class, Upgrade at least N %; and under a rule Value by net
---                 cost, which is no filter: it says which of a row's two prices the best
---                 value is judged by
+--                 type for the class, Upgrade at least N %, Gear at most N levels below;
+--                 and under a rule Value by net cost, which is no filter: it says which of
+--                 a row's two prices the best value is judged by
 --   Consumables   Only what I can afford, Best for me, Everything I can use. The last one
 --                 lets more in where the others leave out: unticked, the list is of what
 --                 has a score (see Supplies.lua)
@@ -15,10 +15,10 @@ local L = ns.L
 -- does. Beside the field stand the names of the filters that are on, so that it is plain
 -- without a click why the list is what it is; where they do not fit, how many are on.
 --
--- Three of the filters of gear are kept with the character the list is for: every character
--- has its own, whichever character of the account shops for it (see Wants.lua). Two of them
--- are about that character, the armor and the least gain; the third is the most to pay for
--- one item for it. The others are the player's (ns.db).
+-- Four of the filters of gear are kept with the character the list is for: every character
+-- has its own, whichever character of the account shops for it (see Wants.lua). Three of
+-- them are about that character, the armor, the least gain and the levels below its own;
+-- the fourth is the most to pay for one item for it. The others are the player's (ns.db).
 local Filters = {}
 ns.Filters = Filters
 
@@ -28,6 +28,7 @@ local CREAM, SOFT, MUTED = Widgets.CREAM, Widgets.SOFT, Widgets.MUTED
 
 local FIELD_HEIGHT, FIELD_MIN = 24, 86
 local NUMBER_WIDTH, NUMBER_HEIGHT = 46, 18      -- the field for a percent: four digits and air
+local LEVELS_WIDTH = 30                         -- the field for a number of levels: two digits
 local GOLD_WIDTH, SILVER_WIDTH = 46, 30         -- the fields of a sum: five digits of gold, two of silver
 local COIN_SIZE, COIN_GAP = 13, 3               -- the coin after a field of a sum, and the room before it
 local BOX_WIDTH, LINE_HEIGHT = 16, 20           -- a line's tick box, and how tall a line is
@@ -77,6 +78,14 @@ local function Active()
     local wants = ns.Wants.Of(Owner())
     if wants and wants.armor then Add(L.ARMOR_BEST_SHORT, L.ARMOR_BEST) end
     if wants and wants.gain then Add(L.GAIN_MIN_SHORT:format(wants.gain), L.GAIN_MIN_FULL:format(wants.gain)) end
+    -- Beside the field stands the level the number comes to for this character, which is
+    -- what the list goes by; the field's tooltip has the line as the menu has it. A number
+    -- that reaches down to the first level leaves nothing out (it is none of the wants),
+    -- and the box is named all the same while it is ticked: "From level 1".
+    local owner = Owner()
+    if owner and owner.maxBelowOn == true then
+        Add(L.LEVEL_MIN_SHORT:format(ns.Wants.LevelTyped(owner) or 1), L.LEVEL_MIN_FULL:format(ns.Wants.Below(owner)))
+    end
     return out
 end
 
@@ -141,7 +150,7 @@ local function Flip(key)
     tab.Changed(key == "net")
 end
 
--- The two that are the character's.
+-- The three that are the character's.
 local function ArmorOnly()
     local card = Owner()
     return card ~= nil and card.armorOnly == true
@@ -166,7 +175,21 @@ local function FlipGain()
     tab.Changed()
 end
 
--- And the third that is kept with the character: the most to pay for one item.
+local function BelowOn()
+    local card = Owner()
+    return card ~= nil and card.maxBelowOn == true
+end
+
+local function FlipBelow()
+    local card = Owner()
+    if not card then return end
+    -- (A card comes out of a saved file: only a true tick is one, and whatever else stands
+    -- there gives way to a click.)
+    ns.Wants.SetBelow(card, card.maxBelowOn ~= true)
+    tab.Changed()
+end
+
+-- And the fourth that is kept with the character: the most to pay for one item.
 local function PriceOn()
     local card = Owner()
     return card ~= nil and card.maxPriceOn == true
@@ -185,6 +208,16 @@ end
 local function ArmorNote(card, armor)
     local word = C_Item.GetItemSubClassInfo(Enum.ItemClass.Armor, armor)
     if not word or word == "" then return nil end
+    if not card.name then return word end
+    return ns.Roster.Colored(card, card.name) .. ": " .. word
+end
+
+-- "Gear at most N levels below" counts from the level of the character the list is for, so
+-- the line's tooltip says which level the number comes to for that character, ticked or
+-- not: "Diluna: From level 20". (From level 1 where it reaches that far down: everything.)
+local function LevelNote(card)
+    if not card then return nil end
+    local word = L.LEVEL_MIN_SHORT:format(ns.Wants.LevelTyped(card) or 1)
     if not card.name then return word end
     return ns.Roster.Colored(card, card.name) .. ": " .. word
 end
@@ -223,67 +256,101 @@ local function NewField(button, width, letters, open)
     return box
 end
 
--- The line "Upgrade at least [ 50 ] %": after the words of its tick box, a field for the
--- number and a percent sign.
+-- A line with a number: after the words of its tick box, a field for the number and what
+-- stands after it. "Upgrade at least [ 50 ] %" is one, "Gear at most [ 10 ] levels below"
+-- the other.
 --   * A number typed is asked for at once, and ticks the box.
 --   * Unticked, the box leaves the number in the field, in a dimmer ink.
 --   * An empty field asks for nothing. Left empty, it unticks the box and shows the last
 --     number again.
+--   * More typed than is taken (99 levels) is asked for as the most there is, and the field
+--     shows that when it is left.
 -- Ticking a line by typing must not draw the menu again, which would take the field from
 -- under the keys: the tick is switched on the line itself (see Widgets.SkinMenuCheck).
--- Returns the size of the line, which the game would otherwise have to measure.
-local function AddNumber(button)
-    local card = Owner()
-    local words = button.fontString
-    local box = NewField(button, NUMBER_WIDTH, 4)
-    box:SetPoint("LEFT", words, "RIGHT", 6, -1)
+-- `kind` is the number of the line:
+--   width, letters   how wide its field is, and how many digits it takes
+--   after            what stands after the field: a sign, or the words the line goes on with
+--   IsOn(card)       is it asked for of the character, Typed(card) the number typed for it,
+--   Set(card, on, number)   and what sets both (Wants.lua)
+-- Returns what the game calls when it draws the line, which returns the size of the line:
+-- the game would otherwise have to measure it.
+local function NumberLine(kind)
+    return function(button)
+        local card = Owner()
+        local words = button.fontString
+        local box = NewField(button, kind.width, kind.letters)
+        box:SetPoint("LEFT", words, "RIGHT", 6, -1)
 
-    local function Ink()
-        local ink = card and card.minGainOn and CREAM or MUTED
-        box:SetTextColor(ink[1], ink[2], ink[3])
-    end
-    local function Tick(shown)
-        if button.Tick then button.Tick:SetShown(shown) end
-    end
-    box:SetText(tostring(ns.Wants.Gain(card)))
-    Ink()
-
-    box:SetScript("OnTextChanged", function(self, userInput)
-        if not userInput or not card then return end
-        local number = self:GetNumber()
-        if number < 1 then return end
-        ns.Wants.SetGain(card, true, number)
-        Tick(true)
-        Ink()
-        tab.Changed()
-    end)
-    -- The field is left: by Enter or Escape, by a click elsewhere.
-    local function Settle(self)
-        if not card or self:GetNumber() >= 1 then return end
-        if card.minGainOn then
-            ns.Wants.SetGain(card, false)
-            Tick(false)
-            tab.Changed()
+        local function Ink()
+            local ink = card and kind.IsOn(card) and CREAM or MUTED
+            box:SetTextColor(ink[1], ink[2], ink[3])
         end
-        self:SetText(tostring(ns.Wants.Gain(card)))
+        local function Tick(shown)
+            if button.Tick then button.Tick:SetShown(shown) end
+        end
+        box:SetText(tostring(kind.Typed(card)))
         Ink()
-    end
-    local function Leave(self)
-        Settle(self)
-        self:ClearFocus()
-    end
-    box:SetScript("OnEditFocusLost", Settle)
-    box:SetScript("OnEnterPressed", Leave)
-    box:SetScript("OnEscapePressed", Leave)
-    button.Number = box
 
-    local sign = button:AttachFontString()
-    sign:SetPoint("LEFT", box, "RIGHT", 4, 1)
-    sign:SetTextColor(CREAM[1], CREAM[2], CREAM[3])
-    sign:SetTextToFit("%")
-    -- The tick box, the words (which the game puts 7 after it), the field and the sign.
-    return BOX_WIDTH + 7 + words:GetStringWidth() + 6 + NUMBER_WIDTH + 4 + sign:GetStringWidth(), LINE_HEIGHT
+        box:SetScript("OnTextChanged", function(self, userInput)
+            if not userInput or not card then return end
+            local number = self:GetNumber()
+            if number < 1 then return end
+            kind.Set(card, true, number)
+            Tick(true)
+            Ink()
+            tab.Changed()
+        end)
+        -- The field is left: by Enter or Escape, by a click elsewhere.
+        local function Settle(self)
+            if not card then return end
+            local number = self:GetNumber()
+            if number < 1 then
+                if kind.IsOn(card) then
+                    kind.Set(card, false)
+                    Tick(false)
+                    tab.Changed()
+                end
+            elseif number == kind.Typed(card) then
+                return
+            end
+            self:SetText(tostring(kind.Typed(card)))
+            Ink()
+        end
+        local function Leave(self)
+            Settle(self)
+            self:ClearFocus()
+        end
+        box:SetScript("OnEditFocusLost", Settle)
+        box:SetScript("OnEnterPressed", Leave)
+        box:SetScript("OnEscapePressed", Leave)
+        button.Number = box
+
+        local sign = button:AttachFontString()
+        sign:SetPoint("LEFT", box, "RIGHT", 4, 1)
+        sign:SetTextColor(CREAM[1], CREAM[2], CREAM[3])
+        sign:SetTextToFit(kind.after)
+        -- The tick box, the words (which the game puts 7 after it), the field and what
+        -- stands after it.
+        return BOX_WIDTH + 7 + words:GetStringWidth() + 6 + kind.width + 4 + sign:GetStringWidth(), LINE_HEIGHT
+    end
 end
+
+-- "Upgrade at least [ 50 ] %": the least an upgrade has to add, in percent.
+local AddGain = NumberLine({
+    width = NUMBER_WIDTH, letters = 4, after = "%",
+    IsOn = function(card) return card.minGainOn end,
+    Typed = function(card) return ns.Wants.Gain(card) end,
+    Set = function(card, on, number) ns.Wants.SetGain(card, on, number) end,
+})
+
+-- "Gear at most [ 10 ] levels below": how far below the character's level gear may be made
+-- for. Its words go on after the field, in the languages that put them there.
+local AddLevels = NumberLine({
+    width = LEVELS_WIDTH, letters = 2, after = L.LEVEL_MIN_AFTER,
+    IsOn = function(card) return card.maxBelowOn == true end,
+    Typed = function(card) return ns.Wants.Below(card) end,
+    Set = function(card, on, number) ns.Wants.SetBelow(card, on, number) end,
+})
 
 -- The line "Buyout up to [ 5 ] (gold) [ 00 ] (silver)": after the words of its tick box, a
 -- field for the gold and one for the silver with a coin after each, as the strip of the best
@@ -404,7 +471,10 @@ local function Menu(_, root)
     if armor then
         AddCheck(root, L.ARMOR_BEST, ArmorOnly, FlipArmor, nil, L.ARMOR_BEST_TIP, nil, ArmorNote(owner, armor))
     end
-    AddCheck(root, L.GAIN_MIN, GainOn, FlipGain, nil, L.GAIN_MIN_TIP):AddInitializer(AddNumber)
+    AddCheck(root, L.GAIN_MIN, GainOn, FlipGain, nil, L.GAIN_MIN_TIP):AddInitializer(AddGain)
+    -- "Gear at most N levels below" reads the same for every character, so the line's
+    -- tooltip names the level it comes to for the one the list is for.
+    AddCheck(root, L.LEVEL_MIN, BelowOn, FlipBelow, nil, L.LEVEL_MIN_TIP, nil, LevelNote(owner)):AddInitializer(AddLevels)
     root:CreateDivider():AddInitializer(Widgets.SkinMenuDivider)
     AddCheck(root, L.NET_VALUE, IsSet, Flip, "net", L.NET_TIP)
 end

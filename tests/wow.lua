@@ -21,6 +21,8 @@ W.player = { name = "Tester", level = 10, class = "WARRIOR", money = 100000, dua
 ---------------------------------------------------------------------------
 -- def: { id, suffix, name, level, equipLoc, classID, subClassID, quality, value, value2,
 --        red, unique, uniqueEquipped, effects, noStats, uncached,
+--        levelUntold = a row of the auction house does not say what level it asks for (see
+--                      C_AuctionHouse.GetItemKeyRequiredLevel),
 --        sell = what a vendor pays for it, in copper: a silver unless said, 0 for an item no
 --               vendor buys,
 --        values = { [profile] = score } for profiles other than the two the tests began with,
@@ -1502,6 +1504,7 @@ local A = {
     pageSize = 50,
     itemPageSize = 50,      -- auctions per page of an item search
     honorLevelSort = true,
+    levelBounds = "honor",  -- what the server makes of the level bounds of a browse query: see InBounds
     bucketBySuffix = true,
     sampleLinks = true,
     answerBrowse = true,
@@ -1560,11 +1563,44 @@ end
 C_AuctionHouse = {}
 function C_AuctionHouse.IsThrottledMessageSystemReady() return A.ready end
 
+-- What a browse query is made of (AuctionHouseBrowseQuery in the game's documentation): a
+-- field that is not one of these, or holds something else, fails the test.
+local QUERY_FIELDS = {
+    searchString = "string", sorts = "table", minLevel = "number", maxLevel = "number",
+    filters = "table", itemClassFilters = "table",
+}
+
+-- The level bounds of a browse query, minLevel and maxLevel: 0, or no field at all, is no
+-- bound, as the game's own window sends it for a level that was not typed. What a server
+-- makes of them is W.AH.levelBounds:
+--   "honor"    (as it starts) rows of items that ask for a level outside the bounds are left
+--              out. So is an item that asks for no level (level = 0) under a lower bound,
+--              unless W.AH.noLevelPasses says that such rows come whatever is asked
+--   "ignore"   every row comes, as if no level had been named
+--   "literal"  an upper bound of 0 is taken at its word: with a lower bound above it, nothing
+--              comes at all
+--   "silent"   a query that names a level is not answered
+-- Returns whether an item of this level is within them.
+local function InBounds(query, level)
+    local low, high = query.minLevel or 0, query.maxLevel or 0
+    if A.levelBounds == "ignore" or (low == 0 and high == 0) then return true end
+    if A.levelBounds == "literal" then return level >= low and level <= high end
+    if level == 0 and A.noLevelPasses then return true end
+    return level >= low and (high == 0 or level <= high)
+end
+
 function C_AuctionHouse.SendBrowseQuery(query)
     Busy()
     A.calls.browse = A.calls.browse + 1
     A.lastQuery = query
+    A.queries = A.queries or {}
+    A.queries[#A.queries + 1] = query
+    assert(type(query.searchString) == "string" and type(query.sorts) == "table", "a browse query has its words and its sorts")
+    for field, value in pairs(query) do
+        assert(QUERY_FIELDS[field] == type(value), "not a field of a browse query: " .. tostring(field))
+    end
     if not A.answerBrowse then return end
+    if A.levelBounds == "silent" and ((query.minLevel or 0) > 0 or (query.maxLevel or 0) > 0) then return end
 
     local classes = {}
     for _, f in ipairs(query.itemClassFilters or {}) do classes[f.classID] = true end
@@ -1572,7 +1608,7 @@ function C_AuctionHouse.SendBrowseQuery(query)
     for i = 1, #A.auctions do
         local auction = A.auctions[i]
         local item = W.items[auction.id .. ":" .. auction.suffix]
-        if classes[item.classID] then
+        if classes[item.classID] and InBounds(query, item.level) then
             local key = KeyOf(auction)
             local text = KeyText(key)
             local row = seen[text]
@@ -1625,8 +1661,12 @@ function C_AuctionHouse.GetBrowseResults()
 end
 function C_AuctionHouse.HasFullBrowseResults() return (A.shown or 0) >= #(A.rows or {}) end
 
+-- The level a row's item asks for. Of an item that is `levelUntold` the game says nothing
+-- here (the function "may return nothing", says its documentation): the item itself says
+-- its level once it is read (C_Item.GetItemInfo).
 function C_AuctionHouse.GetItemKeyRequiredLevel(key)
     local item = W.items[key.itemID .. ":" .. key.itemSuffix] or W.items[key.itemID .. ":0"]
+    if item and item.levelUntold then return end
     return item and item.level or 0
 end
 function C_AuctionHouse.GetItemKeySampleLink(key)

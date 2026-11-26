@@ -26,6 +26,7 @@ local names = {
     "companion_chance",
     "scan_listed",
     "leveling_scan", "leveling_hands", "leveling_absent", "leveling_tooltips", "leveling_welcome", "leveling_supplies", "leveling_alt",
+    "levels", "levels_ui", "scan_levels",
 }
 
 if not scenario then
@@ -2237,7 +2238,7 @@ function scenarios.ui()
         "and hangs from the field's right end: the field stands at the window's edge")
     eq(frame.AffordCheck, nil, "no filter's tick box in the strip"); eq(frame.TopCheck, nil, "not one")
     -- A warrior of level 10 wears mail, and plate from 40: the line that is its own names mail.
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | / | Value by net cost",
         "the lines of the menu, the one that is no filter under a rule")
     local checkbox, topBox = FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
     eq(topBox:GetChecked(), true, "top five on by default")
@@ -3271,7 +3272,7 @@ function scenarios.net_ui()
 
     -- The box: the last line of the Filters menu, under a rule, off until it is ticked.
     eq(frame.NetCheck, nil, "no tick box of its own above the list")
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | / | Value by net cost",
         "the last line of the menu, under a rule: what the best value goes by, not a filter")
     eq(net:IsShown(), true, "in the menu of the Upgrades tab")
     eq(net:GetChecked(), false, "not ticked")
@@ -9619,7 +9620,7 @@ function scenarios.wants_ui()
     W.AddAuction(310, 2000)
     W.AddAuction(311, 1000)
     local LABEL, SHORT = "Best armor type for the class", "Best armor"
-    local MENU = "Only what I can afford | Buyout up to | Top 5 per slot | " .. LABEL .. " | Upgrade at least | / | Value by net cost"
+    local MENU = "Only what I can afford | Buyout up to | Top 5 per slot | " .. LABEL .. " | Upgrade at least | Gear at most | / | Value by net cost"
     -- The box of the menu in view, and the last line of its tooltip: which type it keeps for
     -- the character the list is for.
     local best = FilterBox(LABEL)
@@ -9777,7 +9778,7 @@ function scenarios.wants_ui()
     frame.ProfileDropdown:Pick(5)
     W.Run(0.5)
     eq(ns.Roster.Target(), UpgradeScoutDB.chars["Magey-Testrealm"], "the lists are for the mage")
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Upgrade at least | / | Value by net cost", "a mage's menu has no line about armor")
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Upgrade at least | Gear at most | / | Value by net cost", "a mage's menu has no line about armor")
 
     -- Back to the warrior: its box is as it was.
     frame.ProfileDropdown:Pick(1)
@@ -10220,7 +10221,7 @@ function scenarios.price_max_ui()
     SetView(false, false)
     ScanToEnd()
     W.Run(0.5)
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | / | Value by net cost",
         "the line stands under the other price filter")
     eq(Row("Great Chest").Pick.Text:GetText(), "Best upgrade", "the robe, at nine gold, is the best chest there is")
     check(Status():find("12 upgrades in 6 slots.", 1, true) ~= nil, "twelve upgrades: " .. Status())
@@ -10884,6 +10885,697 @@ function scenarios.scan_junk()
     W.Run(0.3)
     check(not Status():find("has not loaded", 1, true), "its status line neither: " .. Status())
     check(Offer("Good Chest") ~= nil and Offer("Helm") ~= nil and Offer("Shield") ~= nil, "the rest of the list is whole")
+end
+
+---------------------------------------------------------------------------
+-- "Gear at most N levels below": a character is offered nothing made for levels far below
+-- its own, and its scan reads no such gear (Wants.lua, Scanner.lua, Filters.lua)
+---------------------------------------------------------------------------
+-- A warrior of level 30 in a chest that scores 10, at an auction house with gear for every
+-- level. With ten levels asked for, gear from level 20 up is all it is offered.
+--   below 20    400 chests no better than the worn one, and two upgrades: Old Helm (level
+--               12) and Edge Belt (19)
+--   20 to 30    20 chests no better, and four upgrades: Rim Belt and Rim Boots (20), Fine
+--               Helm (25), Top Chest (30)
+--   above 30    250 rows the warrior cannot wear yet
+--   no level    Bare Ring asks for none (0). Of two cloaks the rows do not say what they ask
+--               for, and the items do: Dim Cloak 26, Dull Cloak 12. All three are upgrades.
+local function LevelsWorld()
+    W.player.level = 30
+    W.AddItem({ id = 100, name = "Worn Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 10, level = 25 })
+    W.equipped[5] = W.Link(100)
+    local function Sell(def, price)
+        W.AddItem(def)
+        W.AddAuction(def.id, price)
+    end
+    for i = 1, 400 do
+        Sell({ id = 1000 + i, name = "Low Chest " .. i, equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 1 + i % 9, level = 1 + i % 19 }, 100 + i)
+    end
+    for i = 1, 20 do
+        Sell({ id = 2000 + i, name = "Mid Chest " .. i, equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 1 + i % 9, level = 20 + i % 11 }, 500 + i)
+    end
+    for i = 1, 250 do
+        Sell({ id = 3000 + i, name = "High Chest " .. i, equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 50 + i, level = 31 + i % 15 }, 900 + i)
+    end
+    Sell({ id = 500, name = "Old Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 20, level = 12 }, 400)
+    Sell({ id = 501, name = "Edge Belt", equipLoc = "INVTYPE_WAIST", subClassID = 3, value = 6, level = 19 }, 300)
+    Sell({ id = 502, name = "Rim Belt", equipLoc = "INVTYPE_WAIST", subClassID = 3, value = 7, level = 20 }, 350)
+    Sell({ id = 503, name = "Rim Boots", equipLoc = "INVTYPE_FEET", subClassID = 3, value = 8, level = 20 }, 450)
+    Sell({ id = 504, name = "Fine Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, value = 30, level = 25 }, 2000)
+    Sell({ id = 505, name = "Top Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 25, level = 30 }, 3000)
+    Sell({ id = 506, name = "Bare Ring", equipLoc = "INVTYPE_FINGER", value = 5, level = 0 }, 250)
+    Sell({ id = 507, name = "Dim Cloak", equipLoc = "INVTYPE_CLOAK", subClassID = 1, value = 8, level = 26, levelUntold = true }, 600)
+    Sell({ id = 508, name = "Dull Cloak", equipLoc = "INVTYPE_CLOAK", subClassID = 1, value = 9, level = 12, levelUntold = true }, 200)
+end
+
+-- Every upgrade of that world for the warrior, and those made for level 20 and up.
+local EVERY_LEVEL = "Bare Ring, Dim Cloak, Dull Cloak, Edge Belt, Fine Helm, Old Helm, Rim Belt, Rim Boots, Top Chest"
+local FROM_TWENTY = "Dim Cloak, Fine Helm, Rim Belt, Rim Boots, Top Chest"
+
+-- The filter itself, and what it does to the list after a scan, to the price checks of a
+-- scan and to a set for a budget.
+function scenarios.levels()
+    LevelsWorld()
+    LoadAddon()
+    local Wants, S = ns.Wants, ns.Scanner
+
+    -- The number on a card, and the level it comes to.
+    local card = { class = "HUNTER", level = 30 }
+    eq(Wants.Below(card), 10, "ten levels stand in the field before a number is typed")
+    eq(Wants.FromLevel(card), nil, "nothing ticked: gear of every level"); eq(Wants.Of(card), nil, "and nothing is asked")
+    card.maxBelow = 12
+    eq(Wants.Of(card), nil, "a number alone asks for nothing")
+    eq(Wants.LevelTyped(card), 18, "though it is known what it comes to")
+    card.maxBelowOn = true
+    eq(Wants.FromLevel(card), 18, "ticked, at level 30: nothing made for less than level 18")
+    eq(Wants.Of(card).level, 18, "which is one of the wants"); eq(Wants.Of(card).armor, nil, "of any armor"); eq(Wants.Of(card).gain, nil, "and any gain")
+    check(Wants.Of(card) == Wants.Of({ class = "MAGE", level = 20, maxBelow = 2, maxBelowOn = true }), "the same wants are one table")
+    card.level = 31
+    eq(Wants.Of(card).level, 19, "a level gained takes it up by one")
+    card.level = 14
+    eq(Wants.FromLevel(card), 2, "at level 14: from the second level")
+    card.level = 13
+    eq(Wants.FromLevel(card), nil, "at level 13 the number reaches the first level: nothing is left out"); eq(Wants.Of(card), nil, "and nothing is asked")
+    card.level = 5
+    eq(Wants.FromLevel(card), nil, "nor of a character of fewer levels than the number")
+    eq(Wants.FromLevel(nil), nil, "no character, no level"); eq(Wants.LevelTyped(nil), nil, "typed or asked")
+    card.armorOnly, card.minGainOn, card.minGain, card.level = true, true, 40, 30
+    local all = Wants.Of(card)
+    eq(all.armor, 2, "beside the other two wants: leather"); eq(all.gain, 40, "at least 40%"); eq(all.level, 18, "from level 18")
+
+    -- What is set, and who is told.
+    local told = 0
+    ns.Listen("WANTS_CHANGED", function() told = told + 1 end)
+    Wants.SetBelow(card, true, 75)
+    eq(card.maxBelow, 59, "no more than 59 levels, which is all there are below the last")
+    Wants.SetBelow(card, true, 0.4)
+    eq(card.maxBelow, 1, "and no less than one")
+    Wants.SetBelow(card, true, 7.9)
+    eq(card.maxBelow, 7, "in whole levels")
+    Wants.SetBelow(card, false)
+    eq(card.maxBelowOn, nil, "unticked"); eq(card.maxBelow, 7, "the number stays")
+    eq(told, 0, "the arrows in the bags are not told: an item in the bags is judged whatever level it is made for")
+
+    -- A card comes out of a saved file: what is no number, or no tick, is taken for none.
+    for _, wrong in ipairs({ "ten", 0, -4, 0 / 0, true, {} }) do
+        eq(Wants.Below({ maxBelow = wrong }), 10, "a card with " .. tostring(wrong) .. " for a number has the first one")
+    end
+    eq(Wants.Below({ maxBelow = 1e9 }), 59, "a number beyond all levels is the most there is"); eq(Wants.Below({ maxBelow = math.huge }), 59, "however far beyond")
+    eq(Wants.Below({ maxBelow = 3.7 }), 3, "a number between two levels is the lower")
+    for _, wrong in ipairs({ "yes", 1, {} }) do
+        eq(Wants.FromLevel({ level = 30, maxBelow = 10, maxBelowOn = wrong }), nil, "a tick of " .. tostring(wrong) .. " is no tick")
+    end
+    for _, wrong in ipairs({ "30", true, {}, 0 / 0, -5 }) do
+        eq(Wants.FromLevel({ level = wrong, maxBelow = 10, maxBelowOn = true }), nil, "a card with " .. tostring(wrong) .. " for a level leaves nothing out")
+    end
+    eq(Wants.FromLevel({ maxBelow = 10, maxBelowOn = true }), nil, "nor does one without a level")
+    eq(Wants.FromLevel({ level = 30.9, maxBelow = 10, maxBelowOn = true }), 20, "a level between two is the lower")
+
+    -- Which items the character would have.
+    local twenty = { level = 20 }
+    eq(Wants.Fits(twenty, { reqLevel = 20 }), true, "gear for level 20 is offered from level 20")
+    eq(Wants.Fits(twenty, { reqLevel = 19 }), false, "gear for level 19 is not")
+    eq(Wants.Fits(twenty, { reqLevel = 0 }), false, "gear that asks for no level is made for the first, and is out with it")
+    eq(Wants.Fits(twenty, {}), true, "what says nothing of its level is not left out for it")
+    eq(Wants.Fits(nil, { reqLevel = 1 }), true, "nothing asked: anything will do")
+    eq(Wants.Fits({ level = 20, armor = 3 }, { reqLevel = 25, armor = 2 }), false, "the armor is asked as before")
+    eq(#Wants.Keep(twenty, { reqLevel = 19 }, { {}, {} }), 0, "no slot is kept for what is not offered")
+    eq(#Wants.Keep(twenty, { reqLevel = 20 }, { {}, {} }), 2, "and every slot for what is")
+
+    -- A scan.
+    W.OpenAuctionHouse()
+    local me = ns.Roster.Me()
+    local function Scan()
+        W.RunUntil(function() return W.AH.ready end, 5)
+        local before = W.AH.calls.search
+        ScanToEnd()
+        return W.AH.calls.search - before
+    end
+    local function More()
+        local before = W.AH.calls.search
+        if not S.Demand() then return 0 end
+        W.RunUntil(function() return S.state == "idle" end, 600)
+        return W.AH.calls.search - before
+    end
+    -- The upgrades the list shows with the tab's own two filters off, by name; and how many
+    -- the character's filters leave out.
+    local function Shown()
+        local rows, summary = ns.Results.Build(S.offers, S.ctx, { money = GetMoney(), wants = Wants.Of(me), unchecked = S.Unchecked() })
+        local out, seen = {}, {}
+        for _, row in ipairs(rows) do
+            local name = row.kind == "item" and row.entry.offer.name
+            if name and not seen[name] then
+                seen[name] = true
+                out[#out + 1] = name
+            end
+        end
+        table.sort(out)
+        return table.concat(out, ", "), summary.unwanted
+    end
+
+    -- Reference: nothing asked, and the tab's own filters off, so every price is looked up.
+    SetView(false, false)
+    eq(Scan(), 9, "nine upgrades, nine item searches")
+    local list, unwanted = Shown()
+    eq(list, EVERY_LEVEL, "all of them listed"); eq(unwanted, 0, "none left out")
+    eq(S.ReadFrom(), nil, "the scan read gear of every level")
+
+    -- Ticked after the scan: what is made for less than level 20 is out at once. Nothing is
+    -- looked up, and no new scan is needed: the rows that stay were all read.
+    Wants.SetBelow(me, true, 10)
+    list, unwanted = Shown()
+    eq(list, FROM_TWENTY, "no helm of level 12, no belt of 19, no cloak of 12, no ring that asks for no level")
+    eq(unwanted, 4, "four upgrades left out")
+    eq(S.ReadFrom(), nil, "the list has all it is to show"); eq(S.Demand(), false, "and needs no price")
+    -- The best set for a budget is made of the same. Eight silver buy the old helm and the
+    -- dull cloak; of what is made for level 20 and up, the belt and the boots.
+    local function Set(wants)
+        local rows = ns.Plan.Rows(ns.Plan.Choose(ns.Plan.Ladder(S.offers, S.ctx, 800, wants), 800))
+        local out = {}
+        for _, row in ipairs(rows) do
+            if row.kind == "item" then out[#out + 1] = row.entry.offer.name end
+        end
+        table.sort(out)
+        return table.concat(out, ", ")
+    end
+    eq(Set(nil), "Dull Cloak, Old Helm", "a set for eight silver, of any level")
+    eq(Set(Wants.Of(me)), "Rim Belt, Rim Boots", "and of gear from level 20")
+    -- Unticked again: they were read, and are back.
+    Wants.SetBelow(me, false)
+    eq(Shown(), EVERY_LEVEL, "unticked: everything again")
+
+    -- A scan with it ticked keeps nothing made for less, and looks up no such price.
+    Wants.SetBelow(me, true, 10)
+    eq(Scan(), 5, "five item searches")
+    eq(OfferCount(), 5, "five upgrades"); eq(UnsureCount(), 0, "and none waiting")
+    list, unwanted = Shown()
+    eq(list, FROM_TWENTY, "the same list"); eq(unwanted, 0, "what the scan did not keep is not counted as left out: it was never scored")
+    eq(S.ReadFrom(), nil, "the list has all it is to show")
+    -- Narrower after the scan: out at once.
+    Wants.SetBelow(me, true, 5)
+    list, unwanted = Shown()
+    eq(list, "Dim Cloak, Fine Helm, Top Chest", "from level 25: no belt and no boots of level 20"); eq(unwanted, 2, "two left out")
+    eq(S.ReadFrom(), nil, "which takes no new scan")
+    -- Wider than the scan read: there is nothing to show of what it did not read, no lookup
+    -- brings it, and the scanner says from which level it read.
+    Wants.SetBelow(me, true, 15)
+    eq(Shown(), FROM_TWENTY, "from level 15: the list is what the scan read, from level 20")
+    eq(S.ReadFrom(), 20, "and the scanner says that it read from there"); eq(S.Demand(), false, "no price is asked for: the rows are not there")
+    Wants.SetBelow(me, true, 10)
+    eq(S.ReadFrom(), nil, "the number the scan was made with: nothing is missing")
+    Wants.SetBelow(me, false)
+    eq(S.ReadFrom(), 20, "switched off: missing again"); eq(Shown(), FROM_TWENTY, "with the same list")
+    -- A level gained since the scan makes the filter narrower by one.
+    Wants.SetBelow(me, true, 10)
+    W.player.level = 31
+    eq(Wants.Of(me).level, 21, "level 31: from level 21"); eq(Shown(), "Dim Cloak, Fine Helm, Top Chest", "what is made for level 20 is out")
+    eq(S.ReadFrom(), nil, "and no scan is needed for that")
+    W.player.level = 30
+    -- A new scan has what the last one left unread.
+    Wants.SetBelow(me, false)
+    eq(Scan(), 9, "a scan with the box unticked: nine searches again")
+    eq(Shown(), EVERY_LEVEL, "and every upgrade"); eq(S.ReadFrom(), nil, "nothing missing")
+
+    -- Ticked while the prices of a scan are looked up: what it leaves out is not looked up
+    -- (the first search, for the strongest upgrade, is out by then: a helm of level 25).
+    W.RunUntil(function() return W.AH.ready end, 5)
+    local searches = W.AH.calls.search
+    check(S.Start(), "a scan starts")
+    W.RunUntil(function() return S.state == "verify" end, 120)
+    Wants.SetBelow(me, true, 10)
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(W.AH.calls.search - searches, 5, "five searches, not nine")
+    eq(S.stats.skipped, 4, "four candidates whose price the list did not need")
+    eq(Offer("Old Helm"), nil, "no price for the old helm"); check(Unsure("Old Helm") ~= nil, "which is counted at the lowest price of its row")
+    list, unwanted = Shown()
+    eq(list, FROM_TWENTY, "the list is of gear from level 20"); eq(unwanted, 4, "with four left out")
+    eq(S.ReadFrom(), nil, "the scan itself read every level")
+    -- Unticked: their prices are asked for, and no others.
+    Wants.SetBelow(me, false)
+    eq(More(), 4, "unticked: four searches")
+    eq(OfferCount(), 9, "and every upgrade has its price"); eq(Shown(), EVERY_LEVEL, "and is listed")
+
+    -- The number is the character's own, kept with the account.
+    Wants.SetBelow(me, true, 12)
+    eq(UpgradeScoutDB.chars[me.key].maxBelow, 12, "the number is saved on the character's card"); eq(UpgradeScoutDB.chars[me.key].maxBelowOn, true, "with its tick")
+end
+
+-- A browse query as one text, its fields in the order of their names: two queries are the
+-- same when their texts are.
+local function QueryText(value)
+    if type(value) ~= "table" then return tostring(value) end
+    local keys = {}
+    for key in pairs(value) do keys[#keys + 1] = key end
+    table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+    local out = {}
+    for _, key in ipairs(keys) do out[#out + 1] = tostring(key) .. "=" .. QueryText(value[key]) end
+    return "{" .. table.concat(out, ",") .. "}"
+end
+
+-- What the scan asks of the auction house with the filter on, how much less it reads and
+-- scores, and that the list is the same whatever the auction house makes of being asked.
+function scenarios.scan_levels()
+    LevelsWorld()
+    W.AddItem({ id = 600, name = "Weak Potion", classID = 0, quality = 1, subClassID = 1, level = 1, stack = 5, use = "Restores 70 to 90 health." })
+    W.AddAuction(600, 30, { quantity = 10 })
+    LoadAddon()
+    local Wants, S, AH = ns.Wants, ns.Scanner, W.AH
+    W.OpenAuctionHouse()
+    local me = ns.Roster.Me()
+    SetView(false, false)
+    -- A scan, and what it took: browse queries, further pages, item searches, the rows read
+    -- and the rows that went on to be scored.
+    local function Scan()
+        W.RunUntil(function() return AH.ready end, 5)
+        local queries, pages, searches = AH.calls.browse, AH.calls.more, AH.calls.search
+        ScanToEnd()
+        return { queries = AH.calls.browse - queries, pages = AH.calls.more - pages, searches = AH.calls.search - searches,
+            rows = S.stats.rows, scored = S.info.toScore }
+    end
+    -- The upgrades whose price was looked up, by name.
+    local function Found()
+        local out = {}
+        for _, offer in pairs(S.offers) do
+            if not offer.unsure then out[#out + 1] = offer.name end
+        end
+        table.sort(out)
+        return table.concat(out, ", ")
+    end
+    -- The search every scan has sent so far: weapons and armor of every quality, by level
+    -- and then by price, and not a word of levels.
+    local PLAIN = "{filters={1=6,2=7,3=8,4=9,5=10,6=11,7=12},itemClassFilters={1={classID=2},2={classID=4}},"
+        .. "searchString=,sorts={1={reverseSort=false,sortOrder=2},2={reverseSort=false,sortOrder=0}}}"
+    local LEVELLED = PLAIN:gsub(",searchString=", ",maxLevel=0,minLevel=20,searchString=")
+
+    -- The box not ticked: the search is what it always was, to the letter. The browse reads
+    -- on to the hundredth row above the character's level, and every row up to that level
+    -- is scored: 429 of them.
+    local took = Scan()
+    eq(QueryText(AH.lastQuery), PLAIN, "not ticked: the search is the one every scan sent before")
+    eq(AH.lastQuery.minLevel, nil, "no lower level in it"); eq(AH.lastQuery.maxLevel, nil, "and no upper")
+    eq(took.queries, 1, "one search"); eq(took.pages, 10, "ten further pages")
+    eq(took.rows, 550, "550 rows read"); eq(took.scored, 429, "429 of them scored")
+    eq(took.searches, 9, "nine item searches"); eq(Found(), EVERY_LEVEL, "for the nine upgrades")
+    eq(S.stats.fromLevel, 0, "the scan's numbers: no level was asked for"); eq(S.stats.levelAsked, false, "of anybody")
+    check(not S.StatsText():find("level", 1, true), "and its line says nothing of levels: " .. S.StatsText())
+    -- A number typed and not ticked asks for nothing either.
+    me.maxBelow = 10
+    Scan()
+    eq(QueryText(AH.lastQuery), PLAIN, "a number alone: the same search")
+
+    -- Ticked, ten levels: the search names level 20, and nothing else in it is other than it
+    -- was. The upper level is left at nought, which is no bound, as the game's own window
+    -- sends it. An auction house that goes by the level sends 275 rows in all; the browse
+    -- stops at the 200th, and 25 rows are scored.
+    Wants.SetBelow(me, true, 10)
+    took = Scan()
+    eq(QueryText(AH.lastQuery), LEVELLED, "ticked: the same search with the two levels in it")
+    eq(AH.lastQuery.minLevel, 20, "level 30 less ten"); eq(AH.lastQuery.maxLevel, 0, "and no upper level")
+    eq(took.queries, 1, "one search"); eq(took.pages, 3, "three further pages, not ten")
+    eq(took.rows, 200, "200 rows read, not 550"); eq(took.scored, 25, "and 25 scored, not 429")
+    eq(took.searches, 5, "five item searches"); eq(Found(), FROM_TWENTY, "for the five upgrades made for level 20 and up")
+    eq(S.stats.early, true, "the browse still stops before the last page"); eq(S.partial, false, "which is a complete scan")
+    -- The cloak whose row does not say its level came, was kept, and its item said 26. The
+    -- ring that asks for no level did not come.
+    eq(S.stats.fromLevel, 20, "the scan's numbers: gear from level 20"); eq(S.stats.levelAsked, true, "asked of the auction house")
+    eq(S.stats.belowLevel, 0, "which sent no row below it"); eq(S.stats.noLevel, 1, "and one without a level")
+    check(S.StatsText():find("The search asked for gear from level 20 up: 0 rows below it came back all the same and were dropped "
+        .. "(none means the auction house goes by the level), 1 rows had no level.", 1, true) ~= nil, "as the line of /upscout stats says: " .. S.StatsText())
+    eq(UpgradeScoutCharDB.lastScan.fromLevel, 20, "and as is kept with the character's settings")
+
+    -- An auction house that sends what asks for no level whatever level is asked for: the
+    -- ring comes, its item says that it asks for none, and it is not kept.
+    AH.noLevelPasses = true
+    took = Scan()
+    eq(took.rows, 200, "the same 200 rows read"); eq(took.scored, 26, "one more scored")
+    eq(took.searches, 5, "five item searches"); eq(Found(), FROM_TWENTY, "and the same list")
+    eq(S.stats.noLevel, 2, "two rows without a level")
+    AH.noLevelPasses = nil
+
+    -- An auction house that pays no heed to the levels sends every row, as before. The rows
+    -- below level 20 are dropped as they come, so the list is the same and the scoring as
+    -- short: the 24 rows that say a level from 20 to 30, and the three that say none, of
+    -- which the item of one says 26, of one 12, and the ring's none at all.
+    AH.levelBounds = "ignore"
+    took = Scan()
+    eq(QueryText(AH.lastQuery), LEVELLED, "the search still names the level")
+    eq(took.rows, 550, "550 rows read, as without the filter"); eq(took.pages, 10, "ten further pages")
+    eq(took.scored, 27, "but 27 scored, not 429")
+    eq(took.searches, 5, "five item searches"); eq(Found(), FROM_TWENTY, "and the list is the same")
+    eq(S.stats.early, true, "the browse stops early as it did"); eq(S.partial, false, "a complete scan")
+    eq(S.stats.levelAsked, true, "the scan's numbers: asked for"); eq(S.stats.belowLevel, 402, "402 rows below level 20 came all the same")
+    eq(S.stats.noLevel, 3, "and three without a level")
+    check(S.StatsText():find("402 rows below it came back all the same and were dropped", 1, true) ~= nil, "which the line of /upscout stats tells: " .. S.StatsText())
+    eq(Offer("Bare Ring"), nil, "no ring that asks for no level"); eq(Unsure("Bare Ring"), nil, "not even at its row's price")
+    eq(Unsure("Dull Cloak"), nil, "nor the cloak whose item says level 12")
+    -- Rows in no order of level, from an auction house that goes by the level: every one of
+    -- its 275 rows is read, and the list is the same.
+    AH.levelBounds, AH.honorLevelSort = "honor", false
+    took = Scan()
+    eq(took.rows, 275, "unsorted: 275 rows, all there are from level 20"); eq(S.stats.early, false, "read to the last")
+    eq(took.scored, 25, "25 scored"); eq(Found(), FROM_TWENTY, "the same list")
+    AH.honorLevelSort = true
+
+    -- An auction house that takes the upper level of nought at its word has nothing between
+    -- level 20 and level 0. A scan answered with nothing at all sends its search again
+    -- without the levels, and is the scan it was before there was a filter, but for the
+    -- rows it drops.
+    AH.levelBounds = "literal"
+    took = Scan()
+    eq(took.queries, 2, "two searches"); eq(QueryText(AH.lastQuery), PLAIN, "the second the plain one")
+    eq(QueryText(AH.queries[#AH.queries - 1]), LEVELLED, "after the one that named the level")
+    eq(took.rows, 550, "550 rows read"); eq(took.scored, 27, "27 scored")
+    eq(took.searches, 5, "five item searches"); eq(Found(), FROM_TWENTY, "the same list")
+    eq(S.stats.fromLevel, 20, "the scan's numbers: gear from level 20"); eq(S.stats.levelAsked, false, "not asked of the auction house in the end")
+    eq(S.stats.belowLevel, 402, "402 rows dropped here"); eq(S.stats.requests, 12, "and one request more than the eleven")
+    check(S.StatsText():find("Gear from level 20 up was wanted, but the search that asked for it brought nothing back: "
+        .. "402 rows below it were dropped here, 3 rows had no level.", 1, true) ~= nil, "as the line of /upscout stats says: " .. S.StatsText())
+    -- And one that does not answer a search with a level in it: the same, after the wait.
+    AH.levelBounds = "silent"
+    W.RunUntil(function() return AH.ready end, 5)
+    local began = W.now
+    took = Scan()
+    check(W.now - began > 15, "the search with the level is waited for as long as any")
+    eq(took.queries, 2, "then sent without it"); eq(QueryText(AH.lastQuery), PLAIN, "as the plain one")
+    eq(took.scored, 27, "27 rows scored"); eq(Found(), FROM_TWENTY, "the same list")
+    eq(S.stats.levelAsked, false, "and the scan's numbers say that the level went unasked"); eq(S.message, nil, "the scan has nothing to complain of")
+    AH.levelBounds = "honor"
+    -- An auction house that answers nothing at all is given up as before: after the search
+    -- with the level, the two that every scan sent, by level and then by price alone.
+    AH.answerBrowse = false
+    W.RunUntil(function() return AH.ready end, 5)
+    local sent = AH.calls.browse
+    check(S.Start(), "a scan starts")
+    W.RunUntil(function() return S.state == "idle" end, 120)
+    eq(AH.calls.browse - sent, 3, "three searches")
+    eq(QueryText(AH.queries[#AH.queries - 2]), LEVELLED, "with the level"); eq(QueryText(AH.queries[#AH.queries - 1]), PLAIN, "without it")
+    eq(AH.lastQuery.minLevel, nil, "and without it again"); eq(AH.lastQuery.sorts[1].sortOrder, Enum.AuctionHouseSortOrder.Price, "by price alone")
+    eq(S.message, ns.L.ERR_BROWSE, "then the scan says that the auction house did not answer")
+    AH.answerBrowse = true
+
+    -- The scan for consumables is not the filter's business: its search names no level, and
+    -- a potion for the first level is in its list.
+    W.RunUntil(function() return AH.ready end, 5)
+    ScanSupplies()
+    eq(#AH.lastQuery.itemClassFilters, 1, "the search for consumables"); eq(AH.lastQuery.minLevel, nil, "names no level")
+    eq(AH.lastQuery.maxLevel, nil, "neither of the two")
+    check(Supply("Weak Potion") ~= nil, "and a potion anybody can drink is listed")
+
+    -- The numbers of a scan made before there was a filter, or spoiled in the saved file,
+    -- are read without them.
+    S.stats = nil
+    UpgradeScoutCharDB.lastScan = { requests = 3, rows = 120, fromLevel = "twenty", belowLevel = {} }
+    check(not S.StatsText():find("level", 1, true), "numbers that are none: no word of levels: " .. S.StatsText())
+    UpgradeScoutCharDB.lastScan = { requests = 3, rows = 120, fromLevel = 20 }
+    check(S.StatsText():find("0 rows below it were dropped here, 0 rows had no level.", 1, true) ~= nil, "a level alone: nought for the rest: " .. S.StatsText())
+end
+
+-- "Gear at most N levels below" in the Filters menu: a tick box with a field for the number,
+-- and words after it. What the status line says when the list is short of rows the scan did
+-- not read; a character of the account with a number and a level of its own.
+function scenarios.levels_ui()
+    LevelsWorld()
+    -- For a druid of the account: two leather caps, of no worth to a warrior.
+    W.AddItem({ id = 510, name = "Grove Cap", equipLoc = "INVTYPE_HEAD", subClassID = 2, value = 0, values = { D1 = 12 }, level = 18 })
+    W.AddItem({ id = 511, name = "Sprout Cap", equipLoc = "INVTYPE_HEAD", subClassID = 2, value = 0, values = { D1 = 9 }, level = 12 })
+    W.AddAuction(510, 700)
+    W.AddAuction(511, 300)
+    LoadAddon()
+    UpgradeScoutDB.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm",
+        faction = "Alliance", class = "DRUID", level = 20, gear = {} }
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    local frame = UpgradeScoutFrame
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local filters, me = frame.FilterField, ns.Roster.Me()
+    local box
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then box = w end
+    end
+    local function Row(name)
+        for _, at in ipairs({ 0, 1 }) do
+            box:SetScrollPercentage(at)
+            for _, w in ipairs(box:GetFrames()) do
+                if w._shown and w._kind == "Button" and w.entry and w.entry.offer.name == name then return w end
+            end
+        end
+    end
+    local function Settle()
+        W.RunUntil(function() return S.state == "idle" end, 300)
+        W.Run(0.5)
+    end
+    local function Status() return frame.Status:GetText() or "" end
+    local LABEL, AGAIN = "Gear at most", "Scan again to see it."
+    -- The line of the open menu, and its field.
+    local function Line()
+        local line = filters.lines[filters:Find(LABEL)]
+        return line, line.Number
+    end
+    -- A number typed into the field of the menu, as the player does it.
+    local function TypeLevels(text)
+        filters:Open()
+        W.Type(select(2, Line()), text)
+        filters:Close()
+        W.Run(0.5)
+    end
+    -- The tick box, and the last line of its tooltip: the level the number comes to for the
+    -- character the list is for.
+    local below = FilterBox(LABEL)
+    local function Comes()
+        below:Tooltip()
+        local lines = GameTooltip._lines
+        local title, tip, last = lines[1].text, lines[2].text, lines[#lines].text
+        GameTooltip:Hide()
+        eq(title, LABEL, "the tooltip is titled with the label"); eq(tip, ns.L.LEVEL_MIN_TIP, "and says what the box leaves out")
+        return last
+    end
+    local function Scanned()
+        W.RunUntil(function() return W.AH.ready end, 5)
+        frame.ScanButton:Click()
+        Settle()
+    end
+
+    -- The line stands with the character's other two, above the rule. Its tooltip says that
+    -- the scan is the shorter for it, and which level the number comes to for the warrior.
+    SetView(false, false)
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | " .. LABEL .. " | / | Value by net cost",
+        "the line is the last of the filters")
+    eq(below:GetChecked(), false, "not ticked until the player ticks it")
+    eq(Comes(), ns.Roster.Colored(me, me.name) .. ": From level 20", "its tooltip names the level: 30 less the ten that stand in the field")
+    check(ns.L.LEVEL_MIN_TIP:find("The scan gets shorter too", 1, true) ~= nil, "and says that the scan is shorter with it")
+    Scanned()
+    eq(W.AH.lastQuery.minLevel, nil, "a scan with the box unticked asks for every level")
+    check(Row("Old Helm") ~= nil and Row("Edge Belt") ~= nil and Row("Bare Ring") ~= nil and Row("Dull Cloak") ~= nil, "gear of every level is in the list")
+    check(Status():find("9 upgrades in 6 slots.", 1, true) ~= nil, "nine upgrades: " .. Status())
+    eq(frame.FilterNames:GetText(), "", "no filter is on: nothing beside the field")
+
+    -- The line: a tick box, its words, a field for the number, and the words it goes on with.
+    filters:Open()
+    local line, number = Line()
+    check(number ~= nil and number._kind == "EditBox", "the line has a field for the number")
+    eq(number:GetText(), "10", "with ten in it before a number is typed"); eq(line.Tick:IsShown(), false, "and no tick")
+    eq(number:GetWidth(), 30, "wide enough for two digits")
+    eq(number:IsVisible(), true, "the field is in view")
+    eq(number:GetFrameStrata(), "FULLSCREEN_DIALOG", "in the menu's layer, not under its plate")
+    check(number:GetFrameLevel() > line:GetFrameLevel(), "above its line")
+    eq(number._mouse, true, "and in reach of the mouse")
+    eq(Pictures(number, "Inset"), 9, "a recess of ours, like the tick box's")
+    check(line._size ~= nil, "the line says how big it is with its field")
+    eq(line._size[1], 16 + 7 + line.fontString:GetStringWidth() + 6 + 30 + 4 + #"levels below" * 6, "the box, the words, the field and the words after it in a row")
+    eq(line._size[2], 20, "as tall as the other lines")
+
+    -- A number typed is asked for at once, and ticks the box. What is made for less than
+    -- level 20 leaves the list at once: nothing is looked up, and no scan is asked for.
+    local sounds, searches = #W.sounds, W.AH.calls.search
+    W.Type(number, "10")
+    eq(me.maxBelow, 10, "the number is written on the character's card"); eq(me.maxBelowOn, true, "and asked for")
+    eq(line.Tick:IsShown(), true, "the typing ticked the box"); eq(#W.sounds, sounds, "without a click")
+    eq(filters._open, true, "the menu stays up"); check(Line() == line, "and its line is the one that was typed into")
+    W.Run(0.5)
+    eq(Row("Old Helm"), nil, "the helm of level 12 is out"); eq(Row("Edge Belt"), nil, "the belt of level 19")
+    eq(Row("Dull Cloak"), nil, "the cloak whose item says level 12"); eq(Row("Bare Ring"), nil, "and the ring that asks for no level")
+    check(Row("Rim Belt") ~= nil and Row("Rim Boots") ~= nil, "what is made for level 20 stays")
+    check(Row("Fine Helm") ~= nil and Row("Top Chest") ~= nil and Row("Dim Cloak") ~= nil, "and what is made for more")
+    eq(frame.FilterNames:GetText(), "From level 20", "the filter is named beside the field, by the level it comes to")
+    check(Status():find("5 upgrades in 5 slots.", 1, true) ~= nil, "the status line counts what is listed: " .. Status())
+    check(not Status():find(AGAIN, 1, true), "and asks for no scan: every row that is to be shown was read")
+    eq(W.AH.calls.search, searches, "no item search: every price was known"); eq(S.state, "idle", "and nothing is under way")
+    filters:Close()
+    filters._tooltip(GameTooltip)
+    eq(GameTooltip._lines[2].text, "Gear at most 10 levels below", "the field's tooltip has the line in full")
+    GameTooltip:Hide()
+
+    -- The menu opened again has the number and the tick. A smaller number is narrower.
+    filters:Open()
+    line, number = Line()
+    eq(number:GetText(), "10", "the number is in the field"); eq(line.Tick:IsShown(), true, "and the box is ticked")
+    W.Type(number, "5")
+    W.Run(0.5)
+    eq(Row("Rim Belt"), nil, "five levels: what is made for level 20 is out"); check(Row("Fine Helm") ~= nil, "what is made for 25 stays")
+    eq(frame.FilterNames:GetText(), "From level 25", "and the name beside the field says so")
+    -- More levels than there are is all of them: gear of every level is offered, the ring
+    -- that asks for none as well, and the box is named by the first level. The field shows
+    -- what was taken when it is left.
+    W.Type(number, "99")
+    eq(me.maxBelow, 59, "99 levels typed: 59 are asked for")
+    W.Run(0.5)
+    check(Row("Old Helm") ~= nil and Row("Bare Ring") ~= nil, "which is every level there is: all nine again")
+    eq(ns.Wants.Of(me), nil, "nothing is asked of the gear"); eq(frame.FilterNames:GetText(), "From level 1", "and the ticked box is named by where it reaches")
+    W.PressEnter(number)
+    eq(number:GetText(), "59", "the field has the number that is kept")
+    -- An empty field asks for nothing while the player types. Left empty, it unticks the box
+    -- and shows the last number again.
+    W.Type(number, "")
+    eq(me.maxBelow, 59, "an empty field changes nothing yet"); eq(me.maxBelowOn, true, "the box stays ticked")
+    W.PressEnter(number)
+    eq(me.maxBelowOn, nil, "left empty: unticked"); eq(line.Tick:IsShown(), false, "the tick goes")
+    eq(number:GetText(), "59", "and the last number is back in the field"); eq(me.maxBelow, 59, "kept for the next time")
+    W.Type(number, "0")
+    eq(me.maxBelowOn, nil, "nought is no number to ask for")
+    W.PressEnter(number)
+    eq(number:GetText(), "59", "and gives way to the last one")
+    filters:Close()
+    eq(Comes(), ns.Roster.Colored(me, me.name) .. ": From level 1", "the line's tooltip says where 59 levels reach")
+    filters:Open()
+    W.Type(select(2, Line()), "10")
+    filters:Close()
+
+    -- The tick box itself: a click asks for the number that is in the field.
+    eq(below:GetChecked(), true, "ten typed: ticked")
+    below:Click()
+    eq(me.maxBelowOn, nil, "a click: unticked"); eq(me.maxBelow, 10, "the number stays")
+    W.Run(0.5)
+    check(Row("Old Helm") ~= nil, "and the list is whole again")
+    below:Click()
+    eq(me.maxBelowOn, true, "ticked"); eq(me.maxBelow, 10, "with the number that was there")
+    W.Run(0.5)
+    eq(Row("Old Helm"), nil, "the list is cut at once")
+
+    -- The best set for a budget holds nothing made for less. Eight silver buy the old helm
+    -- and the dull cloak; with the filter on, the belt and the boots of level 20.
+    local bar = frame.PlanBar
+    bar.Check:SetChecked(true)
+    bar.Check:Click()
+    W.Type(bar.Gold, "0")
+    W.Type(bar.Silver, "8")
+    Settle()
+    check(Row("Rim Belt") ~= nil and Row("Rim Boots") ~= nil, "a set for eight silver: the belt and the boots")
+    eq(Row("Old Helm"), nil, "not the helm of level 12, which the money would buy")
+    eq(below:IsEnabled(), true, "the box keeps its say in a set"); eq(frame.FilterNames:GetText(), "From level 20", "and its name beside the field")
+    below:Click()
+    Settle()
+    check(Row("Old Helm") ~= nil and Row("Dull Cloak") ~= nil, "unticked: the helm and the cloak of level 12")
+    below:Click()
+    bar.Check:SetChecked(false)
+    bar.Check:Click()
+    Settle()
+
+    -- The arrows in the bags do not go by it: an old helm that beats an empty head has its
+    -- arrow, whatever level it was made for.
+    local old = W.PutInBags(W.Link(500))
+    W.OpenBags()
+    local arrow = ContainerFrameCombinedBags.Items[old].UpgradeScoutArrow
+    check(arrow ~= nil and arrow:IsShown(), "a helm of level 12 in the bags has its arrow with the box ticked")
+
+    -- A scan with the box ticked asks the auction house for level 20 and up.
+    Scanned()
+    eq(W.AH.lastQuery.minLevel, 20, "the scan asks for gear from level 20"); eq(W.AH.lastQuery.maxLevel, 0, "and names no upper level")
+    eq(Row("Old Helm"), nil, "no helm of level 12"); check(Row("Rim Belt") ~= nil and Row("Dim Cloak") ~= nil, "the gear from level 20 is there")
+    check(Status():find("5 upgrades in 5 slots.", 1, true) ~= nil, "five upgrades: " .. Status())
+    check(not Status():find(AGAIN, 1, true), "and nothing is missing: " .. Status())
+    -- Made wider after the scan: the rows that were not read cannot be shown, no lookup
+    -- brings them, and the status line says that it takes a new scan.
+    searches = W.AH.calls.search
+    TypeLevels("15")
+    eq(frame.FilterNames:GetText(), "From level 15", "fifteen levels: from level 15")
+    eq(Row("Edge Belt"), nil, "the belt of level 19 was not read, and is not there")
+    check(Status():find("5 upgrades in 5 slots. The scan read no gear below level 20. " .. AGAIN, 1, true) ~= nil, "the status line says what is missing, and what to do: " .. Status())
+    eq(W.AH.calls.search, searches, "nothing is looked up"); eq(S.state, "idle", "or under way")
+    -- Switched off: the same.
+    below:Click()
+    W.Run(0.5)
+    eq(frame.FilterNames:GetText(), "", "unticked: no filter is on")
+    check(Status():find("The scan read no gear below level 20. " .. AGAIN, 1, true) ~= nil, "and the list is still short of what was not read: " .. Status())
+    -- The number the scan was made with: the list is whole for it.
+    TypeLevels("10")
+    check(not Status():find(AGAIN, 1, true), "ten levels again: nothing is missing: " .. Status())
+    -- Narrower than that: nothing is missing either.
+    TypeLevels("5")
+    eq(Row("Rim Belt"), nil, "five levels: narrower"); check(not Status():find(AGAIN, 1, true), "and nothing missing: " .. Status())
+    -- Wider again, and the new scan: the line is gone and the rows are there.
+    TypeLevels("15")
+    check(Status():find(AGAIN, 1, true) ~= nil, "fifteen levels: short again")
+    Scanned()
+    eq(W.AH.lastQuery.minLevel, 15, "the new scan asks for gear from level 15")
+    check(Row("Edge Belt") ~= nil, "the belt of level 19 is listed"); eq(Row("Old Helm"), nil, "the helm of level 12 is not")
+    check(Status():find("6 upgrades in 5 slots.", 1, true) ~= nil, "six upgrades: " .. Status())
+    check(not Status():find(AGAIN, 1, true), "and nothing is missing: " .. Status())
+    -- The level the line names is the one the last scan read from, whatever it was.
+    TypeLevels("1")
+    Scanned()
+    eq(W.AH.lastQuery.minLevel, 29, "one level: the scan asks for gear from level 29")
+    check(Status():find("1 upgrades in 1 slots.", 1, true) ~= nil, "the chest of level 30 is all there is: " .. Status())
+    TypeLevels("15")
+    check(Status():find("The scan read no gear below level 29. " .. AGAIN, 1, true) ~= nil, "fifteen levels after it: short of what is below 29: " .. Status())
+    Scanned()
+
+    -- The druid of the account has a box, a number and a level of its own: level 20, and
+    -- ten in the field as before any number is typed.
+    local druid = UpgradeScoutDB.chars["Alty-Testrealm"]
+    W.RunUntil(function() return W.AH.ready end, 5)
+    frame.ProfileDropdown:Pick(3)
+    Settle()
+    eq(ns.Roster.Target(), druid, "the lists are for the druid")
+    eq(W.AH.lastQuery.minLevel, nil, "the list made for it asks for every level: the warrior's tick is the warrior's")
+    eq(below:GetChecked(), false, "its box is not ticked")
+    eq(frame.FilterNames:GetText(), "", "and nothing is named beside the field")
+    check(Row("Grove Cap") ~= nil and Row("Sprout Cap") ~= nil, "both caps are in its list")
+    eq(Comes(), ns.Roster.Colored(druid, "Alty") .. ": From level 10", "its tooltip counts from the druid's level: 20 less ten")
+    filters:Open()
+    eq(select(2, Line()):GetText(), "10", "ten in its field")
+    W.Type(select(2, Line()), "5")
+    filters:Close()
+    W.Run(0.5)
+    eq(druid.maxBelow, 5, "five levels, typed while shopping for the druid, are the druid's"); eq(druid.maxBelowOn, true, "and asked for it")
+    eq(me.maxBelow, 15, "the warrior's own number is where it was"); eq(me.maxBelowOn, true, "with its tick")
+    eq(frame.FilterNames:GetText(), "From level 15", "the druid's is named beside the field: 20 less five")
+    eq(Row("Sprout Cap"), nil, "the cap of level 12 is out at once"); check(Row("Grove Cap") ~= nil, "the cap of level 18 stays")
+    Scanned()
+    eq(W.AH.lastQuery.minLevel, 15, "the scan for the druid asks for gear from level 15")
+    check(Row("Grove Cap") ~= nil, "the cap of level 18 is listed"); eq(Row("Sprout Cap"), nil, "the cap of level 12 is not")
+    -- Unticked by whoever shops for the druid: the list is short, and a scan mends it.
+    below:Click()
+    W.Run(0.5)
+    eq(druid.maxBelowOn, nil, "unticked on the druid's card"); eq(me.maxBelowOn, true, "the warrior's own tick is where it was")
+    check(Status():find("The scan read no gear below level 15. " .. AGAIN, 1, true) ~= nil, "the druid's list is short of what was not read: " .. Status())
+    Scanned()
+    eq(W.AH.lastQuery.minLevel, nil, "the next scan for the druid asks for every level")
+    check(Row("Sprout Cap") ~= nil, "and has the cap of level 12")
+    -- Back to the warrior: its box is as it was, and the list made for it goes by it.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    frame.ProfileDropdown:Pick(1)
+    Settle()
+    eq(ns.Roster.Target(), nil, "the lists are the warrior's own again")
+    eq(below:GetChecked(), true, "and its box is ticked, as it was"); eq(frame.FilterNames:GetText(), "From level 15", "with its own number")
+    eq(W.AH.lastQuery.minLevel, 15, "the scan for the warrior asks for gear from level 15: 30 less its fifteen")
+
+    -- A card out of a saved file with something else where the number and the tick belong:
+    -- no tick, the first number, and a scan that asks for every level.
+    me.maxBelow, me.maxBelowOn = "ten", "yes"
+    ns.UI.Refresh()
+    eq(below:GetChecked(), false, "a tick that is none is not shown as one"); eq(frame.FilterNames:GetText(), "", "nor named")
+    filters:Open()
+    eq(select(2, Line()):GetText(), "10", "the field has the first number")
+    filters:Close()
+    Scanned()
+    eq(W.AH.lastQuery.minLevel, nil, "and the scan asks for every level")
+    below:Click()
+    eq(me.maxBelowOn, true, "a click ticks it for good")
+
+    -- The Consumables tab has no such line.
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScoutSupplies")
+    W.Run(0.5)
+    eq(below:IsShown(), false, "no such line in the menu of the consumables")
 end
 
 local fn = scenarios[scenario]
