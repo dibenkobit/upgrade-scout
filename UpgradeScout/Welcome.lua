@@ -1064,7 +1064,7 @@ ns.On("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
 -- The same once more for a player who has Pawn and saw the window before Pawn could be
 -- chosen in it (2.6.0): nothing else would tell them of the choice. And once more for one
 -- who has Forever Companion, which could be chosen from 2.8.0, or Forever Leveling BiS, from
--- 2.11.0, or GearQuest, from the version after that.
+-- 2.11.0, or GearQuest, from 2.12.0.
 local waiting = false
 
 -- Has the window a reason to come up by itself?
