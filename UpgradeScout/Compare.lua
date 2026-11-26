@@ -130,7 +130,8 @@ local function Placement(group, slot, value, base, replaced, note, whole)
         -- nothing is there, or what is there scores nothing.
         percent = whole > 0 and (value - base) / whole or nil,
         replaced = replaced,   -- links of the items that come off, nil for an empty slot
-        note = note,           -- "BOTH_HANDS" | "OFFHAND_EMPTY" | "NEEDS_ONE_HAND" | nil
+        -- "BOTH_HANDS" | "OFFHAND_EMPTY" | "NEEDS_ONE_HAND" | "REPLACES_TWO_HAND" | nil
+        note = note,
     }
 end
 
@@ -148,9 +149,9 @@ end
 -- the two apart (Score.OffValue). Without the second the first holds for either hand.
 -- `hands` is how the character means to fill its hands, where it has said so (Wants.lua). It
 -- changes one thing here, for one who holds a two-hander and said "ONE", a weapon for one
--- hand with something beside it: see where the off hand is offered. What such a choice
--- leaves out is not left out here: an item that is an upgrade and unwanted is counted as
--- that (Wants.Fits).
+-- hand with something beside it: both hands are offered as they will be then, without the
+-- two-hander (see `offFree` and `mainFree`). What such a choice leaves out is not left out
+-- here: an item that is an upgrade and unwanted is counted as that (Wants.Fits).
 local function Places(item, ctx, beats, hands)
     local out = {}
     local value = item.value
@@ -199,6 +200,16 @@ local function Places(item, ctx, beats, hands)
     -- what it takes ("NEEDS_ONE_HAND"). The gain is the item's own worth there and no share
     -- of anything: what the hands gain in all depends on the weapon that is yet to come.
     local offFree = holdingTwoHander and hands == "ONE"
+    -- The main hand is offered the same way, as it will be then: without the two-hander. That
+    -- one is what the choice leaves out, and no measure of the weapon that is to take its
+    -- place: on the weights of a shield tank a weapon for one hand loses to it by its damage
+    -- alone, and a character that holds one would never be shown the way out of it. So such a
+    -- weapon is offered at its own worth and with no percent, the rows of the main hand stand
+    -- in the order of their own worth, and each says whose place it takes
+    -- ("REPLACES_TWO_HAND"): the two-hander does come off for it.
+    -- Not where the addon that scores has a say of its own on the hands (below): what it says
+    -- a weapon gains is said against the two-hander, and no row says more than that.
+    local mainFree = offFree and not ctx.hands
 
     -- The addon that scores may have a say of its own on an item for the hands (ctx.hands,
     -- see Score.Context and Leveling.Hands), for the main hand and for the off hand: false,
@@ -231,7 +242,12 @@ local function Places(item, ctx, beats, hands)
     end
     if ctx.show1H == false then return out end
 
-    if invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND" then
+    local forMain = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND"
+    if forMain and mainFree then
+        if beats(value, 0) then
+            out[#out + 1] = Placement("MAINHAND", MAIN_HAND, value, 0, { main.link }, "REPLACES_TWO_HAND")
+        end
+    elseif forMain then
         -- Against a two-hander the comparison is honest only if the off hand is counted as empty.
         -- The gain is a share of what both hands hold, as a two-hander's is: the main hand
         -- lists the two kinds together, and the bigger gain must read as the bigger percent.

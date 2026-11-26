@@ -45,17 +45,23 @@ end
 -- worn, or would take the place of another of them: a set never pays for that. Nor does it
 -- hold an item that adds less where it goes than the character asks of an upgrade (`wants`,
 -- see Wants.lua): every row of a set is one the list could show.
+-- The hands are filled the way the character says it fills them, as the list fills them
+-- (Compare.Places): for one that holds a two-hander and goes over to one hand, a weapon for
+-- one hand goes into the main hand at its own worth, as its row says. What is held in the
+-- other hand goes in beside such a weapon that went on before it, and not beside the
+-- two-hander: the set is to be worn as it is bought, and a shield by itself could not be.
 local function Try(ctx, items, wants)
     local view = On(ctx, CopyGear(ctx.equipped))
+    local hands = wants and wants.hands
     local gain, placed, used = 0, {}, {}
     for i = 1, #items do
         local item = items[i]
-        local placements = ns.Compare.Place(item, view)
+        local placements = ns.Compare.Place(item, view, hands)
         local best
         for p = 1, #placements do
             local placement = placements[p]
             if not used[placement.slot] and (not best or placement.delta > best.delta)
-                and ns.Wants.Enough(wants, placement) then
+                and placement.note ~= "NEEDS_ONE_HAND" and ns.Wants.Enough(wants, placement) then
                 best = placement
             end
         end
@@ -225,8 +231,10 @@ end
 -- as it is and the way the character fills its hands. (A scan keeps offers that are that
 -- only for another choice of the hands, see Compare.Possible: a shield beside a two-hander.)
 -- Where each goes in a set is another matter, and there the hands are filled as they can be
--- held: a shield is in a set with the weapon for one hand that takes the two-hander's place,
--- and never by itself, as a sum that says what the set adds could not be true of it.
+-- held (see Try): for one that goes over from a two-hander to one hand, a weapon for one hand
+-- can be a set by itself, at its own worth as in the list, and a shield is in a set with such
+-- a weapon and never by itself: it cannot be held beside the two-hander, and a sum that says
+-- what the set adds could not be true of it.
 function Plan.Ladder(offers, ctx, cap, wants)
     local kinds, names = {}, {}
     local hands = wants and wants.hands

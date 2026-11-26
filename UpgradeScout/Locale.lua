@@ -248,6 +248,9 @@ local L = {
     -- TT_NEEDS_ONE_HAND is a note of a row's tooltip, as TT_OFFHAND_EMPTY is: under a shield
     -- or another item for the off hand, offered to a character that holds a two-hand weapon
     -- and chose HANDS_ONE. TT_NEEDS_ONE_HAND_WHO is the same in a list for another character.
+    -- TT_REPLACES_TWO_HAND is the note under a one-hand weapon offered to that character for
+    -- its main hand: the row does not measure it against the two-hand weapon, which the
+    -- choice leaves out, and says so. It names the filter by WEAPONS. ..._WHO as above.
     WEAPONS = "Weapons",
     HANDS_ANY = "Any",
     HANDS_ANY_TIP = "One-hand and two-hand weapons alike. Each character has a choice of its own.",
@@ -262,6 +265,8 @@ local L = {
     KINDS_FULL = "Weapon types: %d of %d",
     TT_NEEDS_ONE_HAND = "Needs a one-hand weapon in your main hand",
     TT_NEEDS_ONE_HAND_WHO = "Needs a one-hand weapon in the main hand",
+    TT_REPLACES_TWO_HAND = "Takes the place of your two-hand weapon, which the \"Weapons\" filter leaves out",
+    TT_REPLACES_TWO_HAND_WHO = "Takes the place of the two-hand weapon, which the \"Weapons\" filter leaves out",
     -- Forever Companion in place of the addon's own weights (Companion.lua), as Pawn above:
     -- the choice in the welcome window, and what the tab says of its scales.
     -- WELCOME_SCALE_COMPANION and WELCOME_NO_SCALE_COMPANION take the character's name.
@@ -561,6 +566,8 @@ if GetLocale() == "ruRU" then
         KINDS_FULL = "Типы оружия: %d из %d",
         TT_NEEDS_ONE_HAND = "Нужно одноручное оружие в правой руке",
         TT_NEEDS_ONE_HAND_WHO = "Нужно одноручное оружие в правой руке",
+        TT_REPLACES_TWO_HAND = "Заменит двуручное оружие, которое фильтр «Оружие» убирает из списка",
+        TT_REPLACES_TWO_HAND_WHO = "Заменит двуручное оружие, которое фильтр «Оружие» убирает из списка",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "оценка Forever Companion",
         WELCOME_NO_COMPANION = "Forever Companion не установлен или выключен.",
@@ -831,6 +838,8 @@ if GetLocale() == "deDE" then
         KINDS_FULL = "Waffenarten: %d von %d",
         TT_NEEDS_ONE_HAND = "Braucht eine Einhandwaffe in deiner Waffenhand",
         TT_NEEDS_ONE_HAND_WHO = "Braucht eine Einhandwaffe in der Waffenhand",
+        TT_REPLACES_TWO_HAND = "Ersetzt deine Zweihandwaffe, die der Filter »Waffen« weglässt",
+        TT_REPLACES_TWO_HAND_WHO = "Ersetzt die Zweihandwaffe, die der Filter »Waffen« weglässt",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever-Companion-Wertung",
         WELCOME_NO_COMPANION = "Forever Companion ist nicht installiert oder deaktiviert.",
@@ -1102,6 +1111,8 @@ if GetLocale() == "frFR" then
         KINDS_FULL = "Types d'armes : %d sur %d",
         TT_NEEDS_ONE_HAND = "Nécessite une arme à une main dans votre main droite",
         TT_NEEDS_ONE_HAND_WHO = "Nécessite une arme à une main en main droite",
+        TT_REPLACES_TWO_HAND = "Remplace votre arme à deux mains, que le filtre « Armes » écarte",
+        TT_REPLACES_TWO_HAND_WHO = "Remplace l'arme à deux mains, que le filtre « Armes » écarte",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "score Forever Companion",
         WELCOME_NO_COMPANION = "Forever Companion n'est pas installé ou est désactivé.",
@@ -1373,6 +1384,8 @@ if GetLocale() == "zhCN" then
         KINDS_FULL = "武器类型：%d/%d",
         TT_NEEDS_ONE_HAND = "需要主手装备单手武器",
         TT_NEEDS_ONE_HAND_WHO = "需要主手装备单手武器",
+        TT_REPLACES_TWO_HAND = "将取代你的双手武器：“武器”筛选不显示双手武器",
+        TT_REPLACES_TWO_HAND_WHO = "将取代双手武器：“武器”筛选不显示双手武器",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever Companion 评分",
         WELCOME_NO_COMPANION = "Forever Companion 未安装或未启用。",
@@ -1645,6 +1658,8 @@ if GetLocale() == "ptBR" then
         KINDS_FULL = "Tipos de arma: %d de %d",
         TT_NEEDS_ONE_HAND = "Precisa de uma arma de uma mão na sua mão principal",
         TT_NEEDS_ONE_HAND_WHO = "Precisa de uma arma de uma mão na mão principal",
+        TT_REPLACES_TWO_HAND = "Substitui sua arma de duas mãos, que o filtro \"Armas\" deixa de fora",
+        TT_REPLACES_TWO_HAND_WHO = "Substitui a arma de duas mãos, que o filtro \"Armas\" deixa de fora",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "pontuação do Forever Companion",
         WELCOME_NO_COMPANION = "O Forever Companion não está instalado ou está desativado.",
@@ -1916,6 +1931,8 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         KINDS_FULL = "Tipos de arma: %d de %d",
         TT_NEEDS_ONE_HAND = "Necesita un arma de una mano en tu mano derecha",
         TT_NEEDS_ONE_HAND_WHO = "Necesita un arma de una mano en la mano derecha",
+        TT_REPLACES_TWO_HAND = "Sustituye a tu arma de dos manos, que el filtro «Armas» omite",
+        TT_REPLACES_TWO_HAND_WHO = "Sustituye al arma de dos manos, que el filtro «Armas» omite",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "puntuación de Forever Companion",
         WELCOME_NO_COMPANION = "Forever Companion no está instalado o está desactivado.",
@@ -2189,6 +2206,8 @@ if GetLocale() == "koKR" then
         KINDS_FULL = "무기 종류: %d/%d",
         TT_NEEDS_ONE_HAND = "주장비 칸에 한손 무기가 필요합니다",
         TT_NEEDS_ONE_HAND_WHO = "주장비 칸에 한손 무기가 필요합니다",
+        TT_REPLACES_TWO_HAND = "“무기” 필터가 목록에서 빼는 양손 무기를 대신합니다",
+        TT_REPLACES_TWO_HAND_WHO = "“무기” 필터가 목록에서 빼는 양손 무기를 대신합니다",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever Companion 점수",
         WELCOME_NO_COMPANION = "Forever Companion이 설치되어 있지 않거나 꺼져 있습니다.",
@@ -2461,6 +2480,8 @@ if GetLocale() == "zhTW" then
         KINDS_FULL = "武器類型：%d/%d",
         TT_NEEDS_ONE_HAND = "需要主手裝備單手武器",
         TT_NEEDS_ONE_HAND_WHO = "需要主手裝備單手武器",
+        TT_REPLACES_TWO_HAND = "將取代你的雙手武器：「武器」篩選不顯示雙手武器",
+        TT_REPLACES_TWO_HAND_WHO = "將取代雙手武器：「武器」篩選不顯示雙手武器",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever Companion 評分",
         WELCOME_NO_COMPANION = "Forever Companion 未安裝或未啟用。",

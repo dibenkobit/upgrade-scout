@@ -433,13 +433,13 @@ end
 -- Candidates: which of them need an item search
 ---------------------------------------------------------------------------
 -- spare: the row's item is better than the gear nowhere as things stand, and would be for a
--- character that fills its hands another way than it has said: a shield beside a two-hander
--- (Compare.Possible). It is kept, so that the list has it the moment the character says so,
--- and until then it is no row of the list and no price is looked up for it. Such rows are
--- many for one that holds a two-hander and can hold two weapons (every weapon for one hand
--- there is), so they are counted by themselves: they do not crowd the others out. Nor does
--- one too many of them make the scan one that stopped early, while the list has no use for
--- them: see ListCandidates.
+-- character that fills its hands another way than it has said: a shield beside a two-hander,
+-- or a weapon for one hand that does not beat it (Compare.Possible). It is kept, so that the
+-- list has it the moment the character says so, and until then it is no row of the list and
+-- no price is looked up for it. Such rows are many for one that holds a two-hander (every
+-- weapon for one hand there is), so they are counted by themselves: they do not crowd the
+-- others out. Nor does one too many of them make the scan one that stopped early, while the
+-- list has no use for them: see ListCandidates.
 local function AddCandidate(row, eval, spare)
     local list = scan.candidates
     local known = spare and scan.spares or #list - scan.spares

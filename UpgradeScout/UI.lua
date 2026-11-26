@@ -251,6 +251,10 @@ local function AddNotes(tooltip, entry, who)
         -- For the off hand of a character that holds a two-hander and is going over to a
         -- weapon for one hand (see Compare.Places): it is no use beside the two-hander.
         GameTooltip_AddNormalLine(tooltip, who and L.TT_NEEDS_ONE_HAND_WHO or L.TT_NEEDS_ONE_HAND)
+    elseif entry.note == "REPLACES_TWO_HAND" then
+        -- A weapon for one hand, for the main hand of the same character: the row measures
+        -- it against no weapon, and this says what comes off for it.
+        GameTooltip_AddNormalLine(tooltip, who and L.TT_REPLACES_TWO_HAND_WHO or L.TT_REPLACES_TWO_HAND)
     end
     if offer.effects then
         GameTooltip_AddNormalLine(tooltip, L.TT_EFFECTS)
@@ -270,7 +274,7 @@ end
 -- Has AddNotes anything to say of this row?
 local function HasNotes(entry)
     local note = entry.note
-    return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or note == "NEEDS_ONE_HAND"
+    return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or note == "NEEDS_ONE_HAND" or note == "REPLACES_TWO_HAND"
         or entry.offer.effects or entry.offer.unsure or not entry.affordable
 end
 
@@ -649,9 +653,12 @@ end
 -- "New", and a slot whose item scores nothing on the profile (white armor with no stat but
 -- its armor, say) gets the gain in points. The rows of one slot all replace the same thing,
 -- so they all read the same way and can be told apart by their numbers.
+-- A weapon for one hand offered in the place of a two-hander that the character's choice of
+-- hands leaves out (see Compare.Places) says "New" as well: it is measured against a main
+-- hand without that weapon, and its points are no gain over it.
 local function GainText(entry)
     if entry.percent then return "+" .. FormatPercentage(entry.percent, true) end
-    if entry.replaced then return L.GAIN_POINTS:format(ns.Num(entry.delta)) end
+    if entry.replaced and entry.note ~= "REPLACES_TWO_HAND" then return L.GAIN_POINTS:format(ns.Num(entry.delta)) end
     return L.NEW
 end
 
