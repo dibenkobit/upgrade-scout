@@ -409,6 +409,14 @@ local AnyRed = ns.AnyRed
 -- Reads the tooltip of a scored item (see EvalLink) for what only the tooltip tells:
 --   eval.usable  true = the character can equip it, false = it cannot. Left nil while the
 --                client has not loaded the item.
+--   eval.untrained  set for a weapon the character cannot equip for one reason alone: it
+--                has not trained that kind of weapon yet, and its class can (Roster.Untrained).
+--                Such a weapon is kept for the character to say that it will train
+--                (AddCandidate). For the one being played: its card says the kind is not
+--                trained, and the kind is all that is red in the tooltip (ns.OnlyKindRed); a
+--                level, a class or a standing in red beside it leaves the item out as ever.
+--                For another character: its card has not the kind, and nothing else the
+--                tooltip asks is beyond it (Roster.Allows).
 --   eval.unique  set for "Unique-Equipped" too. Nothing says that the game's function for
 --                uniqueness counts it, and a second copy of such an item cannot be worn
 --                beside the first any more than of a plain unique one.
@@ -421,12 +429,19 @@ local function ReadTooltip(eval)
         if lines[i].leftText == ITEM_UNIQUE_EQUIPPABLE then eval.unique = true end
     end
     local who = run.who
+    local untrained
     if who then
         local _, _, _, _, _, classID, subClassID = C_Item.GetItemInfoInstant(eval.link)
-        eval.usable = ns.Roster.Wields(who, classID, subClassID) and ns.Roster.Allows(who, lines)
+        local wields, allowed = ns.Roster.Wields(who, classID, subClassID), ns.Roster.Allows(who, lines)
+        eval.usable = wields and allowed
+        untrained = allowed and not wields and eval.weapon ~= nil and ns.Roster.Untrained(who, eval.weapon)
     else
         eval.usable = not AnyRed(lines)
+        local me = ns.Roster.Me()
+        untrained = not eval.usable and eval.weapon ~= nil and me ~= nil
+            and ns.Roster.Untrained(me, eval.weapon) and ns.OnlyKindRed(lines)
     end
+    eval.untrained = untrained or nil
 end
 
 ---------------------------------------------------------------------------
@@ -440,6 +455,10 @@ end
 -- weapon for one hand there is), so they are counted by themselves: they do not crowd the
 -- others out. Nor does one too many of them make the scan one that stopped early, while the
 -- list has no use for them: see ListCandidates.
+-- A weapon of a kind the character has not trained yet (eval.untrained) is kept the same
+-- way, whatever it would be better than: it is for a character that says it will train that
+-- kind, by a tick in the Weapons menu (Wants.lua), and until then it is no row of the list,
+-- no price is looked up for it, and it is not counted as left out by a filter either.
 local function AddCandidate(row, eval, spare)
     local list = scan.candidates
     local known = spare and scan.spares or #list - scan.spares
@@ -524,6 +543,34 @@ local function Wanted()
     return ns.Wants.Of(ctx.who or ns.Roster.Me())
 end
 
+-- Is the item (a scored one, or an offer) a weapon of a kind the character has not trained
+-- and has not asked to be offered either? It is kept aside then, as if it were not for sale.
+local function Aside(item, wants)
+    return item.untrained == true and wants ~= nil and wants.kinds ~= nil and wants.kinds[item.weapon] == true
+end
+
+-- Puts aside the offers that are that, out of the list and out of every count of it, and
+-- back into the list those the character has asked for since: a tick in the Weapons menu
+-- brings them at once, and unticking takes them away, with no price looked up twice.
+local function SetAside()
+    if not scan then return end
+    local wants = Wanted()
+    local aside, moved = scan.aside, false
+    for id, offer in pairs(S.offers) do
+        if Aside(offer, wants) then
+            aside[id], S.offers[id], moved = offer, nil, true
+        end
+    end
+    for id, offer in pairs(aside) do
+        if not Aside(offer, wants) then
+            -- (What a search has found of its row since is the newer.)
+            if S.offers[id] == nil then S.offers[id] = offer end
+            aside[id], moved = nil, true
+        end
+    end
+    return moved
+end
+
 -- The most to pay for one item for that character ("Buyout up to", see Wants.lua), in copper;
 -- nil when no sum is asked for.
 local function Cap()
@@ -589,7 +636,8 @@ local function OffersWornAs(invType, wants)
     if byType.changes ~= S.changes or byType.offers ~= S.offers or byType.wants ~= wants then
         byType = { changes = S.changes, offers = S.offers, wants = wants, lists = {} }
         for _, offer in pairs(Checked()) do
-            if ns.Wants.Fits(wants, offer) then
+            -- (Nor of a weapon the character cannot hold yet: Plan.Ladder.)
+            if ns.Wants.Fits(wants, offer) and not offer.untrained then
                 local list = byType.lists[offer.invType]
                 if not list then
                     list = {}
@@ -687,7 +735,8 @@ local function SkipReason(cand, wants, ceiling)
     if scan.floorBroken then return nil end
     if ns.db.plan then
         if cand.minPrice > S.PlanCap() then return "price" end
-        if Outdone(cand, wants) then return "outdone" end
+        -- (No set takes a weapon the character has not trained for: Plan.Ladder.)
+        if cand.eval.untrained or Outdone(cand, wants) then return "outdone" end
         return nil
     end
     if ceiling and cand.minPrice > ceiling then return "price" end
@@ -762,8 +811,10 @@ function S.Unchecked()
     local list = scan.candidates
     for i = 1, #list do
         local cand = list[i]
-        -- (A candidate that is in the list at its row's lowest price is counted there.)
-        if not cand.status and cand.eval and not cand.listed then
+        -- (A candidate that is in the list at its row's lowest price is counted there. One
+        -- kept aside for a kind of weapon not trained is counted nowhere: no filter that
+        -- anybody set leaves it out.)
+        if not cand.status and cand.eval and not cand.listed and not Aside(cand.eval, wants) then
             local placements = Placements(cand, wants and wants.hands)
             if #placements > 0 then
                 placements = ns.Wants.Keep(wants, cand.eval, placements)
@@ -998,6 +1049,9 @@ local function CountAuction(found, job, eval, info)
         offValue = eval.offValue,
         armor = eval.armor,
         weapon = eval.weapon,
+        -- A weapon of a kind the character has not trained yet (see ReadTooltip): its row
+        -- says so, and no set for a budget takes it.
+        untrained = eval.untrained,
         effects = eval.effects,
         sell = eval.sell,
         buyout = info.buyoutAmount,
@@ -1022,6 +1076,8 @@ end
 -- it has a place: when the character says it goes that way (WANTS_CHANGED, below), or when
 -- its gear changes so (S.RefreshContext). Where more of those were found than are kept, a
 -- list made for that way is short of some, and the scan says that it has not everything.
+-- One kept for a kind of weapon not trained yet is listed, where it has a place, once the
+-- character asks for that kind; and a list that has such a kind is short in the same way.
 local function ListCandidates()
     local list = scan.candidates
     local found = {}
@@ -1030,7 +1086,10 @@ local function ListCandidates()
     if scan.sparesCut and hands == "ONE" then S.partial = true end
     for i = 1, #list do
         local cand = list[i]
-        if not cand.status and not cand.listed and cand.eval and cand.minPrice > 0
+        local eval = cand.eval
+        local held = eval ~= nil and Aside(eval, wants)
+        if scan.sparesCut and eval and eval.untrained and not held then S.partial = true end
+        if not cand.status and not cand.listed and eval and cand.minPrice > 0 and not held
             and (not cand.spare or #Placements(cand, hands) > 0) then
             cand.listed = true
             scan.listed = scan.listed + 1
@@ -1075,7 +1134,7 @@ local function ReadJob(job)
                 if eval.usable == nil then ReadTooltip(eval) end
                 if eval.usable == nil then
                     notReady = true
-                elseif eval.usable then
+                elseif eval.usable or eval.untrained then
                     if job.expect and scan and math.abs(eval.value - job.expect) > job.expect * 0.005 then
                         scan.bucketsVary = true
                     end
@@ -1097,9 +1156,15 @@ local function ReadJob(job)
     for id, offer in pairs(S.offers) do
         if offer.ks == job.ks then S.offers[id] = nil end
     end
+    for id, offer in pairs(scan and scan.aside or {}) do
+        if offer.ks == job.ks then scan.aside[id] = nil end
+    end
     for id, offer in pairs(found) do
         if offer then S.offers[id] = offer end
     end
+    -- (A weapon of a kind not trained, which the character has not asked for: found, and
+    -- kept out of the list all the same.)
+    SetAside()
     front.dirty = true
     S.changes = S.changes + 1
 
@@ -1280,9 +1345,11 @@ local function ScoreRow(row, force)
         if eval.usable == nil then return false, cached and "tip" or "data" end
         -- (An item the tooltip has just called unique-equipped, and that is worn, is a
         -- candidate still: SkipReason finds it no better than the gear.)
-        if eval.usable then
+        -- A weapon the character cannot hold for want of training alone is kept as the
+        -- spare ones are, for the character to say that it will train: see AddCandidate.
+        if eval.usable or eval.untrained then
             if not cached and run.stats then run.stats.forced = run.stats.forced + 1 end
-            AddCandidate(row, eval, spare)
+            AddCandidate(row, eval, spare or eval.untrained)
             return true
         end
     end
@@ -1991,6 +2058,7 @@ function S.Start()
         candidates = {},    -- rows whose item scored as an upgrade (see AddCandidate)
         spares = 0,         -- of those, rows kept for another way of filling the hands
         sparesCut = false,  -- more of those were found than are kept
+        aside = {},         -- offers of weapons of a kind not trained and not asked for (SetAside)
         rejected = {},      -- rows dropped by score alone
         evalCache = {},     -- item link -> score (see EvalLink)
         unsettled = {},     -- item link -> when the game first had no reading of it
@@ -2223,9 +2291,15 @@ end
 -- prices it then lacks (S.Demand). One thing is done here: a candidate kept for another way
 -- of filling the hands, which is the way now, is put into the list as the others were, at its
 -- row's lowest price, so that the list has it at once and not only when its price is known.
+-- The same for one kept for a kind of weapon not trained, which is ticked now; and what was
+-- listed of a kind that is unticked again goes out of the list, to where it was kept.
 ns.Listen("WANTS_CHANGED", function(card)
     if not scan or not scan.ready or not S.ctx then return end
     if card ~= (S.ctx.who or ns.Roster.Me()) then return end
+    if SetAside() then
+        front.dirty = true
+        S.changes = S.changes + 1
+    end
     ListCandidates()
 end)
 

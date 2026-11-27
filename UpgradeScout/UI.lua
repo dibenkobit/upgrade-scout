@@ -256,6 +256,15 @@ local function AddNotes(tooltip, entry, who)
         -- it against no weapon, and this says what comes off for it.
         GameTooltip_AddNormalLine(tooltip, who and L.TT_REPLACES_TWO_HAND_WHO or L.TT_REPLACES_TWO_HAND)
     end
+    -- A weapon of a kind the character has not trained yet, listed because that kind is
+    -- ticked in the Weapons menu all the same (Wants.lua): it cannot be held until the skill
+    -- is trained, which the row has no room to say. The kind in the game's own words.
+    if offer.untrained then
+        local kind = C_Item.GetItemSubClassInfo(Enum.ItemClass.Weapon, offer.weapon)
+        if type(kind) == "string" and kind ~= "" then
+            GameTooltip_AddNormalLine(tooltip, (who and L.TT_UNTRAINED_WHO or L.TT_UNTRAINED):format(kind))
+        end
+    end
     if offer.effects then
         GameTooltip_AddNormalLine(tooltip, L.TT_EFFECTS)
     end
@@ -275,7 +284,7 @@ end
 local function HasNotes(entry)
     local note = entry.note
     return note == "OFFHAND_EMPTY" or note == "BOTH_HANDS" or note == "NEEDS_ONE_HAND" or note == "REPLACES_TWO_HAND"
-        or entry.offer.effects or entry.offer.unsure or not entry.affordable
+        or entry.offer.untrained or entry.offer.effects or entry.offer.unsure or not entry.affordable
 end
 
 -- Our lines under the tooltip of a row of gear. They are of two kinds, and each has a box

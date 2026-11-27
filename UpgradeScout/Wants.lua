@@ -28,8 +28,14 @@ local _, ns = ...
 --               weapon for one hand and a shield, a held item or a second weapon beside it,
 --               and then two-handers are left out; "ANY", either way. nil until the player
 --               chooses: the profile then says (see Wants.Hands).
---     kinds     { [weapon subclass] = false } for the kinds of weapon it is not to be
---               offered: a rogue that fights with swords leaves the daggers and the maces out.
+--     kinds     { [weapon subclass] = true or false } for the kinds of weapon the player has
+--               ticked or unticked: false, it is not to be offered that kind (a rogue that
+--               fights with swords leaves the daggers and the maces out); true, it is.
+--               A kind the player has not touched is not in the table, and is offered when
+--               the character has trained it: in Forever a weapon skill is learned from a
+--               trainer (Roster.Untrained). One not trained yet is left out until it is
+--               ticked, which says "offer me these, I will train"; once it is trained it is
+--               offered like any other; and what the player ticked or unticked stays so.
 -- ("Only what I can afford", "Top N per slot" and "Hide worse deals" are about the buyer:
 -- those are in ns.db.)
 --
@@ -212,27 +218,43 @@ function Wants.Hands(card)
     return "ANY", false
 end
 
+-- Is a kind of weapon left out for a character, by what is kept for the profile it is scored
+-- on (`kinds`, which may be nil)? As the player left its tick box, where the player has
+-- touched it; otherwise a kind is out while the character has not trained it. Also returns
+-- whether that is another answer than an untouched box gives.
+local function Out(card, kinds, kind)
+    local untrained = ns.Roster.Untrained(card, kind)
+    local on
+    if type(kinds) == "table" then on = kinds[kind] end
+    -- (A card comes out of a saved file: what is neither is a box not touched.)
+    if on ~= true and on ~= false then return untrained, false end
+    return not on, on == untrained
+end
+
 -- Is this kind of weapon one the character of a card is not to be offered, on the profile it
 -- is scored on?
 function Wants.KindOut(card, kind)
     local kept = Wants.Kept(card)
-    return kept ~= nil and type(kept.kinds) == "table" and kept.kinds[kind] == false
+    return (Out(card, kept and kept.kinds, kind))
 end
 
 -- The kinds its class can ever wield that it is not to be offered: { [weapon subclass] =
 -- true }, and how many they are. What its card says of any other kind is passed over.
+-- Also returns how many of the class's kinds are not as an untouched box would have them:
+-- unticked though trained, or ticked though not. None is the menu as it is first found.
 function Wants.KindsOut(card)
-    local out, count = {}, 0
+    local out, count, changed = {}, 0, 0
     local kept = Wants.Kept(card)
     local kinds = kept and kept.kinds
-    if type(kinds) ~= "table" then return out, count end
     for _, weapon in ipairs(ns.Roster.WeaponKinds(card.class)) do
-        if kinds[weapon.kind] == false then
+        local gone, other = Out(card, kinds, weapon.kind)
+        if gone then
             out[weapon.kind] = true
             count = count + 1
         end
+        if other then changed = changed + 1 end
     end
-    return out, count
+    return out, count, changed
 end
 
 ---------------------------------------------------------------------------
@@ -354,13 +376,12 @@ function Wants.SetHands(card, hands)
     ns.Fire("WANTS_CHANGED", card)
 end
 
--- kind: a weapon subclass; on: the character is to be offered it.
+-- kind: a weapon subclass; on: the character is to be offered it. Either is written down as
+-- the player's own: it holds whatever the character trains afterwards.
 function Wants.SetKind(card, kind, on)
     local kept = Keeping(card)
-    local kinds = type(kept.kinds) == "table" and kept.kinds or {}
-    if on then kinds[kind] = nil else kinds[kind] = false end
-    -- (No kind left out is no table: a card says nothing of what is as it was made.)
-    kept.kinds = next(kinds) ~= nil and kinds or nil
+    if type(kept.kinds) ~= "table" then kept.kinds = {} end
+    kept.kinds[kind] = on and true or false
     ns.Fire("WANTS_CHANGED", card)
 end
 

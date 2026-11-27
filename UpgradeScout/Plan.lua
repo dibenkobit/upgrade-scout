@@ -235,11 +235,15 @@ end
 -- can be a set by itself, at its own worth as in the list, and a shield is in a set with such
 -- a weapon and never by itself: it cannot be held beside the two-hander, and a sum that says
 -- what the set adds could not be true of it.
+-- For the same reason no set has a weapon of a kind the character has not trained yet
+-- (`untrained` on the offer, see Scanner.lua): the list offers it to one who says it will
+-- train, and a set is to be worn as it is bought.
 function Plan.Ladder(offers, ctx, cap, wants)
     local kinds, names = {}, {}
     local hands = wants and wants.hands
     for _, offer in pairs(offers) do
-        if offer.buyout <= cap and ns.Wants.Fits(wants, offer) and #ns.Compare.Place(offer, ctx, hands) > 0 then
+        if offer.buyout <= cap and not offer.untrained and ns.Wants.Fits(wants, offer)
+            and #ns.Compare.Place(offer, ctx, hands) > 0 then
             local name, room = ns.Compare.Kind(offer.invType)
             if name then
                 local kind = kinds[name]

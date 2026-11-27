@@ -255,9 +255,15 @@ local L = {
     -- HANDS_ONE_SHORT names the third beside the Filters field, where the second goes by its
     -- own name. HANDS_BY_PROFILE ends the tooltip of the one a profile chose, and not the
     -- player: it takes the profile's name. Under the three stand the kinds of weapon, by the
-    -- game's own names, each with a tick box whose tooltip is KINDS_TIP. KINDS_SHORT says
-    -- beside the Filters field that some are unticked, and KINDS_FULL in that field's
+    -- game's own names, each with a tick box whose tooltip is KINDS_TIP. A kind the character
+    -- has not trained yet (in Forever a weapon skill is learned from a trainer) is named by
+    -- KINDS_UNTRAINED, which takes the game's name of the kind, and its tooltip ends with
+    -- KINDS_UNTRAINED_TIP: what a tick on it does. KINDS_SHORT says beside the Filters field
+    -- that the ticks are not as the menu first had them, and KINDS_FULL in that field's
     -- tooltip: how many are ticked, of how many.
+    -- TT_UNTRAINED is a note of a row's tooltip under a weapon of such a kind, listed because
+    -- the kind was ticked: it cannot be held until the skill is trained. It takes the game's
+    -- name of the kind. TT_UNTRAINED_WHO is the same in a list for another character.
     -- TT_NEEDS_ONE_HAND is a note of a row's tooltip, as TT_OFFHAND_EMPTY is: under a shield
     -- or another item for the off hand, offered to a character that holds a two-hand weapon
     -- and chose HANDS_ONE. TT_NEEDS_ONE_HAND_WHO is the same in a list for another character.
@@ -275,12 +281,16 @@ local L = {
     HANDS_ONE_TIP = "Leaves out two-hand weapons. While the character holds one, one-hand weapons are listed to take its place. Shields and other off-hand items are listed too: they need a one-hand weapon beside them.",
     HANDS_BY_PROFILE = "Chosen by the profile \"%s\" until you choose.",
     KINDS_TIP = "Unticked, weapons of this type are left out. Each profile of a character has ticks of its own.",
+    KINDS_UNTRAINED = "%s (not trained)",
+    KINDS_UNTRAINED_TIP = "This character has not trained this weapon skill. Ticked, weapons of this type are listed all the same: to buy now, and train the skill afterwards.",
     KINDS_SHORT = "Weapons %d/%d",
     KINDS_FULL = "Weapon types: %d of %d",
     TT_NEEDS_ONE_HAND = "Needs a one-hand weapon in your main hand",
     TT_NEEDS_ONE_HAND_WHO = "Needs a one-hand weapon in the main hand",
     TT_REPLACES_TWO_HAND = "Takes the place of your two-hand weapon, which the \"Weapons\" filter leaves out",
     TT_REPLACES_TWO_HAND_WHO = "Takes the place of the two-hand weapon, which the \"Weapons\" filter leaves out",
+    TT_UNTRAINED = "You have not trained %s: train the skill to hold this weapon",
+    TT_UNTRAINED_WHO = "%s not trained: the skill has to be trained to hold this weapon",
     -- Forever Companion in place of the addon's own weights (Companion.lua), as Pawn above:
     -- the choice in the welcome window, and what the tab says of its scales.
     -- WELCOME_SCALE_COMPANION and WELCOME_NO_SCALE_COMPANION take the character's name.
@@ -585,12 +595,16 @@ if GetLocale() == "ruRU" then
         HANDS_ONE_TIP = "Убирает из списка двуручное оружие. Пока персонаж держит двуручное, одноручное оружие показывается ему на замену. Щиты и другие предметы для левой руки тоже показываются: к ним нужно одноручное оружие.",
         HANDS_BY_PROFILE = "Выбрано по профилю «%s», пока ты не выберешь здесь.",
         KINDS_TIP = "Без галочки оружие этого типа в список не попадает. У каждого профиля персонажа свои галочки.",
+        KINDS_UNTRAINED = "%s (не изучено)",
+        KINDS_UNTRAINED_TIP = "Персонаж не изучил этот оружейный навык. С галочкой такое оружие всё равно попадает в список: его можно купить сейчас, а навык изучить потом.",
         KINDS_SHORT = "Оружие %d/%d",
         KINDS_FULL = "Типы оружия: %d из %d",
         TT_NEEDS_ONE_HAND = "Нужно одноручное оружие в правой руке",
         TT_NEEDS_ONE_HAND_WHO = "Нужно одноручное оружие в правой руке",
         TT_REPLACES_TWO_HAND = "Заменит двуручное оружие, которое фильтр «Оружие» убирает из списка",
         TT_REPLACES_TWO_HAND_WHO = "Заменит двуручное оружие, которое фильтр «Оружие» убирает из списка",
+        TT_UNTRAINED = "Навык «%s» не изучен: изучи его, чтобы взять это оружие в руки",
+        TT_UNTRAINED_WHO = "Навык «%s» не изучен: его нужно изучить, чтобы взять это оружие в руки",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "оценка Forever Companion",
         WELCOME_NO_COMPANION = "Forever Companion не установлен или выключен.",
@@ -864,12 +878,16 @@ if GetLocale() == "deDE" then
         HANDS_ONE_TIP = "Lässt Zweihandwaffen weg. Solange der Charakter eine führt, stehen Einhandwaffen als Ersatz dafür in der Liste. Schilde und andere Gegenstände für die Schildhand stehen ebenfalls darin: Sie brauchen eine Einhandwaffe.",
         HANDS_BY_PROFILE = "Vom Profil »%s« gewählt, bis du selbst wählst.",
         KINDS_TIP = "Ohne Häkchen bleiben Waffen dieser Art weg. Jedes Profil eines Charakters hat seine eigenen Häkchen.",
+        KINDS_UNTRAINED = "%s (nicht erlernt)",
+        KINDS_UNTRAINED_TIP = "Dieser Charakter hat diese Waffenfertigkeit nicht erlernt. Mit Häkchen stehen Waffen dieser Art trotzdem in der Liste: jetzt kaufen, die Fertigkeit danach erlernen.",
         KINDS_SHORT = "Waffen %d/%d",
         KINDS_FULL = "Waffenarten: %d von %d",
         TT_NEEDS_ONE_HAND = "Braucht eine Einhandwaffe in deiner Waffenhand",
         TT_NEEDS_ONE_HAND_WHO = "Braucht eine Einhandwaffe in der Waffenhand",
         TT_REPLACES_TWO_HAND = "Ersetzt deine Zweihandwaffe, die der Filter »Waffen« weglässt",
         TT_REPLACES_TWO_HAND_WHO = "Ersetzt die Zweihandwaffe, die der Filter »Waffen« weglässt",
+        TT_UNTRAINED = "%s nicht erlernt: Erlerne die Fertigkeit, um diese Waffe zu führen",
+        TT_UNTRAINED_WHO = "%s nicht erlernt: Die Fertigkeit muss erlernt werden, um diese Waffe zu führen",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever-Companion-Wertung",
         WELCOME_NO_COMPANION = "Forever Companion ist nicht installiert oder deaktiviert.",
@@ -1144,12 +1162,16 @@ if GetLocale() == "frFR" then
         HANDS_ONE_TIP = "Écarte les armes à deux mains. Tant que le personnage en tient une, les armes à une main figurent dans la liste pour la remplacer. Les boucliers et les autres objets de main gauche y figurent aussi : il leur faut une arme à une main.",
         HANDS_BY_PROFILE = "Choisi par le profil « %s » tant que vous n'avez pas choisi.",
         KINDS_TIP = "Case décochée, les armes de ce type sont écartées. Chaque profil d'un personnage a ses propres cases.",
+        KINDS_UNTRAINED = "%s (compétence non apprise)",
+        KINDS_UNTRAINED_TIP = "Ce personnage n'a pas appris cette compétence d'arme. Case cochée, les armes de ce type figurent quand même dans la liste : à acheter maintenant, la compétence s'apprend ensuite.",
         KINDS_SHORT = "Armes %d/%d",
         KINDS_FULL = "Types d'armes : %d sur %d",
         TT_NEEDS_ONE_HAND = "Nécessite une arme à une main dans votre main droite",
         TT_NEEDS_ONE_HAND_WHO = "Nécessite une arme à une main en main droite",
         TT_REPLACES_TWO_HAND = "Remplace votre arme à deux mains, que le filtre « Armes » écarte",
         TT_REPLACES_TWO_HAND_WHO = "Remplace l'arme à deux mains, que le filtre « Armes » écarte",
+        TT_UNTRAINED = "%s : compétence non apprise. Apprenez-la pour tenir cette arme",
+        TT_UNTRAINED_WHO = "%s : compétence non apprise. Il faut l'apprendre pour tenir cette arme",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "score Forever Companion",
         WELCOME_NO_COMPANION = "Forever Companion n'est pas installé ou est désactivé.",
@@ -1424,12 +1446,16 @@ if GetLocale() == "zhCN" then
         HANDS_ONE_TIP = "不显示双手武器。角色拿着双手武器时，会列出用来取代它的单手武器。盾牌和其他副手物品也照样列出：它们需要搭配一把单手武器。",
         HANDS_BY_PROFILE = "由方案“%s”选定，直到你自己选择为止。",
         KINDS_TIP = "取消勾选后，不显示这一类武器。角色的每个方案各有自己的勾选。",
+        KINDS_UNTRAINED = "%s（未学习）",
+        KINDS_UNTRAINED_TIP = "这个角色还没有学习这项武器技能。勾选后，这一类武器照样列出：可以先买下，之后再学习技能。",
         KINDS_SHORT = "武器 %d/%d",
         KINDS_FULL = "武器类型：%d/%d",
         TT_NEEDS_ONE_HAND = "需要主手装备单手武器",
         TT_NEEDS_ONE_HAND_WHO = "需要主手装备单手武器",
         TT_REPLACES_TWO_HAND = "将取代你的双手武器：“武器”筛选不显示双手武器",
         TT_REPLACES_TWO_HAND_WHO = "将取代双手武器：“武器”筛选不显示双手武器",
+        TT_UNTRAINED = "尚未学习%s：学会这项技能后才能装备这件武器",
+        TT_UNTRAINED_WHO = "尚未学习%s：学会这项技能后才能装备这件武器",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever Companion 评分",
         WELCOME_NO_COMPANION = "Forever Companion 未安装或未启用。",
@@ -1705,12 +1731,16 @@ if GetLocale() == "ptBR" then
         HANDS_ONE_TIP = "Deixa de fora as armas de duas mãos. Enquanto o personagem empunha uma, as armas de uma mão aparecem na lista para substituí-la. Os escudos e os outros itens de mão secundária também aparecem: eles precisam de uma arma de uma mão.",
         HANDS_BY_PROFILE = "Escolhido pelo perfil \"%s\" até você escolher.",
         KINDS_TIP = "Desmarcada, as armas deste tipo ficam de fora. Cada perfil de um personagem tem as suas próprias marcações.",
+        KINDS_UNTRAINED = "%s (habilidade não aprendida)",
+        KINDS_UNTRAINED_TIP = "Este personagem não aprendeu esta habilidade com armas. Marcada, as armas deste tipo aparecem na lista mesmo assim: para comprar agora e aprender a habilidade depois.",
         KINDS_SHORT = "Armas %d/%d",
         KINDS_FULL = "Tipos de arma: %d de %d",
         TT_NEEDS_ONE_HAND = "Precisa de uma arma de uma mão na sua mão principal",
         TT_NEEDS_ONE_HAND_WHO = "Precisa de uma arma de uma mão na mão principal",
         TT_REPLACES_TWO_HAND = "Substitui sua arma de duas mãos, que o filtro \"Armas\" deixa de fora",
         TT_REPLACES_TWO_HAND_WHO = "Substitui a arma de duas mãos, que o filtro \"Armas\" deixa de fora",
+        TT_UNTRAINED = "%s: habilidade não aprendida. Aprenda-a para empunhar esta arma",
+        TT_UNTRAINED_WHO = "%s: habilidade não aprendida. É preciso aprendê-la para empunhar esta arma",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "pontuação do Forever Companion",
         WELCOME_NO_COMPANION = "O Forever Companion não está instalado ou está desativado.",
@@ -1985,12 +2015,16 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         HANDS_ONE_TIP = "Omite las armas de dos manos. Mientras el personaje lleve una, las armas de una mano aparecen en la lista para sustituirla. Los escudos y los demás objetos de mano izquierda también aparecen: necesitan un arma de una mano.",
         HANDS_BY_PROFILE = "Elegido por el perfil «%s» hasta que elijas tú.",
         KINDS_TIP = "Sin marcar, las armas de este tipo se omiten. Cada perfil de un personaje tiene sus propias marcas.",
+        KINDS_UNTRAINED = "%s (habilidad no aprendida)",
+        KINDS_UNTRAINED_TIP = "Este personaje no ha aprendido esta habilidad con armas. Marcada, las armas de este tipo aparecen en la lista igualmente: para comprarlas ahora y aprender la habilidad después.",
         KINDS_SHORT = "Armas %d/%d",
         KINDS_FULL = "Tipos de arma: %d de %d",
         TT_NEEDS_ONE_HAND = "Necesita un arma de una mano en tu mano derecha",
         TT_NEEDS_ONE_HAND_WHO = "Necesita un arma de una mano en la mano derecha",
         TT_REPLACES_TWO_HAND = "Sustituye a tu arma de dos manos, que el filtro «Armas» omite",
         TT_REPLACES_TWO_HAND_WHO = "Sustituye al arma de dos manos, que el filtro «Armas» omite",
+        TT_UNTRAINED = "%s: habilidad no aprendida. Apréndela para empuñar esta arma",
+        TT_UNTRAINED_WHO = "%s: habilidad no aprendida. Hay que aprenderla para empuñar esta arma",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "puntuación de Forever Companion",
         WELCOME_NO_COMPANION = "Forever Companion no está instalado o está desactivado.",
@@ -2267,12 +2301,16 @@ if GetLocale() == "koKR" then
         HANDS_ONE_TIP = "양손 무기는 목록에서 뺍니다. 캐릭터가 양손 무기를 들고 있으면 그 무기를 대신할 한손 무기를 보여줍니다. 방패와 다른 보조장비 아이템도 함께 보여줍니다. 이런 아이템은 한손 무기와 함께 써야 합니다.",
         HANDS_BY_PROFILE = "직접 고르기 전까지는 프로필 “%s”에 따라 선택됩니다.",
         KINDS_TIP = "체크를 끄면 이 종류의 무기는 목록에서 뺍니다. 캐릭터의 프로필마다 따로 설정됩니다.",
+        KINDS_UNTRAINED = "%s (미습득)",
+        KINDS_UNTRAINED_TIP = "이 캐릭터는 이 무기 기술을 배우지 않았습니다. 체크하면 이 종류의 무기도 목록에 보여줍니다. 지금 사 두고 나중에 기술을 배울 수 있습니다.",
         KINDS_SHORT = "무기 %d/%d",
         KINDS_FULL = "무기 종류: %d/%d",
         TT_NEEDS_ONE_HAND = "주장비 칸에 한손 무기가 필요합니다",
         TT_NEEDS_ONE_HAND_WHO = "주장비 칸에 한손 무기가 필요합니다",
         TT_REPLACES_TWO_HAND = "“무기” 필터가 목록에서 빼는 양손 무기를 대신합니다",
         TT_REPLACES_TWO_HAND_WHO = "“무기” 필터가 목록에서 빼는 양손 무기를 대신합니다",
+        TT_UNTRAINED = "%s 기술을 배우지 않았습니다. 기술을 배워야 이 무기를 들 수 있습니다",
+        TT_UNTRAINED_WHO = "%s 기술을 배우지 않았습니다. 기술을 배워야 이 무기를 들 수 있습니다",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever Companion 점수",
         WELCOME_NO_COMPANION = "Forever Companion이 설치되어 있지 않거나 꺼져 있습니다.",
@@ -2548,12 +2586,16 @@ if GetLocale() == "zhTW" then
         HANDS_ONE_TIP = "不顯示雙手武器。角色拿著雙手武器時，會列出用來取代它的單手武器。盾牌和其他副手物品也照樣列出：它們需要搭配一把單手武器。",
         HANDS_BY_PROFILE = "由方案「%s」選定，直到你自己選擇為止。",
         KINDS_TIP = "取消勾選後，不顯示這一類武器。角色的每個方案各有自己的勾選。",
+        KINDS_UNTRAINED = "%s（未學習）",
+        KINDS_UNTRAINED_TIP = "這個角色還沒有學習這項武器技能。勾選後，這一類武器照樣列出：可以先買下，之後再學習技能。",
         KINDS_SHORT = "武器 %d/%d",
         KINDS_FULL = "武器類型：%d/%d",
         TT_NEEDS_ONE_HAND = "需要主手裝備單手武器",
         TT_NEEDS_ONE_HAND_WHO = "需要主手裝備單手武器",
         TT_REPLACES_TWO_HAND = "將取代你的雙手武器：「武器」篩選不顯示雙手武器",
         TT_REPLACES_TWO_HAND_WHO = "將取代雙手武器：「武器」篩選不顯示雙手武器",
+        TT_UNTRAINED = "尚未學習%s：學會這項技能後才能裝備這件武器",
+        TT_UNTRAINED_WHO = "尚未學習%s：學會這項技能後才能裝備這件武器",
         -- Forever Companion in place of the addon's own weights
         TT_COMPANION_SCORE = "Forever Companion 評分",
         WELCOME_NO_COMPANION = "Forever Companion 未安裝或未啟用。",

@@ -247,6 +247,31 @@ function ns.AnyRed(lines)
     return false
 end
 
+-- Is the kind of the item the one thing that is red in these lines? The game writes how an
+-- item is worn on the left of a line and its kind on the right ("One-Hand", "Sword"), and
+-- the kind in red for a character that has not the skill for it: a weapon skill not trained
+-- yet. What else the character falls short of is red on the left: the level, the class, a
+-- profession, standing with a faction, each in a line marked as a requirement
+-- (Enum.TooltipDataLineType.UsageRequirement). So: something is red, nothing on the left is,
+-- and what is red on the right is on a line of no type or of the type of that line
+-- (EquipSlot, which the client's documentation has; the game's own code draws each line
+-- from its texts and their two colours, and says no more of it: TooltipDataHandler.lua).
+local LINE_TYPE = Enum.TooltipDataLineType
+local SLOT_LINE, PLAIN_LINE = LINE_TYPE.EquipSlot, LINE_TYPE.None
+
+function ns.OnlyKindRed(lines)
+    local any = false
+    for i = 2, #lines do
+        local line = lines[i]
+        if IsRed(line.leftText, line.leftColor) then return false end
+        if IsRed(line.rightText, line.rightColor) then
+            if line.type ~= nil and line.type ~= SLOT_LINE and line.type ~= PLAIN_LINE then return false end
+            any = true
+        end
+    end
+    return any
+end
+
 ---------------------------------------------------------------------------
 -- Telling items apart
 ---------------------------------------------------------------------------

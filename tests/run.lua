@@ -28,7 +28,7 @@ local names = {
     "leveling_scan", "leveling_hands", "leveling_absent", "leveling_tooltips", "leveling_welcome", "leveling_supplies", "leveling_alt",
     "levels", "levels_ui", "scan_levels",
     "ellesmere", "ellesmere_absent", "ellesmere_late", "ellesmere_leveling", "ellesmere_companion",
-    "hands", "weapons", "weapons_scan", "weapons_spare", "weapons_ui", "weapons_rogue", "weapons_warlock", "weapons_paladin",
+    "hands", "weapons", "weapons_scan", "weapons_spare", "weapons_ui", "weapons_rogue", "weapons_untrained", "weapons_warlock", "weapons_paladin",
     "weapons_others", "weapons_leveling",
     "gearquest_scan", "gearquest_absent", "gearquest_tooltips", "gearquest_welcome", "gearquest_supplies", "gearquest_alt",
 }
@@ -14204,7 +14204,7 @@ function scenarios.weapons()
     Wants.SetKind(rogue, 15, true)
     Wants.SetKind(rogue, 0, true)
     Wants.SetKind(rogue, 4, true)
-    eq(Chosen(rogue).kinds, nil, "all ticked again: the card says nothing of it"); eq(Wants.Of(rogue), nil, "and nothing is asked")
+    eq(Chosen(rogue).kinds[15], true, "all ticked again: written on the card as ticked, which is the player's own as well"); eq(Wants.Of(rogue), nil, "and nothing is asked")
     -- A kind that is none of the class's own has no say, whatever a card says of it.
     Keep(rogue, nil, { 10, 19 })
     eq(Wants.Of(rogue), nil, "a rogue's card with staves and wands left out asks for nothing")
@@ -14418,7 +14418,7 @@ function scenarios.weapons_scan()
     Wants.SetKind(me, 1, true)
     Wants.SetKind(me, 4, true)
     Wants.SetHands(me, "ANY")
-    eq(Chosen(me).kinds, nil, "every kind ticked again")
+    eq(select(2, Wants.KindsOut(me)), 0, "every kind ticked again")
     eq(More(), 2, "the bow's price and the axe's are asked for")
     eq(Shown(), ANY, "and the list is whole")
 
@@ -14695,7 +14695,8 @@ function scenarios.weapons_ui()
     W.Run(1.5)
     eq(Arrow(sword), false, "the sword in the bags has lost its arrow")
     weapons:Click("One-Handed Swords")
-    eq(Chosen(me).kinds, nil, "ticked again: the card says nothing of the kinds"); check(Row("Sharp Sword") ~= nil, "and the sword is back")
+    eq(Chosen(me).kinds[7], true, "ticked again: written on the card as ticked"); check(Row("Sharp Sword") ~= nil, "and the sword is back")
+    eq(Names(), "One-hand", "with every kind as the menu first had it, the kinds are not named beside the field")
     W.Run(1.5)
     eq(Arrow(sword), true, "with its arrow")
     -- A two-hander.
@@ -14727,7 +14728,7 @@ function scenarios.weapons_ui()
     eq(Chosen(druid).hands, "ANY", "any way, on the druid's card"); eq(Chosen(me).hands, "ANY", "the warrior's own is its own")
     check(Row("Stone Mace") ~= nil and Row("Grove Orb") ~= nil, "the mace and the orb are listed at once"); eq(Row("Moon Dagger"), nil, "the dagger still is not")
     weapons:Click("Daggers")
-    eq(Chosen(druid).kinds, nil, "daggers ticked for the druid"); eq(Chosen(me).kinds, nil, "and nothing of it on the warrior's card")
+    eq(Chosen(druid).kinds[15], true, "daggers ticked for the druid"); eq(Chosen(me).kinds[15], nil, "and nothing of it on the warrior's card")
     check(Row("Moon Dagger") ~= nil, "the dagger is listed")
     Settle()
     check(Offer("Stone Mace") ~= nil and Offer("Grove Orb") ~= nil and Offer("Moon Dagger") ~= nil, "and the three have their prices")
@@ -14849,19 +14850,31 @@ local function Tab()
     end
     function tab.Names() return tab.frame.FilterNames:GetText() end
     function tab.Status() return tab.frame.Status:GetText() or "" end
+    -- The lines of a row's tooltip, the game's own and ours, joined.
+    function tab.Tip(row)
+        row:GetScript("OnEnter")(row)
+        local out = {}
+        for _, line in ipairs(GameTooltip._lines) do out[#out + 1] = line.text .. (line.right and " " .. line.right or "") end
+        row:GetScript("OnLeave")(row)
+        return table.concat(out, " | ")
+    end
     return tab
 end
 
 -- "Is there a way to set a weapon type to search for? I want to look for 1h swords but it
 -- keeps showing just daggers and axes. This is using the rogue combat settings."
--- A rogue with a dagger in each hand (10 and 6). For sale, each a bigger upgrade than the
--- next: two axes, two daggers, then two swords and a mace. "Top 5 per slot" has the first
--- sword for its fifth, and no use for the second or for the mace.
+-- In Forever a weapon skill is trained, and the rogue who wrote that had not trained swords:
+-- the list left every sword out and said nothing of it. Here, a rogue with a dagger in each
+-- hand (10 and 6) that has trained daggers, one-handed axes and thrown weapons. For sale: two
+-- axes, two daggers, two swords and a mace; a sword that asks for a profession the rogue has
+-- not, and one made for a higher level; a ring and a knife to throw.
 function scenarios.weapons_rogue()
     MoreProfiles()
-    W.player = { name = "Slicey", level = 20, class = "ROGUE", money = 100000, dualWield = true }
-    local function Blade(id, name, kind, score, price)
+    W.player = { name = "Slicey", level = 20, class = "ROGUE", money = 100000, dualWield = true,
+        spells = { [9078] = true, [9077] = true, [1180] = true, [196] = true, [2567] = true } }
+    local function Blade(id, name, kind, score, price, more)
         local def = { id = id, name = name, equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = kind, value = 0, values = { R1 = score }, level = 15 }
+        for key, value in pairs(more or {}) do def[key] = value end
         if price then return Sell(def, price) end
         return W.AddItem(def)
     end
@@ -14875,59 +14888,237 @@ function scenarios.weapons_rogue()
     Blade(714, "Cutlass", 7, 14, 2000)
     Blade(715, "Rapier", 7, 13, 900)
     Blade(716, "Cudgel", 4, 12, 1800)
+    Blade(719, "Smith's Blade", 7, 30, 1500, { skill = { "Blacksmithing", 100 } })
+    Blade(720, "Future Blade", 7, 40, 1500, { level = 25 })
     Sell({ id = 717, name = "Throwing Knife", equipLoc = "INVTYPE_THROWN", classID = 2, subClassID = 16, value = 0, values = { R1 = 3 }, level = 10 }, 100)
     Sell({ id = 718, name = "Band", equipLoc = "INVTYPE_FINGER", value = 0, values = { R1 = 5 }, level = 10 }, 300)
     LoadAddon()
     W.Fire("PLAYER_ENTERING_WORLD")
     W.Run(1.5)
     local me = ns.Roster.Me()
+    local S, L, Wants = ns.Scanner, ns.L, ns.Wants
     eq(ns.Score.Current().title, "Combat", "a rogue on Combat")
+    eq(me.weapons[15], true, "its card has the daggers it has trained"); eq(me.weapons[7], nil, "and no swords")
     local tab = Tab()
     local Row, Rows, Settle, menu = tab.Row, tab.Rows, tab.Settle, tab.menu
+    local SWORDS, FISTS = "One-Handed Swords (not trained)", "Fist Weapons (not trained)"
+    local NOTE = "You have not trained One-Handed Swords: train the skill to hold this weapon"
+    local PLAIN = "Band, Fine Dirk, Hand Axe, Keen Kris, Throwing Knife, War Hatchet"
+    local WITH_SWORDS = "Band, Cutlass, Fine Dirk, Hand Axe, Keen Kris, Rapier, Throwing Knife, War Hatchet"
+    -- The menu of a rogue's kinds, with these three as given.
+    local function Kinds(maces, swords, fists)
+        return "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [x] One-Handed Axes | " .. maces .. " | " .. swords
+            .. " | [x] Daggers | " .. fists .. " | / | [ ] Bows (not trained) | [ ] Crossbows (not trained) | [ ] Guns (not trained) | [x] Thrown"
+    end
+    -- The best set for all its gold that can be made of these offers.
+    local function Set(offers)
+        local set = {}
+        for _, row in ipairs(ns.Plan.Rows(ns.Plan.Choose(ns.Plan.Ladder(offers, S.ctx, GetMoney(), Wants.Of(me)), GetMoney()))) do
+            if row.kind == "item" then set[#set + 1] = row.entry.offer.name end
+        end
+        table.sort(set)
+        return table.concat(set, ", ")
+    end
+    -- How many upgrades the list counts as left out by a filter, seen and unseen.
+    local function LeftOut()
+        local _, _, unwanted = ns.Results.Collect(S.offers, S.ctx, { money = GetMoney(), wants = Wants.Of(me) })
+        return unwanted + S.Unchecked().unwanted
+    end
 
-    -- As it was: the list has the daggers and the axes, and of the swords the one that is the
-    -- fifth of its five.
-    SetView(false, true)
+    -- As the player found it: daggers and axes, and no sword. Nothing is named beside the
+    -- Filters field, for nobody set a filter, and nothing is counted as left out.
+    SetView(false, false)
     ScanToEnd()
     W.Run(0.5)
-    eq(Rows(), "Band, Cutlass, Fine Dirk, Hand Axe, Keen Kris, Throwing Knife, War Hatchet", "top five: daggers and axes and the last of the five a sword, a ring and a knife to throw")
-    eq(Row("Rapier"), nil, "no second sword"); eq(Offer("Rapier"), nil, "whose price the scan had no use for")
+    eq(Rows(), PLAIN, "the list: daggers and axes, a ring and a knife to throw, and no sword")
+    eq(Offer("Cutlass"), nil, "no price was looked up for a sword"); eq(Unsure("Cutlass"), nil, "and none is in the list unseen")
+    eq(tab.Names(), "", "no filter is named beside the field"); eq(LeftOut(), 0, "and nothing is counted as left out by one")
+    -- The menu says why, and is where it is put right: the kinds the rogue has not trained
+    -- say so after their names, and are not ticked.
+    eq(menu:Lines(), Kinds("[ ] One-Handed Maces (not trained)", "[ ] " .. SWORDS, "[ ] " .. FISTS),
+        "the menu: a rogue's nine kinds, those it has trained ticked, the others marked and unticked")
+    eq(L.KINDS_UNTRAINED:format("One-Handed Swords"), SWORDS, "in the addon's own words, about the game's own name")
+    eq(menu:Tooltip(SWORDS), SWORDS .. " | " .. L.KINDS_TIP .. " | " .. L.KINDS_UNTRAINED_TIP, "its tooltip says what a tick on it does")
+    eq(menu:Tooltip("Daggers"), "Daggers | " .. L.KINDS_TIP, "a kind that is trained has the tooltip it had")
+    eq(menu:Line(SWORDS, function(line) return line.Tick:IsShown() end), false, "the box as the game drew it: not ticked")
 
-    -- The menu has a rogue's kinds of weapon: nothing for both hands.
-    eq(menu:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [x] One-Handed Axes | [x] One-Handed Maces | "
-        .. "[x] One-Handed Swords | [x] Daggers | [x] Fist Weapons | / | [x] Bows | [x] Crossbows | [x] Guns | [x] Thrown", "a rogue's menu of weapons")
-    -- Every kind but the one-handed swords unticked.
-    local searches = W.AH.calls.search
-    for _, kind in ipairs({ "One-Handed Axes", "One-Handed Maces", "Daggers", "Fist Weapons", "Bows", "Crossbows", "Guns", "Thrown" }) do
-        menu:Click(kind)
-    end
-    eq(menu:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [ ] One-Handed Axes | [ ] One-Handed Maces | "
-        .. "[x] One-Handed Swords | [ ] Daggers | [ ] Fist Weapons | / | [ ] Bows | [ ] Crossbows | [ ] Guns | [ ] Thrown", "swords alone are ticked")
+    -- Swords ticked: "offer me these, I will train". The list has them at once, with no
+    -- other scan, and their prices are looked up.
+    local searches, browses = W.AH.calls.search, W.AH.calls.browse
+    menu:Click(SWORDS)
+    eq(Chosen(me).kinds[7], true, "the tick is written on the card, for the profile")
+    check(Row("Cutlass") ~= nil and Row("Rapier") ~= nil, "both swords are in the list at once")
+    check(Unsure("Cutlass") ~= nil, "at the lowest price of their rows, until it is looked up")
     Settle()
-    eq(Rows(), "Band, Cutlass, Rapier", "the list: the swords, and the ring, which is no weapon")
-    eq(W.AH.calls.search, searches + 1, "one item search, for the price of the second sword: the first has its price")
-    eq(Row("Cutlass").Pick.Text:GetText(), "Best upgrade", "the picks are chosen among the swords")
+    eq(W.AH.calls.search, searches + 2, "two item searches, for the prices of the two"); eq(W.AH.calls.browse, browses, "and no other scan")
+    check(Offer("Cutlass") ~= nil and Offer("Rapier") ~= nil, "which are known now")
+    eq(Rows(), WITH_SWORDS, "the list with the swords")
     eq(Row("Cutlass").Upgrade:GetText(), "+25%", "14 against the dagger's 10: a share of the 16 the two hands hold")
-    eq(tab.Names(), "Top 5 \194\183 Weapons 1/9", "beside the Filters field: one kind of nine")
-    local kinds = 0
-    for kind, on in pairs(Chosen(me).kinds) do
-        check(on == false and type(kind) == "number", "a kind left out, by its number")
-        kinds = kinds + 1
-    end
-    eq(kinds, 8, "eight kinds are written on the card as left out"); eq(Chosen(me).kinds[7], nil, "the swords are not among them")
-    eq(ns.Wants.ProfileKey(me), "own:R1", "for the profile it is on, Combat"); eq(menu:Head(), "Profile: Combat", "which the menu names")
-    -- A scan with that looks up the swords and the ring, and nothing else.
-    W.RunUntil(function() return W.AH.ready end, 5)
+    eq(Row("Smith's Blade"), nil, "a sword that asks for a profession as well stays out: more than its kind is red")
+    eq(Row("Future Blade"), nil, "and so does one made for a higher level"); eq(Row("Cudgel"), nil, "and the mace: another kind not trained, and not ticked")
+    check(tab.Tip(Row("Cutlass")):find(NOTE, 1, true) ~= nil, "the row's tooltip says what the sword takes: " .. tab.Tip(Row("Cutlass")))
+    eq(L.TT_UNTRAINED:format("One-Handed Swords"), NOTE, "in the addon's own words")
+    eq(tab.Tip(Row("Fine Dirk")):find("trained", 1, true), nil, "a dagger's says nothing of it")
+    eq(menu:Lines(), Kinds("[ ] One-Handed Maces (not trained)", "[x] " .. SWORDS, "[ ] " .. FISTS), "the menu: swords ticked, and not trained still")
+    eq(tab.Names(), "Weapons 4/9", "beside the field: four of a rogue's nine kinds are ticked, which is not how the menu first had them")
+    eq(LeftOut(), 0, "nothing is left out by that")
+    -- The best set for a budget has no sword: a set is to be worn as it is bought.
+    local cutlass, trained = Offer("Cutlass"), {}
+    for key, value in pairs(cutlass) do trained[key] = value end
+    trained.untrained = nil
+    eq(cutlass.untrained, true, "the offer of a sword says that its kind is not trained")
+    eq(Set({ cutlass, Offer("Band") }), "Band", "of the sword and the ring, the best set is the ring alone")
+    eq(Set({ trained, Offer("Band") }), "Band, Cutlass", "which the sword would be in, were swords trained")
+    eq(Set(S.offers):find("Cutlass", 1, true), nil, "and the best set of all that is for sale has none")
+
+    -- Unticked again: the swords are gone as if never asked for. Ticked once more: they are
+    -- back with the prices they had.
     searches = W.AH.calls.search
+    menu:Click(SWORDS)
+    eq(Chosen(me).kinds[7], false, "unticked: written on the card as the player's own, like the tick")
+    eq(Rows(), PLAIN, "the list is without swords at once"); eq(Offer("Cutlass"), nil, "no offer of one is in it")
+    eq(LeftOut(), 0, "and none is counted as left out"); eq(tab.Names(), "", "the menu is as it first was: nothing beside the field")
+    menu:Click(SWORDS)
+    Settle()
+    eq(Rows(), WITH_SWORDS, "ticked again: the swords are back"); eq(W.AH.calls.search, searches, "at the prices they had, with no item search")
+    -- A scan with swords ticked has them from the start.
+    W.RunUntil(function() return W.AH.ready end, 5)
     ScanToEnd()
     W.Run(0.5)
-    eq(W.AH.calls.search, searches + 3, "a scan: three item searches")
-    eq(Rows(), "Band, Cutlass, Rapier", "and the same list")
-    eq(Offer("Hand Axe"), nil, "no price for an axe"); eq(Offer("Keen Kris"), nil, "or a dagger")
-    -- The swords go on: the list has nothing more for the hands, and says why.
-    menu:Click("One-Handed Swords")
+    eq(Rows(), WITH_SWORDS, "a scan with swords ticked lists them")
+    check(tab.Tip(Row("Rapier")):find(NOTE, 1, true) ~= nil, "each with the note")
+
+    -- The rogue trains swords, maces and fist weapons. A kind trained is ticked like the
+    -- others, with no mark: the swords by the player's tick, the maces because nobody
+    -- touched their box. What the player unticked stays unticked: fist weapons, ticked and
+    -- unticked again before they were trained.
+    menu:Click(FISTS)
+    menu:Click(FISTS)
+    eq(Chosen(me).kinds[13], false, "fist weapons ticked and unticked again: unticked, by the player"); eq(tab.Names(), "Weapons 4/9", "which is no news while they are not trained")
+    W.player.spells[201], W.player.spells[198], W.player.spells[15590] = true, true, true
+    W.Fire("SPELLS_CHANGED")
+    W.Run(1.5)
+    eq(me.weapons[7], true, "trained: the card has the swords"); eq(ns.Roster.Untrained(me, 4), false, "and the maces")
+    eq(menu:Lines(), Kinds("[x] One-Handed Maces", "[x] One-Handed Swords", "[ ] Fist Weapons"),
+        "the menu: swords and maces ticked and no longer marked, fist weapons unticked as the player left them")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    ScanToEnd()
+    W.Run(0.5)
+    eq(tab.Names(), "Weapons 5/9", "beside the field, five of nine: the fist weapons, trained and unticked, are a filter the player set")
+    eq(Rows(), "Band, Cudgel, Cutlass, Fine Dirk, Hand Axe, Keen Kris, Rapier, Throwing Knife, War Hatchet", "a scan: the swords, and the mace as well")
+    eq(tab.Tip(Row("Cutlass")):find("trained", 1, true), nil, "the sword's row has no note any more"); eq(Offer("Cutlass").untrained, nil, "its offer is like any other")
+    eq(Set({ Offer("Cutlass"), Offer("Band") }), "Band, Cutlass", "and a set can have it")
+    eq(Row("Smith's Blade"), nil, "the sword that asks for a profession is as far out of reach as it was")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- A kind of weapon not trained, for another character of the account: by what its card says
+-- it had learned when it was last played, and by what else the item asks of it. Then the
+-- best set, a card that does not say what was learned, and nonsense on a card.
+function scenarios.weapons_untrained()
+    MoreProfiles()
+    local function ForDruid(id, name, equipLoc, kind, score, price, more)
+        local def = { id = id, name = name, equipLoc = equipLoc, classID = 2, subClassID = kind, value = 0, values = { D1 = score }, level = 15 }
+        for key, value in pairs(more or {}) do def[key] = value end
+        return Sell(def, price)
+    end
+    ForDruid(780, "Elder Staff", "INVTYPE_2HWEAPON", 10, 40, 1000)
+    ForDruid(781, "Stone Mace", "INVTYPE_WEAPON", 4, 30, 900)
+    ForDruid(782, "Moon Dagger", "INVTYPE_WEAPON", 15, 20, 700)
+    ForDruid(783, "Smith's Mace", "INVTYPE_WEAPON", 4, 35, 800, { skill = { "Blacksmithing", 100 } })
+    ForDruid(784, "Bear Claw", "INVTYPE_WEAPON", 13, 25, 600)
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local S, Wants, Roster = ns.Scanner, ns.Wants, ns.Roster
+    -- The druid as it was when it was last played: it had trained staves and daggers.
+    UpgradeScoutDB.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", faction = "Alliance",
+        class = "DRUID", level = 20, gear = {}, weapons = { [10] = true, [15] = true } }
+    local druid = UpgradeScoutDB.chars["Alty-Testrealm"]
+    eq(Roster.Untrained(druid, 4), true, "maces: a kind a druid can train, and this one has not"); eq(Roster.Untrained(druid, 10), false, "staves it has")
+    eq(Roster.Untrained(druid, 7), false, "a sword is no kind a druid can ever train: that is another matter"); eq(Roster.Untrained(druid, 99), false, "as is what is no kind at all")
+    eq(Wants.KindOut(druid, 4), true, "a kind not trained is left out until it is ticked"); eq(Wants.KindOut(druid, 10), false, "one that is trained is not")
+    local _, gone, changed = Wants.KindsOut(druid)
+    eq(gone, 4, "four of a druid's six kinds are out"); eq(changed, 0, "none of them by the player's doing"); eq(Wants.Of(druid).kinds[4], true, "which is asked of its gear")
+
+    local tab = Tab()
+    local Row, Rows, Settle, menu = tab.Row, tab.Rows, tab.Settle, tab.menu
+    tab.frame.ProfileDropdown:Pick(3)
+    W.Run(0.5)
+    eq(Roster.Target(), druid, "the lists are for the druid")
+    local MACES = "One-Handed Maces (not trained)"
+    -- How many upgrades the list counts as left out by a filter, seen and unseen.
+    local function LeftOut()
+        local _, _, unwanted = ns.Results.Collect(S.offers, S.ctx, { money = GetMoney(), wants = Wants.Of(druid) })
+        return unwanted + S.Unchecked().unwanted
+    end
+    eq(menu:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [ ] " .. MACES .. " | [x] Daggers | [ ] Fist Weapons (not trained) | / | "
+        .. "[ ] Two-Handed Maces (not trained) | [ ] Polearms (not trained) | [x] Staves", "the druid's menu, by its card")
+    SetView(false, false)
+    tab.frame.ScanButton:Click()
     Settle()
-    eq(Rows(), "Band", "no kind ticked: no weapon at all"); eq(tab.Names(), "Top 5 \194\183 Weapons 0/9", "none of nine")
+    eq(Rows(), "Elder Staff, Moon Dagger", "the druid's list: the staff and the dagger, and neither mace nor claw")
+    eq(tab.Names(), "", "no filter beside the field"); eq(LeftOut(), 0, "and nothing counted as left out")
+    -- Maces ticked for the druid.
+    local searches = W.AH.calls.search
+    menu:Click(MACES)
+    check(Row("Stone Mace") ~= nil, "the mace is in the list at once")
+    Settle()
+    eq(W.AH.calls.search, searches + 1, "one item search, for its price"); check(Offer("Stone Mace") ~= nil, "which is known")
+    eq(Rows(), "Elder Staff, Moon Dagger, Stone Mace", "the list with the mace")
+    eq(Row("Smith's Mace"), nil, "a mace that asks for a profession the druid has not is out of its reach, trained or not")
+    eq(Row("Bear Claw"), nil, "and the claw is of another kind not trained, and not ticked")
+    check(tab.Tip(Row("Stone Mace")):find("One-Handed Maces not trained: the skill has to be trained to hold this weapon", 1, true) ~= nil,
+        "the row's tooltip says what the mace takes, of a character that is not the one played: " .. tab.Tip(Row("Stone Mace")))
+    eq(tab.Names(), "Weapons 3/6", "named beside the field")
+    -- No set for a budget is made of a weapon that cannot be held yet.
+    local function Rungs(name) return #ns.Plan.Ladder({ Offer(name) }, S.ctx, GetMoney(), Wants.Of(druid)) end
+    eq(Rungs("Stone Mace"), 1, "no set is made of the mace"); eq(Rungs("Moon Dagger"), 2, "as one is of the dagger")
+    -- Unticked again.
+    menu:Click(MACES)
+    eq(Rows(), "Elder Staff, Moon Dagger", "unticked: the mace is gone"); eq(tab.Names(), "", "and so is the name beside the field")
+    eq(LeftOut(), 0, "nothing is counted as left out")
+
+    -- A card that does not say what the character had learned (the game would not tell):
+    -- every kind of its class counts as trained, as it always did. The maces, which the
+    -- player unticked, stay unticked, and are a filter now.
+    druid.weapons = nil
+    eq(menu:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [ ] One-Handed Maces | [x] Daggers | [x] Fist Weapons | / | "
+        .. "[x] Two-Handed Maces | [x] Polearms | [x] Staves", "the menu of a card that does not say: no kind marked, and the maces as the player left them")
+    tab.frame.ScanButton:Click()
+    Settle()
+    eq(Rows(), "Bear Claw, Elder Staff, Moon Dagger", "the list: the claw as well"); eq(tab.Names(), "Weapons 5/6", "five kinds of six")
+    eq(LeftOut(), 1, "and the mace is counted as left out by a filter, which it now is")
+    check(tab.Tip(Row("Bear Claw")):find("trained", 1, true) == nil, "the claw's row has no note")
+    -- Nonsense on a card, which comes out of a saved file.
+    for _, junk in ipairs({ 5, "all", true, false, function() end }) do
+        druid.weapons = junk
+        eq(Roster.Untrained(druid, 4), false, "a card with a " .. type(junk) .. " for what was learned says nothing: every kind counts as trained")
+    end
+    druid.weapons = { [10] = "yes", [15] = 1, [4] = true }
+    eq(Roster.Untrained(druid, 10), true, "only what is plainly learned is"); eq(Roster.Untrained(druid, 4), false, "as the maces here")
+    druid.weapons = { [10] = true, [15] = true }
+    druid.byProfile = { [Wants.ProfileKey(druid)] = { kinds = { [4] = "yes", [13] = 1, [5] = 0, [10] = "no", [6] = {} } } }
+    eq(Wants.KindOut(druid, 4), true, "a box with nonsense for its tick is a box not touched: not trained, out"); eq(Wants.KindOut(druid, 10), false, "trained, offered")
+    _, gone, changed = Wants.KindsOut(druid)
+    eq(gone, 4, "four kinds out, as with nothing written"); eq(changed, 0, "and none by the player")
+    Wants.SetKind(druid, 4, true)
+    eq(Wants.KindOut(druid, 4), false, "a tick is written over the nonsense")
+
+    -- What is red in a tooltip: the kind alone, or more than the kind.
+    local RED, WHITE, TYPES = RED_FONT_COLOR, HIGHLIGHT_FONT_COLOR, Enum.TooltipDataLineType
+    local name = { leftText = "Blade", leftColor = WHITE }
+    local slot = { leftText = "One-Hand", leftColor = WHITE, rightText = "Sword", rightColor = RED }
+    eq(ns.OnlyKindRed({ name, slot }), true, "the kind in red on the right of its line, and nothing else")
+    eq(ns.OnlyKindRed({ name, { leftText = "One-Hand", leftColor = WHITE, rightText = "Sword", rightColor = WHITE } }), false, "nothing in red")
+    eq(ns.OnlyKindRed({ name, slot, { leftText = "Requires Level 30", leftColor = RED, type = TYPES.UsageRequirement, requirementType = 5 } }), false, "a level in red beside it")
+    eq(ns.OnlyKindRed({ name, { leftText = "Off Hand", leftColor = RED, rightText = "Sword", rightColor = RED } }), false, "the way it is held in red as well")
+    slot.type = TYPES.EquipSlot
+    eq(ns.OnlyKindRed({ name, slot }), true, "the line marked as the game's documentation has it")
+    slot.type = TYPES.None
+    eq(ns.OnlyKindRed({ name, slot }), true, "or not marked at all")
+    slot.type = TYPES.UsageRequirement
+    eq(ns.OnlyKindRed({ name, slot }), false, "a line that asks something of the owner is not the kind, whichever side of it is red")
     eq(#W.errors, 0, "nothing of it is an error")
 end
 
@@ -14981,7 +15172,8 @@ function scenarios.weapons_warlock()
     menu:Click("One-Handed Swords")
     eq(Rows(), "Bone Wand, Rune Staff, Soul Orb", "any way, without swords"); eq(tab.Names(), "Weapons 3/4", "three kinds of four")
     menu:Click("One-Handed Swords")
-    eq(Chosen(me).hands, "ANY", "the card has the choice of any way"); eq(Chosen(me).kinds, nil, "and every kind")
+    eq(Chosen(me).hands, "ANY", "the card has the choice of any way"); eq(Chosen(me).kinds[7], true, "and every kind, the swords by a tick")
+    eq(tab.Names(), "", "which is the menu as it first was: nothing beside the field")
 
     -- The staff goes on. Any way, nothing is offered for the off hand beside it, and no
     -- sword that does not beat it; with one hand chosen the orb is, as what the off hand will

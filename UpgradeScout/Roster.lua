@@ -154,6 +154,16 @@ function Roster.Wields(card, classID, subClassID)
     return true
 end
 
+-- Is this kind of weapon one the character of a card has not trained yet, and could? Its
+-- class can have the skill, and it had not learned it when it was last played. A card that
+-- does not say what was learned (the game would not tell) has every kind of its class for
+-- trained, as Roster.Wields has.
+function Roster.Untrained(card, kind)
+    local weapon = WEAPONS[kind]
+    if not weapon or not weapon.classes[card.class or ""] then return false end
+    return type(card.weapons) == "table" and card.weapons[kind] ~= true
+end
+
 ---------------------------------------------------------------------------
 -- What an item asks of its owner
 ---------------------------------------------------------------------------

@@ -355,8 +355,20 @@ local function AddRequirements(lines, item)
     end
 end
 
+-- The spell that is the skill for each kind of weapon (item subclass), as the game's tables
+-- have it. A character that has not learned it cannot hold a weapon of that kind, and the
+-- game writes the kind in red in the weapon's tooltip. (W.player.spells nil: the game does
+-- not say what the character knows, and nothing is red for that.)
+local WEAPON_SKILLS = { [0] = 196, [1] = 197, [2] = 264, [3] = 266, [4] = 198, [5] = 199, [6] = 200, [7] = 201, [8] = 202,
+    [10] = 227, [13] = 15590, [15] = 1180, [16] = 2567, [18] = 5011, [19] = 5009 }
+local function Unlearned(item)
+    local spell = item.classID == 2 and WEAPON_SKILLS[item.subClassID] or nil
+    return spell ~= nil and W.player.spells ~= nil and W.player.spells[spell] ~= true
+end
+
 -- What the game knows to say about an item, line by line: the data its tooltips are built
--- from. A requirement the player does not meet is red; the right-hand text is the armor kind.
+-- from. A requirement the player does not meet is red; the right-hand text is the armor kind,
+-- red for an item marked so (`red`) and for a weapon of a kind the player has not learned.
 local function TooltipLines(link)
     local item = ParseItem(link)
     if not item or not item.cached then
@@ -386,7 +398,7 @@ local function TooltipLines(link)
         lines[#lines + 1] = { leftText = ITEM_UNIQUE_EQUIPPABLE, leftColor = HIGHLIGHT_FONT_COLOR }
     end
     lines[#lines + 1] = { leftText = "Chest", leftColor = HIGHLIGHT_FONT_COLOR, rightText = "Mail",
-        rightColor = item.red and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR }
+        rightColor = (item.red or Unlearned(item)) and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR }
     AddRequirements(lines, item)
     -- speed: a weapon's, on the right of the line of its damage. (speedText: as another
     -- language writes it.)
@@ -1536,8 +1548,8 @@ Enum = {
     TooltipDataType = { Item = 0 },
     PowerType = { Mana = 0, Rage = 1, Energy = 3 },
     -- Tooltip lines, as the Forever client's documentation numbers them.
-    TooltipDataLineType = { UsageRequirement = 43, ItemSpellTriggerOnUse = 44, ItemSpellTriggerOnEquip = 45,
-        ItemSpellTriggerOnProc = 46 },
+    TooltipDataLineType = { None = 0, EquipSlot = 21, UsageRequirement = 43, ItemSpellTriggerOnUse = 44,
+        ItemSpellTriggerOnEquip = 45, ItemSpellTriggerOnProc = 46 },
     TooltipDataUsageRequirementType = {
         RaceClass = 0, Faction = 1, Skill = 2, PvPMedal = 3, Reputation = 4, Level = 5, Guild = 6, Achievement = 7,
         PvPRank = 8, EquippedItem = 9, ShapeshiftForm = 10, ArenaRating = 11, EarnCurrency = 12, Specialization = 13,

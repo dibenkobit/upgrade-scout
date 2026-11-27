@@ -99,9 +99,14 @@ local function Active()
     -- chose it or the profile did: either way it is why the list is what it is.
     if wants and wants.hands == "TWO" then Add(L.HANDS_TWO) end
     if wants and wants.hands == "ONE" then Add(L.HANDS_ONE_SHORT, L.HANDS_ONE) end
-    if wants and wants.kinds then
-        -- How many kinds of weapon are still offered, of those the class has.
-        local _, gone = ns.Wants.KindsOut(owner)
+    -- The kinds of weapon are named where the player has made them other than the menu first
+    -- had them: a kind unticked, or one not trained yet ticked. What is said is the menu as
+    -- it stands: how many of its boxes are ticked, of how many the class has. (A character
+    -- that has not trained every kind has fewer ticked from the start, and nothing is said
+    -- of that: it is no filter anybody set.)
+    local _, gone, changed = 0, 0, 0
+    if owner then _, gone, changed = ns.Wants.KindsOut(owner) end
+    if changed > 0 then
         local all = #ns.Roster.WeaponKinds(owner.class)
         Add(L.KINDS_SHORT:format(all - gone, all), L.KINDS_FULL:format(all - gone, all))
     end
@@ -501,8 +506,11 @@ end
 --     says who chose.
 --   * under a rule, a tick box for every kind of weapon the character's class can ever
 --     wield, by the game's own names, those for one hand, for both and for the ranged slot
---     each under a rule of their own. All are ticked until one is unticked: that kind is
---     then left out of the list.
+--     each under a rule of their own. Unticked, a kind is left out of the list. All that
+--     the character has trained are ticked until one is unticked. One it has not trained
+--     yet says so after its name, "One-Handed Swords (not trained)", and is unticked until
+--     it is ticked: weapons of that kind are then listed although the character cannot
+--     hold them yet, each with a note of that in its row's tooltip (Wants.lua, Scanner.lua).
 -- A click on any of them leaves both menus open, as a tick box of the menu itself does. A
 -- line that is one choice of several closes its menu unless it says otherwise: these say so.
 local function HandsAre(hands)
@@ -575,7 +583,12 @@ local function AddWeapons(root, owner)
                 held = weapon.held
                 menu:CreateDivider():AddInitializer(Widgets.SkinMenuDivider)
             end
-            AddCheck(menu, name, KindOn, FlipKind, weapon.kind, L.KINDS_TIP)
+            -- (A kind not trained yet: marked so, and its tooltip says what a tick does.)
+            if ns.Roster.Untrained(owner, weapon.kind) then
+                AddCheck(menu, L.KINDS_UNTRAINED:format(name), KindOn, FlipKind, weapon.kind, L.KINDS_TIP, nil, L.KINDS_UNTRAINED_TIP)
+            else
+                AddCheck(menu, name, KindOn, FlipKind, weapon.kind, L.KINDS_TIP)
+            end
         end
     end
 end
