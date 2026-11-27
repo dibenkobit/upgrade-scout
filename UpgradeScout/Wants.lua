@@ -24,7 +24,8 @@ local _, ns = ...
 --               chooses: the profile then says (see Wants.Hands).
 --   weaponsOut  { [weapon subclass] = true } for the kinds of weapon it is not to be offered:
 --               a rogue that fights with swords leaves the daggers and the maces out.
--- ("Only what I can afford" and "Top N per slot" are about the buyer: those are in ns.db.)
+-- ("Only what I can afford", "Top N per slot" and "Hide worse deals" are about the buyer:
+-- those are in ns.db.)
 --
 -- One more filter is kept on the card and is not one of the wants: "Buyout up to", the most to
 -- pay for one item. It is about the purchase, as "Only what I can afford" is, and like that

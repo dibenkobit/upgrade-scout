@@ -69,8 +69,11 @@ end
 ---------------------------------------------------------------------------
 -- Per character. collapsed: slot id -> true for the slots the player folded away in the list.
 -- Off until ticked, and so not listed here: plan (the best set for a budget, see Plan.lua),
--- net (gear priced at its net cost, see Results.Cost) and allUsable (the list of consumables
--- has everything the character can use, and not only what has a score, see Supplies.lua).
+-- net (gear priced at its net cost, see Results.Cost), hideWorse (a slot leaves out what a
+-- stronger offer beats for its price per point, see Results.Build) and allUsable (the list
+-- of consumables has everything the character can use, and not only what has a score, see
+-- Supplies.lua). Not there until typed: topCount, the number of "Top N per slot", which is
+-- five until then (Results.TopCount).
 ns.db = { affordableOnly = true, topOnly = true, bestOnly = true, collapsed = {} }
 -- For the whole account. chars: the characters of the account as each was last seen, by
 -- name (see Roster.lua). On until switched off in the welcome window (Welcome.lua), and so

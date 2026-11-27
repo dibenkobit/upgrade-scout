@@ -637,9 +637,10 @@ end
 --              in every slot it fits
 --   price      a price filter is on ("only what I can afford", "buyout up to") and even the
 --              row's lowest price is more than it lets through (see S.Ceiling)
---   outranked  "top N per slot" is on and, in every slot it fits, the slot has no row for it
---              (Results.LeftOut). N offers already verified are bigger upgrades, or as big
---              for less than this could possibly cost: it is not one of the N biggest. And
+--   outranked  "top N per slot" is on, "hide worse deals" is not, and in every slot it fits
+--              the slot has no row for it (Results.LeftOut, with the N the buyer typed). N
+--              offers already verified are bigger upgrades, or as big for less than this
+--              could possibly cost: it is not one of the N biggest, whatever N is. And
 --              it cannot be the slot's best value: one of those offers is no dearer per
 --              point than this could possibly be, or this gives too little beside the
 --              strongest of them to be a best value at any price. What is verified later
@@ -652,12 +653,25 @@ end
 --              lowest price less what a vendor pays for the item: the "Net cost" box only
 --              changes how the prices are shown, so ticking it must not leave the list short
 --              of one. The box has no say here for that reason.
--- The last two rest on the row's lowest price being a floor under its buyouts. ReadJob checks
+--   dominated  "hide worse deals" is on and, in every slot it fits, an offer already
+--              verified is stronger and no dearer per point than this could possibly be,
+--              or as strong for less than this could possibly cost (Results.Dominated):
+--              the slot leaves it out for its price, whatever is verified later. That holds
+--              with "top N per slot" on as with it off, the N rows being taken from what
+--              the slot does not leave out. It is the only proof there is then: the one of
+--              `outranked` counts offers that may themselves be left out for their price,
+--              and says of an upgrade too small to be the best value only that it has no
+--              row as that, so what it rules out may yet be one of the N. At its row's
+--              lowest price the candidate is left out too, takes the row of no other offer
+--              and changes no pick. By buyout and by net cost alike, as above.
+-- The last three rest on the row's lowest price being a floor under its buyouts. ReadJob checks
 -- that against every row it reads; if the server turns out to mean something else by that
 -- number (scan.floorBroken), nothing is skipped for its price any more.
--- With the best set for a budget on, the list shows that set, and the price filters and "top N"
--- have no say.
--- A set can need an offer that "top N" would hide: the strongest chest may leave no money for
+-- With neither "top N per slot" nor "hide worse deals" on, every upgrade a price filter lets
+-- through has a row, and nothing is skipped for either reason.
+-- With the best set for a budget on, the list shows that set, and the price filters, "top N"
+-- and "hide worse deals" have no say.
+-- A set can need an offer that those would hide: the strongest chest may leave no money for
 -- anything else. So the reasons are then, after the first two:
 --   price      even the row's lowest price is more than the budget
 --   outdone    no set can need it (see Outdone)
@@ -677,22 +691,24 @@ local function SkipReason(cand, wants, ceiling)
         return nil
     end
     if ceiling and cand.minPrice > ceiling then return "price" end
-    if ns.db.topOnly then
-        local groups = Front(wants)
-        local top = ns.Results.TOP_COUNT
-        local least, leastNet = cand.minPrice, ns.Results.Net(cand.minPrice, cand.eval.sell)
-        for i = 1, #placements do
-            local p = placements[i]
-            local entries = groups[p.group]
-            if not entries
-                or not ns.Results.LeftOut(entries, p.delta, least, false, top)
-                or not ns.Results.LeftOut(entries, p.delta, leastNet, true, top) then
+    local R = ns.Results
+    local top, frontier = ns.db.topOnly and R.TopCount() or nil, ns.db.hideWorse
+    if not top and not frontier then return nil end
+    local groups = Front(wants)
+    local least, leastNet = cand.minPrice, R.Net(cand.minPrice, cand.eval.sell)
+    for i = 1, #placements do
+        local p = placements[i]
+        local entries = groups[p.group]
+        if not entries then return nil end
+        if frontier then
+            if not R.Dominated(entries, p.delta, least, false) or not R.Dominated(entries, p.delta, leastNet, true) then
                 return nil
             end
+        elseif not R.LeftOut(entries, p.delta, least, false, top) or not R.LeftOut(entries, p.delta, leastNet, true, top) then
+            return nil
         end
-        return "outranked"
     end
-    return nil
+    return frontier and "dominated" or "outranked"
 end
 
 -- The next candidate to look up, and how many are waiting in all.
@@ -711,13 +727,15 @@ local function PickCandidate()
 end
 
 -- Biggest upgrades first: those are the rows "top N per slot" shows, and once a slot has
--- them verified they rule out the weaker candidates that cannot be its best value either
--- (see SkipReason). When everything is going to be listed anyway, the rows the player can
--- pay for go first so that the useful part of the list fills in early.
+-- them verified they rule out the weaker candidates that cannot be its best value either;
+-- and under "hide worse deals" each verified offer rules out the weaker candidates that
+-- cannot beat its price per point (see SkipReason). When everything is going to be listed
+-- anyway, the rows the player can pay for go first so that the useful part of the list
+-- fills in early.
 local function SortCandidates()
     local list = scan.candidates
     local money = GetMoney()
-    local reachFirst = not ns.db.topOnly
+    local reachFirst = not ns.db.topOnly and not ns.db.hideWorse
     local wants = Wanted()
     local hands = wants and wants.hands
     for i = 1, #list do
@@ -1129,14 +1147,15 @@ local function StartVerify()
 end
 
 -- Seconds the price checks still need, or nil when that cannot be told:
---   * with "top N per slot" on, most of the candidates still waiting are ruled out by the
---     offers found on the way, so their number says nothing about the time left;
+--   * with "top N per slot" or "hide worse deals" on, most of the candidates still waiting
+--     are ruled out by the offers found on the way, so their number says nothing about the
+--     time left;
 --   * nothing has been timed yet, in this run or in an earlier scan.
 -- The estimate is the searches left times the seconds one search takes. That pace starts as
 -- the last scan's and gives way to this run's own as its searches come back.
 function S.TimeLeft()
     if S.state ~= "verify" or not run or not scan or not IsScanMode(run.mode) then return nil end
-    if (ns.db.topOnly or ns.db.plan) and not scan.bucketsVary and not scan.floorBroken then return nil end
+    if (ns.db.topOnly or ns.db.hideWorse or ns.db.plan) and not scan.bucketsVary and not scan.floorBroken then return nil end
     local left = S.info.toVerify - S.info.verified
     if left <= 0 then return nil end
     local done = S.info.verified

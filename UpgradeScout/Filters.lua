@@ -4,8 +4,9 @@ local L = ns.L
 -- The Filters field of the addon's two tabs: one of the game's dropdowns, like the profile
 -- field, whose menu has a tick box for every filter of the list in view. (The tick boxes once
 -- stood in a row above the list, and three of them filled it.)
---   Upgrades      Only what I can afford, Buyout up to (a sum), Top N per slot, Best armor
---                 type for the class, Upgrade at least N %, Gear at most N levels below,
+--   Upgrades      Only what I can afford, Buyout up to (a sum), Top N per slot, Hide worse
+--                 deals, Best armor type for the class, Upgrade at least N %, Gear at most
+--                 N levels below,
 --                 Weapons (a line that opens a menu of its own: how the hands are filled,
 --                 and the kinds of weapon); and under a rule Value by net cost, which is no
 --                 filter: it says which of a row's two prices the best value is judged by
@@ -19,7 +20,8 @@ local L = ns.L
 -- Most of the filters of gear are kept with the character the list is for: every character
 -- has its own, whichever character of the account shops for it (see Wants.lua). They are
 -- about that character, its armor, the least gain, the levels below its own and its weapons;
--- and one is the most to pay for one item for it. The others are the player's (ns.db).
+-- and one is the most to pay for one item for it. The others are the player's (ns.db), the
+-- number of "Top N per slot" with them.
 local Filters = {}
 ns.Filters = Filters
 
@@ -29,7 +31,7 @@ local CREAM, SOFT, MUTED = Widgets.CREAM, Widgets.SOFT, Widgets.MUTED
 
 local FIELD_HEIGHT, FIELD_MIN = 24, 86
 local NUMBER_WIDTH, NUMBER_HEIGHT = 46, 18      -- the field for a percent: four digits and air
-local LEVELS_WIDTH = 30                         -- the field for a number of levels: two digits
+local LEVELS_WIDTH = 30                         -- the field for two digits: a number of levels, or of rows
 local GOLD_WIDTH, SILVER_WIDTH = 46, 30         -- the fields of a sum: five digits of gold, two of silver
 local COIN_SIZE, COIN_GAP = 13, 3               -- the coin after a field of a sum, and the room before it
 local BOX_WIDTH, LINE_HEIGHT = 16, 20           -- a line's tick box, and how tall a line is
@@ -64,8 +66,8 @@ local function Active()
         out[#out + 1] = { short = short, full = full or short }
     end
     local gear = tab.View() == "gear"
-    -- With the best set for a budget shown, the list is that set: the two price filters and
-    -- "Top N" have no say.
+    -- With the best set for a budget shown, the list is that set: the two price filters,
+    -- "Top N" and "Hide worse deals" have no say.
     local planned = gear and tab.Planned()
     if ns.db.affordableOnly and not planned then Add(L.AFFORD_SHORT, L.AFFORD) end
     if not gear then
@@ -75,7 +77,11 @@ local function Active()
     end
     local cap = not planned and ns.Wants.Price(Owner())
     if cap then Add(L.PRICE_MAX_SHORT:format(ns.Money(cap)), L.PRICE_MAX_FULL:format(ns.Money(cap))) end
-    if ns.db.topOnly and not planned then Add(L.TOP:format(ns.Results.TOP_COUNT)) end
+    if ns.db.topOnly and not planned then
+        local top = ns.Results.TopCount()
+        Add(L.TOP_SHORT:format(top), L.TOP_FULL:format(top))
+    end
+    if ns.db.hideWorse and not planned then Add(L.DEALS_SHORT, L.DEALS) end
     local owner = Owner()
     local wants = ns.Wants.Of(owner)
     if wants and wants.armor then Add(L.ARMOR_BEST_SHORT, L.ARMOR_BEST) end
@@ -269,7 +275,7 @@ end
 
 -- A line with a number: after the words of its tick box, a field for the number and what
 -- stands after it. "Upgrade at least [ 50 ] %" is one, "Gear at most [ 10 ] levels below"
--- the other.
+-- another, "Top [ 5 ] per slot" the third.
 --   * A number typed is asked for at once, and ticks the box.
 --   * Unticked, the box leaves the number in the field, in a dimmer ink.
 --   * An empty field asks for nothing. Left empty, it unticks the box and shows the last
@@ -283,17 +289,23 @@ end
 --   after            what stands after the field: a sign, or the words the line goes on with
 --   IsOn(card)       is it asked for of the character, Typed(card) the number typed for it,
 --   Set(card, on, number)   and what sets both (Wants.lua)
+--   Holder()         whose the number is, where it is not the character's: what it returns
+--                    stands for the card in the three above (the buyer's settings, ns.db)
+--   Open()           is the line to be typed into: not while it is grey, when its field is
+--                    only read, as the fields of the sum are. Always, where there is none.
 -- Returns what the game calls when it draws the line, which returns the size of the line:
 -- the game would otherwise have to measure it.
 local function NumberLine(kind)
     return function(button)
-        local card = Owner()
+        local card
+        if kind.Holder then card = kind.Holder() else card = Owner() end
+        local open = not kind.Open or kind.Open()
         local words = button.fontString
-        local box = NewField(button, kind.width, kind.letters)
+        local box = NewField(button, kind.width, kind.letters, open)
         box:SetPoint("LEFT", words, "RIGHT", 6, -1)
 
         local function Ink()
-            local ink = card and kind.IsOn(card) and CREAM or MUTED
+            local ink = open and card and kind.IsOn(card) and CREAM or MUTED
             box:SetTextColor(ink[1], ink[2], ink[3])
         end
         local function Tick(shown)
@@ -338,7 +350,8 @@ local function NumberLine(kind)
 
         local sign = button:AttachFontString()
         sign:SetPoint("LEFT", box, "RIGHT", 4, 1)
-        sign:SetTextColor(CREAM[1], CREAM[2], CREAM[3])
+        local ink = open and CREAM or MUTED
+        sign:SetTextColor(ink[1], ink[2], ink[3])
         sign:SetTextToFit(kind.after)
         -- The tick box, the words (which the game puts 7 after it), the field and what
         -- stands after it.
@@ -361,6 +374,21 @@ local AddLevels = NumberLine({
     IsOn = function(card) return card.maxBelowOn == true end,
     Typed = function(card) return ns.Wants.Below(card) end,
     Set = function(card, on, number) ns.Wants.SetBelow(card, on, number) end,
+})
+
+-- "Top [ 5 ] per slot": how many of its biggest upgrades a slot shows, from 1 to 99. The
+-- number is the buyer's, as its tick box is (ns.db), and stays when the box is unticked.
+-- While the list shows the best set for a budget the line is grey and its field only read.
+local AddTop = NumberLine({
+    width = LEVELS_WIDTH, letters = 2, after = L.TOP_AFTER,
+    Holder = function() return ns.db end,
+    Open = function() return not tab.Planned() end,
+    IsOn = function(db) return db.topOnly end,
+    Typed = function() return ns.Results.TopCount() end,
+    Set = function(db, on, number)
+        if number then db.topCount = math.min(math.floor(number), ns.Results.TOP_MAX) end
+        db.topOnly = on and true or false
+    end,
 })
 
 -- The line "Buyout up to [ 5 ] (gold) [ 00 ] (silver)": after the words of its tick box, a
@@ -541,8 +569,8 @@ end
 -- The game calls this each time the menu opens.
 local function Menu(_, root)
     local gear = tab.View() == "gear"
-    -- What the best set for a budget holds is not for the price filters or for "Top N" to
-    -- say: while the list shows that set, their lines are grey.
+    -- What the best set for a budget holds is not for the price filters, for "Top N" or for
+    -- "Hide worse deals" to say: while the list shows that set, their lines are grey.
     local free = not (gear and tab.Planned())
     AddCheck(root, L.AFFORD, IsSet, Flip, "affordableOnly", nil, free)
     if not gear then
@@ -551,8 +579,16 @@ local function Menu(_, root)
         return
     end
     AddCheck(root, L.PRICE_MAX, PriceOn, FlipPrice, nil, L.PRICE_MAX_TIP, free):AddInitializer(AddSum)
-    local top = ns.Results.TOP_COUNT
-    AddCheck(root, L.TOP:format(top), IsSet, Flip, "topOnly", L.TOP_TIP:format(top), free)
+    -- "Top [ 5 ] per slot". The words of its tick box alone are no name for it: its tooltip
+    -- is titled with the line in full, with the number as it stands at that moment.
+    local top = AddCheck(root, L.TOP, IsSet, Flip, "topOnly", nil, free)
+    top:AddInitializer(AddTop)
+    top:SetTooltip(function(tooltip)
+        GameTooltip_SetTitle(tooltip, L.TOP_FULL:format(ns.Results.TopCount()))
+        GameTooltip_AddNormalLine(tooltip, L.TOP_TIP)
+    end)
+    -- "Hide worse deals", which goes with "Top N" or without it (Results.Build).
+    AddCheck(root, L.DEALS, IsSet, Flip, "hideWorse", L.DEALS_TIP, free)
     -- "Best armor type for the class" keeps the heaviest armor the character wears, and its
     -- tooltip names it. One that wears cloth alone has nothing to leave out, and no line.
     local owner = Owner()

@@ -1137,9 +1137,9 @@ end
 -- A strip along the bottom of the list's plate, in the Upgrades view once there is a scan: a
 -- tick box, the budget in gold and silver, and what the set comes to. With the box ticked
 -- the list shows that set and nothing else (see Plan.lua). The two price filters ("Only what
--- I can afford", "Buyout up to") and "Top N per slot" then have no say, and their lines of
--- the Filters menu are grey (Filters.lua); what the character wants of its gear (Wants.lua)
--- holds for a set as it does for the list.
+-- I can afford", "Buyout up to"), "Top N per slot" and "Hide worse deals" then have no say,
+-- and their lines of the Filters menu are grey (Filters.lua); what the character wants of
+-- its gear (Wants.lua) holds for a set as it does for the list.
 local PLAN_HEIGHT = 30
 local planCache = {}
 
@@ -1229,7 +1229,8 @@ function UI.Refresh()
             cap = ns.Wants.Price(ns.Roster.Target() or ns.Roster.Me()),
             net = ns.db.net,
             wants = Wanted(),
-            limit = ns.db.topOnly and ns.Results.TOP_COUNT or nil,
+            frontier = ns.db.hideWorse,
+            limit = ns.db.topOnly and ns.Results.TopCount() or nil,
             unchecked = S.Unchecked(),
         })
     end
@@ -1946,9 +1947,9 @@ local function BuildViews(auction)
     -- The filters of the list in view, in the menu of a field at the right end of the strip
     -- above it (Filters.lua). One line of that menu is no filter: "Value by net cost". A row
     -- of gear has both its prices, the buyout and what it costs in the end (the buyout less
-    -- what a vendor pays for it afterwards); the line says which of them the best value and
-    -- "Top N per slot" go by (Results.Cost). What the player can pay for, and the best set
-    -- for a budget, stay a matter of the buyout.
+    -- what a vendor pays for it afterwards); the line says which of them the best value,
+    -- "Top N per slot" and "Hide worse deals" go by (Results.Cost). What the player can pay
+    -- for, and the best set for a budget, stay a matter of the buyout.
     -- Ticking it sends for no prices: a scan looks up what the list needs either way (see
     -- SkipReason in Scanner.lua), and price checks that were stopped stay stopped. Nor does
     -- it send the list back to its top, as a filter does: a row or two may come or go, and

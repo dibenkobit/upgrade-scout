@@ -11,7 +11,7 @@ local names = {
     "scan_cold", "scan_unloaded", "scan_late_slow", "scan_stats_late", "scan_warm_tail", "pawn_blind_scan", "roster_names",
     "leveling_no_realm", "supplies_unloaded", "scan_junk",
     "scan_suffix_rows", "scan_varying_rows", "scan_no_answer", "scan_interrupted",
-    "scan_lazy", "scan_top_five", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_slow_answer", "scan_pieces", "scan_eta",
+    "scan_lazy", "scan_top_five", "top_ui", "scan_bad_floor", "scan_pages", "scan_halt", "scan_unanswered", "scan_slow_answer", "scan_pieces", "scan_eta",
     "buy", "buy_gone", "plan", "plan_ui", "net", "net_ui", "supplies", "supplies_scan", "supplies_buy", "supplies_ui", "ui", "fonts", "tooltips", "arrows",
     "roster", "roster_order", "alt", "mail", "worn_loading", "profiles", "weights_data", "item_stats", "locale_ru", "locale_de", "locale_fr", "locale_zh",
     "locale_pt", "locale_es", "locale_mx", "locale_ko", "locale_tw",
@@ -178,11 +178,13 @@ local function ScanToEnd()
     W.RunUntil(function() return ns.Scanner.state == "idle" end, 600)
 end
 
--- The two filters of the tab that are on from the start. With both off the list shows every
--- upgrade, so the scan has to look up every price.
-local function SetView(affordableOnly, topOnly)
+-- The two filters of the tab that are on from the start, and with `hideWorse` the one under
+-- them that is not ("Hide worse deals"). With all three off the list shows every upgrade, so
+-- the scan has to look up every price.
+local function SetView(affordableOnly, topOnly, hideWorse)
     ns.db.affordableOnly = affordableOnly
     ns.db.topOnly = topOnly
+    ns.db.hideWorse = hideWorse or nil
 end
 
 -- A tick box of the Filters menu of the tab (Filters.lua), by its label, for a test to handle
@@ -579,6 +581,48 @@ function scenarios.picks()
     eq(rows[2].entry.pick, "UPGRADE", "the best upgrade first"); eq(rows[7].entry.pick, "VALUE", "the best value last")
     for i = 3, 6 do eq(rows[i].entry.pick, nil, "no pick between them: " .. rows[i].entry.offer.id) end
 
+    -- The number is the player's. A slot with a number shows that many, and the best value.
+    local function Listed(opts)
+        opts.money = 1e9
+        rows = ns.Results.Build(wrote, ctx, opts)
+        return Ids(2)
+    end
+    eq(Listed({ limit = 3 }), "g1 g2 g3 g9", "top three, and the best value"); eq(rows[1].shown, 4, "four rows"); eq(rows[1].total, 10, "of ten")
+    eq(Listed({ limit = 1 }), "g1 g9", "top one: the best upgrade, and the best value")
+    eq(rows[2].entry.pick, "UPGRADE", "each with its mark"); eq(rows[3].entry.pick, "VALUE", "whatever the number")
+    eq(Listed({ limit = 8 }), "g1 g2 g3 g4 g5 g6 g7 g8 g9", "top eight: the best value is the ninth, and has the row besides")
+    eq(Listed({ limit = 9 }), "g1 g2 g3 g4 g5 g6 g7 g8 g9", "top nine: it is one of them, and there is no tenth row")
+    eq(Listed({ limit = 99 }), "g1 g2 g3 g4 g5 g6 g7 g8 g9 g10", "fewer offers than the number: all of them"); eq(rows[1].shown, 10, "ten of ten")
+
+    -- "Hide worse deals": an offer is left out when a stronger one costs the same or less per
+    -- point. That is the rule the player wrote of, under its own name, and no number cuts it.
+    -- g11 is too small to be the best value and costs less per point than it: the steps go on
+    -- below the best value.
+    wrote.g11 = offer("g11", 12, 100)       -- +2, half a silver a point
+    eq(Listed({ frontier = true }), "g1 g2 g6 g8 g9 g11", "each row costs less per point than everything stronger")
+    eq(rows[1].shown, 6, "six rows"); eq(rows[1].total, 11, "of eleven")
+    eq(rows[2].entry.pick, "UPGRADE", "the best upgrade is the first of them"); eq(rows[6].entry.pick, "VALUE", "and the best value is among them")
+    eq(rows[7].entry.pick, nil, "the picks are chosen among all eleven, as without it")
+    -- The same price per point as a stronger offer is no reason to stay; a copper less is.
+    wrote.t = offer("t", 30, 20 * GOLD)     -- +20 for a gold a point, as g1
+    eq(Listed({ frontier = true }), "g1 g2 g6 g8 g9 g11", "as dear per point as a stronger one: left out")
+    wrote.t.buyout = 12 * GOLD - 20         -- a copper a point under g6, which stands above it
+    eq(Listed({ frontier = true }), "g1 g2 g6 t g8 g9 g11", "a copper less per point than everything stronger: listed")
+    -- And of two that gain the same, the dearer is left out.
+    wrote.t2 = offer("t2", 30, 12 * GOLD)
+    eq(Listed({ frontier = true }), "g1 g2 g6 t g8 g9 g11", "the same gain for more: left out")
+    wrote.t, wrote.t2 = nil, nil
+
+    -- Both: what a stronger offer beats for its price is left out first, and the number
+    -- counts among the rest. The best value is always one of those, and has its row.
+    eq(Listed({ frontier = true, limit = 5 }), "g1 g2 g6 g8 g9", "top five of the six that are left: the best value is the fifth")
+    eq(rows[1].shown, 5, "five rows"); eq(rows[1].total, 11, "of eleven")
+    eq(Listed({ frontier = true, limit = 3 }), "g1 g2 g6 g9", "top three of them, and the best value")
+    eq(rows[2].entry.pick, "UPGRADE", "the same picks"); eq(rows[5].entry.pick, "VALUE", "as in every other list of the slot")
+    eq(Listed({ frontier = true, limit = 1 }), "g1 g9", "top one of them, and the best value")
+    eq(Listed({ frontier = true, limit = 99 }), "g1 g2 g6 g8 g9 g11", "fewer left than the number: all that are left")
+    eq(Listed({ limit = 5 }), "g1 g2 g3 g4 g5 g9", "and without it the top five are the five biggest again")
+
     -- Small numbers keep two digits, so that a tiny upgrade does not read as zero.
     eq(ns.Num(12.44), "12.4", "one decimal"); eq(ns.Num(7), "7", "whole number"); eq(ns.Num(0), "0", "zero")
     eq(ns.Num(4.73), "4.7", "one decimal below ten"); eq(ns.Num(0.548), "0.55", "two decimals below one")
@@ -913,9 +957,9 @@ function scenarios.scan_lazy()
     local S = ns.Scanner
 
     -- What the list shows, as text: slot blocks, offers with their prices, picks.
-    local function Shown(affordableOnly, topOnly)
+    local function Shown(affordableOnly, topOnly, hideWorse)
         local rows = ns.Results.Build(S.offers, S.ctx, {
-            money = GetMoney(), affordableOnly = affordableOnly, limit = topOnly and ns.Results.TOP_COUNT or nil,
+            money = GetMoney(), affordableOnly = affordableOnly, limit = topOnly and ns.Results.TopCount() or nil, frontier = hideWorse,
         })
         local out = {}
         for _, row in ipairs(rows) do
@@ -928,9 +972,9 @@ function scenarios.scan_lazy()
         end
         return table.concat(out, " ")
     end
-    local function Name(view) return "afford=" .. tostring(view[1]) .. " top=" .. tostring(view[2]) end
+    local function Name(view) return "afford=" .. tostring(view[1]) .. " top=" .. tostring(view[2]) .. (view[3] and " hide" or "") end
     local function Scan(view)
-        SetView(view[1], view[2])
+        SetView(view[1], view[2], view[3])
         W.RunUntil(function() return W.AH.ready end, 5)
         local before = W.AH.calls.search
         ScanToEnd()
@@ -944,18 +988,21 @@ function scenarios.scan_lazy()
     eq(S.stats.checked, all, "statistics: every row read is counted")
     eq(S.stats.belowFloor, 0, "statistics: no row had a buyout below its lowest price")
     check(all >= 60, "enough candidates for the comparison to mean something (" .. all .. ")")
-    local views = { { true, true }, { true, false }, { false, true }, { false, false } }
+    -- (The third of a view: "Hide worse deals", by itself and with "top five".)
+    local views = { { true, true }, { true, false }, { false, true }, { true, false, true }, { true, true, true }, { false, false } }
     local want = {}
-    for _, view in ipairs(views) do want[Name(view)] = Shown(view[1], view[2]) end
+    for _, view in ipairs(views) do want[Name(view)] = Shown(view[1], view[2], view[3]) end
     check(want["afford=true top=true"] ~= want["afford=true top=false"], "'top five' hides something in this world")
     check(want["afford=true top=true"] ~= want["afford=false top=true"], "so does the price filter")
+    check(want["afford=true top=false hide"] ~= want["afford=true top=false"], "and so does 'hide worse deals'")
+    check(want["afford=true top=false hide"] ~= want["afford=true top=true"], "which is another list than 'top five'")
 
     -- Scanned with a filter on, the list is the same and the searches are fewer.
     local used = {}
-    for i = 1, 3 do
+    for i = 1, #views - 1 do
         local view = views[i]
         used[i] = Scan(view)
-        eq(Shown(view[1], view[2]), want[Name(view)], "same list as the full scan with " .. Name(view))
+        eq(Shown(view[1], view[2], view[3]), want[Name(view)], "same list as the full scan with " .. Name(view))
         check(used[i] < all, "fewer item searches with " .. Name(view) .. " (" .. used[i] .. " of " .. all .. ")")
         eq(S.stats.searches + S.stats.skipped, S.stats.candidates, "every candidate is either searched or skipped, " .. Name(view))
     end
@@ -981,9 +1028,12 @@ function scenarios.scan_lazy()
     eq(first + W.AH.calls.search - before, all, "and in all each candidate was searched exactly once")
     eq(S.Demand(), false, "nothing left to look up")
     eq(UnsureCount(), 0, "no price in the list that was not looked up")
-    eq(W.AH.calls.browse, 5, "five scans, five browse queries")
+    eq(W.AH.calls.browse, 7, "seven scans, seven browse queries")
+    check(used[4] <= used[1] and used[5] == used[4], "worse deals hidden: no more searches than for top five, and as many with top five as without ("
+        .. used[4] .. ", " .. used[5] .. " and " .. used[1] .. ")")
     realPrint(string.format("      item searches: %d with both filters off, %d by default, %d with only the price filter, %d with only top five",
         all, used[1], used[2], used[3]))
+    realPrint(string.format("      item searches with the price filter and worse deals hidden: %d, and %d with top five as well", used[4], used[5]))
 end
 
 -- "Top 5 per slot" as a player asked for it: "real top 5 + best value". Eleven chests against a
@@ -1067,12 +1117,45 @@ function scenarios.scan_top_five()
     known.z = offer("z", 70, 90 * GOLD)
     eq(Ids(known), "z!UPGRADE v1 v2 v3 v4 u!VALUE", "with a chest of +60 in the slot the row is u's")
 
+    -- "Hide worse deals" asks another question of the slot (Results.Dominated): does a chest
+    -- known to be for sale give more for no more a point than this one costs at the least,
+    -- or as much for less? Asked of the five again, each for a gold a point.
+    eq(R.Dominated(five, 30, 30 * GOLD, false), true, "+30 for a gold a point at the least: a stronger chest costs no more a point")
+    eq(R.Dominated(five, 30, 30 * GOLD - 1, false), false, "a copper less and its point is the cheapest of all: it has a row")
+    eq(R.Dominated(five, 33, 33 * GOLD, false), true, "one of the five biggest upgrades is left out for its price all the same")
+    eq(R.Dominated(five, 9, 1, false), false, "and +9 for a copper is not, too small as it is to be the best value")
+    eq(R.Dominated(five, 41, 1e12, false), false, "nothing known gives as much as +41: the best upgrade has a row at any price")
+    -- Of two that give the same the dearer is left out. At the same price which of them
+    -- stands first is not a matter of the price, and nothing is proven.
+    local one = R.Collect({ s = offer("s", 42, 32 * GOLD) }, ctx, { money = 1e12 }).CHEST
+    eq(R.Dominated(one, 32, 32 * GOLD + 1, false), true, "the gain of a chest that is known for a copper more: after it, and dearer a point")
+    eq(R.Dominated(one, 32, 32 * GOLD, false), false, "for the same price nothing says which of the two stands first")
+    eq(R.Dominated(one, 31, 31 * GOLD, false), true, "a point less for the same price a point: left out")
+    -- With both boxes ticked the first question is no proof. Two chests known, +100 for 10
+    -- copper a point and +90 for 20, and a list with rows for two: +10 for a copper a point
+    -- is the third by its gain and too small to be the best value, so "top two" by itself
+    -- has no row for it. With worse deals hidden the +90 is out for its price, and the
+    -- second row is the small chest's.
+    local pair = { p1 = offer("p1", 110, 1000), p2 = offer("p2", 100, 1800) }
+    local two = R.Collect(pair, ctx, { money = 1e12 }).CHEST
+    eq(R.LeftOut(two, 10, 10, false, 2), true, "top two: no row for +10, whatever it costs")
+    eq(R.Dominated(two, 10, 10, false), false, "worse deals hidden: no stronger chest is as cheap a point")
+    pair.p3 = offer("p3", 20, 10)
+    local function Two(frontier)
+        local out = {}
+        for _, row in ipairs(R.Build(pair, ctx, { money = 1e12, limit = 2, frontier = frontier })) do
+            if row.kind == "item" then out[#out + 1] = row.entry.offer.id end
+        end
+        return table.concat(out, " ")
+    end
+    eq(Two(false), "p1 p2", "the two biggest upgrades"); eq(Two(true), "p1 p3", "and the two biggest of what is left with worse deals hidden")
+
     -- The scan. Reference: "top five" off, so every price is looked up.
     W.OpenAuctionHouse()
     -- The rows of the chest slot under "top five", top to bottom, by buyout or by net cost;
     -- of the offers the scan has, or of a list of the test's own.
     local function Shown(net, offers)
-        local rows = R.Build(offers or S.offers, S.ctx, { money = GetMoney(), affordableOnly = true, net = net, limit = R.TOP_COUNT })
+        local rows = R.Build(offers or S.offers, S.ctx, { money = GetMoney(), affordableOnly = true, net = net, limit = R.TopCount() })
         local out = {}
         for _, row in ipairs(rows) do
             if row.kind == "item" then out[#out + 1] = row.entry.offer.name .. (row.entry.pick and " (" .. row.entry.pick .. ")" or "") end
@@ -1165,6 +1248,221 @@ function scenarios.scan_top_five()
     eq(More(), 1, "'top five' off: one search, for Tiny Chest")
     eq(used + 2, all, "in all each chest was searched once")
     eq(UnsureCount(), 0, "no price in the list that was not looked up")
+
+    -- The other lists the two lines of the menu make, each scanned for anew: worse deals
+    -- hidden, top five of those, and a top three of the player's own. Each is the list of
+    -- the scan that looked everything up, by buyout and by net cost, for seven searches.
+    --   * Worse deals hidden, with a number or without: a chest is passed over when one
+    --     already priced gives more for no more a point. Top Chest 3, 4 and 5 cost more a
+    --     point than Top Chest 2, and Mid Chest B more than Mid Chest A. So does Resale
+    --     Chest by buyout: it is looked up for what it costs in the end. Tiny Chest has the
+    --     cheapest point of all, and is looked up too.
+    --   * Top three: the three biggest are looked up, and what might be the best value. Top
+    --     Chest 4 and 5 and Mid Chest B are neither, and Tiny Chest adds too little.
+    -- And no chest that was passed over would have had a row, at the lowest price of its row
+    -- or at any above it.
+    local function List(case, net, offers)
+        local rows = R.Build(offers or S.offers, S.ctx, { money = GetMoney(), affordableOnly = true, net = net, limit = case.top, frontier = case.hide })
+        local out = {}
+        for _, row in ipairs(rows) do
+            if row.kind == "item" then out[#out + 1] = row.entry.offer.name .. (row.entry.pick and " (" .. row.entry.pick .. ")" or "") end
+        end
+        return table.concat(out, ", ")
+    end
+    local STEPS = "Top Chest 1 (UPGRADE), Top Chest 2, Mid Chest A, "
+    local THREE = "Top Chest 1 (UPGRADE), Top Chest 2, Top Chest 3, "
+    local cases = {
+        { name = "worse deals hidden", hide = true,
+          buyout = STEPS .. "Mid Chest C, Value Chest (VALUE), Tiny Chest", net = STEPS .. "Resale Chest (VALUE), Tiny Chest",
+          passed = { "Top Chest 3", "Top Chest 4", "Top Chest 5", "Mid Chest B" } },
+        { name = "top five of those", top = 5, hide = true,
+          buyout = STEPS .. "Mid Chest C, Value Chest (VALUE)", net = STEPS .. "Resale Chest (VALUE), Tiny Chest",
+          passed = { "Top Chest 3", "Top Chest 4", "Top Chest 5", "Mid Chest B" } },
+        { name = "top three", top = 3,
+          buyout = THREE .. "Value Chest (VALUE)", net = THREE .. "Resale Chest (VALUE)",
+          passed = { "Top Chest 4", "Top Chest 5", "Mid Chest B", "Tiny Chest" } },
+    }
+    for _, case in ipairs(cases) do
+        ns.db.topCount = case.top
+        SetView(true, case.top ~= nil, case.hide)
+        W.RunUntil(function() return W.AH.ready end, 5)
+        local before = W.AH.calls.search
+        ScanToEnd()
+        eq(W.AH.calls.search - before, 7, case.name .. ": seven item searches of eleven"); eq(S.stats.skipped, 4, case.name .. ": four chests passed over")
+        eq(List(case, false), case.buyout, case.name .. ": the list by buyout"); eq(List(case, false, full), case.buyout, case.name .. ": which the full scan has too")
+        eq(List(case, true), case.net, case.name .. ": the list by net cost"); eq(List(case, true, full), case.net, case.name .. ": which the full scan has too")
+        eq(S.Demand(), false, case.name .. ": nothing more is needed for the list as it is")
+        for _, name in ipairs(case.passed) do
+            eq(Offer(name), nil, case.name .. ": no price for " .. name)
+            local least = Unsure(name).buyout
+            for _, buyout in ipairs({ least, least + 1, least * 2, 99 * GOLD }) do
+                eq(List(case, false, With(name, buyout)), case.buyout, case.name .. ", " .. name .. " for " .. buyout .. ": no row by buyout")
+                eq(List(case, true, With(name, buyout)), case.net, case.name .. ", " .. name .. " for " .. buyout .. ": no row by net cost")
+            end
+        end
+    end
+
+    -- The number or a box changed after a scan: the prices the list then needs are sent for,
+    -- and no others. Five for three: Top Chest 4 and 5 are among the five.
+    ns.db.topCount = 5
+    eq(More(), 2, "top five after top three: two searches"); check(Offer("Top Chest 4") ~= nil and Offer("Top Chest 5") ~= nil, "for the fourth and the fifth")
+    eq(Shown(false), want.buyout, "the list of the top five by buyout"); eq(Shown(true), want.net, "and by net cost")
+    -- Worse deals hidden as well: Tiny Chest, which top five has no row for, is the fifth of
+    -- the chests that no stronger one undersells by net cost.
+    SetView(true, true, true)
+    eq(More(), 1, "worse deals hidden as well: one search"); check(Offer("Tiny Chest") ~= nil, "for Tiny Chest"); eq(Offer("Mid Chest B"), nil, "and not for Mid Chest B")
+    eq(List(cases[2], false), cases[2].buyout, "the list of both by buyout"); eq(List(cases[2], true), cases[2].net, "and by net cost")
+    SetView(true, false)
+    eq(More(), 1, "neither ticked: the one price still missing"); eq(UnsureCount(), 0, "Mid Chest B's")
+    ns.db.topCount = nil
+end
+
+-- "Top [ 5 ] per slot" and "Hide worse deals" in the Filters menu (Filters.lua). The first has
+-- a field for its number, typed as the numbers of the character's own lines are; the second
+-- is a tick box under it. Both are the player's (ns.db). Either changes the list at once and
+-- sends for the prices the list then needs. The chests are those of "scan_top_five".
+function scenarios.top_ui()
+    TopFiveWorld()
+    W.player.money = 100 * 10000
+    LoadAddon()
+    W.OpenAuctionHouse()
+    local S = ns.Scanner
+    local frame = UpgradeScoutFrame
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    local filters = frame.FilterField
+    local box
+    for _, w in ipairs(W.frames) do
+        if w._template == "WowScrollBoxList" then box = w end
+    end
+    -- The chests the list shows, top to bottom: "Top 1, Top 2, Mid A, Value".
+    local function Listed()
+        local out = {}
+        for _, w in ipairs(box:GetFrames()) do
+            if w._shown and w._kind == "Button" and w.entry then out[#out + 1] = (w.entry.offer.name:gsub(" Chest", "")) end
+        end
+        return table.concat(out, ", ")
+    end
+    -- The item searches sent since the last look, once the list is at rest.
+    local seen = 0
+    local function Searches()
+        W.RunUntil(function() return S.state == "idle" end, 300)
+        W.Run(0.5)
+        local sent = W.AH.calls.search - seen
+        seen = W.AH.calls.search
+        return sent
+    end
+    local function Names() return frame.FilterNames:GetText() end
+    local LABEL, HIDE = "Top", "Hide worse deals"
+    local ALL = "Top 1, Top 2, Top 3, Top 4, Top 5, Mid A, Mid B, Resale, Mid C, Value, Tiny"
+    local top, hide = FilterBox(LABEL), FilterBox(HIDE)
+    -- The line of the open menu, and its field.
+    local function Line()
+        local line = filters.lines[filters:Find(LABEL)]
+        return line, line.Number
+    end
+    local function Title(tickBox)
+        tickBox:Tooltip()
+        local title, tip = GameTooltip._lines[1].text, GameTooltip._lines[2].text
+        GameTooltip:Hide()
+        return title, tip
+    end
+
+    -- The two lines stand together, under the price filters. Top five is on from the start.
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top | Hide worse deals | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
+        "the line with the number, and the line under it")
+    eq(top:GetChecked(), true, "top five is ticked from the start"); eq(hide:GetChecked(), false, "worse deals are hidden once that is ticked")
+    eq(ns.db.topCount, nil, "no number is written down until one is typed"); eq(ns.Results.TopCount(), 5, "five stands for it")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    frame.ScanButton:Click()
+    eq(Searches(), 9, "a scan for the top five: nine item searches of eleven")
+    eq(Listed(), "Top 1, Top 2, Top 3, Top 4, Top 5, Value", "the five biggest upgrades and the best value")
+    eq(Names(), "Affordable \194\183 Top 5", "named beside the field with its number")
+
+    -- The line: a tick box, its word, a field for the number, and the words it goes on with.
+    filters:Open()
+    local line, number = Line()
+    check(number ~= nil and number._kind == "EditBox", "the line has a field for the number")
+    eq(number:GetText(), "5", "with five in it until a number is typed"); eq(line.Tick:IsShown(), true, "and its tick")
+    eq(number:GetWidth(), 30, "wide enough for two digits"); eq(number._mouse, true, "and in reach of the mouse")
+    eq(line._size[1], 16 + 7 + line.fontString:GetStringWidth() + 6 + 30 + 4 + #"per slot" * 6, "the box, the word, the field and the words after it in a row")
+    filters:Close()
+    local title, tip = Title(top)
+    eq(title, "Top 5 per slot", "the tooltip is titled with the line in full"); eq(tip, ns.L.TOP_TIP, "and says what the number is")
+    check(tip:find("as many as the number says", 1, true) ~= nil and not tip:find("%d", 1, true), "in words that hold for any number")
+
+    -- A number typed is asked for at once. Seven: Mid Chest B is the seventh by its gain,
+    -- which top five had no row for, and its price is sent for. Tiny Chest is still out.
+    filters:Open()
+    line, number = Line()
+    W.Type(number, "7")
+    eq(ns.db.topCount, 7, "the number is the player's setting"); eq(ns.db.topOnly, true, "and the box stays ticked")
+    eq(filters._open, true, "the menu stays up"); check(Line() == line, "and its line is the one that was typed into")
+    eq(Searches(), 1, "one item search"); check(Offer("Mid Chest B") ~= nil, "for the seventh chest"); eq(Offer("Tiny Chest"), nil, "and for no other")
+    eq(Listed(), "Top 1, Top 2, Top 3, Top 4, Top 5, Mid A, Mid B, Value", "the seven biggest upgrades and the best value")
+    eq(Names(), "Affordable \194\183 Top 7", "the name beside the field has the number")
+    filters:Close()
+    eq((Title(top)), "Top 7 per slot", "and so has the tooltip of the line")
+    -- A smaller number is a shorter list, and nothing to look up.
+    filters:Open()
+    number = select(2, Line())
+    eq(number:GetText(), "7", "the menu opened again has the number")
+    W.Type(number, "3")
+    eq(Searches(), 0, "three: no item search")
+    eq(Listed(), "Top 1, Top 2, Top 3, Value", "the three biggest upgrades and the best value"); eq(Names(), "Affordable \194\183 Top 3", "by name")
+    filters:Close()
+
+    -- "Hide worse deals": a chest is left out when a stronger one costs the same or less per
+    -- point. Ticked with top three, the three are counted among the chests that are left:
+    -- Top Chest 3 costs more a point than Top Chest 2, and Mid Chest A has its row. Tiny
+    -- Chest, too small to have a row under any number, is one of those that are left: its
+    -- price is sent for.
+    title, tip = Title(hide)
+    eq(title, HIDE, "its tooltip is titled with its label"); eq(tip, ns.L.DEALS_TIP, "and says what is left out")
+    check(tip:find("An item is left out when a stronger one costs the same or less per point.", 1, true) ~= nil, "in the words top five's tooltip once had")
+    hide:Click()
+    eq(ns.db.hideWorse, true, "the setting is the player's"); eq(hide:GetChecked(), true, "ticked")
+    eq(Searches(), 1, "one item search"); check(Offer("Tiny Chest") ~= nil, "for Tiny Chest")
+    eq(Listed(), "Top 1, Top 2, Mid A, Value", "top three of the chests that no stronger one undersells, and the best value")
+    eq(Names(), "Affordable \194\183 Top 3 \194\183 No worse deals", "both are named beside the field")
+    filters._tooltip(GameTooltip)
+    eq(GameTooltip._lines[3].text, "Top 3 per slot", "the field's tooltip has both lines in full"); eq(GameTooltip._lines[4].text, HIDE, "one under the other")
+    GameTooltip:Hide()
+
+    -- The field left empty unticks its box, and the number is back in it. Worse deals hidden
+    -- and no number: every chest that no stronger one undersells.
+    filters:Open()
+    line, number = Line()
+    W.Type(number, "")
+    eq(ns.db.topOnly, true, "an empty field asks for nothing")
+    W.PressEnter(number)
+    eq(ns.db.topOnly, false, "left empty: unticked"); eq(line.Tick:IsShown(), false, "the tick goes")
+    eq(number:GetText(), "3", "and the last number is back in the field"); eq(ns.db.topCount, 3, "kept for the next time")
+    eq(Searches(), 0, "no item search")
+    eq(Listed(), "Top 1, Top 2, Mid A, Mid C, Value, Tiny", "each costs less per point than everything stronger")
+    eq(Names(), "Affordable \194\183 No worse deals", "named by itself")
+    filters:Close()
+    -- Neither ticked: everything, and every price has been looked up by now.
+    hide:Click()
+    eq(ns.db.hideWorse, false, "unticked"); eq(Searches(), 0, "no item search"); eq(UnsureCount(), 0, "no price in the list that was not looked up")
+    eq(Listed(), ALL, "all eleven chests"); eq(Names(), "Affordable", "and neither is named")
+
+    -- The tick box itself asks for the number that is in the field. 99 is the most there is.
+    top:Click()
+    eq(ns.db.topOnly, true, "ticked"); eq(ns.db.topCount, 3, "with the number that was there")
+    W.Run(0.5)
+    eq(Listed(), "Top 1, Top 2, Top 3, Value", "the list is cut at once")
+    filters:Open()
+    number = select(2, Line())
+    W.Type(number, "99")
+    eq(ns.db.topCount, 99, "99 typed")
+    W.Run(0.5)
+    eq(Listed(), ALL, "more than the slot has: all of them"); eq(Names(), "Affordable \194\183 Top 99", "by name")
+    filters:Close()
+    -- The number comes out of a saved file: what is no number from 1 to 99 there is read as one.
+    for _, saved in ipairs({ { "x", 5 }, { 0, 1 }, { -3, 1 }, { 2.7, 2 }, { 250, 99 }, { 0 / 0, 5 } }) do
+        ns.db.topCount = saved[1]
+        eq(ns.Results.TopCount(), saved[2], "a saved " .. tostring(saved[1]) .. " is read as " .. saved[2])
+    end
 end
 
 -- If the rows' lowest price turns out not to be a floor under their buyouts, the scan notices
@@ -1177,7 +1475,7 @@ function scenarios.scan_bad_floor()
     W.OpenAuctionHouse()
     local S = ns.Scanner
     local function Shown()
-        local rows = ns.Results.Build(S.offers, S.ctx, { money = GetMoney(), affordableOnly = true, limit = ns.Results.TOP_COUNT })
+        local rows = ns.Results.Build(S.offers, S.ctx, { money = GetMoney(), affordableOnly = true, limit = ns.Results.TopCount() })
         local out = {}
         for _, row in ipairs(rows) do
             out[#out + 1] = row.kind == "header" and row.group or (row.entry.offer.id .. "@" .. row.entry.offer.buyout)
@@ -2517,22 +2815,22 @@ function scenarios.ui()
         "and hangs from the field's right end: the field stands at the window's edge")
     eq(frame.AffordCheck, nil, "no filter's tick box in the strip"); eq(frame.TopCheck, nil, "not one")
     -- A warrior of level 10 wears mail, and plate from 40: the line that is its own names mail.
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top | Hide worse deals | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
         "the lines of the menu, the one that is no filter under a rule")
-    local checkbox, topBox = FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
+    local checkbox, topBox = FilterBox("Only what I can afford"), FilterBox("Top")
     eq(topBox:GetChecked(), true, "top five on by default")
     eq(rows[3].Count:GetText(), "", "nothing cut, so no count in the header")
     eq(checkbox:GetChecked(), true, "afford filter on by default")
     -- A line of the menu is the game's, dressed as the tab's own tick boxes are.
     filters:Open()
-    local ticked, unticked = filters.lines[filters:Find("Top 5 per slot")], filters.lines[filters:Find("Value by net cost")]
+    local ticked, unticked = filters.lines[filters:Find("Top")], filters.lines[filters:Find("Value by net cost")]
     eq(ticked.leftTexture1:GetAlpha(), 0, "the game's square is see-through")
     eq(Pictures(ticked, "Inset"), 9, "under our recess, cut in nine"); eq(Pictures(ticked, "RowGlow"), 1, "with the light of a row under the mouse")
     eq(Pictures(ticked, "Check"), 1, "our gold tick"); eq(ticked.Tick:IsShown(), true, "which shows on a line that is ticked")
     eq(Pictures(unticked, "Check"), 1, "a line that is not has one too"); eq(unticked.Tick:IsShown(), false, "out of sight")
     filters:Close()
     -- What is on is plain without a click: the names of those filters stand beside the field.
-    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 per slot", "the filters that are on, by name")
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5", "the filters that are on, by name")
     filters._tooltip(GameTooltip)
     eq(GameTooltip._lines[1].text, "Filters", "the field's tooltip is titled with its name")
     eq(GameTooltip._lines[2].text, "Only what I can afford", "and lists what is on, in full"); eq(GameTooltip._lines[3].text, "Top 5 per slot", "line by line")
@@ -2572,7 +2870,7 @@ function scenarios.ui()
     eq(filters._open, true, "the menu stays open for the next box")
     eq(filters.lines[1].Tick:IsShown(), false, "and the tick is gone from the line")
     filters:Close()
-    eq(frame.FilterNames:GetText(), "Top 5 per slot", "the filter is named beside the field no more")
+    eq(frame.FilterNames:GetText(), "Top 5", "the filter is named beside the field no more")
     -- The robe's price was not looked up while it was hidden; now it is.
     eq(ns.Scanner.mode, "more", "the list asks for the missing price")
     W.Run(0.2)
@@ -2758,8 +3056,8 @@ function scenarios.ui()
     eq(rows[legs + 6].Price:GetAmount(), 100, "for a silver: ten copper a point, the least of those that add enough")
     check(rows[legs + 7] == nil or Data(rows[legs + 7]).kind == "header", "no seventh legs row")
     topBox:Tooltip()
-    eq(GameTooltip._lines[1].text, "Top 5 per slot", "the filter's tooltip is titled with its label")
-    check(GameTooltip._lines[2].text:find("The 5 biggest upgrades in each slot.", 1, true) ~= nil, "and explains it")
+    eq(GameTooltip._lines[1].text, "Top 5 per slot", "the filter's tooltip is titled with its line in full")
+    check(GameTooltip._lines[2].text:find("The biggest upgrades in each slot, as many as the number says.", 1, true) ~= nil, "and explains it")
     check(GameTooltip._lines[2].text:find("The best value is listed as well", 1, true) ~= nil, "with the row the best value has besides")
 
     -- Unticked, everything is listed again.
@@ -3221,9 +3519,12 @@ function scenarios.plan_ui()
     -- which leaves the sword where it is; the two-hander would add +6).
     eq(Listed(), "[HEAD] Helm [CHEST] Great Chest [FINGER] New Ring [OFF HAND] Shield", "the set for ten gold: " .. Listed())
     eq(bar.Summary:GetText(), "4 items, +45 points, 9g 40s, net cost 9g 36s", "what it comes to: what is paid, and what it costs in the end")
-    local afford, top = FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
+    local afford, top = FilterBox("Only what I can afford"), FilterBox("Top")
     eq(afford:IsEnabled(), false, "the price filter has no say in a set: its line of the menu is grey")
-    eq(top:IsEnabled(), false, "and so is top five's")
+    eq(top:IsEnabled(), false, "and so is top five's"); eq(FilterBox("Hide worse deals"):IsEnabled(), false, "and the line under it")
+    frame.FilterField:Open()
+    eq(frame.FilterField.lines[frame.FilterField:Find("Top")].Number._mouse, false, "the number of top five is only read meanwhile")
+    frame.FilterField:Close()
     afford:Click()
     eq(ns.db.affordableOnly, true, "a grey line takes no click")
     eq(FilterBox("Value by net cost"):IsEnabled(), true, "the net cost keeps its say")
@@ -3295,7 +3596,7 @@ function scenarios.plan_ui()
     W.Run(0.3)
     eq(ns.db.plan, false, "the setting is kept")
     eq(afford:IsEnabled(), true, "the filters are back")
-    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 per slot", "and named beside the field again")
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5", "and named beside the field again")
     eq(bar.Summary:GetText(), "", "nothing summed")
     check(Listed():find("[CHEST] Great Chest Good Chest", 1, true) ~= nil, "the list as ever: " .. Listed())
     check(box:GetFrames()[1].Toggle:IsShown(), "its headings fold again")
@@ -3454,7 +3755,7 @@ function scenarios.net()
     W.OpenAuctionHouse()
     local S = ns.Scanner
     local function Shown(net, topOnly)
-        local list = R.Build(S.offers, S.ctx, { money = GetMoney(), affordableOnly = true, net = net, limit = topOnly and R.TOP_COUNT or nil })
+        local list = R.Build(S.offers, S.ctx, { money = GetMoney(), affordableOnly = true, net = net, limit = topOnly and R.TopCount() or nil })
         local out = {}
         for _, row in ipairs(list) do
             if row.kind == "header" then
@@ -3536,7 +3837,7 @@ function scenarios.net_ui()
     local tabs = LibStub("LibAHTab-1-0")
     tabs:SetSelected("UpgradeScout")
     local list, filters = frame.List, frame.FilterField
-    local net, afford, top = FilterBox("Value by net cost"), FilterBox("Only what I can afford"), FilterBox("Top 5 per slot")
+    local net, afford, top = FilterBox("Value by net cost"), FilterBox("Only what I can afford"), FilterBox("Top")
     local box
     for _, w in ipairs(W.frames) do
         if w._template == "WowScrollBoxList" then box = w end
@@ -3575,7 +3876,7 @@ function scenarios.net_ui()
 
     -- The box: the last line of the Filters menu, under a rule, off until it is ticked.
     eq(frame.NetCheck, nil, "no tick box of its own above the list")
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top | Hide worse deals | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
         "the last line of the menu, under a rule: what the best value goes by, not a filter")
     eq(net:IsShown(), true, "in the menu of the Upgrades tab")
     eq(net:GetChecked(), false, "not ticked")
@@ -3598,7 +3899,7 @@ function scenarios.net_ui()
     eq(filters._points[1].toPoint, "TOPRIGHT", "of the tab")
     eq(Right(frame.FilterNames), -8, "the names end a step before the field")
     eq(frame.FilterNames._points[1].to, filters, "to the left of it")
-    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 per slot", "the two filters that are on from the start")
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5", "the two filters that are on from the start")
     local dropdown, scan = frame.ProfileDropdown, frame.ScanButton
     eq(frame.ProfileLabel:IsShown(), true, "the profile field keeps its caption: its menu has no other characters")
     check(dropdown:GetWidth() >= 110, "and a width that shows a profile's name (" .. dropdown:GetWidth() .. ")")
@@ -3633,7 +3934,7 @@ function scenarios.net_ui()
     eq(#W.sounds, sounds + 1, "the box clicks")
     eq(ns.db.net, true, "the setting is kept"); eq(UpgradeScoutCharDB.net, true, "with the character's saved ones")
     eq(net:GetChecked(), true, "the tick shows")
-    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 per slot", "not named among the filters that are on: the white column says it")
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5", "not named among the filters that are on: the white column says it")
     eq(W.AH.calls.search, searches, "nothing to look up: every price here was known")
     eq(list.Titles[4]:GetText(), "BUYOUT", "the columns are headed as they were"); eq(list.Titles[5]:GetText(), "NET COST", "both of them")
     robe = Row("Great Chest")
@@ -4291,7 +4592,7 @@ function scenarios.supplies_ui()
         tickBox:Click()
         W.Run(0.3)
     end
-    local topBox, bestBox, affordBox = FilterBox("Top 5 per slot"), FilterBox("Best for me"), FilterBox("Only what I can afford")
+    local topBox, bestBox, affordBox = FilterBox("Top"), FilterBox("Best for me"), FilterBox("Only what I can afford")
     local allBox = FilterBox("Everything I can use")
 
     -- The Upgrades tab has its own titles and controls.
@@ -11009,7 +11310,7 @@ function scenarios.wants_ui()
     W.AddAuction(310, 2000)
     W.AddAuction(311, 1000)
     local LABEL, SHORT = "Best armor type for the class", "Best armor"
-    local MENU = "Only what I can afford | Buyout up to | Top 5 per slot | " .. LABEL .. " | Upgrade at least | Gear at most | Weapons > | / | Value by net cost"
+    local MENU = "Only what I can afford | Buyout up to | Top | Hide worse deals | " .. LABEL .. " | Upgrade at least | Gear at most | Weapons > | / | Value by net cost"
     -- The box of the menu in view, and the last line of its tooltip: which type it keeps for
     -- the character the list is for.
     local best = FilterBox(LABEL)
@@ -11167,7 +11468,7 @@ function scenarios.wants_ui()
     frame.ProfileDropdown:Pick(5)
     W.Run(0.5)
     eq(ns.Roster.Target(), UpgradeScoutDB.chars["Magey-Testrealm"], "the lists are for the mage")
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Upgrade at least | Gear at most | Weapons > | / | Value by net cost", "a mage's menu has no line about armor")
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top | Hide worse deals | Upgrade at least | Gear at most | Weapons > | / | Value by net cost", "a mage's menu has no line about armor")
 
     -- Back to the warrior: its box is as it was.
     frame.ProfileDropdown:Pick(1)
@@ -11372,9 +11673,9 @@ function scenarios.gain_ui()
     -- Three names have room beside the field. Four have not: their number stands there, and
     -- the field's tooltip has the names.
     FilterBox("Only what I can afford"):Click()
-    FilterBox("Top 5 per slot"):Click()
+    FilterBox("Top"):Click()
     Settle()
-    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 per slot \194\183 From +25%", "three filters by name")
+    eq(frame.FilterNames:GetText(), "Affordable \194\183 Top 5 \194\183 From +25%", "three filters by name")
     FilterBox("Best armor type for the class"):Click()
     Settle()
     eq(frame.FilterNames:GetText(), "Filters on: 4", "four: how many are on")
@@ -11455,7 +11756,7 @@ function scenarios.price_max()
     local function Rows()
         return ns.Results.Build(S.offers, S.ctx, {
             money = GetMoney(), affordableOnly = ns.db.affordableOnly, cap = Wants.Price(me),
-            limit = ns.db.topOnly and ns.Results.TOP_COUNT or nil, unchecked = S.Unchecked(),
+            limit = ns.db.topOnly and ns.Results.TopCount() or nil, unchecked = S.Unchecked(),
         })
     end
     -- The upgrades it shows, by name, and how many it leaves out for their price.
@@ -11615,7 +11916,7 @@ function scenarios.price_max_ui()
     SetView(false, false)
     ScanToEnd()
     W.Run(0.5)
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top | Hide worse deals | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
         "the line stands under the other price filter")
     eq(Row("Great Chest").Pick.Text:GetText(), "Best upgrade", "the robe, at nine gold, is the best chest there is")
     check(Status():find("12 upgrades in 6 slots.", 1, true) ~= nil, "twelve upgrades: " .. Status())
@@ -11812,7 +12113,7 @@ function scenarios.locale_ru()
     -- Beside the Filters field the names stand apart by a bullet: the game's Russian font has
     -- no middle dot, and draws a square for one.
     ns.Filters.SetRoom(1000)
-    eq(UpgradeScoutFrame.FilterNames:GetText(), "По карману \226\128\162 Топ-5 в слоте", "the filters that are on, a bullet between them")
+    eq(UpgradeScoutFrame.FilterNames:GetText(), "По карману \226\128\162 Топ-5", "the filters that are on, a bullet between them")
     -- The welcome window: words too long for a line of the tooltip's block go on to a second
     -- one, and the box under them stands lower by it. (The stand-in client measures a text by
     -- its bytes, and a Cyrillic letter is two.)
@@ -12753,7 +13054,7 @@ function scenarios.levels_ui()
     -- rule. Its tooltip says that the scan is the shorter for it, and which level the number
     -- comes to for the warrior.
     SetView(false, false)
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | " .. LABEL .. " | Weapons > | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top | Hide worse deals | Best armor type for the class | Upgrade at least | " .. LABEL .. " | Weapons > | / | Value by net cost",
         "the line stands after the other number, and before the menu of weapons")
     eq(below:GetChecked(), false, "not ticked until the player ticks it")
     eq(Comes(), ns.Roster.Colored(me, me.name) .. ": From level 20", "its tooltip names the level: 30 less the ten that stand in the field")
@@ -14190,7 +14491,7 @@ function scenarios.weapons_ui()
     -- The line stands with the character's other filters, over the rule, and opens a menu:
     -- three lines of which one is chosen, then under a rule a tick box for every kind of
     -- weapon a warrior can ever wield, by the game's names, in three blocks.
-    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top 5 per slot | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
+    eq(FilterMenu(), "Only what I can afford | Buyout up to | Top | Hide worse deals | Best armor type for the class | Upgrade at least | Gear at most | Weapons > | / | Value by net cost",
         "the line is in the menu, and opens one of its own")
     eq(weapons:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS,
         "which has the three ways to fill the hands, any way chosen, and every kind ticked")
@@ -14247,7 +14548,7 @@ function scenarios.weapons_ui()
         eq(open._open, true, "the menu stays open after the click"); eq(open.sub, sub, "and so does the one beside it")
         check(sub.lines[3].leftTexture2 ~= nil, "whose lines are drawn again: the mark is on the line clicked")
         eq(sub.lines[1].leftTexture2, nil, "and off the one that had it")
-        eq(#open.lines, 7, "the lines of the first menu are drawn again as well")
+        eq(#open.lines, 8, "the lines of the first menu are drawn again as well")
     end)
     eq(#W.sounds, sounds + 1, "the game sounds the click, once")
     eq(me.hands, "ONE", "the choice is written on the warrior's card"); eq(UpgradeScoutDB.chars[me.key].hands, "ONE", "which is saved with the account")
@@ -14484,7 +14785,7 @@ function scenarios.weapons_rogue()
     eq(W.AH.calls.search, searches + 1, "one item search, for the price of the second sword: the first has its price")
     eq(Row("Cutlass").Pick.Text:GetText(), "Best upgrade", "the picks are chosen among the swords")
     eq(Row("Cutlass").Upgrade:GetText(), "+25%", "14 against the dagger's 10: a share of the 16 the two hands hold")
-    eq(tab.Names(), "Top 5 per slot \194\183 Weapons 1/9", "beside the Filters field: one kind of nine")
+    eq(tab.Names(), "Top 5 \194\183 Weapons 1/9", "beside the Filters field: one kind of nine")
     local kinds = 0
     for kind, out in pairs(me.weaponsOut) do
         check(out == true and type(kind) == "number", "a kind left out, by its number")
@@ -14502,7 +14803,7 @@ function scenarios.weapons_rogue()
     -- The swords go on: the list has nothing more for the hands, and says why.
     menu:Click("One-Handed Swords")
     Settle()
-    eq(Rows(), "Band", "no kind ticked: no weapon at all"); eq(tab.Names(), "Top 5 per slot \194\183 Weapons 0/9", "none of nine")
+    eq(Rows(), "Band", "no kind ticked: no weapon at all"); eq(tab.Names(), "Top 5 \194\183 Weapons 0/9", "none of nine")
     eq(#W.errors, 0, "nothing of it is an error")
 end
 
