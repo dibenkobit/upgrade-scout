@@ -2,8 +2,8 @@
 
 ## 2.12.0
 
-- **Top 5 per slot** now shows the five biggest upgrades of each slot, and the **Best value** as
-  well when it is not one of them. Type another number in place of the 5, from 1 to 99.
+- **Top 5 per slot** now shows five items in each slot: the **Best upgrade**, the **Best value**
+  and the next biggest upgrades. Type another number in place of the 5, from 1 to 99.
 - **Hide worse deals**, a new box right under it, leaves out an item when the same slot has
   another that is both stronger and a better deal. Until now **Top 5 per slot** did that, and
   it hid some of the strongest upgrades. The box is off until you tick it. With both ticked,

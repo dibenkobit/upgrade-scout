@@ -111,8 +111,8 @@ Von Hand:
 - Mit **Preis-Leistung nach Nettokosten** richtet sich **Beste Preis-Leistung** nach den
   Nettokosten statt nach dem Sofortkauf. Was du dir leisten kannst und **Bestes Set für** richten
   sich weiter nach dem Sofortkauf: Den zahlst du.
-- **Top 5 pro Slot** behält die fünf größten Verbesserungen jedes Slots und zusätzlich die
-  **Beste Preis-Leistung**, wenn sie nicht darunter ist. Statt der 5 kannst du eine andere Zahl
+- **Top 5 pro Slot** behält in jedem Slot fünf Gegenstände: die **Beste Verbesserung**, die **Beste
+  Preis-Leistung** und die nächstgrößten Verbesserungen. Statt der 5 kannst du eine andere Zahl
   eintippen, von 1 bis 99. Schalte es aus, um jede Verbesserung zu sehen. Alle Preise zu prüfen
   dauert dann länger, in einem vollen Auktionshaus bis zu ein paar Minuten.
 - **Schlechtere Angebote ausblenden**, das Häkchen direkt darunter, ist aus, bis du es setzt.

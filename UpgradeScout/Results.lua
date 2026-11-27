@@ -10,10 +10,10 @@ ns.Results = Results
 -- +0.1 upgrade for two copper never wins.
 Results.VALUE_MIN_SHARE = 0.25
 
--- How many of its biggest upgrades a slot shows when "Top N per slot" is ticked: the number
--- the buyer typed into that line of the Filters menu, from 1 to TOP_MAX, and TOP_DEFAULT
--- until one is typed. The best value has a row besides when it is not one of them (see
--- Shortlist).
+-- How many rows a slot shows when "Top N per slot" is ticked: the number the buyer typed
+-- into that line of the Filters menu, from 1 to TOP_MAX, and TOP_DEFAULT until one is typed.
+-- They are its biggest upgrades, the best value having the last of the rows when it is not
+-- one of them (see Shortlist).
 Results.TOP_DEFAULT, Results.TOP_MAX = 5, 99
 
 -- That number, whether its box is ticked or not (ns.db.topCount). It comes out of a saved
@@ -118,20 +118,26 @@ local function MarkPicks(entries)
     end
 end
 
--- The rows a slot shows under "Top N per slot": its `limit` biggest upgrades, whatever they
--- cost, and the best value as well when it is not one of them. So a slot takes one row more
--- than `limit` at most, and the best value then stands last, where its gain puts it.
+-- The rows a slot shows under "Top N per slot": `limit` of them, never one more, or all it
+-- has when it has no more than that. The best upgrade and the best value are always among
+-- them, and the other places go to the next biggest upgrades after the best, whatever they
+-- cost. So they are the `limit` biggest upgrades when the best value is one of those; when
+-- it is not, it has the place of the last of them, and stands last, where its gain puts it.
+-- With `limit` 3 and gains of 98, 98, 95 and a best value of 47, the rows are 98, 98 and
+-- 47. One row alone is the best upgrade's.
 -- entries must be sorted by ByDelta, with the picks marked (MarkPicks). With "Hide worse
--- deals" ticked as well they are what Sensible() left of the slot, which the best value is
--- always one of.
+-- deals" ticked as well they are what Sensible() left of the slot, which the best upgrade is
+-- always the first of and the best value always one of.
 local function Shortlist(entries, limit)
     if #entries <= limit then return entries end
     local kept = {}
     for i = 1, limit do kept[i] = entries[i] end
-    for i = limit + 1, #entries do
-        if entries[i].pick == "VALUE" then
-            kept[#kept + 1] = entries[i]
-            break
+    if limit > 1 then
+        for i = limit + 1, #entries do
+            if entries[i].pick == "VALUE" then
+                kept[limit] = entries[i]
+                break
+            end
         end
     end
     return kept
@@ -143,7 +149,9 @@ end
 -- of these hold:
 --   * `limit` of the entries stand before the item in the order of ByDelta whatever it
 --     costs: they give more, or the same for less than `minCost`. The item is then not one
---     of the `limit` biggest upgrades, and more offers in the slot cannot make it one.
+--     of the `limit` biggest upgrades, and more offers in the slot cannot make it one. (Every
+--     row but the best value's is one of those: all `limit` of them, or all but the last
+--     when the best value has its place. So this asks no less than Shortlist does.)
 --   * It cannot be the best value. Either one of those entries costs no more per point than
 --     the item's best case, `minCost` for its gain: that entry gives at least as much, so it
 --     is weighed for the best value wherever the item is, and MarkPicks prefers it. Or the
@@ -257,8 +265,8 @@ end
 --             wants = what the character wants of its gear (Wants.Of),
 --             frontier = an offer is left out when a stronger one costs the same or less per
 --                     point ("Hide worse deals", see Sensible),
---             limit = nil for everything, or how many of its biggest upgrades a slot shows,
---                     with the best value besides (see Shortlist): of what `frontier` leaves,
+--             limit = nil for everything, or how many rows a slot shows: its biggest upgrades,
+--                     the best value among them (see Shortlist): of what `frontier` leaves,
 --                     when both are asked for,
 --             unchecked = upgrades whose price the scanner has not looked up (Scanner.Unchecked) }
 -- Returns rows, summary

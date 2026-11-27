@@ -108,8 +108,8 @@ A mano:
 - Con **Rentabilidad por precio neto** marcado, **Más rentable** va por el precio neto y no por la
   compra inmediata. Lo que puedes pagar y **Mejor conjunto por** siguen yendo por la compra
   inmediata: es lo que pagas.
-- **Top 5 por ranura** deja las cinco mayores mejoras de cada ranura, y además el **Más
-  rentable** cuando no está entre ellas. Puedes escribir otro número en lugar del 5, del 1 al
+- **Top 5 por ranura** deja cinco objetos en cada ranura: la **Mayor mejora**, el **Más
+  rentable** y las siguientes mayores mejoras. Puedes escribir otro número en lugar del 5, del 1 al
   99. Desactívalo para ver todas las mejoras. Comprobar todos sus precios tarda entonces más,
   hasta unos minutos en una casa de subastas con mucho movimiento.
 - **Ocultar ofertas peores**, justo debajo, está desactivado hasta que lo marques. Oculta un

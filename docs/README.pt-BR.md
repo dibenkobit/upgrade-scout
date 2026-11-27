@@ -109,8 +109,8 @@ Manualmente:
 - Com **Custo-benefício pelo custo líquido** marcado, o **Melhor custo-benefício** segue o custo
   líquido, não o arremate. O que você pode pagar e o **Melhor conjunto por** continuam seguindo o
   arremate: é o que você paga.
-- **Top 5 por espaço** mantém as cinco maiores melhorias de cada espaço, e também o **Melhor
-  custo-benefício** quando ele não está entre elas. Você pode digitar outro número no lugar do
+- **Top 5 por espaço** mantém cinco itens em cada espaço: a **Maior melhoria**, o **Melhor
+  custo-benefício** e as próximas maiores melhorias. Você pode digitar outro número no lugar do
   5, de 1 a 99. Desative para ver todas as melhorias. Verificar todos os preços então demora
   mais, até alguns minutos em uma Casa de Leilões movimentada.
 - **Ocultar ofertas piores**, logo abaixo, fica desligado até você marcar. Oculta um item

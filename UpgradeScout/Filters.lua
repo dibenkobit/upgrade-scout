@@ -383,7 +383,7 @@ local AddLevels = NumberLine({
     Set = function(card, on, number) ns.Wants.SetBelow(card, on, number) end,
 })
 
--- "Top [ 5 ] per slot": how many of its biggest upgrades a slot shows, from 1 to 99. The
+-- "Top [ 5 ] per slot": how many rows a slot shows, from 1 to 99 (Results.Build). The
 -- number is the buyer's, as its tick box is (ns.db), and stays when the box is unticked.
 -- While the list shows the best set for a budget the line is grey and its field only read.
 local AddTop = NumberLine({

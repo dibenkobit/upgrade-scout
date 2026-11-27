@@ -121,8 +121,8 @@ To install by hand:
   checked before any purchase.
 - With **Value by net cost** ticked, **Best value** goes by the net cost, not the buyout. What you
   can afford, and **Best set for**, still go by the buyout: that is what you pay.
-- **Top 5 per slot** keeps the five biggest upgrades of each slot, and the **Best value** as
-  well when it is not one of them. Type another number in place of the 5, from 1 to 99. Turn
+- **Top 5 per slot** keeps five items in each slot: the **Best upgrade**, the **Best value**
+  and the next biggest upgrades. Type another number in place of the 5, from 1 to 99. Turn
   it off to see every upgrade. Checking all their prices then takes longer, up to a few
   minutes on a busy auction house.
 - **Hide worse deals**, the box under it, is off until you tick it. It leaves out an item when

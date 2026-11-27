@@ -114,8 +114,8 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 - Avec **Meilleure affaire selon le coût net** coché, la **Meilleure affaire** suit le coût net et
   non l'achat immédiat. Ce que vous pouvez payer et **Meilleur ensemble pour** suivent toujours
   l'achat immédiat : c'est ce que vous payez.
-- **Top 5 par emplacement** garde les cinq plus grandes améliorations de chaque emplacement, plus
-  la **Meilleure affaire** lorsqu'elle n'en fait pas partie. Vous pouvez saisir un autre nombre
+- **Top 5 par emplacement** garde cinq objets par emplacement : la **Meilleure amélioration**, la
+  **Meilleure affaire** et les plus grandes améliorations suivantes. Vous pouvez saisir un autre nombre
   à la place du 5, de 1 à 99. Désactivez-le pour voir toutes les améliorations. Vérifier tous
   leurs prix dure alors plus longtemps, jusqu'à quelques minutes dans un hôtel des ventes bien
   rempli.
