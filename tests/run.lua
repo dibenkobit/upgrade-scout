@@ -12584,7 +12584,8 @@ end
 
 ---------------------------------------------------------------------------
 -- "Gear at most N levels below": a character is offered nothing made for levels far below
--- its own, and its scan reads no such gear (Wants.lua, Scanner.lua, Filters.lua)
+-- its own, and its scan reads no such gear (Wants.lua, Scanner.lua, Filters.lua). Gear that
+-- asks for no level is not made for a low one: the filter leaves it alone.
 ---------------------------------------------------------------------------
 -- A warrior of level 30 in a chest that scores 10, at an auction house with gear for every
 -- level. With ten levels asked for, gear from level 20 up is all it is offered.
@@ -12623,9 +12624,15 @@ local function LevelsWorld()
     Sell({ id = 508, name = "Dull Cloak", equipLoc = "INVTYPE_CLOAK", subClassID = 1, value = 9, level = 12, levelUntold = true }, 200)
 end
 
--- Every upgrade of that world for the warrior, and those made for level 20 and up.
+-- Every upgrade of that world for the warrior, and those made for level 20 and up. The
+-- filter's list is those and the ring, which asks for no level: wherever the ring was read.
+-- The stand-in's auction house, asked for gear from level 20, sends no row that says less,
+-- and so not the ring's, which says 0. A scan with the box ticked has then no ring to list,
+-- and nothing here pretends that it has. (Whether the Forever server sends such rows is not
+-- known. `noLevelPasses` is an auction house that does.)
 local EVERY_LEVEL = "Bare Ring, Dim Cloak, Dull Cloak, Edge Belt, Fine Helm, Old Helm, Rim Belt, Rim Boots, Top Chest"
 local FROM_TWENTY = "Dim Cloak, Fine Helm, Rim Belt, Rim Boots, Top Chest"
+local WITH_RING = "Bare Ring, " .. FROM_TWENTY
 
 -- The filter itself, and what it does to the list after a scan, to the price checks of a
 -- scan and to a set for a budget.
@@ -12690,7 +12697,8 @@ function scenarios.levels()
     local twenty = { level = 20 }
     eq(Wants.Fits(twenty, { reqLevel = 20 }), true, "gear for level 20 is offered from level 20")
     eq(Wants.Fits(twenty, { reqLevel = 19 }), false, "gear for level 19 is not")
-    eq(Wants.Fits(twenty, { reqLevel = 0 }), false, "gear that asks for no level is made for the first, and is out with it")
+    eq(Wants.Fits(twenty, { reqLevel = 0 }), true, "gear that asks for no level is not made for a low one: the filter leaves it alone")
+    eq(Wants.Fits(twenty, { reqLevel = 1 }), false, "gear made for the first level is")
     eq(Wants.Fits(twenty, {}), true, "what says nothing of its level is not left out for it")
     eq(Wants.Fits(nil, { reqLevel = 1 }), true, "nothing asked: anything will do")
     eq(Wants.Fits({ level = 20, armor = 3 }, { reqLevel = 25, armor = 2 }), false, "the armor is asked as before")
@@ -12739,8 +12747,8 @@ function scenarios.levels()
     -- looked up, and no new scan is needed: the rows that stay were all read.
     Wants.SetBelow(me, true, 10)
     list, unwanted = Shown()
-    eq(list, FROM_TWENTY, "no helm of level 12, no belt of 19, no cloak of 12, no ring that asks for no level")
-    eq(unwanted, 4, "four upgrades left out")
+    eq(list, WITH_RING, "no helm of level 12, no belt of 19, no cloak of 12; the ring that asks for no level stays")
+    eq(unwanted, 3, "three upgrades left out")
     eq(S.ReadFrom(), nil, "the list has all it is to show"); eq(S.Demand(), false, "and needs no price")
     -- The best set for a budget is made of the same. Eight silver buy the old helm and the
     -- dull cloak; of what is made for level 20 and up, the belt and the boots.
@@ -12759,7 +12767,8 @@ function scenarios.levels()
     Wants.SetBelow(me, false)
     eq(Shown(), EVERY_LEVEL, "unticked: everything again")
 
-    -- A scan with it ticked keeps nothing made for less, and looks up no such price.
+    -- A scan with it ticked keeps nothing made for less, and looks up no such price. (The
+    -- ring is not in its list: this auction house did not send it.)
     Wants.SetBelow(me, true, 10)
     eq(Scan(), 5, "five item searches")
     eq(OfferCount(), 5, "five upgrades"); eq(UnsureCount(), 0, "and none waiting")
@@ -12799,15 +12808,16 @@ function scenarios.levels()
     W.RunUntil(function() return S.state == "verify" end, 120)
     Wants.SetBelow(me, true, 10)
     W.RunUntil(function() return S.state == "idle" end, 600)
-    eq(W.AH.calls.search - searches, 5, "five searches, not nine")
-    eq(S.stats.skipped, 4, "four candidates whose price the list did not need")
+    eq(W.AH.calls.search - searches, 6, "six searches, not nine")
+    eq(S.stats.skipped, 3, "three candidates whose price the list did not need")
     eq(Offer("Old Helm"), nil, "no price for the old helm"); check(Unsure("Old Helm") ~= nil, "which is counted at the lowest price of its row")
+    check(Offer("Bare Ring") ~= nil, "the ring that asks for no level has its price like any other")
     list, unwanted = Shown()
-    eq(list, FROM_TWENTY, "the list is of gear from level 20"); eq(unwanted, 4, "with four left out")
+    eq(list, WITH_RING, "the list is of gear from level 20, and the ring"); eq(unwanted, 3, "with three left out")
     eq(S.ReadFrom(), nil, "the scan itself read every level")
     -- Unticked: their prices are asked for, and no others.
     Wants.SetBelow(me, false)
-    eq(More(), 4, "unticked: four searches")
+    eq(More(), 3, "unticked: three searches")
     eq(OfferCount(), 9, "and every upgrade has its price"); eq(Shown(), EVERY_LEVEL, "and is listed")
 
     -- The number is the character's own, kept with the account.
@@ -12828,7 +12838,9 @@ local function QueryText(value)
 end
 
 -- What the scan asks of the auction house with the filter on, how much less it reads and
--- scores, and that the list is the same whatever the auction house makes of being asked.
+-- scores, and that of gear that asks for a level the list is the same whatever the auction
+-- house makes of being asked. The ring that asks for none is in the list wherever its row
+-- comes, and missing where the auction house leaves it out.
 function scenarios.scan_levels()
     LevelsWorld()
     W.AddItem({ id = 600, name = "Weak Potion", classID = 0, quality = 1, subClassID = 1, level = 1, stack = 5, use = "Restores 70 to 90 health." })
@@ -12891,7 +12903,8 @@ function scenarios.scan_levels()
     eq(took.searches, 5, "five item searches"); eq(Found(), FROM_TWENTY, "for the five upgrades made for level 20 and up")
     eq(S.stats.early, true, "the browse still stops before the last page"); eq(S.partial, false, "which is a complete scan")
     -- The cloak whose row does not say its level came, was kept, and its item said 26. The
-    -- ring that asks for no level did not come.
+    -- ring that asks for no level did not come: this auction house leaves it out with what
+    -- is made for less than level 20, and the list of such a scan is without it.
     eq(S.stats.fromLevel, 20, "the scan's numbers: gear from level 20"); eq(S.stats.levelAsked, true, "asked of the auction house")
     eq(S.stats.belowLevel, 0, "which sent no row below it"); eq(S.stats.noLevel, 1, "and one without a level")
     check(S.StatsText():find("The search asked for gear from level 20 up: 0 rows below it came back all the same and were dropped "
@@ -12899,32 +12912,34 @@ function scenarios.scan_levels()
     eq(UpgradeScoutCharDB.lastScan.fromLevel, 20, "and as is kept with the character's settings")
 
     -- An auction house that sends what asks for no level whatever level is asked for: the
-    -- ring comes, its item says that it asks for none, and it is not kept.
+    -- ring comes, its item says that it asks for none, and it is judged like any other
+    -- row: an upgrade, with a price and a place in the list.
     AH.noLevelPasses = true
     took = Scan()
     eq(took.rows, 200, "the same 200 rows read"); eq(took.scored, 26, "one more scored")
-    eq(took.searches, 5, "five item searches"); eq(Found(), FROM_TWENTY, "and the same list")
+    eq(took.searches, 6, "six item searches"); eq(Found(), WITH_RING, "the same list, and the ring")
     eq(S.stats.noLevel, 2, "two rows without a level")
     AH.noLevelPasses = nil
 
     -- An auction house that pays no heed to the levels sends every row, as before. The rows
     -- below level 20 are dropped as they come, so the list is the same and the scoring as
     -- short: the 24 rows that say a level from 20 to 30, and the three that say none, of
-    -- which the item of one says 26, of one 12, and the ring's none at all.
+    -- which the item of one says 26, of one 12, and the ring's none at all. The cloak of
+    -- level 12 is out, and the ring is in.
     AH.levelBounds = "ignore"
     took = Scan()
     eq(QueryText(AH.lastQuery), LEVELLED, "the search still names the level")
     eq(took.rows, 550, "550 rows read, as without the filter"); eq(took.pages, 10, "ten further pages")
     eq(took.scored, 27, "but 27 scored, not 429")
-    eq(took.searches, 5, "five item searches"); eq(Found(), FROM_TWENTY, "and the list is the same")
+    eq(took.searches, 6, "six item searches"); eq(Found(), WITH_RING, "and the list is the same, with the ring")
     eq(S.stats.early, true, "the browse stops early as it did"); eq(S.partial, false, "a complete scan")
     eq(S.stats.levelAsked, true, "the scan's numbers: asked for"); eq(S.stats.belowLevel, 402, "402 rows below level 20 came all the same")
     eq(S.stats.noLevel, 3, "and three without a level")
     check(S.StatsText():find("402 rows below it came back all the same and were dropped", 1, true) ~= nil, "which the line of /upscout stats tells: " .. S.StatsText())
-    eq(Offer("Bare Ring"), nil, "no ring that asks for no level"); eq(Unsure("Bare Ring"), nil, "not even at its row's price")
-    eq(Unsure("Dull Cloak"), nil, "nor the cloak whose item says level 12")
+    check(Offer("Bare Ring") ~= nil, "the ring that asks for no level has its price")
+    eq(Offer("Dull Cloak"), nil, "the cloak whose item says level 12 has none"); eq(Unsure("Dull Cloak"), nil, "not even its row's")
     -- Rows in no order of level, from an auction house that goes by the level: every one of
-    -- its 275 rows is read, and the list is the same.
+    -- its 275 rows is read, and the list is the same as from that auction house in order.
     AH.levelBounds, AH.honorLevelSort = "honor", false
     took = Scan()
     eq(took.rows, 275, "unsorted: 275 rows, all there are from level 20"); eq(S.stats.early, false, "read to the last")
@@ -12940,7 +12955,7 @@ function scenarios.scan_levels()
     eq(took.queries, 2, "two searches"); eq(QueryText(AH.lastQuery), PLAIN, "the second the plain one")
     eq(QueryText(AH.queries[#AH.queries - 1]), LEVELLED, "after the one that named the level")
     eq(took.rows, 550, "550 rows read"); eq(took.scored, 27, "27 scored")
-    eq(took.searches, 5, "five item searches"); eq(Found(), FROM_TWENTY, "the same list")
+    eq(took.searches, 6, "six item searches"); eq(Found(), WITH_RING, "the same list, with the ring")
     eq(S.stats.fromLevel, 20, "the scan's numbers: gear from level 20"); eq(S.stats.levelAsked, false, "not asked of the auction house in the end")
     eq(S.stats.belowLevel, 402, "402 rows dropped here"); eq(S.stats.requests, 12, "and one request more than the eleven")
     check(S.StatsText():find("Gear from level 20 up was wanted, but the search that asked for it brought nothing back: "
@@ -12952,7 +12967,7 @@ function scenarios.scan_levels()
     took = Scan()
     check(W.now - began > 15, "the search with the level is waited for as long as any")
     eq(took.queries, 2, "then sent without it"); eq(QueryText(AH.lastQuery), PLAIN, "as the plain one")
-    eq(took.scored, 27, "27 rows scored"); eq(Found(), FROM_TWENTY, "the same list")
+    eq(took.scored, 27, "27 rows scored"); eq(Found(), WITH_RING, "the same list, with the ring")
     eq(S.stats.levelAsked, false, "and the scan's numbers say that the level went unasked"); eq(S.message, nil, "the scan has nothing to complain of")
     AH.levelBounds = "honor"
     -- An auction house that answers nothing at all is given up as before: after the search
@@ -13089,11 +13104,12 @@ function scenarios.levels_ui()
     eq(filters._open, true, "the menu stays up"); check(Line() == line, "and its line is the one that was typed into")
     W.Run(0.5)
     eq(Row("Old Helm"), nil, "the helm of level 12 is out"); eq(Row("Edge Belt"), nil, "the belt of level 19")
-    eq(Row("Dull Cloak"), nil, "the cloak whose item says level 12"); eq(Row("Bare Ring"), nil, "and the ring that asks for no level")
+    eq(Row("Dull Cloak"), nil, "and the cloak whose item says level 12")
     check(Row("Rim Belt") ~= nil and Row("Rim Boots") ~= nil, "what is made for level 20 stays")
     check(Row("Fine Helm") ~= nil and Row("Top Chest") ~= nil and Row("Dim Cloak") ~= nil, "and what is made for more")
+    check(Row("Bare Ring") ~= nil, "and the ring that asks for no level: it is not made for a low one")
     eq(frame.FilterNames:GetText(), "From level 20", "the filter is named beside the field, by the level it comes to")
-    check(Status():find("5 upgrades in 5 slots.", 1, true) ~= nil, "the status line counts what is listed: " .. Status())
+    check(Status():find("6 upgrades in 6 slots.", 1, true) ~= nil, "the status line counts what is listed: " .. Status())
     check(not Status():find(AGAIN, 1, true), "and asks for no scan: every row that is to be shown was read")
     eq(W.AH.calls.search, searches, "no item search: every price was known"); eq(S.state, "idle", "and nothing is under way")
     filters:Close()
@@ -13173,7 +13189,8 @@ function scenarios.levels_ui()
     local arrow = ContainerFrameCombinedBags.Items[old].UpgradeScoutArrow
     check(arrow ~= nil and arrow:IsShown(), "a helm of level 12 in the bags has its arrow with the box ticked")
 
-    -- A scan with the box ticked asks the auction house for level 20 and up.
+    -- A scan with the box ticked asks the auction house for level 20 and up. (This one
+    -- sends no row that says less, the ring's among them: the list is then without it.)
     Scanned()
     eq(W.AH.lastQuery.minLevel, 20, "the scan asks for gear from level 20"); eq(W.AH.lastQuery.maxLevel, 0, "and names no upper level")
     eq(Row("Old Helm"), nil, "no helm of level 12"); check(Row("Rim Belt") ~= nil and Row("Dim Cloak") ~= nil, "the gear from level 20 is there")

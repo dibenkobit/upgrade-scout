@@ -1261,9 +1261,10 @@ local function ScoreRow(row, force)
 
     -- A row that came without a level, and was kept for its item to say (see AddRow): made
     -- for less than this scan reads, it is nothing for the list, as the rows dropped when
-    -- they came are not. So a scan keeps the same rows whatever the auction house sends it.
+    -- they came are not. Gear that asks for no level (0) is not made for less: the filter
+    -- leaves it alone, and it is judged like any other row.
     -- (Not among the rows dropped by score either: no search of it could find anything.)
-    if eval and scan.fromLevel and eval.reqLevel < scan.fromLevel then
+    if eval and scan.fromLevel and eval.reqLevel > 0 and eval.reqLevel < scan.fromLevel then
         if not cached and run.stats then run.stats.forced = run.stats.forced + 1 end
         return true
     end
@@ -1694,12 +1695,15 @@ local function AddRow(result)
     TrackOrder(required)
     if required > run.level then return end
     -- Gear made for a level further below the character's than it is to be offered: dropped
-    -- here whether or not the auction house was asked to leave it out, so the list is the
-    -- same from one that does not go by what it is asked.
-    -- A row without a level stays. The game gives 0 for gear that asks for no level, and
-    -- nothing at all for a row it cannot tell the level of yet, which reads as 0 here too:
-    -- the two cannot be told apart, and to drop both would lose real upgrades whenever the
-    -- client is slow. The row's item says which it is when it is scored (ScoreRow).
+    -- here whether or not the auction house was asked to leave it out, so of gear that asks
+    -- for a level the list is the same from one that does not go by what it is asked.
+    -- A row without a level stays. The game gives 0 for gear that asks for no level, which
+    -- the filter leaves alone, and nothing at all for a row it cannot tell the level of yet,
+    -- which reads as 0 here too: the row's item says which it is when it is scored
+    -- (ScoreRow). Whether such rows come at all is the auction house's to say. One that
+    -- takes the lower bound of the search to leave out gear without a level sends none, and
+    -- the list of that scan is without them: the search is not made wider for their sake
+    -- (BrowseQuery), and a scan with the box unticked reads them.
     if run.fromLevel and required > 0 and required < run.fromLevel then return end
 
     local ks = ns.KeyString(key)

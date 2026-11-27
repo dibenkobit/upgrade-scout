@@ -13,7 +13,8 @@ local _, ns = ...
 --   minGainOn   true while that is asked for. The number stays when its box is unticked.
 --   maxBelow    how many levels below the character's own gear may be made for and still be
 --               offered: with 10, a character of level 30 is offered nothing that asks for
---               less than level 20;
+--               a level under 20. Gear that asks for no level is not made for a low one,
+--               and is offered whatever the number;
 --   maxBelowOn  true while that is asked for. The number stays when its box is unticked.
 --               This one is also about the scan: gear that is not to be offered is not asked
 --               of the auction house, and the scan is the shorter for it (see Scanner.lua).
@@ -220,13 +221,13 @@ end
 -- Would the character have the item at all? `item` is what the scanner knows of one (an
 -- offer, or what EvalLink in Scanner.lua makes of a link): its `armor` is Wants.ArmorOf, its
 -- `weapon` Wants.WeaponOf, `invType` the way it is worn, and its `reqLevel` the level it asks
--- for. Gear that asks for no level is 0 there: anybody can put it on, so it is made for the
--- first level, where the game's own auction window writes it too, and is out as soon as any
--- level is.
+-- for. Gear that asks for no level is 0 there: it is not made for a low level, and the
+-- filter of levels leaves it alone, as it does an item that says nothing of its level. It
+-- is judged like any other, and listed where it is an upgrade.
 function Wants.Fits(wants, item)
     if not wants then return true end
     if wants.armor and item.armor and item.armor ~= wants.armor then return false end
-    if wants.level and item.reqLevel and item.reqLevel < wants.level then return false end
+    if wants.level and item.reqLevel and item.reqLevel > 0 and item.reqLevel < wants.level then return false end
     if wants.kinds and item.weapon and wants.kinds[item.weapon] then return false end
     local held = wants.hands and HELD[item.invType or ""]
     return not held or held == wants.hands
