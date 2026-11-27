@@ -116,11 +116,13 @@ Von Hand:
   eintippen, von 1 bis 99. Schalte es aus, um jede Verbesserung zu sehen. Alle Preise zu prüfen
   dauert dann länger, in einem vollen Auktionshaus bis zu ein paar Minuten.
 - **Schlechtere Angebote ausblenden**, das Häkchen direkt darunter, ist aus, bis du es setzt.
-  Es lässt einen Gegenstand weg, wenn ein stärkerer pro Punkt gleich viel oder weniger kostet.
-  Was bleibt, reicht von **Beste Verbesserung** abwärts, jede Zeile pro Punkt günstiger als die
-  darüber. Ist auch **Top 5 pro Slot** angehakt, werden dessen größte Verbesserungen aus dem
-  genommen, was bleibt. Mit diesem Häkchen werden weniger Preise geprüft, nachdem die Liste
-  erschienen ist.
+  Es blendet einen Gegenstand aus, wenn es im selben Slot einen anderen gibt, der stärker und
+  zugleich das bessere Angebot ist. Beispiel: +30% für 5 Gold und +20% für 4 Gold. Der zweite
+  ist schwächer, und du zahlst mehr für das, was er bringt, also wird er ausgeblendet. Es
+  bleiben die **Beste Verbesserung**, die **Beste Preis-Leistung** und was dazwischen liegt.
+  Ist auch **Top 5 pro Slot** angehakt, werden dessen größte Verbesserungen aus dem genommen,
+  was bleibt. Mit diesem Häkchen werden weniger Preise geprüft, nachdem die Liste erschienen
+  ist.
 - **Verbesserung** zeigt in Prozent, wie viel besser ein Gegenstand ist als der, den er ersetzt.
   **Neu** heißt: Der Slot ist leer. Punkte wie `+6 Pkt.` heißen: Was du dort trägst, bringt
   deinem Profil nichts.

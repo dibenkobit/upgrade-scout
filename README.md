@@ -126,10 +126,11 @@ To install by hand:
   it off to see every upgrade. Checking all their prices then takes longer, up to a few
   minutes on a busy auction house.
 - **Hide worse deals**, the box under it, is off until you tick it. It leaves out an item when
-  a stronger one costs the same or less per point. What stays goes from the **Best upgrade**
-  down, each row cheaper per point than the one above it. With **Top 5 per slot** ticked too,
-  its biggest upgrades are taken from what stays. With this box ticked, fewer prices are
-  checked after the list appears.
+  the same slot has another that is both stronger and a better deal. Example: +30% for 5 gold
+  and +20% for 4 gold. The second is weaker, and you pay more for what it adds, so it is
+  hidden. What stays is the **Best upgrade**, the **Best value** and what lies between them.
+  With **Top 5 per slot** ticked too, its biggest upgrades are taken from what stays. With
+  this box ticked, fewer prices are checked after the list appears.
 - **Upgrade** is how much better an item is than the one it replaces, in percent. **New** means
   the slot is empty. Points, such as `+6 pts`, mean what you wear there adds nothing on your profile.
 - **Best armor type for the class** keeps the heaviest armor your character has learned to

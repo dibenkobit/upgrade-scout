@@ -120,11 +120,13 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
   leurs prix dure alors plus longtemps, jusqu'à quelques minutes dans un hôtel des ventes bien
   rempli.
 - **Masquer les moins bonnes affaires**, juste en dessous, est désactivé tant que vous ne
-  cochez pas la case. Il écarte un objet lorsqu'un objet plus puissant coûte autant ou moins
-  par point. Ce qui reste va de la **Meilleure amélioration** vers le bas, chaque ligne moins
-  chère par point que celle du dessus. Si **Top 5 par emplacement** est coché aussi, ses plus
-  grandes améliorations sont prises parmi ce qui reste. Avec cette case cochée, moins de prix
-  sont vérifiés après l'apparition de la liste.
+  cochez pas la case. Il masque un objet lorsque le même emplacement en a un autre qui est à
+  la fois plus puissant et une meilleure affaire. Exemple : +30 % pour 5 pièces d'or et +20 %
+  pour 4 pièces d'or. Le second est plus faible, et vous payez plus cher ce qu'il apporte : il
+  est masqué. Restent la **Meilleure amélioration**, la **Meilleure affaire** et ce qui se
+  trouve entre les deux. Si **Top 5 par emplacement** est coché aussi, ses plus grandes
+  améliorations sont prises parmi ce qui reste. Avec cette case cochée, moins de prix sont
+  vérifiés après l'apparition de la liste.
 - **Amélioration** dit de combien l'objet est meilleur que celui qu'il remplace, en pour cent.
   **Nouveau** : l'emplacement est vide. Des points, comme `+6 pts` : ce que vous y portez
   n'apporte rien à votre profil.

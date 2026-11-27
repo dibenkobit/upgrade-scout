@@ -112,11 +112,12 @@ A mano:
   rentable** cuando no está entre ellas. Puedes escribir otro número en lugar del 5, del 1 al
   99. Desactívalo para ver todas las mejoras. Comprobar todos sus precios tarda entonces más,
   hasta unos minutos en una casa de subastas con mucho movimiento.
-- **Ocultar ofertas peores**, justo debajo, está desactivado hasta que lo marques. Omite un
-  objeto cuando otro más fuerte cuesta lo mismo o menos por punto. Lo que queda va de la
-  **Mayor mejora** hacia abajo, cada fila más barata por punto que la de encima. Si **Top 5
-  por ranura** también está marcado, sus mayores mejoras se toman de lo que queda. Con esta
-  casilla marcada se comprueban menos precios después de aparecer la lista.
+- **Ocultar ofertas peores**, justo debajo, está desactivado hasta que lo marques. Oculta un
+  objeto cuando la misma ranura tiene otro que es más fuerte y además mejor oferta. Ejemplo: +30%
+  por 5 de oro y +20% por 4 de oro. El segundo es más débil y pagas más por lo que aporta, así
+  que se oculta. Quedan la **Mayor mejora**, el **Más rentable** y lo que hay entre ambos. Si
+  **Top 5 por ranura** también está marcado, sus mayores mejoras se toman de lo que queda. Con
+  esta casilla marcada se comprueban menos precios después de aparecer la lista.
 - **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **Nuevo**
   significa que la ranura está vacía. Los puntos, como `+6 pts`, significan que lo que llevas ahí
   no aporta nada a tu perfil.

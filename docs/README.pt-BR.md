@@ -113,11 +113,13 @@ Manualmente:
   custo-benefício** quando ele não está entre elas. Você pode digitar outro número no lugar do
   5, de 1 a 99. Desative para ver todas as melhorias. Verificar todos os preços então demora
   mais, até alguns minutos em uma Casa de Leilões movimentada.
-- **Ocultar ofertas piores**, logo abaixo, fica desligado até você marcar. Deixa de fora um
-  item quando outro mais forte custa o mesmo ou menos por ponto. O que fica vai da **Maior
-  melhoria** para baixo, cada linha mais barata por ponto que a de cima. Com **Top 5 por
-  espaço** marcado também, as maiores melhorias dele são tiradas do que fica. Com essa caixa
-  marcada, menos preços são verificados depois que a lista aparece.
+- **Ocultar ofertas piores**, logo abaixo, fica desligado até você marcar. Oculta um item
+  quando o mesmo espaço tem outro que é mais forte e também uma oferta melhor. Exemplo: +30%
+  por 5 de ouro e +20% por 4 de ouro. O segundo é mais fraco, e você paga mais pelo que ele
+  acrescenta, então fica oculto. Ficam a **Maior melhoria**, o **Melhor custo-benefício** e o
+  que está entre os dois. Com **Top 5 por espaço** marcado também, as maiores melhorias dele
+  são tiradas do que fica. Com essa caixa marcada, menos preços são verificados depois que a
+  lista aparece.
 - **Melhoria** diz quanto um item é melhor do que o que ele substitui, em porcentagem. **Novo**
   quer dizer que o espaço está vazio. Pontos, como `+6 pts`, querem dizer que o que você usa ali
   não acrescenta nada ao seu perfil.

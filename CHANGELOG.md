@@ -4,10 +4,10 @@
 
 - **Top 5 per slot** now shows the five biggest upgrades of each slot, and the **Best value** as
   well when it is not one of them. Type another number in place of the 5, from 1 to 99.
-- **Hide worse deals**, a new box right under it, leaves out an item when a stronger one costs
-  the same or less per point. Until now **Top 5 per slot** did that, and it hid some of the
-  strongest upgrades. The box is off until you tick it. With both ticked, the biggest upgrades
-  are taken from what it leaves.
+- **Hide worse deals**, a new box right under it, leaves out an item when the same slot has
+  another that is both stronger and a better deal. Until now **Top 5 per slot** did that, and
+  it hid some of the strongest upgrades. The box is off until you tick it. With both ticked,
+  the biggest upgrades are taken from what it leaves.
 - With more rows in the list, more prices are checked after it appears; with **Hide worse
   deals** ticked, fewer. You can buy meanwhile, as before.
 - **Gear at most 10 levels below**, a new filter in the **Filters** menu of the Upgrades tab.

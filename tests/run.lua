@@ -1449,7 +1449,7 @@ function scenarios.top_ui()
     -- price is sent for.
     title, tip = Title(hide)
     eq(title, HIDE, "its tooltip is titled with its label"); eq(tip, ns.L.DEALS_TIP, "and says what is left out")
-    check(tip:find("An item is left out when a stronger one costs the same or less per point.", 1, true) ~= nil, "in the words top five's tooltip once had")
+    check(tip:find("Leaves out an item when the same slot has another that is both stronger and a better deal. Example: +30% for 5 gold and +20% for 4 gold.", 1, true) ~= nil, "in plain words, with an example in numbers")
     hide:Click()
     eq(ns.db.hideWorse, true, "the setting is the player's"); eq(hide:GetChecked(), true, "ticked")
     eq(Searches(), 1, "one item search"); check(Offer("Tiny Chest") ~= nil, "for Tiny Chest")
