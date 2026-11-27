@@ -879,7 +879,9 @@ Paint = function()
     local others = #ns.Roster.List() > (me and 1 or 0)
     -- GearQuest writes its own line for the items it lists for the character and leaves the
     -- rest to us (Score.Writes says so of an item): the block is in use as ever, and its
-    -- sentence says which lines are whose (Score.Text "SHARED").
+    -- sentence says which lines are whose (Score.Text "SHARED"). With another spec chosen
+    -- here than the one in use there, ours stand under every item, and the block says what
+    -- it always says.
     local writes = ns.Score.Writes()
     block.Body:SetText(writes and ns.Score.Text(others and "WRITES_OTHERS" or "WRITES")
         or ns.Score.Text("SHARED") or L.WELCOME_TOOLTIP_TEXT)

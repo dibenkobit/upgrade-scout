@@ -9724,7 +9724,8 @@ end
 
 -- The road of a player who has GearQuest: the addon scores by itself until it is chosen,
 -- then by GearQuest's rows for the spec in use in it, and by its weights for what it has no
--- row for.
+-- row for. A spec chosen in the addon's field is the addon's own choice: GearQuest is not
+-- told of it, and nothing of it is changed.
 function scenarios.gearquest_scan()
     StandardWorld()
     -- The worn chest is enchanted. On the second score: the two chests 9 (for sale) and 12
@@ -9785,24 +9786,62 @@ function scenarios.gearquest_scan()
     dropdown._tooltip(GameTooltip)
     local tip = {}
     for _, line in ipairs(GameTooltip._lines) do tip[#tip + 1] = line.text end
-    check(table.concat(tip, " | "):find(ns.L.PROFILE_TIP_GEARQUEST, 1, true) ~= nil, "its tooltip says that the choice is GearQuest's as well")
+    check(table.concat(tip, " | "):find(ns.L.PROFILE_TIP_GEARQUEST, 1, true) ~= nil, "its tooltip says that a choice here changes nothing in GearQuest")
     -- Finding an item's rows is slow there: what it answered is remembered.
     local before = #W.gearquest.asked
     ScanToEnd()
     CheckStandardOffers("GearQuest, the list made again")
     eq(#W.gearquest.asked, before, "a list made again: it is asked about no item twice")
 
-    -- Another spec chosen in the addon's field: it is picked in GearQuest, whose own lines
-    -- then go by it, and the list follows.
+    -- Another spec chosen in the addon's field: the choice is the addon's own. GearQuest is
+    -- not told of it and stays on its spec. The list is made again on the spec chosen, by
+    -- the sum on that spec's weights (Fury: Strength and Stamina at 1, a weapon's damage per
+    -- second at 1) and not by GearQuest's rows, which are for the spec in use there: by the
+    -- game's count the worn chest has 6 Strength, the one for sale 10, the helm 3 Stamina
+    -- and the two-hander 30 damage per second; the shield has nothing those weights count.
+    W.items["100:0"].game, W.items["200:0"].game = { ITEM_MOD_STRENGTH_SHORT = 6 }, { ITEM_MOD_STRENGTH_SHORT = 10 }
+    W.items["211:0"].game, W.items["212:0"].game = { ITEM_MOD_STAMINA_SHORT = 3 }, { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 30 }
+    local drawn = W.gearquest.refreshed
     dropdown:Pick(2)
     W.Run(0.5)
-    eq(#W.gearquest.picked, 1, "another spec chosen in the field: GearQuest is asked to pick it, once")
-    eq(W.gearquest.picked[1], "WARRIOR:fury", "by the function its own window picks one with")
-    eq(GearQuestForeverCharDB.specPick.WARRIOR, "fury", "which keeps it")
-    eq(Score.Current().name, MINE_FURY, "the profile in use is the spec in use there")
-    Told("its rows are another spec's now: what keeps scores is told")
-    eq(me.gearquest, nil, "nothing is written on the card of the character being played")
+    eq(#W.gearquest.picked, 0, "another spec chosen in the field: GearQuest is not asked to pick it")
+    eq(GearQuestForeverCharDB.specPick, nil, "nothing is written to what it saves for the character")
+    eq(next(GearQuestForeverDB.settings), nil, "nor for the account")
+    eq(GearQuest:GetEffectiveSpec(), "arms", "its spec in use is what it was"); eq(W.gearquest.refreshed, drawn, "and its windows are not drawn anew")
+    eq(me.gearquest, "fury", "the choice is written on the character's card, by the spec's name there")
     eq(me.profile, nil, "the addon's own profile is left alone")
+    eq(Score.Current().name, MINE_FURY, "the profile here is the spec chosen here")
+    eq(told, expected, "nothing GearQuest answers has changed: no change of what the scores rest on is told")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, MINE_FURY, "the list is made again on the spec chosen"); eq(dropdown:GetText(), "Fury", "which the field shows")
+    near(S.ctx.equipped[5].value, 6, "what is worn is scored by the sum on that spec's weights, without its enchantment")
+    local chest = Offer("Good Chest")
+    check(chest ~= nil, "a chest by the sum, 10 against 6: by its row for that spec it would be none, 9 against 12")
+    near(chest and chest.value or 0, 10, "at what its stats add up to")
+    check(Offer("Helm") ~= nil, "a helm for the empty head"); check(Offer("Big Axe") ~= nil, "and a two-hander, by its damage")
+    eq(Offer("Shield"), nil, "no shield: the weights count nothing of it, whatever its row for that spec says")
+    eq(OfferCount(), 3, "and nothing else")
+    eq(S.ctx.show1H, true, "a spec chosen here is offered one-handed weapons"); eq(S.ctx.show2H, true, "and two-handed ones")
+    for _, id in ipairs({ 100, 200, 211, 212 }) do W.items[id .. ":0"].game = nil end
+
+    -- The spec in use in GearQuest chosen here: that is no choice to remember. The addon goes
+    -- by whatever is in use there, and the list is by its rows again.
+    dropdown:Pick(1)
+    W.Run(0.5)
+    eq(me.gearquest, nil, "the spec in use there chosen here: nothing stays written on the card")
+    eq(#W.gearquest.picked, 0, "nothing is picked there"); eq(told, expected, "and nothing told")
+    eq(Score.Current().name, MINE_ARMS, "the profile is the spec in use there")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, MINE_ARMS, "the list is made again on it")
+    CheckStandardOffers("GearQuest, back on the spec in use")
+
+    -- A spec picked in GearQuest's own window: it draws its windows anew, which is heard.
+    -- With none chosen here the addon follows, by GearQuest's rows for that spec.
+    GearQuestForeverCharDB.specPick = { WARRIOR = "fury" }
+    W.GearQuestChanged()
+    W.Run(0.5)
+    Told("another spec picked there: what keeps scores is told")
+    eq(Score.Current().name, MINE_FURY, "none chosen here: the profile is the spec it has in use now"); eq(me.gearquest, nil, "with nothing written down")
     W.RunUntil(Idle, 600)
     eq(S.ctx.profile, MINE_FURY, "the list follows"); eq(dropdown:GetText(), "Fury", "and so does the field")
     check(Offer("Helm") ~= nil, "a helm for the empty head, by its row for that spec")
@@ -9812,16 +9851,28 @@ function scenarios.gearquest_scan()
     eq(OfferCount(), 3, "and nothing else")
     dropdown:Pick(2)
     W.Run(0.5)
-    eq(#W.gearquest.picked, 1, "the spec in use clicked: nothing is picked"); eq(told, expected, "and nothing told")
+    eq(me.gearquest, nil, "the spec in use clicked: nothing is written"); eq(told, expected, "and nothing told")
 
-    -- A spec picked in GearQuest's own window: it draws its windows anew, which is heard.
+    -- A spec chosen here stays the profile when another is picked in GearQuest; the one in
+    -- use there chosen here, and the addon follows again.
+    dropdown:Pick(3)
+    W.Run(0.5)
+    eq(me.gearquest, "protection", "a third spec chosen here")
+    W.RunUntil(Idle, 600)
     GearQuestForeverCharDB.specPick.WARRIOR = "arms"
     W.GearQuestChanged()
     W.Run(0.5)
-    Told("another spec picked there: what keeps scores is told")
+    Told("another spec picked there meanwhile: its rows are another spec's, which is told")
+    eq(Score.Current().name, "@WARRIOR:protection", "the spec chosen here stays the profile"); eq(me.gearquest, "protection", "as written")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, "@WARRIOR:protection", "and the list is on it")
+    dropdown:Pick(1)
+    W.Run(0.5)
+    eq(me.gearquest, nil, "the spec now in use there chosen here: nothing written, the addon follows again")
     eq(Score.Current().name, MINE_ARMS, "the profile is the spec it has in use now")
     W.RunUntil(Idle, 600)
     CheckStandardOffers("GearQuest, back on the first spec")
+    eq(#W.gearquest.picked, 0, "through all of it nothing was picked in GearQuest")
     -- It draws them anew for other reasons too: nothing of what the scores rest on changed.
     W.GearQuestChanged()
     W.Run(0.5)
@@ -9904,6 +9955,11 @@ function scenarios.gearquest_scan()
     W.AddItem({ id = 243, name = "Keen Dagger", equipLoc = "INVTYPE_WEAPON", classID = 2, subClassID = 15, value = 30, level = 9 })
     eq(Score.ClassCanUse(Score.Item(W.Link(243)), nil), true, "a spec of daggers alone: a dagger is for it")
     eq(Score.ClassCanUse(Score.Item(W.Link(212)), nil), false, "an axe is not"); eq(Score.ClassCanUse(Score.Item(W.Link(213)), nil), true, "a shield is no weapon")
+    -- (Its say is about the spec in use there: with another chosen here it has none.)
+    Score.Choose(me, MINE_FURY)
+    eq(Score.ClassCanUse(Score.Item(W.Link(212)), nil), true, "another spec chosen here: the axe is for it")
+    Score.Choose(me, MINE_ARMS)
+    eq(me.gearquest, nil, "the spec in use chosen again"); eq(Score.ClassCanUse(Score.Item(W.Link(212)), nil), false, "its say is back")
     eq(Score.ClassCanUse(Score.Item(W.Link(212)), { class = "WARRIOR", level = 10, key = "P", name = "P" }), true,
         "of another character it has no say")
     W.gearquest.daggers = false
@@ -9937,6 +9993,22 @@ function scenarios.gearquest_scan()
     W.Run(0.5)
     Told("and, found changed, told")
     W.RunUntil(Idle, 600)
+    -- That spec chosen here, and then deleted there: a choice of a spec that is no more is
+    -- none, and the addon goes by the spec in use there.
+    dropdown:Pick(4)
+    W.Run(0.5)
+    eq(me.gearquest, "c:1", "the player's own spec chosen here"); eq(Score.Current().name, "@WARRIOR:c:1", "is the profile")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, "@WARRIOR:c:1", "and the list is on it")
+    GearQuestForeverDB.customSpecs.WARRIOR = {}
+    W.GearQuestChanged()
+    W.Run(0.5)
+    Told("the spec deleted there: what keeps scores is told")
+    eq(#select(2, Score.Current()), 3, "it is listed no more"); eq(Score.Current().name, MINE_ARMS, "and the profile is the spec in use there")
+    W.RunUntil(Idle, 600)
+    eq(S.ctx.profile, MINE_ARMS, "the list is made again on that"); eq(dropdown:GetText(), "Arms", "which the field shows")
+    eq(#W.gearquest.picked, 0, "nothing was picked there")
+    me.gearquest = nil
 
     -- It has no spec for the class: none in use, no scan, and the reason.
     local specs = W.gearquest.specs.WARRIOR
@@ -10054,7 +10126,7 @@ function scenarios.gearquest_absent()
     -- What it is asked only where it is there can be missing.
     local data = GearQuest.Data
     data.EquippedPipelineScore, data.UsesTwoHandOnlyWeapons, data.UsesOneHandAndShield, data.AssassinationDaggerOnly = nil, nil, nil, nil
-    GearQuest.Spec.SetSelectedSpec, GearQuest.Spec.GetDefaultSpec, GearQuest.Custom.SpecIsIndexed = nil, nil, nil
+    GearQuest.Spec.GetDefaultSpec, GearQuest.Custom.SpecIsIndexed = nil, nil
     GearQuest.ScoringWeightLabels, GearQuest.L, GearQuest.StatWeightsArmorClass, GearQuest.RefreshUI = nil, nil, nil, nil
     eq(ns.GearQuest.Usable(), true, "without those it still scores")
     W.AddItem({ id = 241, name = "Old Helm", equipLoc = "INVTYPE_HEAD", subClassID = 3, level = 5, elsewhere = true, value = 7,
@@ -10068,9 +10140,13 @@ function scenarios.gearquest_absent()
     eq(#parts, 1, "a sum without its words for the stats is no error"); eq(parts[1].label, "str", "a stat then goes by its name there")
     near(total, 18, "and the total is its row's as ever")
     W.items["200:0"].game = nil
+    -- A spec chosen in the field asks nothing of it: the choice is kept here.
     Score.Choose(ns.Roster.Me(), MINE_FURY)
     W.Run(0.5)
-    eq(Score.Current().name, MINE_ARMS, "with no way to pick a spec there, a choice in the field changes nothing")
+    eq(Score.Current().name, MINE_FURY, "a spec chosen in the field is the profile here"); eq(#W.gearquest.picked, 0, "and nothing is picked there")
+    eq(GearQuest:GetEffectiveSpec(), "arms", "its spec in use is what it was")
+    Score.Choose(ns.Roster.Me(), MINE_ARMS)
+    eq(ns.Roster.Me().gearquest, nil, "the one in use there chosen again: nothing is kept")
     eq(Score.Current({ class = "DRUID", key = "P", name = "P", realm = "Testrealm" }).name, "DRUID:feral",
         "another character with nothing to go by: the first of its class")
     -- With nothing drawn anew to listen for, a spec picked there is found out by asking.
@@ -10220,6 +10296,64 @@ function scenarios.gearquest_tooltips()
     W.Run(1)
     eq(Bag(slot[200]), true, "back on the first spec the chest has its arrow")
 
+    -- Another spec chosen in the addon's field (as the welcome window does it, with the tab
+    -- not open): the choice is the addon's own, and GearQuest stays on its spec. Its line in
+    -- a tooltip is about that spec, so ours stand under every item, one it has a row for
+    -- too, and say what the item is on the spec chosen here; the arrows go by that spec.
+    -- The leather chest has 3 Strength by the game's count: to Arms it is what its row says,
+    -- 9 against the worn chest's 10, and to Fury the sum on its weights, 3 against a worn
+    -- chest that adds up to nothing.
+    W.items["202:0"].game = { ITEM_MOD_STRENGTH_SHORT = 3 }
+    ns.UI.ChooseProfile(MINE_FURY)
+    W.Run(1)
+    eq(Score.Current().name, MINE_FURY, "another spec chosen here: it is the profile"); eq(ns.Roster.Me().gearquest, "fury", "written on the character's card")
+    eq(#W.gearquest.picked, 0, "nothing is picked in GearQuest"); eq(GearQuest:GetEffectiveSpec(), "arms", "whose spec in use is what it was")
+    eq(Score.Writes(W.Link(202)), false, "its line is not about the profile here: the score is ours to write, for an item it has a row for too")
+    ours = Shown(GameTooltip, 202)
+    check(Has(ours, "Fury +3 pts"), "an item it has a row for: our lines stand, with the spec chosen here by its weights: " .. tostring(ours))
+    check(Has(ours, "Arms -10%"), "and a line for every spec as ever, the one in use there by its row")
+    eq(GearQuestLine(GameTooltip), "rank", "GearQuest's own line stands as before, about its own spec")
+    check(Has(Shown(GameTooltip, 245), "Fury +10 pts"), "an item it has no row for: our lines as before")
+    check(Has(Shown(ItemRefTooltip, 202), "Fury +3 pts"), "the same for a link in the chat")
+    UpgradeScoutDB.ownTree = true
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    Shown(GameTooltip, 202)
+    single = nil
+    local arms = false
+    for _, line in ipairs(GameTooltip._lines) do
+        if line.text:find("(GearQuest weights)", 1, true) then single = line end
+        if line.text:find("Arms", 1, true) then arms = true end
+    end
+    check(single ~= nil and single.text:find("Fury (GearQuest weights)", 1, true) ~= nil, "\"Only my spec\": the one line is the spec chosen here, with whose weights they are")
+    eq(single and single.right, "+3 pts", "and the gain on it"); eq(arms, false, "the spec in use there has no line of ours")
+    UpgradeScoutDB.ownTree = nil
+    ns.Fire("SETTING_CHANGED", "ownTree")
+    UpgradeScoutDB.tooltip = false
+    ns.Fire("SETTING_CHANGED", "tooltip")
+    eq(Shown(GameTooltip, 202), nil, "they go by their box in the welcome window as ever"); eq(GearQuestLine(GameTooltip), "rank", "which is nothing to GearQuest's own line")
+    UpgradeScoutDB.tooltip = nil
+    ns.Fire("SETTING_CHANGED", "tooltip")
+    eq(Bag(slot[202]), true, "the arrows go by the spec chosen here: the leather chest is an upgrade on it")
+    eq(Bag(slot[200]), false, "and the chest that is one on the spec in use there is none: nothing of it counts")
+    -- The spec chosen here picked in GearQuest as well: its line is about the profile here
+    -- again, and ours give way to it. Another picked there, and they stand again.
+    GearQuestForeverCharDB.specPick = { WARRIOR = "fury" }
+    W.GearQuestChanged()
+    W.Run(1)
+    eq(Shown(GameTooltip, 200), nil, "the same spec in use there: its own line, and none of ours"); eq(GearQuestLine(GameTooltip), "rank", "which is there")
+    GearQuestForeverCharDB.specPick = nil
+    W.GearQuestChanged()
+    W.Run(1)
+    eq(Score.Current().name, MINE_FURY, "another picked there: the spec chosen here stays the profile")
+    check(Has(Shown(GameTooltip, 202), "Fury +3 pts"), "and our lines stand again")
+    -- The spec in use there chosen here: the addon follows it again, as before.
+    ns.UI.ChooseProfile(MINE_ARMS)
+    W.Run(1)
+    eq(ns.Roster.Me().gearquest, nil, "the spec in use there chosen here: nothing is kept")
+    eq(Shown(GameTooltip, 202), nil, "its line, and none of ours"); eq(GearQuestLine(GameTooltip), "rank", "its own is there")
+    eq(Bag(slot[200]), true, "the arrows are by its rows again"); eq(Bag(slot[202]), false, "for the one as for the other")
+    eq(#W.gearquest.picked, 0, "through all of it nothing was picked in GearQuest")
+
     -- A row of the list at the auction house.
     W.player.money = 50000
     W.OpenAuctionHouse()
@@ -10261,6 +10395,31 @@ function scenarios.gearquest_tooltips()
     ns.Fire("SETTING_CHANGED", "rowTooltip")
     eq(Under("Great Chest"), "Has effects the score does not count | You are 4g short",
         "a row with something to say about buying: that, under the addon's name, and no gains")
+    -- The list on another spec than the one in use there: under a row of an item GearQuest
+    -- has a row for our gains stand too, by their box, beside its own line.
+    local dropdown = UpgradeScoutFrame.ProfileDropdown
+    dropdown:Pick(2)
+    W.Run(0.5)
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 600)
+    W.Run(1)
+    eq(ns.Scanner.ctx.profile, MINE_FURY, "another spec chosen in the field: the list is on it")
+    ours, theirs = Under("Weak Chest")
+    check(Has(ours, "Fury +3 pts"), "a row of an item it has a row for: the gains are ours to write: " .. tostring(ours))
+    eq(theirs, "rank", "beside its own line, which is about its own spec")
+    UpgradeScoutDB.rowTooltip = false
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    ours, theirs = Under("Weak Chest")
+    eq(ours, nil, "and they go by their box"); eq(theirs, "rank", "its own stays")
+    UpgradeScoutDB.rowTooltip = nil
+    ns.Fire("SETTING_CHANGED", "rowTooltip")
+    W.items["202:0"].game = nil
+    dropdown:Pick(1)
+    W.Run(0.5)
+    W.RunUntil(function() return ns.Scanner.state == "idle" end, 600)
+    W.Run(1)
+    eq(ns.Roster.Me().gearquest, nil, "the spec in use there chosen in the field: the addon follows it again")
+    eq(Under("Good Chest"), nil, "and under a row of an item it has a row for there are no lines of ours")
+    eq(#W.gearquest.picked, 0, "nothing was picked in GearQuest")
     CheckGearQuestAsked("tooltips and arrows")
 
     -- The addon's own weights chosen again: its lines are back under every item, and
@@ -10340,15 +10499,25 @@ function scenarios.gearquest_welcome()
     eq(trees[1].Mark:IsShown(), true, "the one in use in it is lit"); eq(trees[2].Mark:IsShown(), false, "the others are not")
     eq(window.Ask:GetText(), L.WELCOME_SCALE_GEARQUEST:format(ns.Roster.Colored(ns.Roster.Me(), "Tester")), "over them: which of them the character goes by")
     eq(window.There:IsShown(), false, "no button that leads elsewhere: a spec is chosen here")
+    -- A click on another: the choice is the addon's own, and GearQuest stays as it is. Its
+    -- line in a tooltip is about its own spec then, the lines under every item are ours,
+    -- and the tooltip's block says what it always says.
     trees[2]:Click()
     W.Run(0.5)
-    eq(W.gearquest.picked[1], "WARRIOR:fury", "a click on another: it is picked in GearQuest")
-    eq(ns.Score.Current().name, MINE_FURY, "and is the one in use")
+    eq(#W.gearquest.picked, 0, "a click on another: nothing is picked in GearQuest"); eq(GearQuest:GetEffectiveSpec(), "arms", "whose spec in use is what it was")
+    eq(ns.Score.Current().name, MINE_FURY, "it is the profile here")
     eq(trees[2].Mark:IsShown(), true, "lit"); eq(trees[1].Mark:IsShown(), false, "the first no more")
-    eq(ns.Roster.Me().gearquest, nil, "nothing is written on the character's card")
+    eq(ns.Roster.Me().gearquest, "fury", "and written on the character's card")
+    eq(told, 1, "nothing GearQuest answers has changed: no change of what the scores rest on is told")
+    eq(window.Tips.Body:GetText(), L.WELCOME_TOOLTIP_TEXT, "the tooltip's block, with another spec here than there: its own sentence")
+    -- A click on the one in use there: nothing is kept, and the addon follows GearQuest.
+    trees[1]:Click()
+    W.Run(0.5)
+    eq(ns.Roster.Me().gearquest, nil, "a click on the one in use in it: nothing stays written"); eq(ns.Score.Current().name, MINE_ARMS, "the profile is that one")
+    eq(trees[1].Mark:IsShown(), true, "lit again"); eq(#W.gearquest.picked, 0, "and still nothing picked there")
     theirs:Click()
     W.Run(0.5)
-    eq(told, 2, "the one that scores clicked again: nothing changes beyond the spec picked before")
+    eq(told, 1, "the one that scores clicked again: nothing changes")
 
     -- The tooltip's block is in use as ever: GearQuest writes its own line for the items it
     -- has a row for and leaves the rest to us, and the block's sentence says so. The arrows
@@ -10505,7 +10674,7 @@ function scenarios.gearquest_alt()
     eq(ns.Roster.Target(), card, "the lists are for the druid"); eq(card.gearquest, "bear", "on the spec chosen, written on its card by its name there")
     dropdown:Pick(6)
     eq(card.gearquest, "balance", "another of its specs chosen")
-    eq(#W.gearquest.picked, 0, "and nothing is picked in GearQuest: that is for the character being played")
+    eq(#W.gearquest.picked, 0, "and nothing is picked in GearQuest")
     eq(card.profile, nil, "apart from the addon's own profile"); eq(card.scale, nil, "from the Pawn scale")
     eq(card.companion, nil, "from Forever Companion's"); eq(card.leveling, nil, "and from Forever Leveling BiS's")
     local asked = #W.gearquest.asked
@@ -10577,6 +10746,14 @@ function scenarios.gearquest_alt()
     eq(S.ctx.who, nil, "back to the warrior's own list"); eq(S.ctx.profile, MINE_ARMS, "on the spec in use in GearQuest")
     CheckStandardOffers("the warrior's list, after the druid's")
     CheckGearQuestAsked("lists for two characters")
+
+    -- The druid is played again. What was chosen for it here stands, on its card: the
+    -- profile is that spec, with GearQuest on the one picked in it for the druid.
+    W.ResetBags()
+    Relog(Druid(), { [5] = W.Link(300) })
+    eq(GearQuest:GetEffectiveSpec(), "bear", "the druid, played again: GearQuest has the spec picked in it")
+    eq(ns.Score.Current().name, "@DRUID:balance", "and the profile here is the one chosen for it here")
+    eq(GearQuest:GetEffectiveSpec(), "bear", "which is nothing to GearQuest"); eq(#W.gearquest.picked, 0, "where nothing is picked")
     eq(#W.errors, 0, "nothing of it is an error")
 end
 

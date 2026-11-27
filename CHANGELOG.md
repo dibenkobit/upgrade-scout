@@ -33,8 +33,10 @@
   the auction house and the bag arrows then go by it, not by the addon's weights.
 - An item GearQuest ranks for your character gets the score GearQuest gives it. Every other
   item is scored on GearQuest's weights for the spec. The **Profile** dropdown lists its
-  specs, for your other characters too. Choose another for the character you play, and it is
-  chosen in GearQuest as well.
+  specs, for your other characters too. Choose another for the character you play, and the
+  addon's lists and bag arrows go by that spec, and its tooltip lines show under every item.
+  GearQuest itself is left as it is. Choose the spec GearQuest uses, and the addon follows
+  GearQuest again.
 - GearQuest keeps writing its own tooltip line for the items it ranks, so the addon leaves its
   own out under those. Under any other item the addon's lines stay and say what they go by:
   **Upgrade Scout (GearQuest weights)**.

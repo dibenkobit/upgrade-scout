@@ -232,6 +232,8 @@ local function OnItem(tooltip)
     if not link or Wears(link) then return end
     -- GearQuest writes its own line for the items it lists for the character, and for no
     -- other: under those ours are left out, and under the rest they stand, on its weights.
+    -- (Its line is about the spec in use there. With another chosen here ours stand under
+    -- every item.)
     if ns.Score.Writes(link) then return end
     local answer = Answer(link)
     if not answer then return end

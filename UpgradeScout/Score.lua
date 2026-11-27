@@ -41,8 +41,8 @@ for i = 1, #OTHERS do FILE[OTHERS[i].engine] = OTHERS[i].file end
 
 -- nil: this addon, by its own weights. "pawn": Pawn, by the player's Pawn scales.
 -- "companion": Forever Companion, by its gear scales. "leveling": Forever Leveling BiS, by
--- the weights of the spec chosen in it. "gearquest": GearQuest, by its lists and the
--- weights of the spec in use in it. Another addon scores only while it
+-- the weights of the spec chosen in it. "gearquest": GearQuest, by its lists for the spec
+-- in use in it and by the weights of its specs. Another addon scores only while it
 -- was chosen (ns.account.engine, for the whole account) and is there to be asked: switched
 -- off or taken away, it leaves this one scoring by itself, and the choice stands for when
 -- it is back.
@@ -104,7 +104,8 @@ function Score.SetEngine(engine)
 end
 
 -- Writes down the profile chosen for a character (its card): each of those that score
--- remembers a choice of its own, so going over to another and back loses none.
+-- remembers a choice of its own, so going over to another and back loses none. (With
+-- GearQuest scoring the card is all that is written: GearQuest.Choose.)
 function Score.Choose(card, id)
     local other = Other()
     if other then other.Choose(card, id) else card.profile = id end
@@ -131,7 +132,9 @@ end
 -- out of them: they would say it twice (Tooltip.lua, AddOfferLines in UI.lua).
 -- link: an item, when the question is about that item's tooltip. Those three write every
 -- item's or none. GearQuest writes the score of the items it lists for the character and of
--- no other: asked about every item's it says no, and about one item as that item is.
+-- no other: asked about every item's it says no, and about one item as that item is. (Of
+-- none while the profile here is another spec than the one in use there: its line is not
+-- about ours.)
 function Score.Writes(link)
     local other = Other()
     return other ~= nil and other.WritesTooltip(link)

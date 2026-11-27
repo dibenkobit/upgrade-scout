@@ -3158,7 +3158,8 @@ end
 --   * Spec:GetOptions lists the specs of a class ({ id, label }), Spec:GetSpecLabel names
 --     one, the player's own by the name they gave it. Spec:SetSelectedSpec picks one for the
 --     character being played and has its windows drawn anew (RefreshUI), which is all it
---     says of any change.
+--     says of any change. The addon is never to call it, nor to write to what GearQuest
+--     saves: W.gearquest.picked has every call there was.
 --   * Custom:Weights gives the weights of a spec by its record: those of the record's base,
 --     with what the record changes; and beside them the weight of a weapon's damage per
 --     second, of a ranged weapon's, and of a weapon's speed. Nothing at all for a base it
@@ -3214,7 +3215,6 @@ local function GearQuestFunctions(Q)
     end
     function G.Spec:SetSelectedSpec(spec, class)
         Q.picked[#Q.picked + 1] = class .. ":" .. tostring(spec)
-        if Q.refusesPick then error("GearQuest fails to pick a spec") end
         GearQuestForeverCharDB.specPick = GearQuestForeverCharDB.specPick or {}
         GearQuestForeverCharDB.specPick[class] = spec
         G:RefreshUI({ reason = "spec" })

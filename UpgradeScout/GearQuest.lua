@@ -8,9 +8,12 @@ local _, ns = ...
 -- after Pawn (Pawn.lua), Forever Companion (Companion.lua) and Forever Leveling BiS
 -- (Leveling.lua), and answers the same questions.
 --
--- Nothing of GearQuest is carried here: no weight, no item, no line of its code. It keeps no
--- table for other addons and describes none, so it is asked through the addon's own, which
--- it leaves in the open as the global GearQuest, each time. Written after its version 1.4.1:
+-- Nothing of GearQuest is carried here: no weight, no item, no line of its code. And nothing
+-- of it is changed from here: it is asked, never told. No spec is picked in it, nothing is
+-- written to its tables or to what it saves (the owner's rule: another addon is left as it
+-- is). It keeps no table for other addons and describes none, so it is asked through the
+-- addon's own, which it leaves in the open as the global GearQuest, each time. Written
+-- after its version 1.4.1:
 --   * It has lists of gear for a class, a spec, a side and a level, one for every level, up
 --     to two hundred pieces to a slot. A row of a list is an item with a score, made
 --     before the addon was packed: each stat of the item times the spec's weight for it, a
@@ -25,8 +28,8 @@ local _, ns = ...
 --   * Spec:GetOptions lists the specs it has for a class, each with the name it shows it by,
 --     and Custom:List the ones the player made there (kept for the account). The spec of
 --     the character being played is the one picked in it; with none picked, the one for the
---     talents; otherwise the one it starts the class on. Spec:SetSelectedSpec picks one, as
---     its own window does. It keeps the pick with what it saves for that character alone.
+--     talents; otherwise the one it starts the class on. It keeps the pick with what it
+--     saves for that character alone.
 --   * Custom:Weights gives the weights a spec scores with: under its own names for the
 --     stats, a chance by the percent, with a weight for a weapon's damage per second, one
 --     for a ranged weapon's and one for a weapon's speed.
@@ -54,8 +57,9 @@ local _, ns = ...
 -- the spec, the way its rows are made: each stat times its weight, a chance by the percent,
 -- armor of a kind the spec would rather not wear for a share of that, a weapon by its
 -- damage per second. So are the items it has no row for, which are many on an auction house;
--- the other specs of the character being played; and every other character of the account,
--- of whom it knows nothing. What an item's effect or its set is worth is not in that sum:
+-- the other specs of the character being played, one of which may be the one chosen for it
+-- in this addon's field (Q.Choose); and every other character of the account, of whom it
+-- knows nothing. What an item's effect or its set is worth is not in that sum:
 -- only its rows have it. Nor is the share it gives out for a kind of armor the one its rows
 -- were made with for every spec (a paladin's Holy; and a rogue's cloth has none given out).
 -- (Put to the copy of GearQuest 1.4.1 in the game folder, with the game's count of an
@@ -119,7 +123,7 @@ end
 -- Everything asked of it is one of these functions of its own, named here by the part of
 -- the addon they are in, so that a version without one is taken for an addon that cannot be
 -- asked, not for an error in the middle of a scan. (A few more are asked where they are
--- there: see Q.Choose, Row, Q.ShowsWeapons, Q.Refuses, Labels and Hook.)
+-- there: see Q.Current, Row, Q.ShowsWeapons, Q.Refuses, Labels and Hook.)
 local REQUIRED = {
     { nil, "GetEffectiveClass", "GetEffectiveSpec", "GetEffectiveLevel", "IsPreviewEnabled" },
     { "Spec", "GetOptions", "GetSpecLabel" },
@@ -269,13 +273,37 @@ local function ByTalents(who)
     return talents:sub(#who.class + 2):lower()
 end
 
+-- The spec chosen in this addon's field for the character being played, where that is
+-- another than the one in use in GearQuest: its name there. nil while the addon goes by the
+-- spec in use there, which is so with nothing chosen. The choice is this addon's alone: it
+-- is on the character's card, as another character's is (card.gearquest), and GearQuest is
+-- not told of it. One that GearQuest has no more (a spec of the player's own, deleted
+-- there) is none for as long as it is gone.
+-- Asked with every tooltip and for every weapon of a scan: whether GearQuest has the spec
+-- is kept with what it last said of the character (State).
+local function Chosen()
+    local me = ns.Roster.Me()
+    local spec = me and me.gearquest
+    if type(spec) ~= "string" then return nil end
+    local now = State()
+    if not now.class or spec == now.spec then return nil end
+    if now.sought ~= spec then
+        now.sought, now.found = spec, false
+        local specs = Specs(now.class)
+        for i = 1, #specs do
+            if specs[i] == spec then now.found = true end
+        end
+    end
+    return now.found and spec or nil
+end
+
 -- The spec to score with for a character, and the specs it was chosen from, as
--- Score.Current. For the character being played it is the one in use in GearQuest: its own
--- line in a tooltip goes by that one, and a list on another would contradict it. For
--- another character: the one chosen for it in this addon's field; otherwise the one for
--- its talents; otherwise the one GearQuest starts a character of the class on; otherwise
--- the first. (What was picked in GearQuest for another character cannot be read: it keeps
--- that with what it saves for the character alone.)
+-- Score.Current. For the character being played: the one chosen for it in this addon's
+-- field (Chosen); with none chosen, the one in use in GearQuest, whichever that comes to
+-- be: the addon follows it. For another character: the one chosen for it in this addon's
+-- field; otherwise the one for its talents; otherwise the one GearQuest starts a character
+-- of the class on; otherwise the first. (What was picked in GearQuest for another character
+-- cannot be read: it keeps that with what it saves for the character alone.)
 function Q.Current(who)
     if who ~= nil and who == ns.Roster.Me() then who = nil end
     local list = Q.Scales(who)
@@ -286,41 +314,36 @@ function Q.Current(who)
             if list[i].spec == spec then return list[i] end
         end
     end
-    if not who then return Find(State().spec) or list[1], list end
+    if not who then return Find(Chosen()) or Find(State().spec) or list[1], list end
     local first = GearQuest.Spec.GetDefaultSpec
     return Find(who.gearquest) or Find(ByTalents(who))
         or Find(type(first) == "function" and first(GearQuest.Spec, who.class) or nil) or list[1], list
 end
 
--- The spec chosen for a character (its card) in this addon's field or welcome window. For
--- the character being played that is a choice of the spec in use in GearQuest, and is made
--- there, by the function its own window picks one with: its lists and its lines in a
--- tooltip follow. For another character it is written on the card, by the spec's name there.
+-- The spec chosen for a character (its card) in this addon's field or welcome window: it is
+-- written on the card, by the spec's name there, and nowhere else. GearQuest is left as it
+-- is: the spec in use there, its lists and its lines in a tooltip stay what they were, and
+-- this addon scores the character on the spec chosen here (Q.Current), by the sum on that
+-- spec's weights (Q.Value).
+-- For the character being played, the spec in use in GearQuest is no choice to remember:
+-- with nothing on the card the addon goes by whatever is in use there, now and when the
+-- player picks another there. So choosing that one here is the way back to following it.
+-- (Nothing GearQuest answers has changed by a choice: what was kept of its answers stands,
+-- and the rest of the addon hears of the choice from whoever made it, PROFILE_CHANGED.)
 function Q.Choose(card, id)
     local class, spec = Parse(id)
     if not class then return end
-    if card ~= ns.Roster.Me() then
-        card.gearquest = spec
-        return
-    end
-    card.gearquest = nil
-    local pick = GearQuest.Spec.SetSelectedSpec
-    if State().spec == spec or type(pick) ~= "function" then return end
-    -- (Its function is called on its own: an error in it is reported and stops nothing here.)
-    securecallfunction(pick, GearQuest.Spec, spec, class)
-    -- What it says now is read anew; that the scores are another spec's is told as any
-    -- change of it is (Look).
-    state = nil
-    Later()
+    if card == ns.Roster.Me() and spec == State().spec then spec = nil end
+    card.gearquest = spec
 end
 
 -- The tooltip's block of the welcome window has a sentence of ours for as long as GearQuest
--- writes its own line: it writes one for the items it has a row for, and ours stand for the
--- rest (Q.WritesTooltip). Score.Text asks here for the words.
+-- writes its own line and ours give way to it: it writes one for the items it has a row
+-- for, and ours stand for the rest (Q.WritesTooltip). Score.Text asks here for the words.
 local Shows                     -- (defined with its own marks)
 
 function Q.Words(what)
-    if what == "SHARED" then return Shows() and SHARED or nil end
+    if what == "SHARED" then return Shows() and not Chosen() and SHARED or nil end
     return Q.TEXT[what]
 end
 
@@ -693,10 +716,12 @@ end
 -- Does GearQuest keep the item out of the hands of the character being played? One of its
 -- specs fights with daggers alone, a rogue's, and it says which is in use; a weapon of
 -- another kind then has no place in its lists, and none in ours. Of another character it is
--- not asked: it knows of none.
+-- not asked: it knows of none. Nor while another spec is chosen here for this one (Chosen):
+-- its say is about the spec in use there, and the lists are not that spec's.
 function Q.Refuses(item, who)
     if who ~= nil and who ~= ns.Roster.Me() then return false end
     if not item.gearquest or item.classID ~= WEAPON_CLASS or ns.Compare.Kind(item.invType) ~= "HANDS" then return false end
+    if Chosen() then return false end
     local data = GearQuest.Data
     return type(data.AssassinationDaggerOnly) == "function" and data:AssassinationDaggerOnly() == true and item.subClassID ~= DAGGER
 end
@@ -807,10 +832,13 @@ end
 -- about the score out: they would say it twice (Score.Writes). For any other item it writes
 -- that it is not scoring it, or nothing, and the lines are ours, on its weights; and so
 -- they are for every item with its line switched off in its settings.
+-- Its line is about the spec in use there. While another spec is chosen here for the
+-- character (Chosen) it does not say what ours would: ours stand under every item, beside
+-- its own, and say what the item is on the spec chosen here.
 -- link: the item; nil when the question is whether it writes every item's, which it does not.
 function Q.WritesTooltip(link)
     Noticed()
-    if link == nil or not Shows() then return false end
+    if link == nil or not Shows() or Chosen() then return false end
     local entry = GearQuest.Data:EntryForItemLink(ns.Stats.Bare(link))
     return type(entry) == "table" and type(entry.pipelineScore) == "number"
 end

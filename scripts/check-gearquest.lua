@@ -433,7 +433,40 @@ for key, n in pairs(unknown) do keys[#keys + 1] = key .. " x" .. n end
 table.sort(keys)
 realPrint("  stats of its rows the game has no such name for: " .. table.concat(keys, ", "))
 
--- Another spec chosen in Upgrade Scout's field: picked in GearQuest by its own function.
+-- Another spec chosen in Upgrade Scout's field: the choice is Upgrade Scout's own, written
+-- on the character's card. GearQuest is left as it is: its spec in use, what it saves, and
+-- its line in a tooltip, which goes on speaking of its own spec. Upgrade Scout's lines then
+-- stand under every item, one GearQuest has a row for too, and say what the item is on
+-- the spec chosen here.
+local function Text(value, depth)
+    if type(value) ~= "table" then return tostring(value) end
+    if depth > 8 then return "{...}" end
+    local parts = {}
+    for key, inner in pairs(value) do parts[#parts + 1] = tostring(key) .. "=" .. Text(inner, depth + 1) end
+    table.sort(parts)
+    return "{" .. table.concat(parts, ",") .. "}"
+end
+-- What GearQuest saves, for the account and for the character, as one text.
+local function Saved() return Text(GearQuestForeverDB, 0) .. " " .. Text(GearQuestForeverCharDB, 0) end
+-- The lines of a link's tooltip, GearQuest's and Upgrade Scout's apart: the latter are its
+-- heading and what stands under it; nil for none.
+local function BothLines(link)
+    GameTooltip.gqScoreLineAdded, GameTooltip.gqEnchantAdded, GameTooltip.gqGearQuestHeader, GameTooltip.gqScoreBusy = nil, nil, nil, nil
+    GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    GameTooltip:SetHyperlink(link)
+    local its, ours, under = {}, {}, false
+    for _, line in ipairs(GameTooltip._lines) do
+        local text = Clean(line.text) .. (line.right and (" " .. Clean(line.right)) or "")
+        if text:find("Upgrade Scout", 1, true) then
+            ours[#ours + 1], under = text, true
+        elseif text:find("Rank #", 1, true) or text:find("GearQuest", 1, true) or text:find("ranked", 1, true) then
+            its[#its + 1], under = text, false
+        elseif under and text:find("%S") then
+            ours[#ours + 1] = text
+        end
+    end
+    return #its > 0 and table.concat(its, " / ") or nil, #ours > 0 and table.concat(ours, " / ") or nil
+end
 local told = 0
 ns.Listen("SCORING_CHANGED", function() told = told + 1 end)
 local another
@@ -441,12 +474,44 @@ for i = 1, #specs do
     if specs[i].name ~= MINE then another = another or specs[i] end
 end
 if another then
-    Score.Choose(ns.Roster.Me(), another.name)
+    local me = ns.Roster.Me()
+    local ranked = best.Chest and W.Link(best.Chest.id) or nil
+    local itsBefore, oursBefore
+    if ranked then
+        itsBefore, oursBefore = BothLines(ranked)
+        assert(Score.Writes(ranked) == true and itsBefore and not oursBefore,
+            "going by the spec in use in GearQuest: under an item it has a row for, its line and none of Upgrade Scout's")
+    end
+    local saved = Saved()
+    Score.Choose(me, another.name)
+    ns.Fire("PROFILE_CHANGED", me)
+    assert(Saved() == saved, "a spec chosen here: nothing is written to what GearQuest saves")
     W.Run(1)
-    realPrint(("  %s chosen here: GearQuest's spec in use is now %s, Upgrade Scout's profile %s; told of a change of scores %d time(s)")
-        :format(another.title, tostring(GQ:GetEffectiveSpec()), Score.Current().name, told))
-    Score.Choose(ns.Roster.Me(), MINE)
+    assert(GQ:GetEffectiveSpec() == SPEC, "GearQuest's spec in use is what it was: " .. tostring(GQ:GetEffectiveSpec()))
+    assert((GearQuestForeverCharDB.specPick or {})[CLASS] == (arg[4] and SPEC or nil), "and so is the spec picked in it")
+    assert(Score.Current().name == another.name, "Upgrade Scout's profile is the spec chosen here: " .. tostring(Score.Current().name))
+    assert(me.gearquest == another.spec, "written on the character's card: " .. tostring(me.gearquest))
+    assert(told == 0, "nothing GearQuest answers has changed, and no change of scores is told")
+    realPrint(("  %s chosen here: Upgrade Scout's profile is %s (on the character's card: %s); GearQuest's spec in use is still %s, and what it saves is as it was; told of a change of scores %d time(s)")
+        :format(another.title, Score.Current().name, tostring(me.gearquest), tostring(GQ:GetEffectiveSpec()), told))
+    if ranked then
+        local its, ours = BothLines(ranked)
+        assert(its == itsBefore, "GearQuest's line under an item it has a row for is what it was, about its own spec: " .. tostring(its))
+        assert(Score.Writes(ranked) == false and ours and ours:find(another.title, 1, true),
+            "and Upgrade Scout's lines stand there, with the spec chosen here: " .. tostring(ours))
+        realPrint(("    under its best chest GearQuest writes as before: %s; Upgrade Scout now writes: %s"):format(its, ours))
+    end
+    -- The spec in use there chosen here: nothing is kept, and Upgrade Scout goes by GearQuest's again.
+    Score.Choose(me, MINE)
+    ns.Fire("PROFILE_CHANGED", me)
     W.Run(1)
+    assert(me.gearquest == nil and Score.Current().name == MINE and GQ:GetEffectiveSpec() == SPEC and Saved() == saved,
+        "the spec in use there chosen here: nothing on the card, the profile is GearQuest's spec in use, and GearQuest as it was")
+    local itsAfter, oursAfter
+    if ranked then itsAfter, oursAfter = BothLines(ranked) end
+    assert(not ranked or (itsAfter == itsBefore and oursAfter == nil), "and under an item GearQuest has a row for its own line stands alone again")
+    realPrint(("    %s, the spec in use there, chosen here again: nothing on the card, profile %s; Upgrade Scout's lines under that chest: %s")
+        :format(current.title, Score.Current().name, ranked and (oursAfter or "none") or "(no chest to look under)"))
 end
 
 -- Its lines in a tooltip filled in for another character, and its simulation.

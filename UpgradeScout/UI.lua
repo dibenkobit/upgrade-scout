@@ -301,7 +301,8 @@ local function AddOfferLines(entry, who)
     local score = ns.Shows("rowTooltip")
     -- (GearQuest writes its own line for the items it lists for the character being played,
     -- and for no other: it is asked about the row's item. Under a row for another character
-    -- nothing of it stands, and the score is the box's to switch as ever.)
+    -- nothing of it stands, and the score is the box's to switch as ever. So it is while the
+    -- list is on another spec than the one in use there, which its line is about.)
     if ns.Score.Writes(not who and entry.offer and entry.offer.link or nil) then score = who ~= nil end
     local notes = ns.Shows("rowNotes") and HasNotes(entry)
     if score and ns.OwnTree() and S.ctx then

@@ -312,6 +312,8 @@ local L = {
     -- and WELCOME_NO_SCALE_GEARQUEST take the character's name. WELCOME_TOOLTIP_GEARQUEST
     -- stands in the tooltip's block of the welcome window while GearQuest writes its own
     -- line. "Simulation mode" is GearQuest's own name for showing another character's lists.
+    -- PROFILE_TIP_GEARQUEST says that a spec chosen in the field is the addon's choice and
+    -- no change in GearQuest: nothing of another addon is changed from here.
     TT_GEARQUEST_SCORE = "GearQuest weights",
     WELCOME_NO_GEARQUEST = "GearQuest is not installed, is switched off, or is in its simulation mode.",
     WELCOME_SCALE_GEARQUEST = "Which GearQuest spec does %s use?",
@@ -319,7 +321,7 @@ local L = {
     WELCOME_TOOLTIP_GEARQUEST = "GearQuest writes its own line for the items it ranks for you. For every other item the lines here are the addon's, by GearQuest's weights.",
     WELCOME_GEARQUEST_NEW = "New: the addon can score gear the way GearQuest does. Choose below who scores.",
     ERR_NO_SCALE_GEARQUEST = "GearQuest has no spec for this character's class.",
-    PROFILE_TIP_GEARQUEST = "Choose the GearQuest spec to score by. For your own character it becomes the spec in use in GearQuest as well.",
+    PROFILE_TIP_GEARQUEST = "Choose the GearQuest spec to score by. The choice is for this addon only: nothing changes in GearQuest itself.",
     -- "Everything I can use" (Filters.lua, Supplies.lua): unticked, the list of consumables
     -- has only what has a score; ticked, the rest of what the character can use as well.
     -- SUP_ALL_SHORT names it beside the Filters field. ST_SUP_NONE_SCORED is the status line
@@ -601,7 +603,7 @@ if GetLocale() == "ruRU" then
         WELCOME_TOOLTIP_GEARQUEST = "Для вещей из своих списков GearQuest пишет свою строку сам. Для остальных вещей строки здесь пишет аддон, по весам GearQuest.",
         WELCOME_GEARQUEST_NEW = "Новое: аддон умеет оценивать вещи так же, как GearQuest. Ниже выбери, кто оценивает.",
         ERR_NO_SCALE_GEARQUEST = "В GearQuest нет специализации для класса этого персонажа.",
-        PROFILE_TIP_GEARQUEST = "Выбери специализацию GearQuest, по которой оценивать вещи. Для твоего персонажа она станет текущей и в самом GearQuest.",
+        PROFILE_TIP_GEARQUEST = "Выбери специализацию GearQuest, по которой оценивать вещи. Выбор действует только в этом аддоне: в самом GearQuest ничего не меняется.",
         -- "Everything I can use"
         SUP_ALL = "Всё, что могу использовать",
         SUP_ALL_SHORT = "Всё подряд",
@@ -873,7 +875,7 @@ if GetLocale() == "deDE" then
         WELCOME_TOOLTIP_GEARQUEST = "Für Gegenstände aus seinen Listen schreibt GearQuest seine eigene Zeile. Für alle anderen schreibt das Addon die Zeilen hier, nach den Gewichtungen von GearQuest.",
         WELCOME_GEARQUEST_NEW = "Neu: Das Addon kann Ausrüstung so bewerten wie GearQuest. Wähle unten, wer bewertet.",
         ERR_NO_SCALE_GEARQUEST = "GearQuest hat keine Spezialisierung für die Klasse dieses Charakters.",
-        PROFILE_TIP_GEARQUEST = "Wähle die GearQuest-Spezialisierung, nach der bewertet wird. Für deinen eigenen Charakter gilt sie dann auch in GearQuest.",
+        PROFILE_TIP_GEARQUEST = "Wähle die GearQuest-Spezialisierung, nach der bewertet wird. Die Wahl gilt nur für dieses Addon: In GearQuest selbst ändert sich nichts.",
         -- "Everything I can use"
         SUP_ALL = "Alles, was ich benutzen kann",
         SUP_ALL_SHORT = "Alles",
@@ -1146,7 +1148,7 @@ if GetLocale() == "frFR" then
         WELCOME_TOOLTIP_GEARQUEST = "Pour les objets de ses listes, GearQuest écrit sa propre ligne. Pour tous les autres, c'est l'addon qui écrit les lignes ici, d'après les poids de GearQuest.",
         WELCOME_GEARQUEST_NEW = "Nouveau : l'addon peut évaluer l'équipement comme le fait GearQuest. Choisissez ci-dessous qui évalue.",
         ERR_NO_SCALE_GEARQUEST = "GearQuest n'a aucune spé pour la classe de ce personnage.",
-        PROFILE_TIP_GEARQUEST = "Choisissez la spé GearQuest qui sert à évaluer. Pour votre propre personnage, elle devient aussi celle utilisée dans GearQuest.",
+        PROFILE_TIP_GEARQUEST = "Choisissez la spé GearQuest qui sert à évaluer. Ce choix ne vaut que pour cet addon : rien ne change dans GearQuest lui-même.",
         -- "Everything I can use"
         SUP_ALL = "Tout ce que je peux utiliser",
         SUP_ALL_SHORT = "Tout",
@@ -1419,7 +1421,7 @@ if GetLocale() == "zhCN" then
         WELCOME_TOOLTIP_GEARQUEST = "对它列表里的物品，GearQuest 会写它自己的内容。其余物品由插件按 GearQuest 的权重来写。",
         WELCOME_GEARQUEST_NEW = "新功能：插件可以按 GearQuest 的方式给装备评分。在下面选择由谁评分。",
         ERR_NO_SCALE_GEARQUEST = "GearQuest 没有适用于这个角色职业的天赋。",
-        PROFILE_TIP_GEARQUEST = "选择用来评分的 GearQuest 天赋。对你自己的角色，它也会成为 GearQuest 里使用的天赋。",
+        PROFILE_TIP_GEARQUEST = "选择用来评分的 GearQuest 天赋。这个选择只对本插件有效，GearQuest 里不会有任何改动。",
         -- "Everything I can use"
         SUP_ALL = "所有我能用的",
         SUP_ALL_SHORT = "全部",
@@ -1693,7 +1695,7 @@ if GetLocale() == "ptBR" then
         WELCOME_TOOLTIP_GEARQUEST = "Para os itens das listas dele, o GearQuest escreve a própria linha. Para todos os outros, quem escreve as linhas aqui é o addon, pelos pesos do GearQuest.",
         WELCOME_GEARQUEST_NEW = "Novidade: o addon pode avaliar o equipamento como o GearQuest avalia. Escolha abaixo quem avalia.",
         ERR_NO_SCALE_GEARQUEST = "O GearQuest não tem nenhuma spec para a classe deste personagem.",
-        PROFILE_TIP_GEARQUEST = "Escolha a spec do GearQuest usada na avaliação. Para o seu próprio personagem, ela passa a ser também a spec em uso no GearQuest.",
+        PROFILE_TIP_GEARQUEST = "Escolha a spec do GearQuest usada na avaliação. A escolha vale só para este addon: nada muda no próprio GearQuest.",
         -- "Everything I can use"
         SUP_ALL = "Tudo o que posso usar",
         SUP_ALL_SHORT = "Tudo",
@@ -1966,7 +1968,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
         WELCOME_TOOLTIP_GEARQUEST = "Para los objetos de sus listas, GearQuest escribe su propia línea. Para todos los demás, las líneas de aquí las escribe el addon, con los pesos de GearQuest.",
         WELCOME_GEARQUEST_NEW = "Novedad: el addon puede puntuar el equipo como lo hace GearQuest. Elige abajo quién puntúa.",
         ERR_NO_SCALE_GEARQUEST = "GearQuest no tiene ninguna especialización para la clase de este personaje.",
-        PROFILE_TIP_GEARQUEST = "Elige la especialización de GearQuest con la que se puntúa. Para tu propio personaje pasa a ser también la que usa GearQuest.",
+        PROFILE_TIP_GEARQUEST = "Elige la especialización de GearQuest con la que se puntúa. La elección vale solo para este addon: en GearQuest no cambia nada.",
         -- "Everything I can use"
         SUP_ALL = "Todo lo que puedo usar",
         SUP_ALL_SHORT = "Todo",
@@ -2241,7 +2243,7 @@ if GetLocale() == "koKR" then
         WELCOME_TOOLTIP_GEARQUEST = "GearQuest는 자기 목록에 있는 아이템에 자체 내용을 씁니다. 그 밖의 아이템에는 애드온이 GearQuest의 가중치로 씁니다.",
         WELCOME_GEARQUEST_NEW = "새 기능: 애드온이 GearQuest와 같은 방식으로 장비 점수를 매길 수 있습니다. 누가 매길지 아래에서 고르세요.",
         ERR_NO_SCALE_GEARQUEST = "GearQuest에 이 캐릭터의 직업에 맞는 전문화가 없습니다.",
-        PROFILE_TIP_GEARQUEST = "점수를 매길 GearQuest 전문화를 고르세요. 내 캐릭터라면 GearQuest에서 쓰는 전문화도 함께 바뀝니다.",
+        PROFILE_TIP_GEARQUEST = "점수를 매길 GearQuest 전문화를 고르세요. 이 선택은 이 애드온에만 적용되며, GearQuest 자체는 아무것도 바뀌지 않습니다.",
         -- "Everything I can use"
         SUP_ALL = "내가 쓸 수 있는 모든 것",
         SUP_ALL_SHORT = "전부",
@@ -2515,7 +2517,7 @@ if GetLocale() == "zhTW" then
         WELCOME_TOOLTIP_GEARQUEST = "對它列表裡的物品，GearQuest 會寫它自己的內容。其餘物品由插件依 GearQuest 的權重來寫。",
         WELCOME_GEARQUEST_NEW = "新功能：插件可以依 GearQuest 的方式給裝備評分。在下面選擇由誰評分。",
         ERR_NO_SCALE_GEARQUEST = "GearQuest 沒有適用於這個角色職業的天賦。",
-        PROFILE_TIP_GEARQUEST = "選擇用來評分的 GearQuest 天賦。對你自己的角色，它也會成為 GearQuest 裡使用的天賦。",
+        PROFILE_TIP_GEARQUEST = "選擇用來評分的 GearQuest 天賦。這個選擇只對本插件有效，GearQuest 裡不會有任何改動。",
         -- "Everything I can use"
         SUP_ALL = "所有我能用的",
         SUP_ALL_SHORT = "全部",
