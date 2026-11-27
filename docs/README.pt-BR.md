@@ -38,10 +38,11 @@ nas bolsas, no saque, numa recompensa de missão e num link do chat.
   armaduras mais leves que a mais pesada que o seu personagem usa. **Melhoria de pelo menos**
   deixa de fora as melhorias menores que a porcentagem que você digitar. **Arremate de até**
   deixa de fora os itens que custam mais que o valor que você digitar: a **Maior melhoria** de
-  cada espaço passa a ser a maior por esse preço. **Equipamento até 10 níveis abaixo** deixa de
-  fora o equipamento feito para níveis muito abaixo do nível do seu personagem, e o
-  escaneamento fica mais curto. **Armas** diz como o seu personagem ocupa as mãos, com uma arma
-  de duas mãos ou com uma arma de uma mão e um escudo, e que tipos de arma são oferecidos a ele.
+  cada espaço passa a ser a maior por esse preço. **Equipamento até 10 níveis abaixo do
+  personagem** deixa de fora o equipamento feito para níveis muito abaixo do nível do seu
+  personagem, e o escaneamento fica mais curto. **Armas** diz como o seu personagem ocupa as
+  mãos, com uma arma de duas mãos ou com uma arma de uma mão e um escudo, e que tipos de arma
+  são oferecidos a ele.
 - Compra também para os seus outros personagens. Um botão na caixa de correio coloca os
   equipamentos comprados numa carta para eles.
 - A dica de qualquer item mostra quanto ele é melhor do que o que você usa, para cada árvore de
@@ -130,13 +131,13 @@ Manualmente:
   vazio sempre fica.
 - **Arremate de até** é o máximo a pagar por um único item. **Melhor conjunto por** tem o seu
   próprio orçamento e não o usa.
-- **Equipamento até 10 níveis abaixo** fica desligado até você marcar. Deixa de fora o
-  equipamento feito para um nível que fique mais do que esse número abaixo do nível do seu
-  personagem. Você pode digitar outro número, de 1 a 59. Um escaneamento com esse filtro também
-  pula esse equipamento, então é mais curto: quanto mais alto o seu nível, mais ele economiza.
-  O equipamento que não pede nível não é afetado: aparece na lista se for uma melhoria. Se
-  você aumentar o número ou desmarcar a caixa depois de um escaneamento, o addon escaneia de
-  novo sozinho. As setas nas bolsas não seguem esse filtro.
+- **Equipamento até 10 níveis abaixo do personagem** fica desligado até você marcar. Deixa de
+  fora o equipamento feito para um nível que fique mais do que esse número abaixo do nível do
+  seu personagem. Você pode digitar outro número, de 1 a 59. Um escaneamento com esse filtro
+  também pula esse equipamento, então é mais curto: quanto mais alto o seu nível, mais ele
+  economiza. O equipamento que não pede nível não é afetado: aparece na lista se for uma
+  melhoria. Se você aumentar o número ou desmarcar a caixa depois de um escaneamento, o addon
+  escaneia de novo sozinho. As setas nas bolsas não seguem esse filtro.
 - **Armas** abre um menu próprio. **Qualquer** oferece armas de uma mão e de duas mãos, tanto
   faz. **Duas mãos** deixa de fora as armas de uma mão, os escudos e os itens de mão secundária.
   **Uma mão, escudo e mão secundária** deixa de fora as armas de duas mãos. Abaixo há uma caixa
@@ -159,9 +160,9 @@ Manualmente:
   BiS avalia, uma arma continua sendo comparada com a arma de duas mãos.
 - Cada personagem tem a sua própria caixa **Melhor tipo de armadura da classe**, o seu próprio
   número em **Melhoria de pelo menos**, o seu próprio valor em **Arremate de até**, e a sua
-  própria caixa e o seu próprio número em **Equipamento até 10 níveis abaixo**. As escolhas em
-  **Armas** ficam guardadas para cada um dos perfis dele. Ao comprar para outro personagem,
-  você vê e muda os dele.
+  própria caixa e o seu próprio número em **Equipamento até 10 níveis abaixo do personagem**. As
+  escolhas em **Armas** ficam guardadas para cada um dos perfis dele. Ao comprar para outro
+  personagem, você vê e muda os dele.
 - Um `*` amarelo depois do nome: o item tem efeitos que a pontuação não conta.
 - Poções de vida e de mana não têm pontuação: nenhum peso dá um número para "restaura 700 de vida".
 - Botas "do Tigre" e botas "da Baleia" são itens diferentes, com preços diferentes. A aba "Vender"

@@ -37,10 +37,10 @@ que lo que llevas: en tus bolsas, en el botín, en una recompensa de misión y e
   más ligeras que la más pesada que lleva tu personaje. **Mejora de al menos** omite las mejoras
   menores que el porcentaje que escribas. **Compra hasta** omite los objetos que cuestan más
   que la suma que escribas: la **Mayor mejora** de cada ranura es entonces la mayor por ese
-  precio. **Equipo de como mucho 10 niveles por debajo** omite el equipo hecho para niveles muy
-  por debajo del de tu personaje, y el escaneo es más corto. **Armas** dice cómo ocupa las manos
-  tu personaje, con un arma de dos manos o con un arma de una mano y un escudo, y qué tipos de
-  arma se le ofrecen.
+  precio. **Equipo de como mucho 10 niveles por debajo del personaje** omite el equipo hecho
+  para niveles muy por debajo del de tu personaje, y el escaneo es más corto. **Armas** dice
+  cómo ocupa las manos tu personaje, con un arma de dos manos o con un arma de una mano y un
+  escudo, y qué tipos de arma se le ofrecen.
 - Compra también para tus otros personajes. Un botón en el buzón mete el equipo que compraste en
   una carta para ellos.
 - La descripción emergente de cualquier objeto muestra cuánto mejor es que lo que llevas, para
@@ -129,13 +129,13 @@ A mano:
   vacía se queda siempre.
 - **Compra hasta** es lo máximo que se paga por un solo objeto. **Mejor conjunto por** tiene su
   propio presupuesto y no la usa.
-- **Equipo de como mucho 10 niveles por debajo** está desactivado hasta que lo marques. Omite el
-  equipo hecho para un nivel que quede más que ese número por debajo del de tu personaje.
-  Puedes escribir otro número, del 1 al 59. Un escaneo con este filtro también se salta ese
-  equipo, así que es más corto: cuanto más alto es tu nivel, más ahorra. El equipo que no pide
-  nivel no se toca: aparece en la lista si es una mejora. Si subes el número o quitas la marca
-  después de un escaneo, el addon vuelve a escanear por sí solo. Las flechas de las bolsas no
-  se guían por este filtro.
+- **Equipo de como mucho 10 niveles por debajo del personaje** está desactivado hasta que lo
+  marques. Omite el equipo hecho para un nivel que quede más que ese número por debajo del de tu
+  personaje. Puedes escribir otro número, del 1 al 59. Un escaneo con este filtro también se
+  salta ese equipo, así que es más corto: cuanto más alto es tu nivel, más ahorra. El equipo que
+  no pide nivel no se toca: aparece en la lista si es una mejora. Si subes el número o quitas la
+  marca después de un escaneo, el addon vuelve a escanear por sí solo. Las flechas de las bolsas
+  no se guían por este filtro.
 - **Armas** abre un menú propio. **Cualquiera** ofrece armas de una mano y de dos manos por
   igual. **Dos manos** omite las armas de una mano, los escudos y los objetos de mano izquierda.
   **Una mano, escudo y mano izquierda** omite las armas de dos manos. Debajo hay una casilla por
@@ -158,9 +158,9 @@ A mano:
   Forever Leveling BiS, un arma se sigue comparando con el arma de dos manos.
 - Cada personaje tiene su propia casilla **Mejor tipo de armadura de la clase**, su propio
   número en **Mejora de al menos**, su propia suma en **Compra hasta**, y su propia casilla y
-  su propio número en **Equipo de como mucho 10 niveles por debajo**. Las elecciones en
-  **Armas** se guardan para cada uno de sus perfiles. Cuando compras para otro personaje, ves
-  y cambias los suyos.
+  su propio número en **Equipo de como mucho 10 niveles por debajo del personaje**. Las
+  elecciones en **Armas** se guardan para cada uno de sus perfiles. Cuando compras para otro
+  personaje, ves y cambias los suyos.
 - Un `*` amarillo tras el nombre: el objeto tiene efectos que la puntuación no cuenta.
 - Las pociones de salud y de maná no tienen puntuación: ningún peso pone número a «restaura
   700 p. de salud».

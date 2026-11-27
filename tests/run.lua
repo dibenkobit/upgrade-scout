@@ -10601,7 +10601,7 @@ function scenarios.gearquest_tooltips()
     for _, line in ipairs(GameTooltip._lines) do
         if line.text:find("Upgrade Scout", 1, true) then heading = line.text end
     end
-    check(heading:find("Upgrade Scout (GearQuest weights)", 1, true) ~= nil, "under a heading that says whose weights they are: " .. heading)
+    check(heading:find("Upgrade Scout (scored like GearQuest)", 1, true) ~= nil, "under a heading that says whose weights they are: " .. heading)
     eq(Shown(ItemRefTooltip, 200), nil, "the same for a link in the chat: none of ours where it has a row")
     check(Has(Shown(ItemRefTooltip, 245), "Arms +50%"), "and ours where it has none")
     UpgradeScoutDB.ownTree = true
@@ -10609,9 +10609,9 @@ function scenarios.gearquest_tooltips()
     Shown(GameTooltip, 245)
     local single
     for _, line in ipairs(GameTooltip._lines) do
-        if line.text:find("(GearQuest weights)", 1, true) then single = line end
+        if line.text:find("(scored like GearQuest)", 1, true) then single = line end
     end
-    check(single ~= nil and single.text:find("Arms (GearQuest weights)", 1, true) ~= nil, "\"Only my spec\": one line, with whose weights they are")
+    check(single ~= nil and single.text:find("Arms (scored like GearQuest)", 1, true) ~= nil, "\"Only my spec\": one line, with whose weights they are")
     eq(single.right, "+50%", "and the gain")
     UpgradeScoutDB.ownTree = nil
     ns.Fire("SETTING_CHANGED", "ownTree")
@@ -10684,10 +10684,10 @@ function scenarios.gearquest_tooltips()
     single = nil
     local arms = false
     for _, line in ipairs(GameTooltip._lines) do
-        if line.text:find("(GearQuest weights)", 1, true) then single = line end
+        if line.text:find("(scored like GearQuest)", 1, true) then single = line end
         if line.text:find("Arms", 1, true) then arms = true end
     end
-    check(single ~= nil and single.text:find("Fury (GearQuest weights)", 1, true) ~= nil, "\"Only my spec\": the one line is the spec chosen here, with whose weights they are")
+    check(single ~= nil and single.text:find("Fury (scored like GearQuest)", 1, true) ~= nil, "\"Only my spec\": the one line is the spec chosen here, with whose weights they are")
     eq(single and single.right, "+3 pts", "and the gain on it"); eq(arms, false, "the spec in use there has no line of ours")
     UpgradeScoutDB.ownTree = nil
     ns.Fire("SETTING_CHANGED", "ownTree")
@@ -10975,7 +10975,7 @@ function scenarios.gearquest_supplies()
     GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
     ns.Tooltip.AddHeader(GameTooltip, "Arms", true)
     local heading = GameTooltip._lines[#GameTooltip._lines]
-    check(heading.text:find("Upgrade Scout (GearQuest weights)", 1, true) ~= nil, "a heading over a score, with GearQuest scoring: " .. heading.text)
+    check(heading.text:find("Upgrade Scout (scored like GearQuest)", 1, true) ~= nil, "a heading over a score, with GearQuest scoring: " .. heading.text)
     eq(heading.right, "Arms", "with what stands on its right")
     ns.Tooltip.AddHeader(GameTooltip)
     heading = GameTooltip._lines[#GameTooltip._lines]
@@ -13147,7 +13147,7 @@ function scenarios.levels_ui()
         "the line stands after the other number, and before the menu of weapons")
     eq(below:GetChecked(), false, "not ticked until the player ticks it")
     eq(Comes(), ns.Roster.Colored(me, me.name) .. ": From level 20", "its tooltip names the level: 30 less the ten that stand in the field")
-    check(ns.L.LEVEL_MIN_TIP:find("The scan gets shorter too", 1, true) ~= nil, "and says that the scan is shorter with it")
+    check(ns.L.LEVEL_MIN_TIP:find("Scans get faster too", 1, true) ~= nil, "and says that a scan is faster with it")
     -- No list yet: the box ticked and unticked starts no scan. The first one is the player's.
     below:Click()
     W.Run(1.5)
@@ -13174,7 +13174,7 @@ function scenarios.levels_ui()
     eq(number._mouse, true, "and in reach of the mouse")
     eq(Pictures(number, "Inset"), 9, "a recess of ours, like the tick box's")
     check(line._size ~= nil, "the line says how big it is with its field")
-    eq(line._size[1], 16 + 7 + line.fontString:GetStringWidth() + 6 + 30 + 4 + #"levels below" * 6, "the box, the words, the field and the words after it in a row")
+    eq(line._size[1], 16 + 7 + line.fontString:GetStringWidth() + 6 + 30 + 4 + #"levels below the character" * 6,"the box, the words, the field and the words after it in a row")
     eq(line._size[2], 20, "as tall as the other lines")
 
     -- A number typed is asked for at once, and ticks the box. What is made for less than
@@ -13197,7 +13197,7 @@ function scenarios.levels_ui()
     eq(Browses(), 1, "nor is a scan made a moment later: every row that is to be shown was read"); eq(S.state, "idle", "nothing is under way then either")
     filters:Close()
     filters._tooltip(GameTooltip)
-    eq(GameTooltip._lines[2].text, "Gear at most 10 levels below", "the field's tooltip has the line in full")
+    eq(GameTooltip._lines[2].text, "Gear at most 10 levels below the character", "the field's tooltip has the line in full")
     GameTooltip:Hide()
 
     -- The menu opened again has the number and the tick. A smaller number is narrower.
@@ -14818,7 +14818,7 @@ function scenarios.weapons_ui()
     -- maul. The column says "New", and no gain over a weapon the choice leaves out.
     eq(Row("Sharp Sword").Upgrade:GetText(), "New", "the sword's row claims no gain over the maul")
     eq(Row("Blunt Mace").Upgrade:GetText(), "New", "nor does the mace's"); eq(Row("Sharp Sword").Hand:GetText(), "One-Hand", "the row says how it is held")
-    eq(RowTip(Row("Sharp Sword")), 'Arms +36 pts | Protection +24 pts | Takes the place of your two-hand weapon, which the "Weapons" filter leaves out',
+    eq(RowTip(Row("Sharp Sword")), 'Arms +36 pts | Protection +24 pts | Replaces your two-hand weapon and is not compared with it: one-hand is chosen in the "Weapons" filter.',
         "its tooltip: what it is worth on each profile, and whose place it takes")
     check(Status():find("6 upgrades in 4 slots.", 1, true) ~= nil, "six upgrades now: " .. Status())
     eq(Names(), "One-hand", "the choice is named beside the field"); eq(Named(), "One-hand, shield and off-hand", "and in full in the field's tooltip")
@@ -14907,7 +14907,7 @@ function scenarios.weapons_ui()
     eq(weapons:Head(), "Profile: Protection", "the menu is headed by the profile it is now for")
     eq(weapons:Lines(), "( ) Any | ( ) Two-hand | (x) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "and the menu marks the line the profile chose")
     eq(weapons:Tooltip("One-hand, shield and off-hand"),
-        "One-hand, shield and off-hand | " .. L.HANDS_ONE_TIP .. ' | Chosen by the profile "Protection" until you choose.', "whose tooltip says so")
+        "One-hand, shield and off-hand | " .. L.HANDS_ONE_TIP .. ' | The addon picked this for the profile "Protection". You can pick another.', "whose tooltip says so")
     eq(weapons:Tooltip("Two-hand"), "Two-hand | " .. L.HANDS_TWO_TIP, "the other lines' say nothing of it")
     eq(Names(), "One-hand", "it is named beside the field, as a choice of the player's is")
     check(Row("Oak Shield") ~= nil and Row("Sharp Sword") ~= nil, "the list: the shield, and the sword that beats the maul on this profile")
@@ -15062,7 +15062,7 @@ function scenarios.weapons_rogue()
     local tab = Tab()
     local Row, Rows, Settle, menu = tab.Row, tab.Rows, tab.Settle, tab.menu
     local SWORDS, FISTS = "One-Handed Swords (not trained)", "Fist Weapons (not trained)"
-    local NOTE = "You have not trained One-Handed Swords: train the skill to hold this weapon"
+    local NOTE = "Train One-Handed Swords to use this weapon."
     local PLAIN = "Band, Fine Dirk, Hand Axe, Keen Kris, Throwing Knife, War Hatchet"
     local WITH_SWORDS = "Band, Cutlass, Fine Dirk, Hand Axe, Keen Kris, Rapier, Throwing Knife, War Hatchet"
     -- The menu of a rogue's kinds, with these three as given.
@@ -15228,7 +15228,7 @@ function scenarios.weapons_untrained()
     eq(Rows(), "Elder Staff, Moon Dagger, Stone Mace", "the list with the mace")
     eq(Row("Smith's Mace"), nil, "a mace that asks for a profession the druid has not is out of its reach, trained or not")
     eq(Row("Bear Claw"), nil, "and the claw is of another kind not trained, and not ticked")
-    check(tab.Tip(Row("Stone Mace")):find("One-Handed Maces not trained: the skill has to be trained to hold this weapon", 1, true) ~= nil,
+    check(tab.Tip(Row("Stone Mace")):find("One-Handed Maces has to be trained to use this weapon.", 1, true) ~= nil,
         "the row's tooltip says what the mace takes, of a character that is not the one played: " .. tab.Tip(Row("Stone Mace")))
     eq(tab.Names(), "Weapons 3/6", "named beside the field")
     -- No set for a budget is made of a weapon that cannot be held yet.

@@ -40,10 +40,10 @@ was du trägst: in deinen Taschen, in der Beute, in einer Questbelohnung und in 
   Verbesserungen weg, die kleiner sind als der Prozentwert, den du eintippst. **Sofortkauf bis**
   lässt Gegenstände weg, die mehr kosten als der Betrag, den du eintippst: **Beste
   Verbesserung** ist dann in jedem Slot die beste für diesen Preis. **Ausrüstung höchstens 10
-  Stufen darunter** lässt Ausrüstung weg, die für Stufen weit unter der deines Charakters
-  gemacht ist, und der Scan wird kürzer. **Waffen** legt fest, wie dein Charakter seine Hände
-  füllt, mit einer Zweihandwaffe oder mit Einhandwaffe und Schild, und welche Waffenarten er
-  angeboten bekommt.
+  Stufen unter dem Charakter** lässt Ausrüstung weg, die für Stufen weit unter der deines
+  Charakters gemacht ist, und der Scan wird kürzer. **Waffen** legt fest, wie dein Charakter
+  seine Hände füllt, mit einer Zweihandwaffe oder mit Einhandwaffe und Schild, und welche
+  Waffenarten er angeboten bekommt.
 - Kauft auch für deine anderen Charaktere ein. Ein Button am Briefkasten legt die gekaufte
   Ausrüstung in einen Brief an sie.
 - Der Tooltip jedes Gegenstands zeigt, wie viel besser er ist als das, was du trägst, für jeden
@@ -134,9 +134,9 @@ Von Hand:
   Gegenstand für einen leeren Slot bleibt immer.
 - **Sofortkauf bis** ist die Obergrenze für einen einzelnen Gegenstand. **Bestes Set für** hat
   sein eigenes Budget und richtet sich nicht danach.
-- **Ausrüstung höchstens 10 Stufen darunter** ist aus, bis du das Häkchen setzt. Der Filter
-  lässt Ausrüstung weg, die für eine Stufe gemacht ist, die um mehr als diese Zahl unter der
-  deines Charakters liegt. Du kannst eine andere Zahl eintippen, von 1 bis 59. Ein Scan mit
+- **Ausrüstung höchstens 10 Stufen unter dem Charakter** ist aus, bis du das Häkchen setzt. Der
+  Filter lässt Ausrüstung weg, die für eine Stufe gemacht ist, die um mehr als diese Zahl unter
+  der deines Charakters liegt. Du kannst eine andere Zahl eintippen, von 1 bis 59. Ein Scan mit
   diesem Filter überspringt solche Ausrüstung ebenfalls und ist deshalb kürzer: je höher deine
   Stufe, desto mehr spart er. Ausrüstung, die keine Stufe verlangt, lässt der Filter in Ruhe:
   Sie steht in der Liste, wenn sie eine Verbesserung ist. Erhöhst du nach einem Scan die Zahl
@@ -164,9 +164,9 @@ Von Hand:
   wird eine Waffe weiterhin mit der Zweihandwaffe verglichen.
 - Jeder Charakter hat sein eigenes Häkchen **Beste Rüstungsart für die Klasse**, seine eigene
   Zahl bei **Verbesserung ab**, seinen eigenen Betrag bei **Sofortkauf bis** sowie sein eigenes
-  Häkchen und seine eigene Zahl bei **Ausrüstung höchstens 10 Stufen darunter**. Die Auswahl
-  unter **Waffen** wird für jedes seiner Profile einzeln gemerkt. Kaufst du für einen anderen
-  Charakter ein, siehst und änderst du dessen Einstellungen.
+  Häkchen und seine eigene Zahl bei **Ausrüstung höchstens 10 Stufen unter dem Charakter**. Die
+  Auswahl unter **Waffen** wird für jedes seiner Profile einzeln gemerkt. Kaufst du für einen
+  anderen Charakter ein, siehst und änderst du dessen Einstellungen.
 - Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die die Wertung nicht mitzählt.
 - Heil- und Manatränke haben keine Wertung: Kein Gewicht macht aus „stellt 700 Gesundheit wieder her“
   eine Zahl.

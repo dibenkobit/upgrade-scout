@@ -10,10 +10,10 @@
   the biggest upgrades are taken from what it leaves.
 - With more rows in the list, more prices are checked after it appears; with **Hide worse
   deals** ticked, fewer. You can buy meanwhile, as before.
-- **Gear at most 10 levels below**, a new filter in the **Filters** menu of the Upgrades tab.
-  Tick it, and the list leaves out gear made for a level more than ten below your character's.
-  Type another number, from 1 to 59, to move the line. A scan with it on skips that gear too,
-  so it takes less time: the higher your level, the more it saves.
+- **Gear at most 10 levels below the character**, a new filter in the **Filters** menu of the
+  Upgrades tab. Tick it, and the list leaves out gear made for a level more than ten below your
+  character's. Type another number, from 1 to 59, to move the line. A scan with it on skips that
+  gear too, so it takes less time: the higher your level, the more it saves.
 - Gear that asks for no level is left alone: it is listed if it is an upgrade.
 - Each character has its own box and its own number. If you raise the number or untick the box
   after a scan, the addon scans again by itself.
@@ -47,7 +47,7 @@
   GearQuest again.
 - GearQuest keeps writing its own tooltip line for the items it ranks, so the addon leaves its
   own out under those. Under any other item the addon's lines stay and say what they go by:
-  **Upgrade Scout (GearQuest weights)**.
+  **Upgrade Scout (scored like GearQuest)**.
 - Where GearQuest says a spec takes only two-hand weapons, no two-hand weapons, or only
   daggers, the lists go by that.
 - The choice is for the whole account. Without GearQuest, with it switched off, or while it is

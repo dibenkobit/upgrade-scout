@@ -41,10 +41,10 @@ chat.
   écarte les améliorations inférieures au pourcentage que vous saisissez. **Achat immédiat
   jusqu'à** écarte les objets qui coûtent plus que la somme que vous saisissez : la **Meilleure
   amélioration** de chaque emplacement est alors la meilleure à ce prix. **Équipement d'au plus
-  10 niveaux en dessous** écarte l'équipement prévu pour des niveaux bien inférieurs à celui de
-  votre personnage, et le scan est plus court. **Armes** dit comment votre personnage occupe ses
-  mains, avec une arme à deux mains ou avec une arme à une main et un bouclier, et quels types
-  d'armes lui sont proposés.
+  10 niveaux en dessous du personnage** écarte l'équipement prévu pour des niveaux bien
+  inférieurs à celui de votre personnage, et le scan est plus court. **Armes** dit comment votre
+  personnage occupe ses mains, avec une arme à deux mains ou avec une arme à une main et un
+  bouclier, et quels types d'armes lui sont proposés.
 - Sert aussi à acheter pour vos autres personnages. Un bouton à la boîte aux lettres met
   l'équipement acheté dans une lettre pour eux.
 - L'infobulle de chaque objet montre de combien il est meilleur que ce que vous portez, pour chaque
@@ -138,13 +138,14 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
   emplacement vide reste toujours.
 - **Achat immédiat jusqu'à** est le prix maximum d'un seul objet. **Meilleur ensemble pour** a
   son propre budget et n'en tient pas compte.
-- **Équipement d'au plus 10 niveaux en dessous** est désactivé tant que vous ne cochez pas la
-  case. Il écarte l'équipement prévu pour un niveau inférieur de plus que ce nombre à celui de
-  votre personnage. Vous pouvez saisir un autre nombre, de 1 à 59. Un scan avec ce filtre saute
-  lui aussi cet équipement, il est donc plus court : plus votre niveau est élevé, plus il y
-  gagne. L'équipement qui ne demande aucun niveau n'est pas concerné : il figure dans la liste
-  s'il est une amélioration. Si vous augmentez le nombre ou décochez la case après un scan,
-  l'addon relance le scan de lui-même. Les flèches des sacs ne suivent pas ce filtre.
+- **Équipement d'au plus 10 niveaux en dessous du personnage** est désactivé tant que vous ne
+  cochez pas la case. Il écarte l'équipement prévu pour un niveau inférieur de plus que ce
+  nombre à celui de votre personnage. Vous pouvez saisir un autre nombre, de 1 à 59. Un scan
+  avec ce filtre saute lui aussi cet équipement, il est donc plus court : plus votre niveau est
+  élevé, plus il y gagne. L'équipement qui ne demande aucun niveau n'est pas concerné : il
+  figure dans la liste s'il est une amélioration. Si vous augmentez le nombre ou décochez la
+  case après un scan, l'addon relance le scan de lui-même. Les flèches des sacs ne suivent pas
+  ce filtre.
 - **Armes** ouvre son propre menu. **Toutes** propose les armes à une main comme les armes à
   deux mains. **Deux mains** écarte les armes à une main, les boucliers et les objets de main
   gauche. **Une main, bouclier et main gauche** écarte les armes à deux mains. En dessous, il y
@@ -168,8 +169,8 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
 - Chaque personnage a sa propre case **Meilleur type d'armure pour la classe**, son propre
   nombre pour **Amélioration d'au moins**, sa propre somme pour **Achat immédiat jusqu'à**,
   ainsi que sa propre case et son propre nombre pour **Équipement d'au plus 10 niveaux en
-  dessous**. Les choix dans **Armes** sont gardés pour chacun de ses profils. Quand vous
-  achetez pour un autre personnage, vous voyez et réglez les siens.
+  dessous du personnage**. Les choix dans **Armes** sont gardés pour chacun de ses profils.
+  Quand vous achetez pour un autre personnage, vous voyez et réglez les siens.
 - Un `*` jaune après un nom : l'objet a des effets que le score ne compte pas.
 - Les potions de vie et de mana n'ont pas de score : aucun poids ne chiffre « rend 700 points
   de vie ».

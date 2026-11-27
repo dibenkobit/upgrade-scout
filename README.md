@@ -58,10 +58,11 @@ wear: in your bags, in loot, in a quest reward and in a chat link.
 - The **Filters** menu narrows the list. **Best armor type for the class** leaves out armor
   lighter than the heaviest your character wears. **Upgrade at least** leaves out upgrades
   smaller than the percent you type. **Buyout up to** leaves out items that cost more than the
-  sum you type: the **Best upgrade** in each slot is then the best one for that price. **Gear
-  at most 10 levels below** leaves out gear made for levels far below your character's, and
-  the scan gets shorter. **Weapons** says how your character fills its hands, with a two-hand
-  weapon or with a one-hand weapon and a shield, and which types of weapon it is offered.
+  sum you type: the **Best upgrade** in each slot is then the best one for that price. **Gear at
+  most 10 levels below the character** leaves out gear made for levels far below your
+  character's, and the scan gets shorter. **Weapons** says how your character fills its hands,
+  with a two-hand weapon or with a one-hand weapon and a shield, and which types of weapon it is
+  offered.
 - Shops for your other characters too. A button at the mailbox puts the gear you bought into a
   letter to them.
 - Any item's tooltip shows how much better it is than what you wear, for every spec of your class,
@@ -140,12 +141,12 @@ To install by hand:
   always stays.
 - **Buyout up to** is the most to pay for one item. **Best set for** has its own budget and
   does not use it.
-- **Gear at most 10 levels below** is off until you tick it. It leaves out gear made for a
-  level more than that many below your character's. Type another number, from 1 to 59. A scan
-  with it on skips that gear too, so it is shorter: the higher your level, the more it saves.
-  Gear that asks for no level is left alone: it is listed if it is an upgrade. If you raise
-  the number or untick the box after a scan, the addon scans again by itself. The bag arrows
-  do not go by this filter.
+- **Gear at most 10 levels below the character** is off until you tick it. It leaves out gear
+  made for a level more than that many below your character's. Type another number, from 1 to
+  59. A scan with it on skips that gear too, so it is shorter: the higher your level, the more
+  it saves. Gear that asks for no level is left alone: it is listed if it is an upgrade. If you
+  raise the number or untick the box after a scan, the addon scans again by itself. The bag
+  arrows do not go by this filter.
 - **Weapons** opens a menu of its own. **Any** offers one-hand and two-hand weapons alike.
   **Two-hand** leaves out one-hand weapons, shields and off-hand items. **One-hand, shield and
   off-hand** leaves out two-hand weapons. Under them is a tick box for every type of weapon
@@ -166,9 +167,9 @@ To install by hand:
   worth by itself, not against the two-hand weapon. With Forever Leveling BiS scoring, a
   weapon is still measured against the two-hand weapon.
 - Each character has its own **Best armor type for the class** box, its own **Upgrade at
-  least** number, its own **Buyout up to** sum, and its own **Gear at most 10 levels below**
-  box and number. The choices under **Weapons** are kept for each of its profiles. When you
-  shop for another character, you see and set that character's.
+  least** number, its own **Buyout up to** sum, and its own **Gear at most 10 levels below the
+  character** box and number. The choices under **Weapons** are kept for each of its profiles.
+  When you shop for another character, you see and set that character's.
 - A yellow `*` after a name means the item has effects the score does not count, such as procs.
 - Health and mana potions have no score: no weight puts a number on "restores 700 health".
 - Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The
