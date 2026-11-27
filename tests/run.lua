@@ -28,7 +28,7 @@ local names = {
     "leveling_scan", "leveling_hands", "leveling_absent", "leveling_tooltips", "leveling_welcome", "leveling_supplies", "leveling_alt",
     "levels", "levels_ui", "scan_levels", "scan_no_level",
     "ellesmere", "ellesmere_absent", "ellesmere_late", "ellesmere_leveling", "ellesmere_companion",
-    "hands", "weapons", "weapons_scan", "weapons_spare", "weapons_ui", "weapons_rogue", "weapons_untrained", "weapons_warlock", "weapons_paladin",
+    "hands", "weapons", "weapons_scan", "weapons_spare", "weapons_ui", "weapons_rogue", "weapons_hunter", "weapons_untrained", "weapons_warlock", "weapons_paladin",
     "weapons_others", "weapons_leveling",
     "gearquest_scan", "gearquest_absent", "gearquest_tooltips", "gearquest_welcome", "gearquest_supplies", "gearquest_alt",
     "tab_row",
@@ -11177,32 +11177,32 @@ function scenarios.wants()
     eq(Wants.Armor(nil), nil, "no character, no armor")
 
     -- What a card asks for.
-    local hunter = { class = "HUNTER", level = 20 }
-    eq(Wants.Of(hunter), nil, "nothing ticked: nothing is asked")
-    hunter.armorOnly = true
-    eq(Wants.Of(hunter).armor, 2, "only leather"); eq(Wants.Of(hunter).gain, nil, "and any gain")
-    check(Wants.Of(hunter) == Wants.Of({ class = "ROGUE", level = 5, armorOnly = true }), "the same wants are one table")
-    hunter.level = 40
-    eq(Wants.Of(hunter).armor, 3, "the tick goes with the character to mail")
+    local shaman = { class = "SHAMAN", level = 20 }
+    eq(Wants.Of(shaman), nil, "nothing ticked: nothing is asked")
+    shaman.armorOnly = true
+    eq(Wants.Of(shaman).armor, 2, "only leather"); eq(Wants.Of(shaman).gain, nil, "and any gain")
+    check(Wants.Of(shaman) == Wants.Of({ class = "ROGUE", level = 5, armorOnly = true }), "the same wants are one table")
+    shaman.level = 40
+    eq(Wants.Of(shaman).armor, 3, "the tick goes with the character to mail")
     eq(Wants.Of({ class = "MAGE", level = 30, armorOnly = true }), nil, "a tick on the card of one who wears cloth alone asks for nothing")
-    hunter.armorOnly = nil
-    eq(Wants.Gain(hunter), 10, "the number before one is typed")
-    hunter.minGain = 50
-    eq(Wants.Of(hunter), nil, "a number alone asks for nothing")
-    hunter.minGainOn = true
-    eq(Wants.Of(hunter).gain, 50, "ticked: at least that"); eq(Wants.Of(hunter).armor, nil, "of any armor")
+    shaman.armorOnly = nil
+    eq(Wants.Gain(shaman), 10, "the number before one is typed")
+    shaman.minGain = 50
+    eq(Wants.Of(shaman), nil, "a number alone asks for nothing")
+    shaman.minGainOn = true
+    eq(Wants.Of(shaman).gain, 50, "ticked: at least that"); eq(Wants.Of(shaman).armor, nil, "of any armor")
     local told = 0
-    ns.Listen("WANTS_CHANGED", function(card) if card == hunter then told = told + 1 end end)
-    Wants.SetGain(hunter, true, 12345)
-    eq(hunter.minGain, 9999, "no more than four digits")
-    Wants.SetGain(hunter, true, 0.4)
-    eq(hunter.minGain, 1, "and no less than one")
-    Wants.SetGain(hunter, false)
-    eq(hunter.minGainOn, nil, "unticked"); eq(hunter.minGain, 1, "the number stays"); eq(told, 3, "the addon is told each time")
-    Wants.SetArmorOnly(hunter, true)
-    eq(hunter.armorOnly, true, "the other box"); eq(told, 4, "of which it is told as well")
-    hunter.minGain = "many"
-    eq(Wants.Gain(hunter), 10, "a card with no number for a number has the first one")
+    ns.Listen("WANTS_CHANGED", function(card) if card == shaman then told = told + 1 end end)
+    Wants.SetGain(shaman, true, 12345)
+    eq(shaman.minGain, 9999, "no more than four digits")
+    Wants.SetGain(shaman, true, 0.4)
+    eq(shaman.minGain, 1, "and no less than one")
+    Wants.SetGain(shaman, false)
+    eq(shaman.minGainOn, nil, "unticked"); eq(shaman.minGain, 1, "the number stays"); eq(told, 3, "the addon is told each time")
+    Wants.SetArmorOnly(shaman, true)
+    eq(shaman.armorOnly, true, "the other box"); eq(told, 4, "of which it is told as well")
+    shaman.minGain = "many"
+    eq(Wants.Gain(shaman), 10, "a card with no number for a number has the first one")
 
     -- The percent is held against the number as the list writes it, rounded.
     local half = { gain = 50 }
@@ -12704,7 +12704,7 @@ function scenarios.levels()
     local Wants, S = ns.Wants, ns.Scanner
 
     -- The number on a card, and the level it comes to.
-    local card = { class = "HUNTER", level = 30 }
+    local card = { class = "SHAMAN", level = 30 }
     eq(Wants.Below(card), 10, "ten levels stand in the field before a number is typed")
     eq(Wants.FromLevel(card), nil, "nothing ticked: gear of every level"); eq(Wants.Of(card), nil, "and nothing is asked")
     card.maxBelow = 12
@@ -15353,6 +15353,102 @@ function scenarios.weapons_rogue()
     eq(tab.Tip(Row("Cutlass")):find("trained", 1, true), nil, "the sword's row has no note any more"); eq(Offer("Cutlass").untrained, nil, "its offer is like any other")
     eq(Set({ Offer("Cutlass"), Offer("Band") }), "Band, Cutlass", "and a set can have it")
     eq(Row("Smith's Blade"), nil, "the sword that asks for a profession is as far out of reach as it was")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- A hunter's thrown weapons. Its shots take a bow, a gun or a crossbow, and a thrown weapon
+-- goes where that is held: whatever its stats add up to, it is no upgrade to a hunter. So
+-- that box of the Weapons menu is unticked for a hunter until the player ticks it, trained
+-- or not, and nothing is said of a filter: nobody set one. Any other class has the box
+-- ticked once it has trained the skill. Here, a hunter with a bow that has trained bows,
+-- thrown weapons, daggers and one-handed axes. For sale: a better bow, a throwing knife
+-- that scores more than either bow, and a ring.
+function scenarios.weapons_hunter()
+    moreWeights = function(data)
+        data.classes.HUNTER = { "H1" }
+        data.start.HUNTER = "H1"
+        data.titles.enUS.H1 = "Beast Mastery"
+        data.profiles.H1 = { class = "HUNTER", weights = { TEST_H1 = 1 } }
+    end
+    W.player = { name = "Aimy", level = 20, class = "HUNTER", money = 100000, dualWield = true,
+        spells = { [9078] = true, [9077] = true, [264] = true, [2567] = true, [1180] = true, [196] = true } }
+    W.AddItem({ id = 800, name = "Worn Bow", equipLoc = "INVTYPE_RANGED", classID = 2, subClassID = 2, value = 0, values = { H1 = 10 }, level = 10 })
+    W.equipped = { [18] = W.Link(800) }
+    Sell({ id = 810, name = "Fine Bow", equipLoc = "INVTYPE_RANGED", classID = 2, subClassID = 2, value = 0, values = { H1 = 14 }, level = 15 }, 2000)
+    Sell({ id = 811, name = "Keen Knife", equipLoc = "INVTYPE_THROWN", classID = 2, subClassID = 16, value = 0, values = { H1 = 20 }, level = 15 }, 500)
+    Sell({ id = 812, name = "Band", equipLoc = "INVTYPE_FINGER", value = 0, values = { H1 = 5 }, level = 10 }, 300)
+    LoadAddon()
+    W.Fire("PLAYER_ENTERING_WORLD")
+    W.Run(1.5)
+    local me = ns.Roster.Me()
+    local Wants = ns.Wants
+    eq(ns.Score.Current().title, "Beast Mastery", "a hunter on Beast Mastery")
+    eq(me.weapons[16], true, "its card has the thrown weapons it has trained"); eq(me.weapons[2], true, "and the bows")
+
+    -- What is asked of its gear before anything is touched.
+    eq(Wants.KindOut(me, 16), true, "thrown weapons are left out, trained though they are"); eq(Wants.KindOut(me, 2), false, "bows are not")
+    local out, gone, changed = Wants.KindsOut(me)
+    eq(gone, 9, "nine of a hunter's twelve kinds are out: eight not trained, and the thrown weapons"); eq(changed, 0, "none of them by the player's doing")
+    eq(out[16], true, "the thrown weapons among them"); eq(Wants.Of(me).kinds[16], true, "which is asked of its gear")
+    -- Another class has them as soon as it has trained them; a hunter that has not trained
+    -- them is as any character with a kind not trained; a card that does not say what was
+    -- learned has every other kind for trained, and a hunter's thrown weapons out all the same.
+    eq(Wants.KindOut({ class = "ROGUE", level = 20, weapons = { [15] = true, [16] = true } }, 16), false, "a rogue that has trained thrown weapons is offered them")
+    eq(Wants.KindOut({ class = "WARRIOR", level = 20, weapons = { [7] = true, [16] = true } }, 16), false, "and so is a warrior")
+    eq(Wants.KindOut({ class = "ROGUE", level = 20, weapons = { [15] = true } }, 16), true, "one that has not is not, as with any kind")
+    eq(Wants.KindOut({ class = "HUNTER", level = 20, weapons = { [2] = true } }, 16), true, "a hunter that has not trained them: out")
+    local bare = { class = "HUNTER", level = 20 }
+    eq(Wants.KindOut(bare, 16), true, "a hunter's card that does not say what was learned: out"); eq(Wants.KindOut(bare, 2), false, "and its bows in")
+    _, gone, changed = Wants.KindsOut(bare)
+    eq(gone, 1, "one kind out of twelve"); eq(changed, 0, "which is how the menu first has it")
+
+    local tab = Tab()
+    local Row, Rows, Settle, menu = tab.Row, tab.Rows, tab.Settle, tab.menu
+    local function Kinds(thrown)
+        return "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [x] One-Handed Axes | [ ] One-Handed Swords (not trained) | [x] Daggers | "
+            .. "[ ] Fist Weapons (not trained) | / | [ ] Two-Handed Axes (not trained) | [ ] Two-Handed Swords (not trained) | [ ] Polearms (not trained) | "
+            .. "[ ] Staves (not trained) | / | [x] Bows | [ ] Crossbows (not trained) | [ ] Guns (not trained) | " .. thrown
+    end
+    eq(menu:Lines(), Kinds("[ ] Thrown"), "the menu: thrown weapons unticked, and not marked as a kind not trained")
+    -- In the bags: the better bow has its arrow, the knife has none.
+    local bow, knife = W.PutInBags(W.Link(810)), W.PutInBags(W.Link(811))
+    W.OpenBags()
+    W.Run(0.5)
+    local function Arrow(slot)
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    eq(Arrow(bow), true, "the better bow in the bags has its arrow"); eq(Arrow(knife), false, "the throwing knife has none")
+
+    -- A scan: the bow and the ring, and no knife, though it scores twice the worn bow.
+    SetView(false, false)
+    local searches = W.AH.calls.search
+    ScanToEnd()
+    W.Run(0.5)
+    eq(Rows(), "Band, Fine Bow", "the list: the bow and the ring, and no throwing knife")
+    eq(W.AH.calls.search - searches, 2, "two item searches: no price is looked up for the knife"); eq(Offer("Keen Knife"), nil, "which has none")
+    eq(tab.Names(), "", "no filter is named beside the field: nobody set one")
+    check(tab.Status():find("2 upgrades in 2 slots.", 1, true) ~= nil, "two upgrades: " .. tab.Status())
+
+    -- Ticked: the knife is in the list at once, for the ranged slot, and has its arrow.
+    menu:Click("Thrown")
+    eq(Chosen(me).kinds[16], true, "the tick is written on the card, for the profile")
+    check(Row("Keen Knife") ~= nil, "the knife is in the list at once")
+    Settle()
+    eq(W.AH.calls.search - searches, 3, "one more item search, for its price"); check(Offer("Keen Knife") ~= nil, "which is known")
+    eq(Rows(), "Band, Fine Bow, Keen Knife", "the list with the knife"); eq(Row("Keen Knife").Upgrade:GetText(), "+100%", "20 against the bow's 10")
+    eq(menu:Lines(), Kinds("[x] Thrown"), "the menu: ticked")
+    eq(tab.Names(), "Weapons 4/12", "named beside the field: four of twelve, which is not how the menu first had them")
+    W.Run(0.5)
+    eq(Arrow(knife), true, "the knife in the bags has its arrow now")
+    -- Unticked again: as it first was.
+    menu:Click("Thrown")
+    eq(Chosen(me).kinds[16], false, "unticked: written on the card")
+    eq(Rows(), "Band, Fine Bow", "the knife is out of the list"); eq(tab.Names(), "", "and nothing is named beside the field")
+    _, gone, changed = Wants.KindsOut(me)
+    eq(gone, 9, "nine kinds out again"); eq(changed, 0, "as an untouched menu has them")
+    W.Run(0.5)
+    eq(Arrow(knife), false, "and the knife's arrow is gone"); eq(Arrow(bow), true, "the bow keeps its own")
     eq(#W.errors, 0, "nothing of it is an error")
 end
 

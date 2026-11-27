@@ -148,7 +148,8 @@ A mano:
   nombre y está sin marcar hasta que lo marques. Marcado, sus armas aparecen en la lista
   igualmente, salvo que otra cosa impida a tu personaje usarlas, como el nivel que piden. La
   descripción emergente de la fila dice que hay que aprender la habilidad. **Mejor conjunto
-  por** no toma ninguna.
+  por** no toma ninguna. En un cazador, las armas arrojadizas también están sin marcar hasta
+  que las marques: un arma arrojadiza ocupa el lugar del arco o del rifle.
 - Un guerrero o un paladín con el perfil **Protección** empieza en **Una mano, escudo y mano
   izquierda** mientras puntúan los pesos del addon: son los de un tanque con escudo. Elige
   **Cualquiera** para ver también las armas de dos manos.

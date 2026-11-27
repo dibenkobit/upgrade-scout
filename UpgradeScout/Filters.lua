@@ -507,7 +507,8 @@ end
 --   * under a rule, a tick box for every kind of weapon the character's class can ever
 --     wield, by the game's own names, those for one hand, for both and for the ranged slot
 --     each under a rule of their own. Unticked, a kind is left out of the list. All that
---     the character has trained are ticked until one is unticked. One it has not trained
+--     the character has trained are ticked until one is unticked, but for a hunter's thrown
+--     weapons, which a hunter has no use for (Wants.lua). One it has not trained
 --     yet says so after its name, "One-Handed Swords (not trained)", and is unticked until
 --     it is ticked: weapons of that kind are then listed although the character cannot
 --     hold them yet, each with a note of that in its row's tooltip (Wants.lua, Scanner.lua).

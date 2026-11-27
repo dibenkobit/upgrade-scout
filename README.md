@@ -158,7 +158,8 @@ To install by hand:
 - A type of weapon your character has not trained has **(not trained)** after its name and is
   unticked until you tick it. Ticked, its weapons are listed all the same, unless something
   else keeps them from your character, such as the level they ask for. The row's tooltip says
-  that the skill has to be trained. **Best set for** takes none of them.
+  that the skill has to be trained. **Best set for** takes none of them. For a hunter, thrown
+  weapons start unticked too: a thrown weapon takes the place of the bow or gun.
 - A warrior or a paladin on the **Protection** profile starts on **One-hand, shield and
   off-hand** while the addon's own weights score: those weights are a shield tank's. Choose
   **Any** to see two-hand weapons as well.

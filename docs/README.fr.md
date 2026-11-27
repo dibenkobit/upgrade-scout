@@ -158,7 +158,9 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
   son nom et reste décoché tant que vous ne le cochez pas. Coché, ses armes figurent quand même
   dans la liste, sauf si autre chose les interdit à votre personnage, par exemple le niveau
   qu'elles demandent. L'infobulle de la ligne dit que la compétence doit être apprise.
-  **Meilleur ensemble pour** n'en prend aucune.
+  **Meilleur ensemble pour** n'en prend aucune. Pour un chasseur, les armes de jet sont
+  décochées elles aussi tant que vous ne les cochez pas : une arme de jet prend la place de
+  l'arc ou du fusil.
 - Un guerrier ou un paladin sur le profil **Protection** commence sur **Une main, bouclier et
   main gauche** tant que ce sont les poids de l'addon qui évaluent : ce sont ceux d'un tank au
   bouclier. Choisissez **Toutes** pour voir aussi les armes à deux mains.

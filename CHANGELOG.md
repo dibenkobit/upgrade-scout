@@ -28,6 +28,8 @@
   Before, its weapons were left out and nothing said why. Ticked, they are listed all the same
   if nothing else, such as the level they ask for, keeps them from your character. The row's
   tooltip says that the skill has to be trained, and **Best set for** takes none of them.
+- For a hunter, thrown weapons start unticked as well, trained or not: a thrown weapon takes
+  the place of the bow or gun, which a hunter's shots need. Tick the type to see them.
 - A warrior or a paladin on the **Protection** profile starts on **One-hand, shield and
   off-hand**: the addon's weights for that profile are a shield tank's. Choose **Any** to see
   two-hand weapons as well. With Pawn or another addon scoring, everyone starts on **Any**.

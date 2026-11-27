@@ -36,6 +36,8 @@ local _, ns = ...
 --               trainer (Roster.Untrained). One not trained yet is left out until it is
 --               ticked, which says "offer me these, I will train"; once it is trained it is
 --               offered like any other; and what the player ticked or unticked stays so.
+--               One kind is left out until it is ticked although it is trained: a hunter's
+--               thrown weapons (see IDLE).
 -- ("Only what I can afford", "Top N per slot" and "Hide worse deals" are about the buyer:
 -- those are in ns.db.)
 --
@@ -218,17 +220,25 @@ function Wants.Hands(card)
     return "ANY", false
 end
 
+-- The kinds of weapon a class can train and has no use for: { class = { [weapon subclass] =
+-- true } }. A hunter's shots take a bow, a gun or a crossbow, and a thrown weapon goes where
+-- that is held: whatever its stats add up to, it is no upgrade to a hunter. Such a kind is
+-- unticked until the player ticks it, trained or not.
+local IDLE = { HUNTER = { [16] = true } }
+
 -- Is a kind of weapon left out for a character, by what is kept for the profile it is scored
 -- on (`kinds`, which may be nil)? As the player left its tick box, where the player has
--- touched it; otherwise a kind is out while the character has not trained it. Also returns
--- whether that is another answer than an untouched box gives.
+-- touched it; otherwise a kind is out while the character has not trained it, and where its
+-- class has no use for it (IDLE). Also returns whether that is another answer than an
+-- untouched box gives.
 local function Out(card, kinds, kind)
-    local untrained = ns.Roster.Untrained(card, kind)
+    local idle = IDLE[card.class or ""]
+    local off = ns.Roster.Untrained(card, kind) or (idle ~= nil and idle[kind] == true)
     local on
     if type(kinds) == "table" then on = kinds[kind] end
     -- (A card comes out of a saved file: what is neither is a box not touched.)
-    if on ~= true and on ~= false then return untrained, false end
-    return not on, on == untrained
+    if on ~= true and on ~= false then return off, false end
+    return not on, on == off
 end
 
 -- Is this kind of weapon one the character of a card is not to be offered, on the profile it

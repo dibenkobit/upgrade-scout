@@ -154,7 +154,8 @@ Von Hand:
   erlernt)** und hat kein Häkchen, bis du es setzt. Mit Häkchen stehen ihre Waffen trotzdem in
   der Liste, sofern nichts anderes sie deinem Charakter verwehrt, etwa die Stufe, die sie
   verlangen. Der Tooltip der Zeile sagt, dass die Fertigkeit erlernt werden muss. **Bestes Set
-  für** nimmt keine davon.
+  für** nimmt keine davon. Bei einem Jäger haben auch Wurfwaffen kein Häkchen, bis du es
+  setzt: Eine Wurfwaffe nimmt den Platz von Bogen oder Gewehr ein.
 - Ein Krieger oder Paladin mit dem Profil **Schutz** beginnt mit **Einhändig, Schild und
   Schildhand**, solange die Gewichte des Addons bewerten: Es sind die eines Tanks mit Schild.
   Wähle **Beliebig**, um auch Zweihandwaffen zu sehen.

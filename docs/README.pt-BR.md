@@ -150,7 +150,8 @@ Manualmente:
   do nome e fica desmarcado até você marcar. Marcado, as armas desse tipo aparecem na lista
   mesmo assim, a não ser que outra coisa impeça o seu personagem de usá-las, como o nível que
   elas pedem. A dica da linha diz que é preciso aprender a habilidade. **Melhor conjunto por**
-  não pega nenhuma delas.
+  não pega nenhuma delas. Para um caçador, as armas de arremesso também ficam desmarcadas até
+  você marcar: uma arma de arremesso ocupa o lugar do arco ou da arma de fogo.
 - Um guerreiro ou um paladino no perfil **Proteção** começa em **Uma mão, escudo e mão
   secundária** enquanto os pesos do addon avaliam: são os de um tanque com escudo. Escolha
   **Qualquer** para ver também as armas de duas mãos.
