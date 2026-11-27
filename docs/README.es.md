@@ -109,9 +109,14 @@ A mano:
   compra inmediata. Lo que puedes pagar y **Mejor conjunto por** siguen yendo por la compra
   inmediata: es lo que pagas.
 - **Top 5 por ranura** deja las cinco mayores mejoras de cada ranura, y además el **Más
-  rentable** cuando no está entre ellas. Desactívalo para ver todas las mejoras. Comprobar todos
-  sus precios tarda entonces más, hasta unos minutos en una casa de subastas con mucho
-  movimiento.
+  rentable** cuando no está entre ellas. Puedes escribir otro número en lugar del 5, del 1 al
+  99. Desactívalo para ver todas las mejoras. Comprobar todos sus precios tarda entonces más,
+  hasta unos minutos en una casa de subastas con mucho movimiento.
+- **Ocultar ofertas peores**, justo debajo, está desactivado hasta que lo marques. Omite un
+  objeto cuando otro más fuerte cuesta lo mismo o menos por punto. Lo que queda va de la
+  **Mayor mejora** hacia abajo, cada fila más barata por punto que la de encima. Si **Top 5
+  por ranura** también está marcado, sus mayores mejoras se toman de lo que queda. Con esta
+  casilla marcada se comprueban menos precios después de aparecer la lista.
 - **Mejora** dice cuánto mejor es un objeto que el que reemplaza, en porcentaje. **Nuevo**
   significa que la ranura está vacía. Los puntos, como `+6 pts`, significan que lo que llevas ahí
   no aporta nada a tu perfil.
@@ -126,14 +131,23 @@ A mano:
 - **Equipo de como mucho 10 niveles por debajo** está desactivado hasta que lo marques. Omite el
   equipo hecho para un nivel que quede más que ese número por debajo del de tu personaje.
   Puedes escribir otro número, del 1 al 59. Un escaneo con este filtro también se salta ese
-  equipo, así que es más corto: cuanto más alto es tu nivel, más ahorra. Si subes el número o
-  quitas la marca después de un escaneo, vuelve a escanear: la línea de estado dice desde qué
-  nivel leyó el último. Las flechas de las bolsas no se guían por este filtro.
+  equipo, así que es más corto: cuanto más alto es tu nivel, más ahorra. El equipo que no pide
+  nivel no se toca: aparece en la lista si es una mejora. Si subes el número o quitas la marca
+  después de un escaneo, vuelve a escanear: la línea de estado dice desde qué nivel leyó el
+  último. Las flechas de las bolsas no se guían por este filtro.
 - **Armas** abre un menú propio. **Cualquiera** ofrece armas de una mano y de dos manos por
   igual. **Dos manos** omite las armas de una mano, los escudos y los objetos de mano izquierda.
   **Una mano, escudo y mano izquierda** omite las armas de dos manos. Debajo hay una casilla por
   cada tipo de arma que tu clase puede usar: sin marcar, las armas de ese tipo se omiten. Las
   flechas de las bolsas también se guían por todo esto.
+- Cada perfil de un personaje tiene su propia elección y sus propias casillas en **Armas**: un
+  guerrero puede llevar armas de dos manos en Furia y un escudo en Protección. El menú lleva
+  por título el perfil que muestra, por ejemplo **Perfil: Protección**.
+- Un tipo de arma que tu personaje no ha aprendido lleva **(habilidad no aprendida)** tras su
+  nombre y está sin marcar hasta que lo marques. Marcado, sus armas aparecen en la lista
+  igualmente, salvo que otra cosa impida a tu personaje usarlas, como el nivel que piden. La
+  descripción emergente de la fila dice que hay que aprender la habilidad. **Mejor conjunto
+  por** no toma ninguna.
 - Un guerrero o un paladín con el perfil **Protección** empieza en **Una mano, escudo y mano
   izquierda** mientras puntúan los pesos del addon: son los de un tanque con escudo. Elige
   **Cualquiera** para ver también las armas de dos manos.
@@ -142,9 +156,10 @@ A mano:
   cada uno cuenta por lo que vale por sí solo, no frente al arma de dos manos. Cuando puntúa
   Forever Leveling BiS, un arma se sigue comparando con el arma de dos manos.
 - Cada personaje tiene su propia casilla **Mejor tipo de armadura de la clase**, su propio
-  número en **Mejora de al menos**, su propia suma en **Compra hasta**, su propia casilla y su
-  propio número en **Equipo de como mucho 10 niveles por debajo** y sus propias elecciones en
-  **Armas**. Cuando compras para otro personaje, ves y cambias los suyos.
+  número en **Mejora de al menos**, su propia suma en **Compra hasta**, y su propia casilla y
+  su propio número en **Equipo de como mucho 10 niveles por debajo**. Las elecciones en
+  **Armas** se guardan para cada uno de sus perfiles. Cuando compras para otro personaje, ves
+  y cambias los suyos.
 - Un `*` amarillo tras el nombre: el objeto tiene efectos que la puntuación no cuenta.
 - Las pociones de salud y de maná no tienen puntuación: ningún peso pone número a «restaura
   700 p. de salud».

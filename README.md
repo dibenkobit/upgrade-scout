@@ -122,8 +122,14 @@ To install by hand:
 - With **Value by net cost** ticked, **Best value** goes by the net cost, not the buyout. What you
   can afford, and **Best set for**, still go by the buyout: that is what you pay.
 - **Top 5 per slot** keeps the five biggest upgrades of each slot, and the **Best value** as
-  well when it is not one of them. Turn it off to see every upgrade. Checking all their prices
-  then takes longer, up to a few minutes on a busy auction house.
+  well when it is not one of them. Type another number in place of the 5, from 1 to 99. Turn
+  it off to see every upgrade. Checking all their prices then takes longer, up to a few
+  minutes on a busy auction house.
+- **Hide worse deals**, the box under it, is off until you tick it. It leaves out an item when
+  a stronger one costs the same or less per point. What stays goes from the **Best upgrade**
+  down, each row cheaper per point than the one above it. With **Top 5 per slot** ticked too,
+  its biggest upgrades are taken from what stays. With this box ticked, fewer prices are
+  checked after the list appears.
 - **Upgrade** is how much better an item is than the one it replaces, in percent. **New** means
   the slot is empty. Points, such as `+6 pts`, mean what you wear there adds nothing on your profile.
 - **Best armor type for the class** keeps the heaviest armor your character has learned to
@@ -136,13 +142,21 @@ To install by hand:
 - **Gear at most 10 levels below** is off until you tick it. It leaves out gear made for a
   level more than that many below your character's. Type another number, from 1 to 59. A scan
   with it on skips that gear too, so it is shorter: the higher your level, the more it saves.
-  If you raise the number or untick the box after a scan, scan again: the status line says
-  from which level the last scan read. The bag arrows do not go by this filter.
+  Gear that asks for no level is left alone: it is listed if it is an upgrade. If you raise
+  the number or untick the box after a scan, scan again: the status line says from which level
+  the last scan read. The bag arrows do not go by this filter.
 - **Weapons** opens a menu of its own. **Any** offers one-hand and two-hand weapons alike.
   **Two-hand** leaves out one-hand weapons, shields and off-hand items. **One-hand, shield and
   off-hand** leaves out two-hand weapons. Under them is a tick box for every type of weapon
   your class can use: untick one, and weapons of that type are left out. The bag arrows follow
   all of this.
+- Each profile of a character has its own choice and its own ticks under **Weapons**: a
+  warrior's Arms can take a two-hand weapon and its Protection a shield. The menu is headed by
+  the profile it shows, such as **Profile: Protection**.
+- A type of weapon your character has not trained has **(not trained)** after its name and is
+  unticked until you tick it. Ticked, its weapons are listed all the same, unless something
+  else keeps them from your character, such as the level they ask for. The row's tooltip says
+  that the skill has to be trained. **Best set for** takes none of them.
 - A warrior or a paladin on the **Protection** profile starts on **One-hand, shield and
   off-hand** while the addon's own weights score: those weights are a shield tank's. Choose
   **Any** to see two-hand weapons as well.
@@ -151,9 +165,9 @@ To install by hand:
   worth by itself, not against the two-hand weapon. With Forever Leveling BiS scoring, a
   weapon is still measured against the two-hand weapon.
 - Each character has its own **Best armor type for the class** box, its own **Upgrade at
-  least** number, its own **Buyout up to** sum, its own **Gear at most 10 levels below** box
-  and number, and its own choices under **Weapons**. When you shop for another character, you
-  see and set that character's.
+  least** number, its own **Buyout up to** sum, and its own **Gear at most 10 levels below**
+  box and number. The choices under **Weapons** are kept for each of its profiles. When you
+  shop for another character, you see and set that character's.
 - A yellow `*` after a name means the item has effects the score does not count, such as procs.
 - Health and mana potions have no score: no weight puts a number on "restores 700 health".
 - Boots "of the Tiger" and boots "of the Whale" are different items with different prices. The

@@ -115,9 +115,16 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
   non l'achat immédiat. Ce que vous pouvez payer et **Meilleur ensemble pour** suivent toujours
   l'achat immédiat : c'est ce que vous payez.
 - **Top 5 par emplacement** garde les cinq plus grandes améliorations de chaque emplacement, plus
-  la **Meilleure affaire** lorsqu'elle n'en fait pas partie. Désactivez-le pour voir toutes les
-  améliorations. Vérifier tous leurs prix dure alors plus longtemps, jusqu'à quelques minutes
-  dans un hôtel des ventes bien rempli.
+  la **Meilleure affaire** lorsqu'elle n'en fait pas partie. Vous pouvez saisir un autre nombre
+  à la place du 5, de 1 à 99. Désactivez-le pour voir toutes les améliorations. Vérifier tous
+  leurs prix dure alors plus longtemps, jusqu'à quelques minutes dans un hôtel des ventes bien
+  rempli.
+- **Masquer les moins bonnes affaires**, juste en dessous, est désactivé tant que vous ne
+  cochez pas la case. Il écarte un objet lorsqu'un objet plus puissant coûte autant ou moins
+  par point. Ce qui reste va de la **Meilleure amélioration** vers le bas, chaque ligne moins
+  chère par point que celle du dessus. Si **Top 5 par emplacement** est coché aussi, ses plus
+  grandes améliorations sont prises parmi ce qui reste. Avec cette case cochée, moins de prix
+  sont vérifiés après l'apparition de la liste.
 - **Amélioration** dit de combien l'objet est meilleur que celui qu'il remplace, en pour cent.
   **Nouveau** : l'emplacement est vide. Des points, comme `+6 pts` : ce que vous y portez
   n'apporte rien à votre profil.
@@ -133,14 +140,23 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
   case. Il écarte l'équipement prévu pour un niveau inférieur de plus que ce nombre à celui de
   votre personnage. Vous pouvez saisir un autre nombre, de 1 à 59. Un scan avec ce filtre saute
   lui aussi cet équipement, il est donc plus court : plus votre niveau est élevé, plus il y
-  gagne. Si vous augmentez le nombre ou décochez la case après un scan, relancez le scan : la
-  ligne d'état dit à partir de quel niveau le dernier scan a lu. Les flèches des sacs ne suivent
-  pas ce filtre.
+  gagne. L'équipement qui ne demande aucun niveau n'est pas concerné : il figure dans la liste
+  s'il est une amélioration. Si vous augmentez le nombre ou décochez la case après un scan,
+  relancez le scan : la ligne d'état dit à partir de quel niveau le dernier scan a lu. Les
+  flèches des sacs ne suivent pas ce filtre.
 - **Armes** ouvre son propre menu. **Toutes** propose les armes à une main comme les armes à
   deux mains. **Deux mains** écarte les armes à une main, les boucliers et les objets de main
   gauche. **Une main, bouclier et main gauche** écarte les armes à deux mains. En dessous, il y
   a une case pour chaque type d'arme que votre classe peut manier : case décochée, les armes de
   ce type sont écartées. Les flèches des sacs suivent tout cela.
+- Chaque profil d'un personnage a son propre choix et ses propres cases dans **Armes** : un
+  guerrier peut prendre les armes à deux mains en Fureur et un bouclier en Protection. Le menu
+  porte en tête le profil qu'il montre, par exemple **Profil : Protection**.
+- Un type d'arme que votre personnage n'a pas appris porte **(compétence non apprise)** après
+  son nom et reste décoché tant que vous ne le cochez pas. Coché, ses armes figurent quand même
+  dans la liste, sauf si autre chose les interdit à votre personnage, par exemple le niveau
+  qu'elles demandent. L'infobulle de la ligne dit que la compétence doit être apprise.
+  **Meilleur ensemble pour** n'en prend aucune.
 - Un guerrier ou un paladin sur le profil **Protection** commence sur **Une main, bouclier et
   main gauche** tant que ce sont les poids de l'addon qui évaluent : ce sont ceux d'un tank au
   bouclier. Choisissez **Toutes** pour voir aussi les armes à deux mains.
@@ -149,10 +165,10 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
   **Nouveau** : chacun compte pour ce qu'il vaut seul, et non par rapport à l'arme à deux
   mains. Quand Forever Leveling BiS évalue, une arme reste comparée à l'arme à deux mains.
 - Chaque personnage a sa propre case **Meilleur type d'armure pour la classe**, son propre
-  nombre pour **Amélioration d'au moins**, sa propre somme pour **Achat immédiat jusqu'à**, sa
-  propre case et son propre nombre pour **Équipement d'au plus 10 niveaux en dessous** et ses
-  propres choix dans **Armes**. Quand vous achetez pour un autre personnage, vous voyez et
-  réglez les siens.
+  nombre pour **Amélioration d'au moins**, sa propre somme pour **Achat immédiat jusqu'à**,
+  ainsi que sa propre case et son propre nombre pour **Équipement d'au plus 10 niveaux en
+  dessous**. Les choix dans **Armes** sont gardés pour chacun de ses profils. Quand vous
+  achetez pour un autre personnage, vous voyez et réglez les siens.
 - Un `*` jaune après un nom : l'objet a des effets que le score ne compte pas.
 - Les potions de vie et de mana n'ont pas de score : aucun poids ne chiffre « rend 700 points
   de vie ».

@@ -3,23 +3,31 @@
 ## 2.12.0
 
 - **Top 5 per slot** now shows the five biggest upgrades of each slot, and the **Best value** as
-  well when it is not one of them. Before, it kept only the items that cost less per point than
-  every stronger one, and that hid some of the strongest.
-- With more rows in the list, more prices are checked after it appears. You can buy meanwhile,
-  as before.
+  well when it is not one of them. Type another number in place of the 5, from 1 to 99.
+- **Hide worse deals**, a new box right under it, leaves out an item when a stronger one costs
+  the same or less per point. Until now **Top 5 per slot** did that, and it hid some of the
+  strongest upgrades. The box is off until you tick it. With both ticked, the biggest upgrades
+  are taken from what it leaves.
+- With more rows in the list, more prices are checked after it appears; with **Hide worse
+  deals** ticked, fewer. You can buy meanwhile, as before.
 - **Gear at most 10 levels below**, a new filter in the **Filters** menu of the Upgrades tab.
   Tick it, and the list leaves out gear made for a level more than ten below your character's.
-  Type another number, from 1 to 59, to move the line.
-- A scan with it on skips that gear too, so it takes less time: the higher your level, the more
-  it saves.
+  Type another number, from 1 to 59, to move the line. A scan with it on skips that gear too,
+  so it takes less time: the higher your level, the more it saves.
+- Gear that asks for no level is left alone: it is listed if it is an upgrade.
 - Each character has its own box and its own number. If you raise the number or untick the box
   after a scan, the status line says from which level that scan read, and to scan again.
 - **Weapons**, a new line in the **Filters** menu, says how your character fills its hands.
   **Two-hand** leaves out one-hand weapons, shields and off-hand items. **One-hand, shield and
   off-hand** leaves out two-hand weapons. **Any** offers both.
 - Under them is a tick box for every type of weapon your class can use. Untick a type, and it
-  is left out: a rogue who wants swords can untick daggers. Each character has its own choice
-  and its own ticks, and the bag arrows follow them.
+  is left out: a rogue who wants swords can untick daggers. The bag arrows follow all of it.
+- Each profile of a character has its own choice and its own ticks, Arms one and Protection
+  another. The menu is headed by the profile it shows, such as **Profile: Protection**.
+- A type your character has not trained says so, **(not trained)**, and starts unticked.
+  Before, its weapons were left out and nothing said why. Ticked, they are listed all the same
+  if nothing else, such as the level they ask for, keeps them from your character. The row's
+  tooltip says that the skill has to be trained, and **Best set for** takes none of them.
 - A warrior or a paladin on the **Protection** profile starts on **One-hand, shield and
   off-hand**: the addon's weights for that profile are a shield tank's. Choose **Any** to see
   two-hand weapons as well. With Pawn or another addon scoring, everyone starts on **Any**.

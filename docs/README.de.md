@@ -112,9 +112,15 @@ Von Hand:
   Nettokosten statt nach dem Sofortkauf. Was du dir leisten kannst und **Bestes Set für** richten
   sich weiter nach dem Sofortkauf: Den zahlst du.
 - **Top 5 pro Slot** behält die fünf größten Verbesserungen jedes Slots und zusätzlich die
-  **Beste Preis-Leistung**, wenn sie nicht darunter ist. Schalte es aus, um jede Verbesserung zu
-  sehen. Alle Preise zu prüfen dauert dann länger, in einem vollen Auktionshaus bis zu ein paar
-  Minuten.
+  **Beste Preis-Leistung**, wenn sie nicht darunter ist. Statt der 5 kannst du eine andere Zahl
+  eintippen, von 1 bis 99. Schalte es aus, um jede Verbesserung zu sehen. Alle Preise zu prüfen
+  dauert dann länger, in einem vollen Auktionshaus bis zu ein paar Minuten.
+- **Schlechtere Angebote ausblenden**, das Häkchen direkt darunter, ist aus, bis du es setzt.
+  Es lässt einen Gegenstand weg, wenn ein stärkerer pro Punkt gleich viel oder weniger kostet.
+  Was bleibt, reicht von **Beste Verbesserung** abwärts, jede Zeile pro Punkt günstiger als die
+  darüber. Ist auch **Top 5 pro Slot** angehakt, werden dessen größte Verbesserungen aus dem
+  genommen, was bleibt. Mit diesem Häkchen werden weniger Preise geprüft, nachdem die Liste
+  erschienen ist.
 - **Verbesserung** zeigt in Prozent, wie viel besser ein Gegenstand ist als der, den er ersetzt.
   **Neu** heißt: Der Slot ist leer. Punkte wie `+6 Pkt.` heißen: Was du dort trägst, bringt
   deinem Profil nichts.
@@ -130,14 +136,23 @@ Von Hand:
   lässt Ausrüstung weg, die für eine Stufe gemacht ist, die um mehr als diese Zahl unter der
   deines Charakters liegt. Du kannst eine andere Zahl eintippen, von 1 bis 59. Ein Scan mit
   diesem Filter überspringt solche Ausrüstung ebenfalls und ist deshalb kürzer: je höher deine
-  Stufe, desto mehr spart er. Erhöhst du nach einem Scan die Zahl oder entfernst das Häkchen,
-  scanne erneut: Die Statuszeile sagt, ab welcher Stufe der letzte Scan gelesen hat. Die Pfeile
-  in den Taschen richten sich nicht nach diesem Filter.
+  Stufe, desto mehr spart er. Ausrüstung, die keine Stufe verlangt, lässt der Filter in Ruhe:
+  Sie steht in der Liste, wenn sie eine Verbesserung ist. Erhöhst du nach einem Scan die Zahl
+  oder entfernst das Häkchen, scanne erneut: Die Statuszeile sagt, ab welcher Stufe der letzte
+  Scan gelesen hat. Die Pfeile in den Taschen richten sich nicht nach diesem Filter.
 - **Waffen** öffnet ein eigenes Menü. **Beliebig** zeigt Einhand- und Zweihandwaffen
   gleichermaßen. **Zweihändig** lässt Einhandwaffen, Schilde und Gegenstände für die Schildhand
   weg. **Einhändig, Schild und Schildhand** lässt Zweihandwaffen weg. Darunter steht ein Häkchen
   für jede Waffenart, die deine Klasse führen kann: Ohne Häkchen bleiben Waffen dieser Art weg.
   Die Pfeile in den Taschen richten sich ebenfalls nach alldem.
+- Jedes Profil eines Charakters hat unter **Waffen** seine eigene Auswahl und seine eigenen
+  Häkchen: Ein Krieger kann mit Furor Zweihandwaffen nehmen und mit Schutz einen Schild. Über
+  dem Menü steht das Profil, das es zeigt, etwa **Profil: Schutz**.
+- Eine Waffenart, die dein Charakter nicht erlernt hat, trägt hinter ihrem Namen **(nicht
+  erlernt)** und hat kein Häkchen, bis du es setzt. Mit Häkchen stehen ihre Waffen trotzdem in
+  der Liste, sofern nichts anderes sie deinem Charakter verwehrt, etwa die Stufe, die sie
+  verlangen. Der Tooltip der Zeile sagt, dass die Fertigkeit erlernt werden muss. **Bestes Set
+  für** nimmt keine davon.
 - Ein Krieger oder Paladin mit dem Profil **Schutz** beginnt mit **Einhändig, Schild und
   Schildhand**, solange die Gewichte des Addons bewerten: Es sind die eines Tanks mit Schild.
   Wähle **Beliebig**, um auch Zweihandwaffen zu sehen.
@@ -146,10 +161,10 @@ Von Hand:
   Jeder zählt für sich, nicht im Vergleich zur Zweihandwaffe. Bewertet Forever Leveling BiS,
   wird eine Waffe weiterhin mit der Zweihandwaffe verglichen.
 - Jeder Charakter hat sein eigenes Häkchen **Beste Rüstungsart für die Klasse**, seine eigene
-  Zahl bei **Verbesserung ab**, seinen eigenen Betrag bei **Sofortkauf bis**, sein eigenes
-  Häkchen und seine eigene Zahl bei **Ausrüstung höchstens 10 Stufen darunter** und seine
-  eigene Auswahl unter **Waffen**. Kaufst du für einen anderen Charakter ein, siehst und
-  änderst du dessen Einstellungen.
+  Zahl bei **Verbesserung ab**, seinen eigenen Betrag bei **Sofortkauf bis** sowie sein eigenes
+  Häkchen und seine eigene Zahl bei **Ausrüstung höchstens 10 Stufen darunter**. Die Auswahl
+  unter **Waffen** wird für jedes seiner Profile einzeln gemerkt. Kaufst du für einen anderen
+  Charakter ein, siehst und änderst du dessen Einstellungen.
 - Ein gelbes `*` hinter dem Namen heißt: Der Gegenstand hat Effekte, die die Wertung nicht mitzählt.
 - Heil- und Manatränke haben keine Wertung: Kein Gewicht macht aus „stellt 700 Gesundheit wieder her“
   eine Zahl.
