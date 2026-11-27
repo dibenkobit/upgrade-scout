@@ -834,7 +834,7 @@ end
 --   dropdown.buttons  the lines that do something when clicked, or open a menu of their own
 --                     (root:CreateButton)
 --   dropdown.elements all of the menu's lines, its rules among them, in their order; each
---                     says what it is (`kind`: "radio", "check", "button", "rule")
+--                     says what it is (`kind`: "radio", "check", "button", "rule", "title")
 --   dropdown.lines    while the menu is open (dropdown:Open), the frames the game made for
 --                     the lines with a tick box, in their order: see MenuLine
 --   dropdown.all      and those it made for all the lines, as `elements` has them
@@ -908,7 +908,7 @@ local function DropdownModel(dropdown)
         --   holder.elements   its lines, the rules among them, in their order
         local Holder
         Holder = function(holder)
-            holder.radios, holder.checks, holder.buttons, holder.rules = {}, {}, {}, {}
+            holder.radios, holder.checks, holder.buttons, holder.rules, holder.titles = {}, {}, {}, {}, {}
             holder.dividers, holder.dividersAfter, holder.elements = 0, {}, {}
             local function Add(self, list, kind, entry)
                 entry.kind = kind
@@ -935,6 +935,13 @@ local function DropdownModel(dropdown)
             end
             -- A line across the menu; `dividersAfter` says which radio each one follows, the
             -- rule's `afterCheck` which tick box.
+            -- A line that only says something, at the head of what follows it: no click, no
+            -- mark (MenuUtil.CreateTitle; the game draws its words in the colour given, or
+            -- in its own yellow).
+            function holder:CreateTitle(text, color)
+                assert(type(text) == "string" and (color == nil or type(color) == "table"), "a title, and a colour or none")
+                return Add(self, self.titles, "title", Holder(Description({ text = text })))
+            end
             function holder:CreateDivider()
                 self.dividers = self.dividers + 1
                 self.dividersAfter[#self.dividersAfter + 1] = #self.radios
@@ -1014,6 +1021,10 @@ local function DropdownModel(dropdown)
         line._strata, line._level = "FULLSCREEN_DIALOG", 520
         if entry.kind == "rule" then
             line.divider = line:AttachTexture()
+        elseif entry.kind == "title" then
+            line.fontString = line:AttachFontString()
+            line.fontString:SetTextToFit(entry.text)
+            line.fontString:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
         else
             local marks = MARKS[entry.kind]
             if #entry.elements > 0 then line.arrow = line:AttachTexture() end

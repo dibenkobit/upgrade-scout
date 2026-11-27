@@ -20,8 +20,10 @@ local L = ns.L
 -- Most of the filters of gear are kept with the character the list is for: every character
 -- has its own, whichever character of the account shops for it (see Wants.lua). They are
 -- about that character, its armor, the least gain, the levels below its own and its weapons;
--- and one is the most to pay for one item for it. The others are the player's (ns.db), the
--- number of "Top N per slot" with them.
+-- and one is the most to pay for one item for it. What it wants of its weapons is kept for
+-- each of its profiles by itself: the menu shows, and changes, what is kept for the profile
+-- the list is made on. The others are the player's (ns.db), the number of "Top N per slot"
+-- with them.
 local Filters = {}
 ns.Filters = Filters
 
@@ -490,6 +492,9 @@ end
 
 -- The line "Weapons". It opens a menu of its own beside it, with what the character the list
 -- is for is to be offered for its hands (Wants.lua):
+--   * at its head, whose choice it is: "Profile: Protection". The choice is kept for each
+--     profile of the character by itself, and the menu is that of the profile the list is
+--     made on: with another profile chosen in the profile field it is another's.
 --   * how it fills them, one of three: any way; with a two-hander; with a weapon for one
 --     hand and a shield, a held item or a second weapon beside it. Until the player chooses,
 --     the profile does (Wants.Hands), and the line it chose is the one marked: its tooltip
@@ -533,10 +538,19 @@ local function Indent(button)
     words:SetPoint("LEFT", button, "LEFT", BOX_WIDTH + 7, 0)
 end
 
+-- The line that heads that menu is no line to click: the game draws it in its own yellow
+-- (MenuUtil.CreateTitle), and here it gets the ink of what is said beside our fields.
+local function Heading(frame)
+    local words = frame.fontString
+    if words then words:SetTextColor(SOFT[1], SOFT[2], SOFT[3]) end
+end
+
 local function AddWeapons(root, owner)
     local menu = root:CreateButton(L.WEAPONS)
     menu:AddInitializer(Widgets.SkinMenuLine)
     menu:AddInitializer(Indent)
+    local scored = ns.Score.Current(owner)
+    if scored then menu:CreateTitle(L.WEAPONS_FOR:format(scored.title)):AddInitializer(Heading) end
     for _, hands in ipairs(ns.Wants.HANDS) do
         local text = L["HANDS_" .. hands]
         local line = menu:CreateRadio(text, HandsAre, SetHands, hands)

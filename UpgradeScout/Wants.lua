@@ -18,13 +18,18 @@ local _, ns = ...
 --   maxBelowOn  true while that is asked for. The number stays when its box is unticked.
 --               This one is also about the scan: gear that is not to be offered is not asked
 --               of the auction house, and the scan is the shorter for it (see Scanner.lua).
---   hands      how it fills its hands: "TWO", with a two-hander, and then weapons for one
+--   byProfile   what it wants of its weapons, which goes with the way it is played: a warrior
+--               wants a two-hander on Arms and a shield on Protection, a rogue swords on
+--               Combat and daggers on Subtlety. So that is kept for each of its profiles by
+--               itself, { [the profile's key, see Wants.ProfileKey] = { hands, kinds } }, and
+--               what is asked of its gear is what is kept for the profile it is scored on:
+--     hands     how it fills its hands: "TWO", with a two-hander, and then weapons for one
 --               hand, shields and what is held in the off hand are left out; "ONE", with a
 --               weapon for one hand and a shield, a held item or a second weapon beside it,
 --               and then two-handers are left out; "ANY", either way. nil until the player
 --               chooses: the profile then says (see Wants.Hands).
---   weaponsOut  { [weapon subclass] = true } for the kinds of weapon it is not to be offered:
---               a rogue that fights with swords leaves the daggers and the maces out.
+--     kinds     { [weapon subclass] = false } for the kinds of weapon it is not to be
+--               offered: a rogue that fights with swords leaves the daggers and the maces out.
 -- ("Only what I can afford", "Top N per slot" and "Hide worse deals" are about the buyer:
 -- those are in ns.db.)
 --
@@ -149,15 +154,57 @@ function Wants.WeaponOf(classID, subClassID)
     return nil
 end
 
--- How the character of a card fills its hands: "ANY", "TWO" or "ONE". Its own choice where it
--- has made one, "ANY" among them: a choice stands whatever the profile. Until then "ONE" on
--- a profile of a shield tank, while the addon's own weights score, and "ANY" otherwise:
--- another addon that scores has its own say on the hands (see Compare.Places), and this one
--- adds none to it unasked. Also returns whether it is the character's own choice.
+-- The profile the character of a card is scored on (Score.Current), as the key its choice of
+-- weapons is kept under: who scores, and the profile's name there. "own:WARRIOR_PROTECTION"
+-- is a profile of the addon's own, "pawn:..." a Pawn scale, "companion:..." a scale of Forever
+-- Companion; so a scale that happens to be named as another addon's is still another key.
+-- Forever Leveling BiS and GearQuest name a profile one way for the character being played
+-- and another for the same character seen from an alt (Leveling.lua, GearQuest.lua), and the
+-- choice is the character's whoever shops for it: theirs go by the spec, which is the same
+-- from both sides ("leveling:fury", "gearquest:combat").
+local BY_SPEC = { leveling = true, gearquest = true }
+
+function Wants.ProfileKey(card)
+    local engine = ns.Score.Engine()
+    local profile = ns.Score.Current(card)
+    local id = profile and profile.name
+    if engine and BY_SPEC[engine] and profile and type(profile.spec) == "string" then id = profile.spec end
+    -- (No profile to score on is a key like any other: a choice made then is kept, for then.)
+    return (engine or "own") .. ":" .. (type(id) == "string" and id or "")
+end
+
+-- What is kept on a card for the profile it is scored on: { hands, kinds }; nil when nothing
+-- is. (A card comes out of a saved file: what is no table there says nothing.)
+function Wants.Kept(card)
+    local all = card.byProfile
+    if type(all) ~= "table" then return nil end
+    local kept = all[Wants.ProfileKey(card)]
+    return type(kept) == "table" and kept or nil
+end
+
+-- The same to write into: made where there is none, and over what is no table.
+local function Keeping(card)
+    if type(card.byProfile) ~= "table" then card.byProfile = {} end
+    local key = Wants.ProfileKey(card)
+    local kept = card.byProfile[key]
+    if type(kept) ~= "table" then
+        kept = {}
+        card.byProfile[key] = kept
+    end
+    return kept
+end
+
+-- How the character of a card fills its hands: "ANY", "TWO" or "ONE". Its own choice for the
+-- profile it is scored on, where it has made one, "ANY" among them: a choice stands whatever
+-- the profile would say. Until then "ONE" on a profile of a shield tank, while the addon's own
+-- weights score, and "ANY" otherwise: another addon that scores has its own say on the hands
+-- (see Compare.Places), and this one adds none to it unasked. Also returns whether it is the
+-- character's own choice.
 -- (A card comes out of a saved file: what is none of the three is no choice.)
 function Wants.Hands(card)
     if not card then return "ANY", false end
-    if IS_HANDS[card.hands] then return card.hands, true end
+    local kept = Wants.Kept(card)
+    if kept and IS_HANDS[kept.hands] then return kept.hands, true end
     if not ns.Score.Engine() then
         local profile = ns.Score.Current(card)
         if profile and SHIELD_TANK[profile.name] then return "ONE", false end
@@ -165,18 +212,22 @@ function Wants.Hands(card)
     return "ANY", false
 end
 
--- Is this kind of weapon one the character of a card is not to be offered?
+-- Is this kind of weapon one the character of a card is not to be offered, on the profile it
+-- is scored on?
 function Wants.KindOut(card, kind)
-    return type(card.weaponsOut) == "table" and card.weaponsOut[kind] == true
+    local kept = Wants.Kept(card)
+    return kept ~= nil and type(kept.kinds) == "table" and kept.kinds[kind] == false
 end
 
 -- The kinds its class can ever wield that it is not to be offered: { [weapon subclass] =
 -- true }, and how many they are. What its card says of any other kind is passed over.
 function Wants.KindsOut(card)
     local out, count = {}, 0
-    if type(card.weaponsOut) ~= "table" then return out, count end
+    local kept = Wants.Kept(card)
+    local kinds = kept and kept.kinds
+    if type(kinds) ~= "table" then return out, count end
     for _, weapon in ipairs(ns.Roster.WeaponKinds(card.class)) do
-        if card.weaponsOut[weapon.kind] == true then
+        if kinds[weapon.kind] == false then
             out[weapon.kind] = true
             count = count + 1
         end
@@ -293,20 +344,23 @@ function Wants.SetBelow(card, on, levels)
     card.maxBelowOn = on and true or nil
 end
 
+-- The two about its weapons are written down for the profile the character is scored on, and
+-- no other profile of its is any the different for them.
 -- hands: one of Wants.HANDS. "ANY" is written down like the other two: it is a choice, and
 -- holds where the profile would say otherwise.
 function Wants.SetHands(card, hands)
     if not IS_HANDS[hands] then return end
-    card.hands = hands
+    Keeping(card).hands = hands
     ns.Fire("WANTS_CHANGED", card)
 end
 
 -- kind: a weapon subclass; on: the character is to be offered it.
 function Wants.SetKind(card, kind, on)
-    local out = type(card.weaponsOut) == "table" and card.weaponsOut or {}
-    out[kind] = not on and true or nil
+    local kept = Keeping(card)
+    local kinds = type(kept.kinds) == "table" and kept.kinds or {}
+    if on then kinds[kind] = nil else kinds[kind] = false end
     -- (No kind left out is no table: a card says nothing of what is as it was made.)
-    card.weaponsOut = next(out) ~= nil and out or nil
+    kept.kinds = next(kinds) ~= nil and kinds or nil
     ns.Fire("WANTS_CHANGED", card)
 end
 

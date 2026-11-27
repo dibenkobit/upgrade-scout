@@ -32,9 +32,8 @@ local _, ns = ...
 --               scored on while none is chosen
 --   armorOnly, minGain, minGainOn, maxBelow, maxBelowOn
 --               what it wants of its gear: the list's filters that are its own (see Wants.lua)
---   hands, weaponsOut
---               what it wants of its weapons: how it fills its hands, and the kinds of weapon
---               it is not to be offered (see Wants.lua)
+--   byProfile   what it wants of its weapons, for each of its profiles by itself: how it fills
+--               its hands, and the kinds of weapon it is not to be offered (see Wants.lua)
 --   maxPrice, maxPriceOn
 --               the most to pay for one item for it: "Buyout up to" (see Wants.lua)
 --   seen        when it was last written down (time())

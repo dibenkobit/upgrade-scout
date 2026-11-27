@@ -255,8 +255,20 @@ local function WeaponsMenu()
         if field._open then field:Close() end
         return seen
     end
-    -- Its lines, with their marks.
-    function menu:Lines() return Look(function(_, sub) return MenuLines(sub.elements, true) end) end
+    -- Its lines, with their marks: those under the line that heads it.
+    function menu:Lines()
+        return Look(function(_, sub)
+            local lines = {}
+            for _, line in ipairs(sub.elements) do
+                if line.kind ~= "title" then lines[#lines + 1] = line end
+            end
+            return MenuLines(lines, true)
+        end)
+    end
+    -- The line that heads it, which says whose choice the menu shows; nil where it has none.
+    function menu:Head()
+        return Look(function(_, sub) return sub.elements[1].kind == "title" and sub.elements[1].text or nil end)
+    end
     -- A click on a line, by its label.
     function menu:Click(label, keep)
         Look(function(field, sub)
@@ -285,6 +297,24 @@ local function WeaponsMenu()
         end)
     end
     return menu
+end
+
+-- What a card keeps of its weapons for the profile it is scored on (Wants.lua): { hands,
+-- kinds }, and an empty table where it keeps nothing.
+local function Chosen(card)
+    return ns.Wants.Kept(card) or {}
+end
+
+-- Writes that on a card as a saved file would have it: `hands`, and the kinds of `out`
+-- unticked. Returns the card.
+local function Keep(card, hands, out)
+    local kinds
+    for _, kind in ipairs(out or {}) do
+        kinds = kinds or {}
+        kinds[kind] = false
+    end
+    card.byProfile = { [ns.Wants.ProfileKey(card)] = { hands = hands, kinds = kinds } }
+    return card
 end
 
 -- A level 10 warrior with a chest (score 10), one ring (score 4) and a one-hand sword (score 20).
@@ -14083,7 +14113,7 @@ function scenarios.weapons()
     -- On a profile of a shield tank a character that has not chosen is offered one hand.
     warrior.profile = "WARRIOR_PROTECTION"
     eq(Hands(warrior), "ONE", "a warrior on Protection: a weapon for one hand and a shield, by the profile")
-    eq(Wants.Of(warrior).hands, "ONE", "which is asked of its gear"); eq(warrior.hands, nil, "and not written down as its choice")
+    eq(Wants.Of(warrior).hands, "ONE", "which is asked of its gear"); eq(warrior.byProfile, nil, "and not written down as its choice")
     warrior.profile, warrior.talents = nil, "WARRIOR_PROTECTION"
     eq(Hands(warrior), "ONE", "the same where the profile is the one its talents are in")
     local paladin = { class = "PALADIN", level = 17 }
@@ -14110,26 +14140,46 @@ function scenarios.weapons()
     eq(table.concat(tanks, " "), "PALADIN_PROTECTION WARRIOR_PROTECTION", "of the addon's own profiles, a warrior's and a paladin's Protection, and no other")
     -- A choice stands whatever the profile, "Any" among them.
     Wants.SetHands(paladin, "ANY")
-    eq(paladin.hands, "ANY", "any way, chosen: written on the card"); eq(Hands(paladin), "ANY (chosen)", "and it holds on Protection")
+    eq(Chosen(paladin).hands, "ANY", "any way, chosen: written on the card"); eq(Hands(paladin), "ANY (chosen)", "and it holds on Protection")
+    eq(Wants.ProfileKey(paladin), "own:PALADIN_PROTECTION", "it is kept for the profile it was made on: the addon's own Protection")
+    eq(paladin.byProfile["own:PALADIN_PROTECTION"].hands, "ANY", "under that name on the card")
     eq(Wants.Of(paladin), nil, "nothing is asked")
     Wants.SetHands(paladin, "TWO")
     eq(Hands(paladin), "TWO (chosen)", "a two-hander, chosen"); eq(Wants.Of(paladin).hands, "TWO", "is asked for")
     Wants.SetHands(paladin, "ONE")
     eq(Hands(paladin), "ONE (chosen)", "one hand, chosen: the same as the profile says, and now the character's own")
-    paladin.talents = "PALADIN_RETRIBUTION"
-    eq(Hands(paladin), "ONE (chosen)", "it stays when the talents go elsewhere")
     eq(#told, 3, "the addon is told of each choice"); eq(told[3], paladin, "and whose it is")
     Wants.SetHands(paladin, "BOTH")
-    eq(paladin.hands, "ONE", "what is none of the three is no choice"); eq(#told, 3, "and nothing is told")
-    check(Wants.Of(paladin) == Wants.Of({ class = "WARRIOR", level = 60, hands = "ONE" }), "the same wants are one table")
+    eq(Chosen(paladin).hands, "ONE", "what is none of the three is no choice"); eq(#told, 3, "and nothing is told")
+    check(Wants.Of(paladin) == Wants.Of(Keep({ class = "WARRIOR", level = 60 }, "ONE")), "the same wants are one table")
     check(Wants.Of(paladin) == Wants.Of(warrior), "whether the player chose them or the profile did")
-    check(Wants.Of(paladin) ~= Wants.Of({ class = "WARRIOR", level = 60, hands = "TWO" }), "and other wants another")
+    check(Wants.Of(paladin) ~= Wants.Of(Keep({ class = "WARRIOR", level = 60 }, "TWO")), "and other wants another")
+    -- The choice is the profile's it was made on. With its talents elsewhere the paladin is
+    -- on another profile, which has none; one made there is that profile's, and Protection
+    -- has its own when the paladin is back on it.
+    paladin.talents = "PALADIN_RETRIBUTION"
+    eq(Hands(paladin), "ANY", "on Retribution nothing is chosen: one hand was Protection's choice"); eq(Wants.Of(paladin), nil, "and nothing is asked")
+    Wants.SetHands(paladin, "TWO")
+    Wants.SetKind(paladin, 7, false)
+    eq(Hands(paladin), "TWO (chosen)", "a two-hander, chosen on Retribution"); eq(Wants.KindOut(paladin, 7), true, "and no swords")
+    paladin.talents = "PALADIN_PROTECTION"
+    eq(Hands(paladin), "ONE (chosen)", "on Protection again: one hand, as chosen there"); eq(Wants.KindOut(paladin, 7), false, "and swords, which were unticked on Retribution alone")
+    paladin.profile = "PALADIN_RETRIBUTION"
+    eq(Hands(paladin), "TWO (chosen)", "Retribution chosen in the profile field, and not by the talents: its own choice all the same")
+    eq(Wants.Of(paladin).kinds[7], true, "with its kinds")
+    paladin.profile = nil
+    Wants.SetKind(paladin, 7, true)
+    eq(Wants.KindOut(paladin, 7), false, "a kind ticked on Protection, where it was ticked already, changes nothing")
+    paladin.talents = "PALADIN_RETRIBUTION"
+    eq(Wants.KindOut(paladin, 7), true, "nor on Retribution, where it is unticked still")
+    paladin.talents = "PALADIN_PROTECTION"
+    told = { 1, 2, 3 }
 
     -- The kinds of weapon: all are offered until one is unticked.
     local rogue = { class = "ROGUE", level = 20 }
     eq(Wants.Of(rogue), nil, "a rogue with every kind ticked asks for nothing"); eq(Wants.KindOut(rogue, 15), false, "daggers are offered")
     Wants.SetKind(rogue, 15, false)
-    eq(rogue.weaponsOut[15], true, "daggers unticked: written on the card"); eq(Wants.KindOut(rogue, 15), true, "and left out")
+    eq(Chosen(rogue).kinds[15], false, "daggers unticked: written on the card"); eq(Wants.KindOut(rogue, 15), true, "and left out")
     eq(Wants.Of(rogue).kinds[15], true, "which is asked of its gear"); eq(Wants.Of(rogue).kinds[7], nil, "swords are not left out")
     eq(Wants.Of(rogue).hands, nil, "and the hands are filled any way")
     eq(#told, 4, "the addon is told")
@@ -14137,9 +14187,9 @@ function scenarios.weapons()
     Wants.SetKind(rogue, 4, false)
     local _, out = Wants.KindsOut(rogue)
     eq(out, 3, "three kinds left out")
-    check(Wants.Of(rogue) == Wants.Of({ class = "ROGUE", level = 5, weaponsOut = { [4] = true, [0] = true, [15] = true } }),
+    check(Wants.Of(rogue) == Wants.Of(Keep({ class = "ROGUE", level = 5 }, nil, { 4, 0, 15 })),
         "the same kinds left out are the same wants, in whatever order they were unticked")
-    check(Wants.Of(rogue) ~= Wants.Of({ class = "ROGUE", level = 5, weaponsOut = { [4] = true, [0] = true } }), "and others are not")
+    check(Wants.Of(rogue) ~= Wants.Of(Keep({ class = "ROGUE", level = 5 }, nil, { 4, 0 })), "and others are not")
     local wants = Wants.Of(rogue)
     eq(Wants.Fits(wants, { invType = "INVTYPE_WEAPON", weapon = 15 }), false, "a dagger does not fit")
     eq(Wants.Fits(wants, { invType = "INVTYPE_WEAPON", weapon = 7 }), true, "a sword does")
@@ -14154,15 +14204,15 @@ function scenarios.weapons()
     Wants.SetKind(rogue, 15, true)
     Wants.SetKind(rogue, 0, true)
     Wants.SetKind(rogue, 4, true)
-    eq(rogue.weaponsOut, nil, "all ticked again: the card says nothing of it"); eq(Wants.Of(rogue), nil, "and nothing is asked")
+    eq(Chosen(rogue).kinds, nil, "all ticked again: the card says nothing of it"); eq(Wants.Of(rogue), nil, "and nothing is asked")
     -- A kind that is none of the class's own has no say, whatever a card says of it.
-    rogue.weaponsOut = { [10] = true, [19] = true }
+    Keep(rogue, nil, { 10, 19 })
     eq(Wants.Of(rogue), nil, "a rogue's card with staves and wands left out asks for nothing")
-    rogue.weaponsOut = { [10] = true, [7] = true }
+    Keep(rogue, nil, { 10, 7 })
     _, out = Wants.KindsOut(rogue)
     eq(out, 1, "of staves and swords, the swords count"); eq(Wants.Of(rogue).kinds[10], nil, "alone")
     -- Everything at once: the armor, the gain, the hands and the kinds.
-    local all = { class = "WARRIOR", level = 10, armorOnly = true, minGainOn = true, minGain = 25, hands = "ONE", weaponsOut = { [15] = true } }
+    local all = Keep({ class = "WARRIOR", level = 10, armorOnly = true, minGainOn = true, minGain = 25 }, "ONE", { 15 })
     wants = Wants.Of(all)
     eq(wants.armor, 3, "all four at once: mail"); eq(wants.gain, 25, "a quarter"); eq(wants.hands, "ONE", "one hand"); eq(wants.kinds[15], true, "no daggers")
     eq(Wants.Fits(wants, { invType = "INVTYPE_CHEST", armor = 2 }), false, "each leaves out its own: leather")
@@ -14173,30 +14223,47 @@ function scenarios.weapons()
     -- A card comes out of a saved file: whatever is written there, nothing breaks, and what
     -- is no choice is none.
     local junk = { 5, 0, true, false, "one", "any", "", {}, { "ONE" }, function() end }
+    -- The nonsense in each place a choice is kept in: for the whole of what the card keeps
+    -- by profile, for what it keeps for the one profile, and for the two things kept there.
+    local places = { "all it keeps by profile", "what it keeps for the profile", "a choice" }
     for i = 1, #junk do
-        local card = { class = "WARRIOR", level = 10, hands = junk[i], weaponsOut = junk[i] }
-        eq(Hands(card), "ANY", "a card with a " .. type(junk[i]) .. " for a choice: any way")
-        eq(Wants.Of(card), nil, "and nothing asked"); eq(Wants.KindOut(card, 7), false, "no kind left out")
-        card.talents = "WARRIOR_PROTECTION"
-        eq(Hands(card), "ONE", "and the profile has its say, as with no choice")
-        Wants.SetKind(card, 7, false)
-        eq(Wants.KindOut(card, 7), true, "a kind unticked on such a card is left out")
-        Wants.SetKind(card, 7, true)
-        eq(Wants.KindOut(card, 7), false, "and ticked again is not")
+        for place = 1, #places do
+            local card = { class = "WARRIOR", level = 10, talents = "WARRIOR_PROTECTION" }
+            local key = Wants.ProfileKey(card)
+            if place == 1 then
+                card.byProfile = junk[i]
+            elseif place == 2 then
+                card.byProfile = { [key] = junk[i], [junk[i]] = junk[i] }
+            else
+                card.byProfile = { [key] = { hands = junk[i], kinds = junk[i] } }
+            end
+            local what = "a card with a " .. type(junk[i]) .. " for " .. places[place]
+            eq(Hands(card), "ONE", what .. ": the profile has its say, as with no choice")
+            eq(Wants.Of(card).kinds, nil, "no kind is left out"); eq(Wants.KindOut(card, 7), false, "asked of one or of all")
+            Wants.SetKind(card, 7, false)
+            eq(Wants.KindOut(card, 7), true, "a kind unticked on such a card is left out")
+            Wants.SetKind(card, 7, true)
+            eq(Wants.KindOut(card, 7), false, "and ticked again is not")
+            Wants.SetHands(card, "TWO")
+            eq(Hands(card), "TWO (chosen)", "and a choice of hands is written over the nonsense")
+        end
     end
-    local odd = { class = "WARRIOR", level = 10, weaponsOut = { [7] = "yes", [15] = 1, [0] = false, [1] = true, [99] = true, swords = true, [1.5] = true } }
+    local odd = { class = "WARRIOR", level = 10 }
+    odd.byProfile = { [Wants.ProfileKey(odd)] = { kinds = { [7] = "no", [15] = 0, [0] = true, [1] = false, [99] = false, swords = false, [1.5] = false } } }
     _, out = Wants.KindsOut(odd)
     eq(out, 1, "only a kind of the class that is plainly left out counts"); eq(Wants.Of(odd).kinds[1], true, "the two-handed axes")
-    eq(Wants.Of({ level = 10, hands = "TWO", weaponsOut = { [7] = true } }).hands, "TWO", "a card without a class: its choice of hands holds")
-    eq(Wants.Of({ level = 10, weaponsOut = { [7] = true } }), nil, "and no kind is its class's to leave out")
+    eq(Wants.Of(Keep({ level = 10 }, "TWO", { 7 })).hands, "TWO", "a card without a class: its choice of hands holds")
+    eq(Wants.Of(Keep({ level = 10 }, nil, { 7 })), nil, "and no kind is its class's to leave out")
+    -- What a build that was never given out wrote beside the card's other filters is no choice.
+    eq(Wants.Of({ class = "WARRIOR", level = 10, hands = "TWO", weaponsOut = { [7] = true } }), nil, "a choice written on the card itself, and under no profile, says nothing")
 
     -- The same from the file itself: the character being played logs in to a card with
     -- nonsense on it, and scans.
     local me = Roster.Me()
-    me.hands, me.weaponsOut = { 1, 2 }, "none"
+    me.byProfile = { [Wants.ProfileKey(me)] = { hands = { 1, 2 }, kinds = "none" }, other = 5, [7] = "ONE" }
     Relog(W.player, W.equipped)
     me = ns.Roster.Me()
-    eq(type(me.hands), "table", "the nonsense is on the card still")
+    eq(type(Chosen(me).hands), "table", "the nonsense is on the card still"); eq(me.byProfile.other, 5, "all of it")
     W.OpenAuctionHouse()
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
     SetView(false, false)
@@ -14208,9 +14275,9 @@ function scenarios.weapons()
     check(menu:Lines():find("(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | [x] One-Handed Axes", 1, true) ~= nil,
         "the menu opens, with nothing chosen and every kind ticked: " .. menu:Lines())
     menu:Click("Daggers")
-    eq(type(me.weaponsOut), "table", "a kind unticked there is written over the nonsense"); eq(me.weaponsOut[15], true, "as it should be")
+    eq(type(Chosen(me).kinds), "table", "a kind unticked there is written over the nonsense"); eq(Chosen(me).kinds[15], false, "as it should be")
     menu:Click("Two-hand")
-    eq(me.hands, "TWO", "and so is a choice of hands")
+    eq(Chosen(me).hands, "TWO", "and so is a choice of hands")
     eq(#W.errors, 0, "nothing of it is an error")
 end
 
@@ -14351,7 +14418,7 @@ function scenarios.weapons_scan()
     Wants.SetKind(me, 1, true)
     Wants.SetKind(me, 4, true)
     Wants.SetHands(me, "ANY")
-    eq(me.weaponsOut, nil, "every kind ticked again")
+    eq(Chosen(me).kinds, nil, "every kind ticked again")
     eq(More(), 2, "the bow's price and the axe's are asked for")
     eq(Shown(), ANY, "and the list is whole")
 
@@ -14456,8 +14523,8 @@ function scenarios.weapons_ui()
     W.Fire("PLAYER_ENTERING_WORLD")
     W.Run(1.5)
     -- The druid as it left things when it was last played: two-handers, and no daggers.
-    UpgradeScoutDB.chars["Alty-Testrealm"] = { key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", faction = "Alliance",
-        class = "DRUID", level = 20, gear = {}, hands = "TWO", weaponsOut = { [15] = true } }
+    UpgradeScoutDB.chars["Alty-Testrealm"] = Keep({ key = "Alty-Testrealm", name = "Alty", realm = "Testrealm", faction = "Alliance",
+        class = "DRUID", level = 20, gear = {} }, "TWO", { 15 })
     W.OpenAuctionHouse()
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
     local frame, S, L = UpgradeScoutFrame, ns.Scanner, ns.L
@@ -14512,6 +14579,12 @@ function scenarios.weapons_ui()
         "the line is in the menu, and opens one of its own")
     eq(weapons:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS,
         "which has the three ways to fill the hands, any way chosen, and every kind ticked")
+    -- Over them stands whose choice it is: the profile the list is made on, by its name.
+    eq(weapons:Head(), "Profile: Arms", "the menu is headed by the profile it is for"); eq(L.WEAPONS_FOR, "Profile: %s", "in the addon's own words")
+    field:Open()
+    local head = field:OpenSub("Weapons")
+    eq(head.elements[1].kind, "title", "a line that only says so: nothing to click"); eq(head.lines[1].fontString:GetText(), "Profile: Arms", "drawn as the game draws one")
+    field:Close()
     eq(L.HANDS_ANY .. " | " .. L.HANDS_TWO .. " | " .. L.HANDS_ONE, HANDS, "in the addon's own words")
     -- The lines are the game's, dressed as those of the addon's other menus: the line that
     -- opens the menu in our colours, with the game's arrow at its end; a diamond on a line
@@ -14563,12 +14636,13 @@ function scenarios.weapons_ui()
     local searches, sounds = W.AH.calls.search, #W.sounds
     weapons:Click("One-hand, shield and off-hand", function(open, sub)
         eq(open._open, true, "the menu stays open after the click"); eq(open.sub, sub, "and so does the one beside it")
-        check(sub.lines[3].leftTexture2 ~= nil, "whose lines are drawn again: the mark is on the line clicked")
-        eq(sub.lines[1].leftTexture2, nil, "and off the one that had it")
+        check(sub.lines[4].leftTexture2 ~= nil, "whose lines are drawn again: the mark is on the line clicked")
+        eq(sub.lines[2].leftTexture2, nil, "and off the one that had it")
         eq(#open.lines, 8, "the lines of the first menu are drawn again as well")
     end)
     eq(#W.sounds, sounds + 1, "the game sounds the click, once")
-    eq(me.hands, "ONE", "the choice is written on the warrior's card"); eq(UpgradeScoutDB.chars[me.key].hands, "ONE", "which is saved with the account")
+    eq(Chosen(me).hands, "ONE", "the choice is written on the warrior's card")
+    eq(UpgradeScoutDB.chars[me.key].byProfile["own:S1"].hands, "ONE", "which is saved with the account: for its profile, Arms")
     eq(weapons:Lines(), "( ) Any | ( ) Two-hand | (x) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "the menu shows it the next time it opens")
     eq(Row("Long Axe"), nil, "the axe is out of the list at once"); check(Row("Oak Shield") ~= nil and Row("Lantern") ~= nil, "and the shield and the lantern are in")
     check(Row("Blunt Mace") ~= nil, "and so is the mace, which is weaker than the maul: one hand has a place for it")
@@ -14613,25 +14687,25 @@ function scenarios.weapons_ui()
 
     -- A kind of weapon unticked: the menu stays open here too, and the list is without it.
     weapons:Click("One-Handed Swords", function(open, sub)
-        eq(open._open, true, "the menu stays open after a tick box"); eq(sub.lines[7].Tick:IsShown(), false, "and the tick is gone from the line")
+        eq(open._open, true, "the menu stays open after a tick box"); eq(sub.lines[8].Tick:IsShown(), false, "and the tick is gone from the line")
     end)
-    eq(me.weaponsOut[7], true, "written on the card"); eq(Row("Sharp Sword"), nil, "no sword in the list")
+    eq(Chosen(me).kinds[7], false, "written on the card"); eq(Row("Sharp Sword"), nil, "no sword in the list")
     eq(Names(), "One-hand \194\183 Weapons 13/14", "beside the field: how many kinds are still offered")
     eq(Named(), "One-hand, shield and off-hand | Weapon types: 13 of 14", "and in its tooltip")
     W.Run(1.5)
     eq(Arrow(sword), false, "the sword in the bags has lost its arrow")
     weapons:Click("One-Handed Swords")
-    eq(me.weaponsOut, nil, "ticked again: the card says nothing of the kinds"); check(Row("Sharp Sword") ~= nil, "and the sword is back")
+    eq(Chosen(me).kinds, nil, "ticked again: the card says nothing of the kinds"); check(Row("Sharp Sword") ~= nil, "and the sword is back")
     W.Run(1.5)
     eq(Arrow(sword), true, "with its arrow")
     -- A two-hander.
     weapons:Click("Two-hand")
-    eq(me.hands, "TWO", "two hands, chosen"); eq(Names(), "Two-hand", "named beside the field")
+    eq(Chosen(me).hands, "TWO", "two hands, chosen"); eq(Names(), "Two-hand", "named beside the field")
     check(Row("Long Axe") ~= nil, "the axe is back"); eq(Row("Sharp Sword"), nil, "the sword is out"); eq(Row("Oak Shield"), nil, "and the shield")
     W.Run(1.5)
     eq(Arrow(axe), true, "in the bags the axe has its arrow"); eq(Arrow(sword), false, "and the sword none")
     weapons:Click("Any")
-    eq(me.hands, "ANY", "any way, chosen: written down like the others"); eq(Names(), "", "and no filter")
+    eq(Chosen(me).hands, "ANY", "any way, chosen: written down like the others"); eq(Names(), "", "and no filter")
     Settle()
 
     -- The list for the druid: the menu is the druid's, with a druid's kinds and what the
@@ -14642,6 +14716,7 @@ function scenarios.weapons_ui()
     eq(ns.Roster.Target(), druid, "the lists are for the druid")
     eq(weapons:Lines(), "( ) Any | (x) Two-hand | ( ) One-hand, shield and off-hand | / | [x] One-Handed Maces | [ ] Daggers | [x] Fist Weapons | / | "
         .. "[x] Two-Handed Maces | [x] Polearms | [x] Staves", "the druid's menu: its kinds, and its choices as it left them")
+    eq(weapons:Head(), "Profile: " .. ns.Score.Current(druid).title, "headed by the druid's profile")
     eq(Names(), "Two-hand \194\183 Weapons 5/6", "named beside the field")
     frame.ScanButton:Click()
     Settle()
@@ -14649,25 +14724,26 @@ function scenarios.weapons_ui()
     eq(Row("Stone Mace"), nil, "the mace is not"); eq(Row("Grove Orb"), nil, "nor the orb"); eq(Row("Moon Dagger"), nil, "nor the dagger")
     eq(Offer("Stone Mace"), nil, "and no price was looked up for what the druid does not want")
     weapons:Click("Any")
-    eq(druid.hands, "ANY", "any way, on the druid's card"); eq(me.hands, "ANY", "the warrior's own is its own")
+    eq(Chosen(druid).hands, "ANY", "any way, on the druid's card"); eq(Chosen(me).hands, "ANY", "the warrior's own is its own")
     check(Row("Stone Mace") ~= nil and Row("Grove Orb") ~= nil, "the mace and the orb are listed at once"); eq(Row("Moon Dagger"), nil, "the dagger still is not")
     weapons:Click("Daggers")
-    eq(druid.weaponsOut, nil, "daggers ticked for the druid"); eq(me.weaponsOut, nil, "and nothing of it on the warrior's card")
+    eq(Chosen(druid).kinds, nil, "daggers ticked for the druid"); eq(Chosen(me).kinds, nil, "and nothing of it on the warrior's card")
     check(Row("Moon Dagger") ~= nil, "the dagger is listed")
     Settle()
     check(Offer("Stone Mace") ~= nil and Offer("Grove Orb") ~= nil and Offer("Moon Dagger") ~= nil, "and the three have their prices")
     weapons:Click("One-hand, shield and off-hand")
-    eq(druid.hands, "ONE", "one hand for the druid")
+    eq(Chosen(druid).hands, "ONE", "one hand for the druid")
     eq(Arrow(axe), true, "the arrows stay the warrior's: its own choice is any way")
 
-    -- Back to the warrior, on Protection now: the profile of a shield tank. A character that
-    -- has not chosen is offered one hand there, the line the profile chose is the one marked,
-    -- and its tooltip says who chose.
-    me.hands = nil
+    -- Back to the warrior, on Protection now: the profile of a shield tank. Any way was what
+    -- it chose on Arms, and is Arms's: on Protection it has not chosen. A character that has
+    -- not is offered one hand there, the line the profile chose is the one marked, and its
+    -- tooltip says who chose.
     frame.ProfileDropdown:Pick(2)
     Settle()
     eq(ns.Roster.Target(), nil, "the lists are the warrior's own"); eq(me.profile, "WARRIOR_PROTECTION", "on Protection")
-    eq(me.hands, nil, "the card has no choice")
+    eq(Chosen(me).hands, nil, "the card has no choice for that profile"); eq(me.byProfile["own:S1"].hands, "ANY", "what it chose on Arms is kept for Arms")
+    eq(weapons:Head(), "Profile: Protection", "the menu is headed by the profile it is now for")
     eq(weapons:Lines(), "( ) Any | ( ) Two-hand | (x) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "and the menu marks the line the profile chose")
     eq(weapons:Tooltip("One-hand, shield and off-hand"),
         "One-hand, shield and off-hand | " .. L.HANDS_ONE_TIP .. ' | Chosen by the profile "Protection" until you choose.', "whose tooltip says so")
@@ -14679,22 +14755,52 @@ function scenarios.weapons_ui()
     eq(Arrow(axe), false, "nor an arrow on the one in the bags")
     -- "Any" chosen: it is written down, and holds on that profile.
     weapons:Click("Any")
-    eq(me.hands, "ANY", "any way, chosen")
+    eq(Chosen(me).hands, "ANY", "any way, chosen")
     eq(weapons:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "the menu marks it")
     eq(weapons:Tooltip("One-hand, shield and off-hand"), "One-hand, shield and off-hand | " .. L.HANDS_ONE_TIP, "and the profile's line says no more of the profile")
     eq(Names(), "", "no filter is on")
     Settle()
     check(Row("Long Axe") ~= nil, "the axe is listed"); eq(Row("Oak Shield"), nil, "the shield is not")
+    -- Each profile of the warrior has a choice of its own. On Arms again the menu is as Arms
+    -- left it; two hands and no daggers, chosen now, are Arms's alone. Another profile chosen
+    -- in the profile field makes the list anew by itself, as it always did (its scores were
+    -- another profile's): that list, the names beside the field and the arrows in the bags
+    -- go by the choice of the profile chosen, with no click in the Filters menu.
+    frame.ProfileDropdown:Pick(1)
+    Settle()
+    eq(ns.Score.Current(me).name, "S1", "on Arms again"); eq(weapons:Head(), "Profile: Arms", "whose menu it is")
+    eq(weapons:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "as Arms left it")
+    weapons:Click("Two-hand")
+    weapons:Click("Daggers")
+    Settle()
+    eq(Names(), "Two-hand \194\183 Weapons 13/14", "two hands and no daggers, on Arms")
+    check(Row("Long Axe") ~= nil, "Arms's list: the axe"); eq(Row("Sharp Sword"), nil, "and no sword")
+    W.Run(1.5)
+    eq(Arrow(sword), false, "nor an arrow on the one in the bags")
+    local scans = S.finishedAt
+    frame.ProfileDropdown:Pick(2)
+    Settle()
+    eq(weapons:Head(), "Profile: Protection", "Protection chosen: the menu is Protection's")
+    eq(weapons:Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "as Protection left it: any way, and every kind")
+    eq(Names(), "", "nothing beside the field")
+    check(S.finishedAt ~= nil and S.state == "idle" and scans ~= nil, "the list was made anew for the profile, by itself")
+    check(Row("Long Axe") ~= nil and Row("Sharp Sword") ~= nil, "and has the sword again, beside the axe")
+    eq(S.Unchecked().unwanted, 0, "nothing of it is left out for the choice Arms made")
+    W.Run(1.5)
+    eq(Arrow(sword), true, "the sword in the bags has its arrow again")
+    eq(me.byProfile["own:S1"].hands, "TWO", "the card has both: two hands for Arms"); eq(me.byProfile["own:S1"].kinds[15], false, "without daggers")
+    eq(me.byProfile["own:WARRIOR_PROTECTION"].hands, "ANY", "and any way for Protection"); eq(me.byProfile["own:WARRIOR_PROTECTION"].kinds, nil, "with every kind")
     -- It is there the next time the character is played, still on Protection.
     W.CloseAuctionHouse()
     Relog(W.player, W.equipped)
     me = ns.Roster.Me()
-    eq(me.profile, "WARRIOR_PROTECTION", "played again: on Protection"); eq(me.hands, "ANY", "with its choice")
+    eq(me.profile, "WARRIOR_PROTECTION", "played again: on Protection"); eq(Chosen(me).hands, "ANY", "with its choice")
+    eq(me.byProfile["own:S1"].hands, "TWO", "and with what Arms chose, for when it is on Arms")
     eq(ns.Wants.Of(me), nil, "which asks for nothing")
     W.OpenAuctionHouse()
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
     eq(WeaponsMenu():Lines(), "(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | " .. WARRIOR_KINDS, "as the menu shows")
-    eq(UpgradeScoutDB.chars["Alty-Testrealm"].hands, "ONE", "and the druid's card has what was chosen for the druid")
+    eq(Chosen(UpgradeScoutDB.chars["Alty-Testrealm"]).hands, "ONE", "and the druid's card has what was chosen for the druid")
     eq(#W.errors, 0, "nothing of it is an error")
 end
 
@@ -14804,11 +14910,12 @@ function scenarios.weapons_rogue()
     eq(Row("Cutlass").Upgrade:GetText(), "+25%", "14 against the dagger's 10: a share of the 16 the two hands hold")
     eq(tab.Names(), "Top 5 \194\183 Weapons 1/9", "beside the Filters field: one kind of nine")
     local kinds = 0
-    for kind, out in pairs(me.weaponsOut) do
-        check(out == true and type(kind) == "number", "a kind left out, by its number")
+    for kind, on in pairs(Chosen(me).kinds) do
+        check(on == false and type(kind) == "number", "a kind left out, by its number")
         kinds = kinds + 1
     end
-    eq(kinds, 8, "eight kinds are written on the card as left out"); eq(me.weaponsOut[7], nil, "the swords are not among them")
+    eq(kinds, 8, "eight kinds are written on the card as left out"); eq(Chosen(me).kinds[7], nil, "the swords are not among them")
+    eq(ns.Wants.ProfileKey(me), "own:R1", "for the profile it is on, Combat"); eq(menu:Head(), "Profile: Combat", "which the menu names")
     -- A scan with that looks up the swords and the ring, and nothing else.
     W.RunUntil(function() return W.AH.ready end, 5)
     searches = W.AH.calls.search
@@ -14874,7 +14981,7 @@ function scenarios.weapons_warlock()
     menu:Click("One-Handed Swords")
     eq(Rows(), "Bone Wand, Rune Staff, Soul Orb", "any way, without swords"); eq(tab.Names(), "Weapons 3/4", "three kinds of four")
     menu:Click("One-Handed Swords")
-    eq(me.hands, "ANY", "the card has the choice of any way"); eq(me.weaponsOut, nil, "and every kind")
+    eq(Chosen(me).hands, "ANY", "the card has the choice of any way"); eq(Chosen(me).kinds, nil, "and every kind")
 
     -- The staff goes on. Any way, nothing is offered for the off hand beside it, and no
     -- sword that does not beat it; with one hand chosen the orb is, as what the off hand will
@@ -14959,7 +15066,7 @@ function scenarios.weapons_paladin()
     check(Worth(dull) < Worth(guard), "and the other sword below that one")
     check(Worth(guard) + Worth(tower) < Worth(great), "the better sword and the better shield together are below the two-hander for sale")
     check(Worth(buckler) > 0 and Worth(buckler) < Worth(tower), "and both shields are worth something")
-    eq(me.hands, nil, "it has chosen nothing about its hands")
+    eq(me.byProfile, nil, "it has chosen nothing about its hands")
     local tab = Tab()
     local Row, Rows, Settle, menu = tab.Row, tab.Rows, tab.Settle, tab.menu
     local function Arrow(slot)
@@ -15006,7 +15113,7 @@ function scenarios.weapons_paladin()
     -- offered, as it always was, and the swords and the shields are gone. The swords are
     -- measured against the maul again, and lose; nothing is held beside it.
     menu:Click("Any")
-    eq(me.hands, "ANY", "any way, chosen")
+    eq(Chosen(me).hands, "ANY", "any way, chosen")
     eq(Rows(), "Chain Coif, Great Hammer", "any way: the two-hander is listed at once, and neither sword nor shield")
     Settle()
     check(Offer("Great Hammer") ~= nil, "its price is looked up"); eq(Row("Great Hammer").entry.note, nil, "it takes the maul's place, and nothing more to note")
@@ -15018,7 +15125,7 @@ function scenarios.weapons_paladin()
     -- they were, with no scan and no price looked up anew.
     searches = W.AH.calls.search
     menu:Click("One-hand, shield and off-hand")
-    eq(me.hands, "ONE", "one hand, chosen")
+    eq(Chosen(me).hands, "ONE", "one hand, chosen")
     eq(Rows(), ONE, "one hand again: the list it had"); eq(Row("Guard Sword").Upgrade:GetText(), "New", "the sword as it was")
     Settle()
     eq(W.AH.calls.search, searches, "and no item search is sent: their prices are known")
@@ -15050,17 +15157,19 @@ function scenarios.weapons_paladin()
     eq(Row("Great Hammer").entry.note, "BOTH_HANDS", "and it is said to take both hands")
     W.Run(1.5)
     eq(Arrow(hammer), true, "and the one in the bags has its arrow")
-    -- On another profile of the paladin's nothing is chosen for it: with the choice taken
-    -- back, Retribution offers the two-hander and Protection does not.
-    me.hands = nil
+    -- On another profile of the paladin's nothing is chosen for it: any way was chosen for
+    -- Protection, and is Protection's. With that choice taken back as well, Retribution offers
+    -- the two-hander and Protection does not.
+    eq(me.byProfile["own:PALADIN_PROTECTION"].hands, "ANY", "any way, chosen for Protection")
+    me.byProfile = nil
     tab.frame.ProfileDropdown:Pick(3)
     Settle()
-    eq(me.profile, "PALADIN_RETRIBUTION", "Retribution chosen")
+    eq(me.profile, "PALADIN_RETRIBUTION", "Retribution chosen"); eq(me.byProfile, nil, "for which nothing is chosen")
     eq(menu:Lines():find("(x) Any | ( ) Two-hand | ( ) One-hand, shield and off-hand | / | ", 1, true), 1, "the menu marks any way")
     check(Row("Great Hammer") ~= nil, "and the two-hander is listed, which beats the sword and the shield there as well")
     tab.frame.ProfileDropdown:Pick(2)
     Settle()
-    eq(me.profile, "PALADIN_PROTECTION", "Protection chosen")
+    eq(me.profile, "PALADIN_PROTECTION", "Protection chosen"); eq(ns.Wants.Hands(me), "ONE", "where the profile says one hand")
     eq(Row("Great Hammer"), nil, "the two-hander is not listed")
     eq(#W.errors, 0, "nothing of it is an error")
 end
@@ -15085,8 +15194,11 @@ function scenarios.weapons_others()
     -- The addon's own weights, on Protection: one hand, by the profile.
     me.profile = "WARRIOR_PROTECTION"
     eq(Wants.Hands(me), "ONE", "the addon's own Protection says one hand")
+    Wants.SetHands(me, "TWO")
+    eq(Wants.ProfileKey(me), "own:WARRIOR_PROTECTION", "two hands chosen there: kept for the addon's own profile")
     -- Pawn chosen: the profile has no say, on whatever scale. Pawn's scales say for
-    -- themselves what they show of weapons.
+    -- themselves what they show of weapons. Nor has the choice made on the addon's own
+    -- profile: a scale of Pawn's is another profile, whatever its name.
     Score.SetEngine("pawn")
     eq(Score.Engine(), "pawn", "Pawn scores"); eq(Score.Current().name, ARMS, "on its scale for the talents")
     eq(Wants.Hands(me), "ANY", "and nothing is chosen for the character"); eq(Wants.Of(me), nil, "nothing asked")
@@ -15095,6 +15207,7 @@ function scenarios.weapons_others()
     -- Not even on a scale the player named as the addon names its own profile.
     Score.Choose(me, "WARRIOR_PROTECTION")
     eq(Score.Current().name, "WARRIOR_PROTECTION", "on a scale of the player's by that very name"); eq(Wants.Hands(me), "ANY", "the same still")
+    eq(Wants.ProfileKey(me), "pawn:WARRIOR_PROTECTION", "a choice there is kept as that scale's, and what the addon's own profile of that name has is not its")
     Score.Choose(me, ARMS)
 
     -- A scale that shows every weapon, and the player's choice.
@@ -15130,8 +15243,9 @@ function scenarios.weapons_others()
     eq(#W.pawn.fails, 0, "Pawn is asked about no scale it has not")
 
     -- Forever Companion scores: the same. Its scale of a tank chooses nothing for the
-    -- character, it has no say on weapons, and a choice of the player's holds.
-    me.hands = nil
+    -- character, it has no say on weapons, and a choice of the player's holds. What was
+    -- chosen on a scale of Pawn's is that scale's, and no choice here.
+    eq(Wants.ProfileKey(me), "pawn:" .. PROT, "one hand was chosen on Pawn's scale for Protection")
     Score.SetEngine("companion")
     eq(Score.Engine(), "companion", "Forever Companion scores")
     local tank
@@ -15141,6 +15255,7 @@ function scenarios.weapons_others()
     check(tank ~= nil, "it has a scale of a tank")
     Score.Choose(me, tank)
     eq(Score.Current().name, tank, "which is the one in use"); eq(Wants.Hands(me), "ANY", "and nothing is chosen for the character")
+    eq(Wants.ProfileKey(me), "companion:" .. tank, "on a scale of Forever Companion's")
     Scan()
     eq(S.ctx.profile, tank, "a scan on that scale"); eq(S.ctx.show2H, true, "which shows every weapon")
     eq(Shown(), "Helm, Long Axe, Sharp Sword, Short Bow", "no choice: two-handers and all")
@@ -15181,6 +15296,7 @@ function scenarios.weapons_leveling()
     -- One hand chosen. The oak shield (12) and the lantern (5) gain nothing by that addon's
     -- count, which is against the maul (30): no row. The great wall (40) gains 10 by it.
     Wants.SetHands(me, "ONE")
+    eq(Wants.ProfileKey(me), "leveling:arms", "kept for that addon's spec, by the name the spec has whoever of the account shops for the character")
     local list, unwanted, entries = Shown()
     eq(list, "Great Wall, Helm, Sharp Sword, Short Bow", "one hand: the shield that addon says gains, and no other")
     local wall = entries["Great Wall"]
