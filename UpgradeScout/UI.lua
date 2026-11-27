@@ -967,13 +967,9 @@ end
 
 -- Why the list of gear may be short of something, for the end of its status line; nil when
 -- it is not, or when a note of the scanner's already says what happened.
--- First of all: gear the character's filter of levels lets in now and the scan did not read
--- (the filter was made wider or switched off since, see Scanner.ReadFrom). No lookup brings
--- those rows, so the line says outright that it takes a new scan, whatever else there is
--- to say: the list is not to pass for whole.
+-- (Gear the character's filter of levels lets in now and the scan did not read is no matter
+-- for the line: the tab scans again by itself, see RereadSoon.)
 local function Shortfall()
-    local from = S.ReadFrom()
-    if from then return L.ST_LEVEL_SHORT:format(from) end
     if S.message then return nil end
     if S.partial or S.halted then return L.ST_PARTIAL end
     -- The game told nothing of many rows: it was still loading its items (Scanner.unread).
@@ -1382,6 +1378,37 @@ ns.Listen("SCORING_CHANGED", function()
     ns.Fire("OFFERS_CHANGED")
     UI.Refresh()
 end)
+
+-- "Gear at most N levels below" made wider, or unticked, lets in gear the scan did not read
+-- (Scanner.ReadFrom): there is nothing of it to show, and no lookup brings it. So the list
+-- of gear is made again, as when another profile is chosen, and nothing is said about it.
+--   * Not at every key: a second after the last change to the filters, and not at all when
+--     the filter is back by then to what the scan read. "15" typed is one scan, a tick and
+--     its unticking none.
+--   * A scan under way keeps the bound it started with, so it is started over.
+--   * Made narrower, the filter hides rows at once and nothing is read: the scan read all
+--     that the list is to show.
+--   * No list and none being made: the first scan is the player's.
+--   * Where no scan can start when the second is over, nothing is said and the list stays
+--     as it is until the player scans: the tab is not in view, or it shows the consumables
+--     (a scan for gear would grey out their Buy buttons, as in Choose), or the scanner
+--     cannot (Scanner.Reread).
+-- Called at every change to the filters: whichever of them it was, a list that is short of
+-- gear for its level waits for the player to be done with the menu.
+local REREAD_PAUSE = 1
+local changes = 0
+local function RereadSoon()
+    changes = changes + 1
+    if not S.ReadFrom() then return end
+    local mine = changes
+    C_Timer.After(REREAD_PAUSE, function()
+        if mine ~= changes then return end
+        if not frame:IsShown() or view ~= "gear" then return end
+        if not S.Reread() then return end
+        toTop = true
+        UI.Refresh()
+    end)
+end
 
 -- Does the menu have lines for other characters (see ProfileMenu)? The field then has to
 -- show a name with a profile.
@@ -1973,6 +2000,8 @@ local function BuildViews(auction)
                 toTop = true
                 -- The player changed what the list shows: price checks that were stopped may go on.
                 S.Resume()
+                -- And a list that is short of gear for the change is made again.
+                RereadSoon()
             end
             UI.Refresh()
         end,

@@ -135,9 +135,8 @@ Manualmente:
   personagem. Você pode digitar outro número, de 1 a 59. Um escaneamento com esse filtro também
   pula esse equipamento, então é mais curto: quanto mais alto o seu nível, mais ele economiza.
   O equipamento que não pede nível não é afetado: aparece na lista se for uma melhoria. Se
-  você aumentar o número ou desmarcar a caixa depois de um escaneamento, escaneie de novo: a
-  linha de status diz a partir de que nível o último leu. As setas nas bolsas não seguem esse
-  filtro.
+  você aumentar o número ou desmarcar a caixa depois de um escaneamento, o addon escaneia de
+  novo sozinho. As setas nas bolsas não seguem esse filtro.
 - **Armas** abre um menu próprio. **Qualquer** oferece armas de uma mão e de duas mãos, tanto
   faz. **Duas mãos** deixa de fora as armas de uma mão, os escudos e os itens de mão secundária.
   **Uma mão, escudo e mão secundária** deixa de fora as armas de duas mãos. Abaixo há uma caixa

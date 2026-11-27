@@ -144,8 +144,7 @@ Il vous faut World of Warcraft Forever (1.60.1). Aucun autre addon n'est nécess
   lui aussi cet équipement, il est donc plus court : plus votre niveau est élevé, plus il y
   gagne. L'équipement qui ne demande aucun niveau n'est pas concerné : il figure dans la liste
   s'il est une amélioration. Si vous augmentez le nombre ou décochez la case après un scan,
-  relancez le scan : la ligne d'état dit à partir de quel niveau le dernier scan a lu. Les
-  flèches des sacs ne suivent pas ce filtre.
+  l'addon relance le scan de lui-même. Les flèches des sacs ne suivent pas ce filtre.
 - **Armes** ouvre son propre menu. **Toutes** propose les armes à une main comme les armes à
   deux mains. **Deux mains** écarte les armes à une main, les boucliers et les objets de main
   gauche. **Une main, bouclier et main gauche** écarte les armes à deux mains. En dessous, il y

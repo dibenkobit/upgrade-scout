@@ -134,8 +134,8 @@ A mano:
   Puedes escribir otro número, del 1 al 59. Un escaneo con este filtro también se salta ese
   equipo, así que es más corto: cuanto más alto es tu nivel, más ahorra. El equipo que no pide
   nivel no se toca: aparece en la lista si es una mejora. Si subes el número o quitas la marca
-  después de un escaneo, vuelve a escanear: la línea de estado dice desde qué nivel leyó el
-  último. Las flechas de las bolsas no se guían por este filtro.
+  después de un escaneo, el addon vuelve a escanear por sí solo. Las flechas de las bolsas no
+  se guían por este filtro.
 - **Armas** abre un menú propio. **Cualquiera** ofrece armas de una mano y de dos manos por
   igual. **Dos manos** omite las armas de una mano, los escudos y los objetos de mano izquierda.
   **Una mano, escudo y mano izquierda** omite las armas de dos manos. Debajo hay una casilla por

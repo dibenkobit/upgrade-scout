@@ -144,8 +144,8 @@ To install by hand:
   level more than that many below your character's. Type another number, from 1 to 59. A scan
   with it on skips that gear too, so it is shorter: the higher your level, the more it saves.
   Gear that asks for no level is left alone: it is listed if it is an upgrade. If you raise
-  the number or untick the box after a scan, scan again: the status line says from which level
-  the last scan read. The bag arrows do not go by this filter.
+  the number or untick the box after a scan, the addon scans again by itself. The bag arrows
+  do not go by this filter.
 - **Weapons** opens a menu of its own. **Any** offers one-hand and two-hand weapons alike.
   **Two-hand** leaves out one-hand weapons, shields and off-hand items. **One-hand, shield and
   off-hand** leaves out two-hand weapons. Under them is a tick box for every type of weapon

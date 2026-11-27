@@ -16,7 +16,7 @@
   so it takes less time: the higher your level, the more it saves.
 - Gear that asks for no level is left alone: it is listed if it is an upgrade.
 - Each character has its own box and its own number. If you raise the number or untick the box
-  after a scan, the status line says from which level that scan read, and to scan again.
+  after a scan, the addon scans again by itself.
 - **Weapons**, a new line in the **Filters** menu, says how your character fills its hands.
   **Two-hand** leaves out one-hand weapons, shields and off-hand items. **One-hand, shield and
   off-hand** leaves out two-hand weapons. **Any** offers both.

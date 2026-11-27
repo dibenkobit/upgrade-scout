@@ -2078,7 +2078,8 @@ function S.Start()
     -- as it is asked for when the scan begins: nothing below it is read, or kept. nil for a
     -- character that is offered gear of every level. The scan goes by this to its end,
     -- whatever is ticked meanwhile; what the list shows goes by what is asked then
-    -- (Wants.Fits), and S.ReadFrom says when that is more than was read.
+    -- (Wants.Fits), and S.ReadFrom says when that is more than was read: the scan is then
+    -- made again (S.Reread).
     local wants = Wanted()
     scan.fromLevel = wants and wants.level or nil
     NewRun("scan")
@@ -2138,18 +2139,34 @@ function S.Resume()
     S.message = nil
 end
 
--- The level the last scan read gear from, when the list is now to show gear made for less:
--- the character's filter of levels (Wants.lua) was made wider or switched off since. What
--- a scan did not read is not there to be shown, and nothing short of a scan brings it
--- (S.Demand looks up prices of rows that were read): the list says that it takes a new
--- scan. nil when the list has all it is to show. (A filter made narrower since needs
--- nothing: the rows it leaves out are hidden at once.)
+-- The level the last scan read gear from, or the one under way reads from, when the list is
+-- now to show gear made for less: the character's filter of levels (Wants.lua) was made
+-- wider or switched off since. What a scan did not read is not there to be shown, and
+-- nothing short of a scan brings it (S.Demand looks up prices of rows that were read):
+-- S.Reread makes that scan. nil when the list has all it is to show, and when there is no
+-- list. (A filter made narrower since needs nothing: the rows it leaves out are hidden at
+-- once.)
 function S.ReadFrom()
     local from = scan and scan.fromLevel
     if not from then return nil end
     local wants = Wanted()
     if wants and wants.level and wants.level >= from then return nil end
     return from
+end
+
+-- Scans for gear again when the list is short in that way, with the filter as it is now; a
+-- scan under way, or the price checks after one, is started over. Returns false, and neither
+-- does nor says anything, when the list is not short or no scan can start: the auction
+-- house is closed, a purchase is being looked up or waits for its "Buy this?", a scan for
+-- consumables is under way, or the character has nothing to be scored by. The list is then
+-- as it was. (The tab calls this a moment after the filter changed: RereadSoon in UI.lua.)
+function S.Reread()
+    if not S.ReadFrom() then return false end
+    if not ahOpen or confirming then return false end
+    if S.state ~= "idle" and not IsScanMode(S.mode) then return false end
+    if not ns.Score.Current(ns.Roster.Target()) then return false end
+    S.Stop()
+    return S.Start()
 end
 
 -- Looks up the prices the list needs now and does not have. Called whenever the list is

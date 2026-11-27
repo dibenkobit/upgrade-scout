@@ -12818,6 +12818,9 @@ function scenarios.levels()
     eq(S.ReadFrom(), 20, "and the scanner says that it read from there"); eq(S.Demand(), false, "no price is asked for: the rows are not there")
     Wants.SetBelow(me, true, 10)
     eq(S.ReadFrom(), nil, "the number the scan was made with: nothing is missing")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    local browses = W.AH.calls.browse
+    eq(S.Reread(), false, "and there is nothing to scan again for"); eq(S.state, "idle", "nothing is under way")
     Wants.SetBelow(me, false)
     eq(S.ReadFrom(), 20, "switched off: missing again"); eq(Shown(), FROM_TWENTY, "with the same list")
     -- A level gained since the scan makes the filter narrower by one.
@@ -12826,15 +12829,21 @@ function scenarios.levels()
     eq(Wants.Of(me).level, 21, "level 31: from level 21"); eq(Shown(), "Dim Cloak, Fine Helm, Top Chest", "what is made for level 20 is out")
     eq(S.ReadFrom(), nil, "and no scan is needed for that")
     W.player.level = 30
-    -- A new scan has what the last one left unread.
+    -- The scan made again for a list that is short (S.Reread: the tab calls it a moment after
+    -- the filter was made wider) has what the last one left unread.
     Wants.SetBelow(me, false)
-    eq(Scan(), 9, "a scan with the box unticked: nine searches again")
+    local searches = W.AH.calls.search
+    eq(S.Reread(), true, "the box unticked: the list is short, and is scanned again")
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(W.AH.calls.browse - browses, 1, "one scan"); eq(W.AH.lastQuery.minLevel, nil, "which asks for every level")
+    eq(W.AH.calls.search - searches, 9, "nine searches again")
     eq(Shown(), EVERY_LEVEL, "and every upgrade"); eq(S.ReadFrom(), nil, "nothing missing")
+    eq(S.Reread(), false, "nor anything to scan again for")
 
     -- Ticked while the prices of a scan are looked up: what it leaves out is not looked up
     -- (the first search, for the strongest upgrade, is out by then: a helm of level 25).
     W.RunUntil(function() return W.AH.ready end, 5)
-    local searches = W.AH.calls.search
+    searches = W.AH.calls.search
     check(S.Start(), "a scan starts")
     W.RunUntil(function() return S.state == "verify" end, 120)
     Wants.SetBelow(me, true, 10)
@@ -13032,8 +13041,9 @@ function scenarios.scan_levels()
 end
 
 -- "Gear at most N levels below" in the Filters menu: a tick box with a field for the number,
--- and words after it. What the status line says when the list is short of rows the scan did
--- not read; a character of the account with a number and a level of its own.
+-- and words after it. The scan the tab makes by itself when the list is short of rows the
+-- last one did not read, and when it makes none; a character of the account with a number
+-- and a level of its own.
 function scenarios.levels_ui()
     LevelsWorld()
     -- For a druid of the account: two leather caps, of no worth to a warrior.
@@ -13066,7 +13076,9 @@ function scenarios.levels_ui()
         W.Run(0.5)
     end
     local function Status() return frame.Status:GetText() or "" end
-    local LABEL, AGAIN = "Gear at most", "Scan again to see it."
+    local LABEL = "Gear at most"
+    -- How many scans were started: each sends one search for the rows of the auction house.
+    local function Browses() return W.AH.calls.browse end
     -- The line of the open menu, and its field.
     local function Line()
         local line = filters.lines[filters:Find(LABEL)]
@@ -13105,7 +13117,15 @@ function scenarios.levels_ui()
     eq(below:GetChecked(), false, "not ticked until the player ticks it")
     eq(Comes(), ns.Roster.Colored(me, me.name) .. ": From level 20", "its tooltip names the level: 30 less the ten that stand in the field")
     check(ns.L.LEVEL_MIN_TIP:find("The scan gets shorter too", 1, true) ~= nil, "and says that the scan is shorter with it")
+    -- No list yet: the box ticked and unticked starts no scan. The first one is the player's.
+    below:Click()
+    W.Run(1.5)
+    below:Click()
+    W.Run(1.5)
+    eq(Browses(), 0, "nothing scanned yet: the filter starts no scan"); eq(S.state, "idle", "and nothing is under way")
+    eq(me.maxBelowOn, nil, "the box is unticked again")
     Scanned()
+    eq(Browses(), 1, "the player's scan is one search for the rows")
     eq(W.AH.lastQuery.minLevel, nil, "a scan with the box unticked asks for every level")
     check(Row("Old Helm") ~= nil and Row("Edge Belt") ~= nil and Row("Bare Ring") ~= nil and Row("Dull Cloak") ~= nil, "gear of every level is in the list")
     check(Status():find("9 upgrades in 6 slots.", 1, true) ~= nil, "nine upgrades: " .. Status())
@@ -13140,9 +13160,10 @@ function scenarios.levels_ui()
     check(Row("Fine Helm") ~= nil and Row("Top Chest") ~= nil and Row("Dim Cloak") ~= nil, "and what is made for more")
     check(Row("Bare Ring") ~= nil, "and the ring that asks for no level: it is not made for a low one")
     eq(frame.FilterNames:GetText(), "From level 20", "the filter is named beside the field, by the level it comes to")
-    check(Status():find("6 upgrades in 6 slots.", 1, true) ~= nil, "the status line counts what is listed: " .. Status())
-    check(not Status():find(AGAIN, 1, true), "and asks for no scan: every row that is to be shown was read")
+    eq(Status(), "6 upgrades in 6 slots.", "the status line counts what is listed, and says no more")
     eq(W.AH.calls.search, searches, "no item search: every price was known"); eq(S.state, "idle", "and nothing is under way")
+    W.Run(1)
+    eq(Browses(), 1, "nor is a scan made a moment later: every row that is to be shown was read"); eq(S.state, "idle", "nothing is under way then either")
     filters:Close()
     filters._tooltip(GameTooltip)
     eq(GameTooltip._lines[2].text, "Gear at most 10 levels below", "the field's tooltip has the line in full")
@@ -13225,43 +13246,109 @@ function scenarios.levels_ui()
     Scanned()
     eq(W.AH.lastQuery.minLevel, 20, "the scan asks for gear from level 20"); eq(W.AH.lastQuery.maxLevel, 0, "and names no upper level")
     eq(Row("Old Helm"), nil, "no helm of level 12"); check(Row("Rim Belt") ~= nil and Row("Dim Cloak") ~= nil, "the gear from level 20 is there")
-    check(Status():find("5 upgrades in 5 slots.", 1, true) ~= nil, "five upgrades: " .. Status())
-    check(not Status():find(AGAIN, 1, true), "and nothing is missing: " .. Status())
-    -- Made wider after the scan: the rows that were not read cannot be shown, no lookup
-    -- brings them, and the status line says that it takes a new scan.
-    searches = W.AH.calls.search
+    eq(Status(), "5 upgrades in 5 slots.", "five upgrades, and no more to say")
+    local whole = Status()
+
+    -- Made narrower after that scan, or set back to the number it was made with: rows go and
+    -- come at once, and nothing is read.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    browses, searches = Browses(), W.AH.calls.search
+    TypeLevels("5")
+    W.Run(1)
+    eq(Row("Rim Belt"), nil, "five levels: what is made for level 20 is out at once")
+    TypeLevels("10")
+    W.Run(1)
+    check(Row("Rim Belt") ~= nil, "ten levels again: it is back")
+    eq(Browses(), browses, "no scan for either: all that is to be shown was read"); eq(S.state, "idle", "and nothing is under way")
+    -- Made wider than the scan read, and set back before a second is over: no scan. Nor for
+    -- a tick taken off and put back.
     TypeLevels("15")
     eq(frame.FilterNames:GetText(), "From level 15", "fifteen levels: from level 15")
     eq(Row("Edge Belt"), nil, "the belt of level 19 was not read, and is not there")
-    check(Status():find("5 upgrades in 5 slots. The scan read no gear below level 20. " .. AGAIN, 1, true) ~= nil, "the status line says what is missing, and what to do: " .. Status())
-    eq(W.AH.calls.search, searches, "nothing is looked up"); eq(S.state, "idle", "or under way")
-    -- Switched off: the same.
+    TypeLevels("10")
+    W.Run(1)
     below:Click()
     W.Run(0.5)
     eq(frame.FilterNames:GetText(), "", "unticked: no filter is on")
-    check(Status():find("The scan read no gear below level 20. " .. AGAIN, 1, true) ~= nil, "and the list is still short of what was not read: " .. Status())
-    -- The number the scan was made with: the list is whole for it.
-    TypeLevels("10")
-    check(not Status():find(AGAIN, 1, true), "ten levels again: nothing is missing: " .. Status())
-    -- Narrower than that: nothing is missing either.
-    TypeLevels("5")
-    eq(Row("Rim Belt"), nil, "five levels: narrower"); check(not Status():find(AGAIN, 1, true), "and nothing missing: " .. Status())
-    -- Wider again, and the new scan: the line is gone and the rows are there.
-    TypeLevels("15")
-    check(Status():find(AGAIN, 1, true) ~= nil, "fifteen levels: short again")
-    Scanned()
-    eq(W.AH.lastQuery.minLevel, 15, "the new scan asks for gear from level 15")
+    below:Click()
+    W.Run(1.5)
+    eq(Browses(), browses, "wider, and back within the second: no scan"); eq(S.state, "idle", "nothing is under way")
+    eq(W.AH.calls.search, searches, "and nothing was looked up"); eq(Status(), whole, "the status line is as it was")
+
+    -- Made wider and left so: the rows that were not read cannot be shown and no lookup
+    -- brings them, so the list is scanned again by itself, a second after the last key.
+    -- Nothing is said of it meanwhile. ("15" is two keys: the first, one level, is narrower.)
+    filters:Open()
+    W.Type(select(2, Line()), "1")
+    W.Run(0.3)
+    W.Type(select(2, Line()), "15")
+    filters:Close()
+    W.Run(0.9)
+    eq(Browses(), browses, "nothing is read while the player may still be typing"); eq(S.state, "idle", "or under way")
+    eq(Row("Edge Belt"), nil, "the belt of level 19 is not there yet"); eq(Status(), whole, "and the status line has no word about it")
+    W.Run(0.2)
+    eq(Browses(), browses + 1, "a second after the last key the list is scanned again"); check(S.state ~= "idle", "the scan is under way")
+    Settle()
+    eq(Browses(), browses + 1, "one scan for the two keys"); eq(W.AH.lastQuery.minLevel, 15, "which asks for gear from level 15")
     check(Row("Edge Belt") ~= nil, "the belt of level 19 is listed"); eq(Row("Old Helm"), nil, "the helm of level 12 is not")
-    check(Status():find("6 upgrades in 5 slots.", 1, true) ~= nil, "six upgrades: " .. Status())
-    check(not Status():find(AGAIN, 1, true), "and nothing is missing: " .. Status())
-    -- The level the line names is the one the last scan read from, whatever it was.
+    eq(Status(), "6 upgrades in 5 slots.", "six upgrades")
+    -- Unticked: the same, and the scan asks for every level.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    below:Click()
+    W.Run(0.5)
+    eq(frame.FilterNames:GetText(), "", "unticked: no filter is on"); eq(Browses(), browses + 1, "no scan at once")
+    W.Run(1)
+    check(S.state ~= "idle", "a second later a scan is under way")
+    Settle()
+    eq(Browses(), browses + 2, "one scan"); eq(W.AH.lastQuery.minLevel, nil, "which asks for every level")
+    check(Row("Old Helm") ~= nil and Row("Bare Ring") ~= nil, "gear of every level is in the list again")
+    eq(Status(), "9 upgrades in 6 slots.", "nine upgrades")
+    -- Ticked again: narrower, at once, with nothing read.
+    below:Click()
+    W.Run(1.5)
+    eq(Row("Old Helm"), nil, "ticked again: the helm of level 12 is out at once"); check(Row("Edge Belt") ~= nil, "the belt of level 19 stays: fifteen levels")
+    eq(Browses(), browses + 2, "and nothing is read"); eq(S.state, "idle", "or under way")
+
+    -- Two keys that both make it wider are one scan, a second after the last of them. After
+    -- a scan made with one level (from level 29), "2" is from level 28 and "20" from level 10.
     TypeLevels("1")
     Scanned()
     eq(W.AH.lastQuery.minLevel, 29, "one level: the scan asks for gear from level 29")
-    check(Status():find("1 upgrades in 1 slots.", 1, true) ~= nil, "the chest of level 30 is all there is: " .. Status())
+    eq(Status(), "1 upgrades in 1 slots.", "the chest of level 30 is all there is")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    browses = Browses()
+    filters:Open()
+    W.Type(select(2, Line()), "2")
+    W.Run(0.6)
+    W.Type(select(2, Line()), "20")
+    filters:Close()
+    W.Run(0.6)
+    eq(Browses(), browses, "more than a second after the first key and less after the last: no scan yet"); eq(S.state, "idle", "nothing is under way")
+    W.Run(0.6)
+    check(S.state ~= "idle", "a second after the last key a scan is under way")
+    Settle()
+    eq(Browses(), browses + 1, "one scan, not two"); eq(W.AH.lastQuery.minLevel, 10, "for what stands in the field in the end: from level 10")
+    check(Row("Old Helm") ~= nil and Row("Edge Belt") ~= nil, "the helm of level 12 and the belt of level 19 are listed")
+
+    -- A scan keeps the bound it started with. Made wider while one is under way, the filter
+    -- has it started over, after the same second: here a scan from level 25, and fifteen
+    -- levels typed while it reads.
+    TypeLevels("5")
+    W.Run(1)
+    eq(Browses(), browses + 1, "five levels are narrower: nothing is read")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    frame.ScanButton:Click()
+    eq(Browses(), browses + 2, "the player's scan"); eq(W.AH.lastQuery.minLevel, 25, "asks for gear from level 25")
     TypeLevels("15")
-    check(Status():find("The scan read no gear below level 29. " .. AGAIN, 1, true) ~= nil, "fifteen levels after it: short of what is below 29: " .. Status())
-    Scanned()
+    W.Run(0.4)
+    check(S.state ~= "idle", "that scan is still under way"); eq(Browses(), browses + 2, "and is the one that is")
+    W.Run(0.2)
+    eq(Browses(), browses + 3, "a second after the key it is started over"); eq(W.AH.lastQuery.minLevel, 15, "from level 15")
+    check(S.state ~= "idle", "and under way")
+    Settle()
+    eq(Browses(), browses + 3, "to its end, once")
+    check(Row("Edge Belt") ~= nil and Row("Rim Belt") ~= nil, "the belts of level 19 and 20 are listed"); eq(Row("Old Helm"), nil, "the helm of level 12 is not")
+    eq(Status(), "6 upgrades in 5 slots.", "six upgrades, and nothing about a scan that was stopped")
 
     -- The druid of the account has a box, a number and a level of its own: level 20, and
     -- ten in the field as before any number is typed.
@@ -13287,14 +13374,20 @@ function scenarios.levels_ui()
     Scanned()
     eq(W.AH.lastQuery.minLevel, 15, "the scan for the druid asks for gear from level 15")
     check(Row("Grove Cap") ~= nil, "the cap of level 18 is listed"); eq(Row("Sprout Cap"), nil, "the cap of level 12 is not")
-    -- Unticked by whoever shops for the druid: the list is short, and a scan mends it.
+    -- Unticked by whoever shops for the druid: the list made for the druid is short, and is
+    -- scanned again by itself as the warrior's own is.
+    W.RunUntil(function() return W.AH.ready end, 5)
+    browses = Browses()
     below:Click()
     W.Run(0.5)
     eq(druid.maxBelowOn, nil, "unticked on the druid's card"); eq(me.maxBelowOn, true, "the warrior's own tick is where it was")
-    check(Status():find("The scan read no gear below level 15. " .. AGAIN, 1, true) ~= nil, "the druid's list is short of what was not read: " .. Status())
-    Scanned()
-    eq(W.AH.lastQuery.minLevel, nil, "the next scan for the druid asks for every level")
-    check(Row("Sprout Cap") ~= nil, "and has the cap of level 12")
+    eq(Row("Sprout Cap"), nil, "the cap of level 12 was not read, and is not there yet"); eq(Browses(), browses, "nothing is read at once")
+    W.Run(1)
+    check(S.state ~= "idle", "a second later a scan is under way")
+    Settle()
+    eq(Browses(), browses + 1, "one scan"); eq(W.AH.lastQuery.minLevel, nil, "which asks for every level")
+    eq(ns.Roster.Target(), druid, "for the druid")
+    check(Row("Sprout Cap") ~= nil and Row("Grove Cap") ~= nil, "and has the cap of level 12 beside the other")
     -- Back to the warrior: its box is as it was, and the list made for it goes by it.
     W.RunUntil(function() return W.AH.ready end, 5)
     frame.ProfileDropdown:Pick(1)
@@ -13316,10 +13409,45 @@ function scenarios.levels_ui()
     below:Click()
     eq(me.maxBelowOn, true, "a click ticks it for good")
 
-    -- The Consumables tab has no such line.
+    -- Where no scan can start when the second is over, nothing is done and nothing said: the
+    -- list stays as it is until the player scans. With the question about a purchase up:
+    Scanned()
+    eq(W.AH.lastQuery.minLevel, 20, "a scan from level 20"); eq(Status(), "5 upgrades in 5 slots.", "with its five upgrades")
+    W.RunUntil(function() return W.AH.ready end, 5)
+    browses = Browses()
+    below:Click()
+    eq(me.maxBelowOn, nil, "unticked: the list is short")
+    S.Buy(Offer("Rim Belt"))
+    eq(S.mode, "buy", "a belt is looked up to be bought"); eq(S.Reread(), false, "which is no time to scan again")
+    W.RunUntil(Asking, 30)
+    W.Run(1.5)
+    eq(Browses(), browses, "nor does a scan take the list from under the question"); check(Asking() ~= nil, "which stands")
+    Asking().Cancel:Click()
+    W.Run(1.5)
+    eq(Browses(), browses, "nor is one made when the question is gone"); eq(S.state, "idle", "nothing is under way")
+    eq(Row("Old Helm"), nil, "the list is as it was"); eq(Status(), "5 upgrades in 5 slots.", "and the status line has no word about it")
+    -- With the Consumables tab chosen within the second: a scan for gear is not started from
+    -- there. (That tab has no such line.)
+    below:Click()
+    below:Click()
+    eq(me.maxBelowOn, nil, "ticked and unticked again: the list is short")
     LibStub("LibAHTab-1-0"):SetSelected("UpgradeScoutSupplies")
-    W.Run(0.5)
+    W.Run(1.5)
+    eq(Browses(), browses, "the other tab in view: no scan for gear"); eq(S.state, "idle", "nothing is under way")
     eq(below:IsShown(), false, "no such line in the menu of the consumables")
+    frame.ScanButton:Click()
+    eq(S.mode, "supplies", "a scan for consumables is under way"); eq(S.Reread(), false, "and is not stopped for one for gear")
+    Settle()
+    browses = Browses()
+    -- With the auction house closed within the second.
+    LibStub("LibAHTab-1-0"):SetSelected("UpgradeScout")
+    W.Run(0.5)
+    below:Click()
+    below:Click()
+    W.CloseAuctionHouse()
+    W.Run(1.5)
+    eq(Browses(), browses, "the auction house closed: no scan"); eq(S.message, nil, "and no word that it is closed")
+    eq(Status(), "5 upgrades in 5 slots.", "the status line is as it was")
 end
 
 ---------------------------------------------------------------------------

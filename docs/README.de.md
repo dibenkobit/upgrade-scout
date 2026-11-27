@@ -140,8 +140,8 @@ Von Hand:
   diesem Filter überspringt solche Ausrüstung ebenfalls und ist deshalb kürzer: je höher deine
   Stufe, desto mehr spart er. Ausrüstung, die keine Stufe verlangt, lässt der Filter in Ruhe:
   Sie steht in der Liste, wenn sie eine Verbesserung ist. Erhöhst du nach einem Scan die Zahl
-  oder entfernst das Häkchen, scanne erneut: Die Statuszeile sagt, ab welcher Stufe der letzte
-  Scan gelesen hat. Die Pfeile in den Taschen richten sich nicht nach diesem Filter.
+  oder entfernst das Häkchen, scannt das Addon von selbst erneut. Die Pfeile in den Taschen
+  richten sich nicht nach diesem Filter.
 - **Waffen** öffnet ein eigenes Menü. **Beliebig** zeigt Einhand- und Zweihandwaffen
   gleichermaßen. **Zweihändig** lässt Einhandwaffen, Schilde und Gegenstände für die Schildhand
   weg. **Einhändig, Schild und Schildhand** lässt Zweihandwaffen weg. Darunter steht ein Häkchen
