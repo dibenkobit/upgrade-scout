@@ -55,6 +55,9 @@
 - If you have GearQuest, the window comes up once after the update to show you the choice.
 - With EllesmereUI's Bags module, the bag arrows show in its bag and bank windows, in the top
   right corner of a slot. Before, no arrow showed there.
+- With Auctionator, or another addon that adds its own tabs to the auction house, the row of
+  tabs no longer runs past the window's edge. When the tabs do not all fit, the added ones are
+  drawn a little smaller. The game's own tabs stay as they are.
 - The stat weights are measured again, with the simulator as it is now. For an Enhancement
   shaman, Strength now counts for more than Intellect, and spell damage for much less than
   either. The simulator's Enhancement build was one with Flametongue Weapon and a lot of spell

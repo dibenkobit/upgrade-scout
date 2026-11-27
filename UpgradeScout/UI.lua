@@ -2157,6 +2157,71 @@ end
 ---------------------------------------------------------------------------
 -- The tab itself
 ---------------------------------------------------------------------------
+-- LibAHTab puts the tabs of every addon in one row, in a frame of its own that starts at the
+-- right end of the game's last tab, and never looks whether the row fits: after the game's
+-- three tabs and our two, Auctionator's four end past the window's right edge. A row that does
+-- not fit is drawn smaller, the whole of it and by just enough to end TAB_ROW_MARGIN short of
+-- the edge (the art of a tab reaches 8 past the tab itself). It is never drawn below
+-- TAB_ROW_FLOOR, where the words get hard to read: a row longer than that sticks out. A row
+-- that fits is drawn at its full size.
+local TAB_ROW_MARGIN, TAB_ROW_FLOOR = 12, 0.75
+
+-- The right end of the last of the tabs in view, in the screen's pixels. A frame tells its
+-- edges in its own units: the screen's pixels divided by the scale it is drawn at.
+local function TabRowEnd(...)
+    local last
+    for i = 1, select("#", ...) do
+        local tab = select(i, ...)
+        local right = tab:IsShown() and tab:GetRight()
+        right = right and right * tab:GetEffectiveScale()
+        if right and (not last or right > last) then last = right end
+    end
+    return last
+end
+
+-- Only the library's frame is scaled. No tab is resized, written on or moved, another addon's
+-- or the game's. The frame hangs by its top left corner on the game's last tab with no offset,
+-- so at any scale the row starts where it did and stays level with the game's tabs.
+-- The library is other addons' as well (the newest copy among them is the one in use), so
+-- nothing of its insides is read: the frame is the one our own tab was made in. Where that is
+-- not a frame of the window's, or the game has not laid the row out yet, nothing is done.
+local function FitTabRow()
+    local window, tabs = AuctionHouseFrame, LibStub("LibAHTab-1-0")
+    if not window:IsVisible() or not tabs:DoesIDExist(TAB_ID) then return end
+    local button = tabs:GetButton(TAB_ID)
+    local row = button and button:GetParent()
+    if not row or row == window or row:GetParent() ~= window then return end
+    local unit, scale = window:GetEffectiveScale(), row:GetScale()
+    local left, last, edge = row:GetLeft(), TabRowEnd(row:GetChildren()), window:GetRight()
+    if not (left and last and edge) or unit <= 0 or scale <= 0 then return end
+    -- Everything in the window's units from here on.
+    left, last = left * row:GetEffectiveScale() / unit, last / unit
+    -- How long the row is at its full size, whatever size it is drawn at now: fitting it a
+    -- second time changes nothing.
+    local length = (last - left) / scale
+    if length <= 0 then return end
+    local fit = math.min(1, math.max(TAB_ROW_FLOOR, (edge - TAB_ROW_MARGIN - left) / length))
+    if math.abs(fit - scale) > 0.001 then row:SetScale(fit) end
+end
+
+-- Now, and once more when the next frame is drawn. By then the game has sized every tab that
+-- came into view, a skin (EllesmereUI's) has seated the game's tabs anew, as it does a frame
+-- after the window shows, and Auctionator, where it is told to keep its tabs small, has
+-- narrowed the tab it just made. Whatever asks in between is answered by that one time.
+-- While the window is closed there is nothing to fit: it is fitted when it shows.
+local fitQueued = false
+local function FitTabRowAgain()
+    fitQueued = false
+    FitTabRow()
+end
+local function FitTabRowSoon()
+    if not AuctionHouseFrame:IsVisible() then return end
+    FitTabRow()
+    if fitQueued then return end
+    fitQueued = true
+    C_Timer.After(0, FitTabRowAgain)
+end
+
 -- The game loads its auction window the first time an auction house is opened; the tab is
 -- added to it right then.
 EventUtil.ContinueOnAddOnLoaded("Blizzard_AuctionHouseUI", function()
@@ -2164,6 +2229,13 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_AuctionHouseUI", function()
     local tabs = LibStub("LibAHTab-1-0")
     tabs:CreateTab(TAB_ID, frame, L.TAB, L.TITLE)
     tabs:CreateTab(TAB_SUPPLIES, holder, L.TAB_SUP, L.TITLE_SUP)
+    -- The row is fitted when it changes and when the window shows, and at no other time. An
+    -- addon may make its tabs after ours: Auctionator does, the first time the window shows.
+    -- A tab is as wide as its words from the moment it shows, and choosing one does not
+    -- change that (PanelTemplates_SelectTab moves its text and swaps its art).
+    hooksecurefunc(tabs, "CreateTab", FitTabRowSoon)
+    AuctionHouseFrame:HookScript("OnShow", FitTabRowSoon)
+    FitTabRowSoon()
 end)
 
 ns.On("PLAYER_MONEY", QueueRefresh)

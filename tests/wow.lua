@@ -1186,7 +1186,43 @@ ShoppingTooltip2._shown = false
 -- The one for an item link clicked in the chat.
 ItemRefTooltip = Widget("GameTooltip", "ItemRefTooltip")
 -- Where a frame's right edge is on the screen: unknown unless a test says (frame._right).
-function M:GetRight() return self._right end
+-- A test may say where a frame's left edge is instead (frame._left), and then the game's own
+-- arithmetic holds for that frame and for every frame anchored to it by a side: an edge is told
+-- in the frame's own units, which are the screen's pixels divided by the scale the frame is
+-- drawn at (GetEffectiveScale), and a frame's width and the offsets of its anchors are in its
+-- own units too. A frame of which nothing is known has no edges, as in the game before a
+-- frame is first laid out.
+local ACROSS = {
+    TOPLEFT = 0, LEFT = 0, BOTTOMLEFT = 0, TOP = 0.5, CENTER = 0.5, BOTTOM = 0.5, TOPRIGHT = 1, RIGHT = 1, BOTTOMRIGHT = 1,
+}
+-- A frame's left edge and its width, both in the screen's pixels.
+local function OnScreen(frame)
+    local scale = frame:GetEffectiveScale()
+    local width = frame:GetWidth() * scale
+    if frame._left then return frame._left * scale, width end
+    for _, at in ipairs(frame._points or {}) do
+        local left, room
+        if getmetatable(at.to) == WidgetMT then left, room = OnScreen(at.to) end
+        if left then return left + room * ACROSS[at.toPoint] + at.x * scale - width * ACROSS[at.point], width end
+    end
+end
+function M:GetLeft()
+    local left = OnScreen(self)
+    return left and left / self:GetEffectiveScale()
+end
+function M:GetRight()
+    if self._right then return self._right end
+    local left, width = OnScreen(self)
+    return left and (left + width) / self:GetEffectiveScale()
+end
+-- The frames made in a frame, in the order they were made.
+function M:GetChildren()
+    local children = {}
+    for i = 1, #W.frames do
+        if W.frames[i]._parent == self then children[#children + 1] = W.frames[i] end
+    end
+    return unpack(children)
+end
 -- The minimap: 140 wide and high, as the game makes it. A test says where its middle is on
 -- the screen and how the game scales it (frame._center = { x, y }, frame._scale), and where
 -- the cursor is (W.pointer = { x, y }, in the screen's own pixels). No addon has reshaped it:
@@ -1196,7 +1232,18 @@ Minimap:SetSize(140, 140)
 function M:GetCenter()
     if self._center then return self._center[1], self._center[2] end
 end
-function M:GetEffectiveScale() return self._scale or 1 end
+-- How large a frame is drawn: by its own scale (SetScale) times that of the frame it sits in,
+-- unless a test says outright how the game scales it (frame._scale).
+function M:SetScale(scale)
+    assert(type(scale) == "number" and scale > 0, "a scale above nothing")
+    self._ownScale = scale
+end
+function M:GetScale() return self._ownScale or 1 end
+function M:GetEffectiveScale()
+    if self._scale then return self._scale end
+    local parent = self._parent
+    return self:GetScale() * (getmetatable(parent) == WidgetMT and parent:GetEffectiveScale() or 1)
+end
 function GetCursorPosition() return W.pointer[1], W.pointer[2] end
 
 ---------------------------------------------------------------------------
@@ -2196,6 +2243,19 @@ function W.OpenAuctionHouse()
         local frame = Widget("Frame", "AuctionHouseFrame")
         frame:SetSize(800, 538)
         frame.Tabs = { Widget("Button", nil, frame), Widget("Button", nil, frame), Widget("Button", nil, frame) }
+        -- The game's three tabs hang under the window from its left corner, one after another
+        -- and each as wide as its words ask (Blizzard_AuctionHouseFrame.xml,
+        -- PanelTemplates_AnchorTabs, AuctionHouseFrameTabMixin:OnShow).
+        for i, text in ipairs({ "Buy", "Sell", "Auctions" }) do
+            local tab = frame.Tabs[i]
+            tab:SetText(text)
+            PanelTemplates_TabResize(tab, 20, nil, 70)
+            if i == 1 then
+                tab:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 20, -28)
+            else
+                tab:SetPoint("TOPLEFT", frame.Tabs[i - 1], "TOPRIGHT", 3, 0)
+            end
+        end
         frame.SetDisplayMode = function(self, mode) self.displayMode = mode end
         -- The gold display at the foot of the window, the same on every tab: the game writes
         -- the character's gold into it when the window opens and whenever the gold changes.
@@ -2208,11 +2268,20 @@ function W.OpenAuctionHouse()
     end
     AuctionHouseFrame.MoneyFrameBorder.MoneyFrame:SetAmount(W.player.money)
     W.Fire("AUCTION_HOUSE_SHOW")
+    -- The game shows the window each time an auction house is opened, and what was hooked to
+    -- its OnShow is told. (The stand-in keeps the window in view when it is closed.)
+    local shown = AuctionHouseFrame:GetScript("OnShow")
+    if shown then shown(AuctionHouseFrame) end
 end
 function W.CloseAuctionHouse()
     W.Fire("AUCTION_HOUSE_CLOSED")
 end
-function PanelTemplates_TabResize() end
+-- A tab is made as wide as its words, the game's twenty pixels for its two ends and the padding
+-- asked for, and no narrower than asked (PanelTemplates_TabResize, SharedUIPanelTemplates.lua).
+function PanelTemplates_TabResize(tab, padding, absoluteSize, minWidth)
+    local width = absoluteSize or tab:GetStringWidth() + 20 + (padding or 0)
+    tab:SetWidth(math.max(width, minWidth or 0))
+end
 function PanelTemplates_DeselectTab(tab) tab._selected = false end
 function PanelTemplates_SelectTab(tab) tab._selected = true end
 

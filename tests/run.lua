@@ -31,6 +31,7 @@ local names = {
     "hands", "weapons", "weapons_scan", "weapons_spare", "weapons_ui", "weapons_rogue", "weapons_untrained", "weapons_warlock", "weapons_paladin",
     "weapons_others", "weapons_leveling",
     "gearquest_scan", "gearquest_absent", "gearquest_tooltips", "gearquest_welcome", "gearquest_supplies", "gearquest_alt",
+    "tab_row",
 }
 
 if not scenario then
@@ -15507,6 +15508,120 @@ function scenarios.weapons_leveling()
     check(place ~= nil and place.note == "NEEDS_ONE_HAND", "and its off hand is offered the oak shield by the choice")
     near(place.delta, 12, "at the shield's own worth")
     CheckLevelingAsked("the hands")
+    eq(#W.errors, 0, "nothing of it is an error")
+end
+
+-- The tabs addons add to the auction window stand in one row of LibAHTab's, which is drawn
+-- smaller when it would end past the window's right edge.
+function scenarios.tab_row()
+    LoadAddon()
+    W.OpenAuctionHouse()
+    local window, lib = AuctionHouseFrame, LibStub("LibAHTab-1-0")
+    local game = window.Tabs
+    local ours = { lib:GetButton("UpgradeScout"), lib:GetButton("UpgradeScoutSupplies") }
+    local row = ours[1]:GetParent()
+    eq(row:GetParent(), window, "the library's tabs are in a frame of its own in the window")
+    eq(row:GetLeft(), nil, "where the window stands is not known yet")
+    eq(row:GetScale(), 1, "and the row is left as it is")
+    -- How many times the row is given a scale, from here on.
+    local scaled, SetScale = 0, row.SetScale
+    row.SetScale = function(...)
+        scaled = scaled + 1
+        return SetScale(...)
+    end
+    -- An edge of a frame as the eye has it against the window: in the window's units.
+    local function Left(part) return part:GetLeft() * part:GetEffectiveScale() / window:GetEffectiveScale() end
+    local function Right(part) return part:GetRight() * part:GetEffectiveScale() / window:GetEffectiveScale() end
+    -- A tab as it was made: its words, its width, its own scale and what it hangs on.
+    local function Made(tab)
+        local at = tab._points[1]
+        return table.concat({ tab:GetText(), tab:GetWidth(), tab:GetScale(), #tab._points, at.point, at.toPoint, at.x, at.y }, " "), at.to
+    end
+    -- The row hangs by its top left corner on the top right corner of the game's last tab.
+    local function Hung()
+        local at = row._points[1]
+        return #row._points == 1 and at.point == "TOPLEFT" and at.to == game[3] and at.toPoint == "TOPRIGHT" and at.x == 0 and at.y == 0
+    end
+    -- The player closes the window and opens it again: the row is fitted as the window shows,
+    -- and once more when the next frame is drawn.
+    local function Reopen()
+        W.CloseAuctionHouse()
+        W.OpenAuctionHouse()
+        W.Tick()
+    end
+
+    -- The window is 800 wide and drawn at 0.8 of the screen's size, from 300 of its own units
+    -- to 1100. The game's tabs start 20 in, 3 apart: Buy and Sell 70 wide, Auctions 88.
+    window._left, window._scale = 300, 0.8
+    near(window:GetRight(), 1100, "the window's right edge"); near(Right(game[3]), 554, "the end of the game's last tab")
+    local gameMade = { Made(game[1]), Made(game[2]), Made(game[3]) }
+    Reopen()
+    near(Left(row), 554, "the row starts where the game's tabs end")
+    near(Right(ours[1]), 645, "Upgrades, 88 wide, 3 from there"); near(Right(ours[2]), 754, "and Consumables, 106 wide")
+    eq(row:GetScale(), 1, "our two tabs fit: the row is drawn at its full size"); eq(scaled, 0, "and never given another")
+
+    -- Another addon makes its four tabs after ours, through the same library. The last one
+    -- would end at 1142, 42 past the window's edge.
+    local theirs, words = {}, { "Shopping", "Selling", "Cancelling", "Auctionator" }
+    for i, text in ipairs(words) do
+        lib:CreateTab("AuctionatorTabs_" .. i, CreateFrame("Frame", nil, window), text)
+        theirs[i] = lib:GetButton("AuctionatorTabs_" .. i)
+    end
+    -- At its full size the row is 588 long, and there are 534 from its start to 12 short of
+    -- the edge.
+    near(row:GetScale(), 534 / 588, "the row is drawn just small enough to fit")
+    near(Right(theirs[4]), 1100 - 12, "its last tab ends 12 short of the window's right edge")
+    near(Left(row), 554, "it starts where it did"); check(Hung(), "and hangs level with the game's tabs as before")
+    for i, tab in ipairs(theirs) do
+        local made, on = Made(tab)
+        eq(made, words[i] .. " " .. (#words[i] * 6 + 40) .. " 1 1 TOPLEFT TOPRIGHT 3 0", "the other addon's tab " .. i .. " is as it was made")
+        eq(on, theirs[i - 1] or ours[2], "and hangs on the tab before it")
+    end
+    for i, tab in ipairs(game) do eq(Made(tab), gameMade[i], "the game's tab " .. i .. " is as it was") end
+    near(Left(game[1]), 320, "the game's tabs are where they were"); near(Right(game[3]), 554, "to their end")
+    eq(ours[1]:GetWidth(), 88, "our own tabs are as wide as before"); eq(ours[2]:GetWidth(), 106, "both")
+
+    -- Fitted again, nothing changes: the row is measured at its full size, whatever size it
+    -- is drawn at.
+    local fitted, times = row:GetScale(), scaled
+    W.Tick()
+    Reopen()
+    eq(row:GetScale(), fitted, "fitted a second and a third time, the row has the same scale"); eq(scaled, times, "and is not given it again")
+    SetScale(row, 0.8)
+    Reopen()
+    near(row:GetScale(), 534 / 588, "from another scale it comes to the same one")
+    near(Right(theirs[4]), 1100 - 12, "and the same end")
+
+    -- A tab out of view takes no room: without the last one the row ends at 1033 and fits.
+    theirs[4]:Hide()
+    Reopen()
+    eq(row:GetScale(), 1, "a row that fits again is drawn at its full size again")
+    theirs[4]:Show()
+    Reopen()
+    near(row:GetScale(), 534 / 588, "and smaller when it does not")
+
+    -- Two more tabs, 130 and 106 wide: the row is 830 long, and 534 of room is 0.64 of that.
+    lib:CreateTab("Orders", CreateFrame("Frame", nil, window), "Crafting Orders")
+    lib:CreateTab("Collections", CreateFrame("Frame", nil, window), "Collections")
+    W.Tick()
+    eq(row:GetScale(), 0.75, "a row too long for that is drawn no smaller than three quarters")
+    near(Right(lib:GetButton("Collections")), 554 + 830 * 0.75, "and ends past the window's edge, where it can still be read")
+    near(Left(row), 554, "from the same start"); check(Hung(), "on the same corner")
+
+    -- A row that is not there to be measured is left alone, and nothing fails: a window whose
+    -- place the game has not worked out, our tab in no frame, a library that has made no tab.
+    SetScale(row, 1)
+    times = scaled
+    window._left = nil
+    Reopen()
+    window._left = 300
+    local frame = ours[1]._parent
+    ours[1]._parent = nil
+    Reopen()
+    ours[1]._parent = frame
+    lib.internalState = nil
+    Reopen()
+    eq(row:GetScale(), 1, "the row is as it was left"); eq(scaled, times, "and was given no scale")
     eq(#W.errors, 0, "nothing of it is an error")
 end
 
