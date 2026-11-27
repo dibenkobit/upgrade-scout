@@ -21,7 +21,8 @@ C.GROUPS = {
     { id = "FEET", slots = { 8 }, global = "FEETSLOT" },
     { id = "FINGER", slots = { 11, 12 }, global = "FINGER0SLOT" },
     { id = "TRINKET", slots = { 13, 14 }, global = "TRINKET0SLOT" },
-    { id = "MAINHAND", slots = { 16 }, global = "MAINHANDSLOT" },
+    -- (No word of the game's for this one: its rows are headed "Weapon", see Locale.lua.)
+    { id = "MAINHAND", slots = { 16 } },
     { id = "OFFHAND", slots = { 17 }, global = "SECONDARYHANDSLOT" },
     { id = "RANGED", slots = { 18 }, global = "RANGEDSLOT" },
 }
@@ -33,7 +34,7 @@ end
 
 function C.GroupLabel(id)
     local group = GROUP_BY_ID[id]
-    local text = group and _G[group.global]
+    local text = group and group.global and _G[group.global]
     if type(text) == "string" and text ~= "" then return text end
     return L[id]
 end

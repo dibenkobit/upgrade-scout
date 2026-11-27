@@ -501,6 +501,9 @@ function scenarios.compare()
     check(ns.Compare.Handles("INVTYPE_TRINKET") and not ns.Compare.Handles("INVTYPE_BAG") and not ns.Compare.Handles(nil) and not ns.Compare.Handles(""), "Handles")
     eq(ns.Compare.GroupLabel("CHEST"), "Chest", "label from the game")
     eq(ns.Compare.GroupLabel("TRINKET"), "Trinket", "label from the addon when the game has none")
+    eq(MAINHANDSLOT, "Main Hand", "the game has a word for the main hand")
+    eq(ns.Compare.GroupLabel("MAINHAND"), "Weapon", "and its rows are headed by the addon's own: two-hand weapons are among them")
+    eq(ns.Compare.GroupLabel("OFFHAND"), "Off Hand", "the off hand keeps the game's")
 end
 
 ---------------------------------------------------------------------------
@@ -14932,6 +14935,16 @@ function scenarios.weapons_ui()
     eq(Row("Oak Shield"), nil, "no shield beside a two-hander"); eq(Row("Lantern"), nil, "and nothing to hold in the off hand")
     check(Status():find("4 upgrades in 3 slots.", 1, true) ~= nil, "four upgrades: " .. Status())
     eq(Names(), "", "no filter is on: nothing beside the field")
+    -- The axe for both hands and the sword for one stand under one heading, "Weapon".
+    local heads = {}
+    for _, at in ipairs({ 0, 1 }) do
+        box:SetScrollPercentage(at)
+        for _, w in ipairs(box:GetFrames()) do
+            if w._shown and w.Title and not w.entry then heads[w.Title:GetText()] = true end
+        end
+    end
+    eq(heads["WEAPON"], true, "the rows of the main hand are headed \"Weapon\""); eq(heads["MAIN HAND"], nil, "and not by the game's word for the slot")
+    eq(heads["HEAD"], true, "the other slots keep the game's words")
     -- The arrows in the bags, by the same gear.
     local function Arrow(slot)
         local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow

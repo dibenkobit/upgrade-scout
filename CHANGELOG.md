@@ -56,6 +56,9 @@
 - The choice is for the whole account. Without GearQuest, with it switched off, or while it is
   in its simulation mode, the addon scores by its own weights.
 - If you have GearQuest, the window comes up once after the update to show you the choice.
+- In the list, one-hand and two-hand weapons stand under the heading **Weapon**. It was the
+  game's name for the slot, which is "right hand" in some languages and read oddly over a
+  two-hand weapon.
 - With EllesmereUI's Bags module, the bag arrows show in its bag and bank windows, in the top
   right corner of a slot. Before, no arrow showed there.
 - With Auctionator, or another addon that adds its own tabs to the auction house, the row of

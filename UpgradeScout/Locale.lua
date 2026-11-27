@@ -203,9 +203,13 @@ local L = {
     ERR_NO_SCALE = "Pawn shows no scale for this character. Switch one on in Pawn.",
     PROFILE_TIP_PAWN = "Choose the Pawn scale to score by.",
 
+    -- The headings of the list's slots, where the game has no word of its own under the
+    -- slot's name (Compare.GroupLabel). MAINHAND is the addon's own whatever the game has:
+    -- two-hand weapons stand under it with the rest, and the game's word for that slot is
+    -- "right hand" in some languages, which reads oddly over a weapon for both.
     HEAD = "Head", NECK = "Neck", SHOULDER = "Shoulders", BACK = "Back", CHEST = "Chest",
     WRIST = "Wrist", HANDS = "Hands", WAIST = "Waist", LEGS = "Legs", FEET = "Feet",
-    FINGER = "Finger", TRINKET = "Trinket", MAINHAND = "Main Hand", OFFHAND = "Off Hand", RANGED = "Ranged",
+    FINGER = "Finger", TRINKET = "Trinket", MAINHAND = "Weapon", OFFHAND = "Off Hand", RANGED = "Ranged",
 
     -- Used only if the game does not have its own text under the same name.
     INVTYPE_WEAPON = "One-Hand", INVTYPE_2HWEAPON = "Two-Hand", INVTYPE_WEAPONMAINHAND = "Main Hand",
@@ -559,7 +563,7 @@ if GetLocale() == "ruRU" then
 
         HEAD = "Голова", NECK = "Шея", SHOULDER = "Плечи", BACK = "Спина", CHEST = "Грудь",
         WRIST = "Запястья", HANDS = "Кисти рук", WAIST = "Пояс", LEGS = "Ноги", FEET = "Ступни",
-        FINGER = "Палец", TRINKET = "Аксессуар", MAINHAND = "Правая рука", OFFHAND = "Левая рука", RANGED = "Дальний бой",
+        FINGER = "Палец", TRINKET = "Аксессуар", MAINHAND = "Оружие", OFFHAND = "Левая рука", RANGED = "Дальний бой",
 
         INVTYPE_WEAPON = "Одноручное", INVTYPE_2HWEAPON = "Двуручное", INVTYPE_WEAPONMAINHAND = "Правая рука",
         INVTYPE_WEAPONOFFHAND = "Левая рука", INVTYPE_SHIELD = "Левая рука", INVTYPE_HOLDABLE = "Левая рука",
@@ -841,7 +845,7 @@ if GetLocale() == "deDE" then
 
         HEAD = "Kopf", NECK = "Hals", SHOULDER = "Schultern", BACK = "Rücken", CHEST = "Brust",
         WRIST = "Handgelenke", HANDS = "Hände", WAIST = "Taille", LEGS = "Beine", FEET = "Füße",
-        FINGER = "Finger", TRINKET = "Schmuck", MAINHAND = "Waffenhand", OFFHAND = "Schildhand", RANGED = "Distanz",
+        FINGER = "Finger", TRINKET = "Schmuck", MAINHAND = "Waffe", OFFHAND = "Schildhand", RANGED = "Distanz",
 
         INVTYPE_WEAPON = "Einhändig", INVTYPE_2HWEAPON = "Zweihändig", INVTYPE_WEAPONMAINHAND = "Waffenhand",
         INVTYPE_WEAPONOFFHAND = "Schildhand", INVTYPE_SHIELD = "Schildhand", INVTYPE_HOLDABLE = "In Schildhand geführt",
@@ -1124,7 +1128,7 @@ if GetLocale() == "frFR" then
 
         HEAD = "Tête", NECK = "Cou", SHOULDER = "Épaules", BACK = "Dos", CHEST = "Torse",
         WRIST = "Poignets", HANDS = "Mains", WAIST = "Taille", LEGS = "Jambes", FEET = "Pieds",
-        FINGER = "Doigt", TRINKET = "Bijou", MAINHAND = "Main droite", OFFHAND = "Main gauche", RANGED = "À distance",
+        FINGER = "Doigt", TRINKET = "Bijou", MAINHAND = "Arme", OFFHAND = "Main gauche", RANGED = "À distance",
 
         INVTYPE_WEAPON = "À une main", INVTYPE_2HWEAPON = "Deux mains", INVTYPE_WEAPONMAINHAND = "Main droite",
         INVTYPE_WEAPONOFFHAND = "Main gauche", INVTYPE_SHIELD = "Main gauche", INVTYPE_HOLDABLE = "Tenu en main gauche",
@@ -1407,7 +1411,7 @@ if GetLocale() == "zhCN" then
 
         HEAD = "头部", NECK = "颈部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
         WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "脚",
-        FINGER = "手指", TRINKET = "饰品", MAINHAND = "主手", OFFHAND = "副手", RANGED = "远程",
+        FINGER = "手指", TRINKET = "饰品", MAINHAND = "武器", OFFHAND = "副手", RANGED = "远程",
 
         INVTYPE_WEAPON = "单手", INVTYPE_2HWEAPON = "双手", INVTYPE_WEAPONMAINHAND = "主手",
         INVTYPE_WEAPONOFFHAND = "副手", INVTYPE_SHIELD = "副手", INVTYPE_HOLDABLE = "副手物品",
@@ -1691,7 +1695,7 @@ if GetLocale() == "ptBR" then
 
         HEAD = "Cabeça", NECK = "Pescoço", SHOULDER = "Ombros", BACK = "Costas", CHEST = "Torso",
         WRIST = "Pulsos", HANDS = "Mãos", WAIST = "Cintura", LEGS = "Pernas", FEET = "Pés",
-        FINGER = "Dedo", TRINKET = "Berloque", MAINHAND = "Mão Principal", OFFHAND = "Mão Secundária", RANGED = "Longo Alcance",
+        FINGER = "Dedo", TRINKET = "Berloque", MAINHAND = "Arma", OFFHAND = "Mão Secundária", RANGED = "Longo Alcance",
 
         INVTYPE_WEAPON = "Uma Mão", INVTYPE_2HWEAPON = "Duas Mãos", INVTYPE_WEAPONMAINHAND = "Mão Principal",
         INVTYPE_WEAPONOFFHAND = "Mão Secundária", INVTYPE_SHIELD = "Mão Secundária", INVTYPE_HOLDABLE = "Empunhado na Mão Secundária",
@@ -1974,7 +1978,7 @@ if GetLocale() == "esES" or GetLocale() == "esMX" then
 
         HEAD = "Cabeza", NECK = "Cuello", SHOULDER = "Hombros", BACK = "Espalda", CHEST = "Pecho",
         WRIST = "Muñecas", HANDS = "Manos", WAIST = "Cintura", LEGS = "Piernas", FEET = "Pies",
-        FINGER = "Dedo", TRINKET = "Abalorio", MAINHAND = "Mano derecha", OFFHAND = "Mano izquierda", RANGED = "A distancia",
+        FINGER = "Dedo", TRINKET = "Abalorio", MAINHAND = "Arma", OFFHAND = "Mano izquierda", RANGED = "A distancia",
 
         INVTYPE_WEAPON = "Una mano", INVTYPE_2HWEAPON = "Dos manos", INVTYPE_WEAPONMAINHAND = "Mano derecha",
         INVTYPE_WEAPONOFFHAND = "Mano izquierda", INVTYPE_SHIELD = "Mano izquierda", INVTYPE_HOLDABLE = "Sostener con la mano izquierda",
@@ -2259,7 +2263,7 @@ if GetLocale() == "koKR" then
 
         HEAD = "머리", NECK = "목", SHOULDER = "어깨", BACK = "등", CHEST = "가슴",
         WRIST = "손목", HANDS = "손", WAIST = "허리", LEGS = "다리", FEET = "발",
-        FINGER = "손가락", TRINKET = "장신구", MAINHAND = "주장비", OFFHAND = "보조장비", RANGED = "원거리 장비",
+        FINGER = "손가락", TRINKET = "장신구", MAINHAND = "무기", OFFHAND = "보조장비", RANGED = "원거리 장비",
 
         INVTYPE_WEAPON = "한손 장비", INVTYPE_2HWEAPON = "양손 장비", INVTYPE_WEAPONMAINHAND = "주장비",
         INVTYPE_WEAPONOFFHAND = "보조장비", INVTYPE_SHIELD = "보조장비", INVTYPE_HOLDABLE = "보조장비",
@@ -2543,7 +2547,7 @@ if GetLocale() == "zhTW" then
 
         HEAD = "頭部", NECK = "頸部", SHOULDER = "肩部", BACK = "背部", CHEST = "胸部",
         WRIST = "手腕", HANDS = "手", WAIST = "腰部", LEGS = "腿部", FEET = "腳",
-        FINGER = "手指", TRINKET = "飾品", MAINHAND = "主手", OFFHAND = "副手", RANGED = "遠程",
+        FINGER = "手指", TRINKET = "飾品", MAINHAND = "武器", OFFHAND = "副手", RANGED = "遠程",
 
         INVTYPE_WEAPON = "單手", INVTYPE_2HWEAPON = "雙手", INVTYPE_WEAPONMAINHAND = "主手",
         INVTYPE_WEAPONOFFHAND = "副手", INVTYPE_SHIELD = "副手", INVTYPE_HOLDABLE = "副手物品",
