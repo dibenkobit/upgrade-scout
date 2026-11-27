@@ -233,6 +233,9 @@ local function NewStats()
         belowLevel = 0,                     -- rows that came back below it all the same, and were dropped:
                                             -- none from an auction house that goes by it
         noLevel = 0,                        -- rows that came back with no level to them (see AddRow)
+        noLevelFirst = 0,                   -- rows with no level read before it, from the search that names
+                                            -- none (see ReadFirst): some here and none above is an auction
+                                            -- house that leaves such gear out when a level is named
     }
 end
 
@@ -1708,7 +1711,9 @@ local function BrowseQuery(variant)
     -- be seen and dropped (AddRow), and counted; rows that an upper bound wrongly left out
     -- would simply be missing.
     -- A scan without such a level sends neither field, as every scan did before there was one.
-    if run.bounded then
+    -- So does the first search of a scan with one, which reads the gear that asks for no
+    -- level (run.first, see ReadFirst).
+    if run.bounded and not run.first then
         query.minLevel, query.maxLevel = run.fromLevel, 0
     end
     return query
@@ -1767,10 +1772,9 @@ local function AddRow(result)
     -- A row without a level stays. The game gives 0 for gear that asks for no level, which
     -- the filter leaves alone, and nothing at all for a row it cannot tell the level of yet,
     -- which reads as 0 here too: the row's item says which it is when it is scored
-    -- (ScoreRow). Whether such rows come at all is the auction house's to say. One that
-    -- takes the lower bound of the search to leave out gear without a level sends none, and
-    -- the list of that scan is without them: the search is not made wider for their sake
-    -- (BrowseQuery), and a scan with the box unticked reads them.
+    -- (ScoreRow). An auction house that takes the lower bound of the search to leave out
+    -- gear without a level sends no such row to the search that names it: they are read
+    -- before it, from a search that names none (ReadFirst).
     if run.fromLevel and required > 0 and required < run.fromLevel then return end
 
     local ks = ns.KeyString(key)
@@ -1802,7 +1806,8 @@ local function AddRow(result)
 end
 
 local function FinishBrowse(partial)
-    if partial then
+    -- (run.cut: the search before this one went without an answer, see StepBrowse.)
+    if partial or run.cut then
         if run.mode == "supplies" then S.suppliesPartial = true else S.partial = true end
     end
     -- Gear may have still been on its way from the server when the scan began (see
@@ -1846,6 +1851,42 @@ local function SendUnbounded()
     SendBrowse()
 end
 
+local function MoreBrowse()
+    run.deadline = GetTime() + BROWSE_TIMEOUT
+    Send(function()
+        run.deadline = GetTime() + BROWSE_TIMEOUT
+        run.stats.requests = run.stats.requests + 1
+        AH.RequestMoreBrowseResults()
+    end)
+end
+
+-- A scan that reads no gear below a level begins with the search that names none (run.first,
+-- see S.Start), for the gear that asks for no level. The filter leaves that gear alone
+-- (Wants.Fits), and the Forever auction house sends none of it to a search that names a
+-- lowest level. In the order of levels its rows are the first there are, so they cost a
+-- page or two: the reading ends with the first row that asks for a level, and the search
+-- that names the level goes out. Rows below that level are dropped as they come (AddRow),
+-- and a row both searches bring is taken once. Where the rows come in no order of levels
+-- this reads its first page and no more, and the list is without the rest of such gear.
+local function EndFirst()
+    run.first = false
+    run.readFirst = run.rowCount
+    run.stats.noLevelFirst = run.order.noLevel
+    SendBrowse()
+end
+
+local function ReadFirst(count)
+    run.answered = true
+    S.info.rows = run.rowCount
+    ns.Fire("SCAN_PROGRESS")
+    local order = run.order
+    if order.count > order.noLevel or AH.HasFullBrowseResults() or count >= MAX_ROWS then
+        EndFirst()
+    else
+        MoreBrowse()
+    end
+end
+
 local function ReadBrowse()
     local results = AH.GetBrowseResults() or {}
     local count = #results
@@ -1853,6 +1894,10 @@ local function ReadBrowse()
         AddRow(results[i])
     end
     run.seen = count
+    if run.first then
+        ReadFirst(count)
+        return
+    end
     -- Asked for nothing below a level, and answered with nothing at all: an auction house
     -- without one piece of gear from that level up is less likely than one that makes
     -- something else of the two fields than the game's own window means by them.
@@ -1861,7 +1906,8 @@ local function ReadBrowse()
         return
     end
     run.answered = true
-    S.info.rows = run.rowCount
+    -- (With the rows of the search that went before, for a scan that began with one.)
+    S.info.rows = run.rowCount + (run.readFirst or 0)
     -- (What the auction house sent of what it was asked to leave out, as far as the rows
     -- read so far tell: kept up with them, so that a scan stopped half way has it too.)
     if run.fromLevel then
@@ -1875,18 +1921,19 @@ local function ReadBrowse()
     elseif count >= MAX_ROWS then
         FinishBrowse(true)
     else
-        run.deadline = GetTime() + BROWSE_TIMEOUT
-        Send(function()
-            run.deadline = GetTime() + BROWSE_TIMEOUT
-            run.stats.requests = run.stats.requests + 1
-            AH.RequestMoreBrowseResults()
-        end)
+        MoreBrowse()
     end
 end
 
 local function StepBrowse(now)
     if now <= run.deadline then return end
-    if run.answered then
+    if run.first then
+        -- No answer to the search that reads the gear without a level, or none to a further
+        -- page of it: the scan goes on without the rest of that gear, and its list is
+        -- marked as one that may be short.
+        run.cut = true
+        EndFirst()
+    elseif run.answered then
         FinishBrowse(true)              -- keep the rows that did arrive
     elseif run.bounded then
         SendUnbounded()                 -- no answer to the search that names a level
@@ -2085,9 +2132,11 @@ function S.Start()
     NewRun("scan")
     run.armorLimit = ns.Roster.HeaviestArmor(S.ctx.class)
     -- The level is named in the search itself (BrowseQuery), until a search that names it
-    -- brings nothing (SendUnbounded).
+    -- brings nothing (SendUnbounded). Before that search goes one that names none, for the
+    -- gear that asks for no level (ReadFirst).
     run.fromLevel = scan.fromLevel
     run.bounded = run.fromLevel ~= nil
+    run.first = run.bounded
     S.stats.fromLevel, S.stats.levelAsked = run.fromLevel or 0, run.bounded
     SetState("browse")
     SendBrowse()

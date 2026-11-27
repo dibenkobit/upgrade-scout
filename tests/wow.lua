@@ -1709,6 +1709,7 @@ local A = {
     bucketBySuffix = true,
     sampleLinks = true,
     answerBrowse = true,
+    answerMore = true,      -- a request for a further page of the browse list is answered
     ready = true,
     calls = { browse = 0, more = 0, search = 0, itemMore = 0, bids = {}, quotes = {}, bought = {}, cancelled = 0 },
     nextID = 1,
@@ -1854,6 +1855,7 @@ end
 function C_AuctionHouse.RequestMoreBrowseResults()
     Busy()
     A.calls.more = A.calls.more + 1
+    if not A.answerMore then return end
     A.shown = math.min(#A.rows, A.shown + A.pageSize)
     C_Timer.After(0.2, function() W.Fire("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", {}) end)
 end
