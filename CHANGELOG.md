@@ -34,8 +34,9 @@
 - With **One-hand, shield and off-hand** chosen, a character that still holds a two-hand weapon
   is offered one-hand weapons, shields and off-hand items as **New**: each counts for what it
   is worth by itself, not against the two-hand weapon. The row's tooltip says that it takes the
-  two-hand weapon's place, or that it needs a one-hand weapon beside it. With Forever Leveling
-  BiS scoring, a weapon is still measured against the two-hand weapon.
+  two-hand weapon's place, or that it needs a one-hand weapon beside it. The bag arrows and the
+  tooltips of items elsewhere in the game go by the same. With Forever Leveling BiS scoring, a
+  weapon is still measured against the two-hand weapon.
 - **GearQuest** can score your gear, as Pawn, Forever Companion and Forever Leveling BiS can.
   In the addon's window, under **Who scores your gear?**, choose **GearQuest**: the lists at
   the auction house and the bag arrows then go by it, not by the addon's weights.

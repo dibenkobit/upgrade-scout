@@ -103,10 +103,12 @@ end)
 -- Another one scores (the addon, Pawn, Forever Companion, Forever Leveling BiS or
 -- GearQuest), or the scales of the one that does changed.
 ns.Listen("SCORING_CHANGED", Forget)
--- With another addon scoring an answer may be about the scale in use alone (see Answer):
--- another scale chosen, and it is to be made again.
-ns.Listen("PROFILE_CHANGED", function()
-    if ns.Score.Engine() then answers = {} end
+-- The lines go by how the character fills its hands on the profile in use (see Answer):
+-- another profile chosen, and the answers are to be made again. So they are when the
+-- character chooses another way to fill its hands (Wants.lua).
+ns.Listen("PROFILE_CHANGED", function() answers = {} end)
+ns.Listen("WANTS_CHANGED", function(card)
+    if card == ns.Roster.Me() then answers = {} end
 end)
 -- Forever Companion's own line in a tooltip switched on or off in its options, while it
 -- scores: an answer has a line for every scale or for the one in use by that (see Answer).
@@ -167,6 +169,13 @@ local function Answer(link)
         -- Where the addon that scores writes the score itself there are no lines to write
         -- (see OnItem), and the arrow in the bags asks about the scale in use alone.
         local profiles = ns.Score.Writes() and { (ns.Score.Current()) } or ns.Score.Profiles()
+        -- The item is placed as the list at the auction house places it: by how the
+        -- character has said it fills its hands, on the profile in use (Wants.Hands). One
+        -- that holds a two-hander and chose a weapon for one hand is offered such a weapon,
+        -- a shield or an off-hand item at its own worth, as its list offers them
+        -- (Compare.Place), and the arrow in the bags follows. The other profiles are asked
+        -- about the same hands, as they are under a row of the list (ProfileGains in UI.lua).
+        local hands = ns.Wants.Hands(me)
         for _, profile in ipairs(profiles) do
             local ctx, complete = Context(profile.name)
             whole = whole and complete
@@ -178,7 +187,7 @@ local function Answer(link)
             if item.value > 0 then worth = true end
             -- Where it gains the most: a one-hander of a dual wielder goes in either hand.
             local best
-            for _, placement in ipairs(ns.Compare.Gains(item, ctx)) do
+            for _, placement in ipairs(ns.Compare.Gains(item, ctx, hands)) do
                 if not best or placement.delta > best.delta then best = placement end
             end
             if best then lines[#lines + 1] = { name = profile.name, title = profile.title, gain = best } end
@@ -211,7 +220,10 @@ function T.Upgrade(link)
     return false
 end
 
-local NOTES = { OFFHAND_EMPTY = "TT_OFFHAND_EMPTY", BOTH_HANDS = "TT_BOTH_HANDS" }
+local NOTES = {
+    OFFHAND_EMPTY = "TT_OFFHAND_EMPTY", BOTH_HANDS = "TT_BOTH_HANDS",
+    NEEDS_ONE_HAND = "TT_NEEDS_ONE_HAND", REPLACES_TWO_HAND = "TT_REPLACES_TWO_HAND",
+}
 
 -- Called by the game whenever a tooltip shows an item. Only the game's main tooltip and the one
 -- for a link in the chat get our lines: the tooltips beside them show what is worn.

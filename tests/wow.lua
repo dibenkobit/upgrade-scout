@@ -1818,7 +1818,9 @@ function C_AuctionHouse.SendBrowseQuery(query)
             local text = KeyText(key)
             local row = seen[text]
             if not row then
-                row = { itemKey = key, totalQuantity = 0, minPrice = math.huge, containsOwnerItem = false, _level = item.level, _order = i }
+                -- (`sortsAs`: the level a row stands at in the order of levels, for an item
+                -- whose row is out of its place there.)
+                row = { itemKey = key, totalQuantity = 0, minPrice = math.huge, containsOwnerItem = false, _level = item.sortsAs or item.level, _order = i }
                 seen[text] = row
                 rows[#rows + 1] = row
             end

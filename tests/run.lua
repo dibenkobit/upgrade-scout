@@ -13173,6 +13173,35 @@ function scenarios.scan_no_level()
     took = Scan()
     eq(took.queries, 2, "the next scan: two searches"); eq(Found(), WITH_RING, "with the ring"); eq(S.partial, false, "and complete")
 
+    -- Cut short, and read whole after all. The second page of the first search never comes;
+    -- then the auction house has nothing for the search that names the level, which goes out
+    -- again without it and reads the gear that asks for no level with the rest. Such a scan
+    -- is complete.
+    AH.levelBounds, AH.answerMore = "literal", false
+    W.RunUntil(function() return AH.ready end, 5)
+    queries = AH.calls.browse
+    check(S.Start(), "a scan starts")
+    W.RunUntil(function() return AH.calls.browse - queries == 2 end, 60)
+    AH.answerMore = true
+    W.RunUntil(function() return S.state == "idle" end, 600)
+    eq(AH.calls.browse - queries, 3, "three searches: the first, the one with the level, the one without")
+    eq(S.stats.levelAsked, false, "the level went unasked in the end"); eq(Found(), WITH_RING, "the list is whole")
+    eq(S.partial, false, "and the scan is not marked as cut short: the last search read what the first did not")
+    AH.levelBounds = "honor"
+
+    -- One row that asks for a level among those that ask for none, out of its place, does
+    -- not end the first search: a ring on its second page is read all the same. (The chest
+    -- of level 22 is the first row of all here, before the 72 that ask for no level.)
+    W.AddItem({ id = 4100, name = "Stray Chest", equipLoc = "INVTYPE_CHEST", subClassID = 3, value = 1, level = 22, sortsAs = -1 })
+    W.AddAuction(4100, 800)
+    W.AddItem({ id = 4101, name = "Far Ring", equipLoc = "INVTYPE_FINGER", value = 4, level = 0 })
+    W.AddAuction(4101, 260)
+    took = Scan()
+    eq(took.queries, 2, "a stray row: two searches"); eq(took.pages, 4, "the first read to its second page, as before")
+    eq(S.stats.noLevelFirst, 72, "72 rows without a level read first")
+    eq(Found(), "Bare Ring, Dim Cloak, Far Ring, Fine Helm, Rim Belt, Rim Boots, Top Chest", "the ring of the second page is in the list")
+    eq(S.partial, false, "a complete scan")
+
     -- Somebody else's search while the first one is read stops the scan, as it stops any.
     W.RunUntil(function() return AH.ready end, 5)
     check(S.Start(), "a scan starts")
@@ -14909,9 +14938,24 @@ function scenarios.weapons_ui()
         return arrow ~= nil and arrow:IsShown()
     end
     local axe, sword, shield, helm = W.PutInBags(W.Link(600)), W.PutInBags(W.Link(601)), W.PutInBags(W.Link(603)), W.PutInBags(W.Link(606))
+    local mace = W.PutInBags(W.Link(602))
     W.OpenBags()
     eq(Arrow(axe), true, "the axe in the bags has its arrow"); eq(Arrow(sword), true, "and the sword"); eq(Arrow(helm), true, "and the helm")
-    eq(Arrow(shield), false, "the shield has none: it has no place beside the maul")
+    eq(Arrow(shield), false, "the shield has none: it has no place beside the maul"); eq(Arrow(mace), false, "nor the mace, which is weaker than the maul")
+    -- The lines of ours in the tooltip of an item away from the addon's tabs, after the heading.
+    local function ItemTip(id)
+        GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        GameTooltip:SetHyperlink(W.Link(id))
+        local out, ours = {}, false
+        for _, line in ipairs(GameTooltip._lines) do
+            if ours then out[#out + 1] = line.text .. (line.right and " " .. line.right or "") end
+            if line.text:find("Upgrade Scout", 1, true) then ours = true end
+        end
+        GameTooltip:Hide()
+        return table.concat(out, " | ")
+    end
+    eq(ItemTip(603), "", "the shield's tooltip has no line of ours: nowhere to put it")
+    eq(ItemTip(602), "Arms -33% | Protection -25% | Your off hand will be empty", "the mace's says what it loses to the maul")
 
     -- One hand, a shield and the off hand. The click leaves both menus open, with the mark
     -- on the line clicked; the card has the choice, and the list follows at once.
@@ -14945,8 +14989,15 @@ function scenarios.weapons_ui()
     check(Status():find("6 upgrades in 4 slots.", 1, true) ~= nil, "six upgrades now: " .. Status())
     eq(Names(), "One-hand", "the choice is named beside the field"); eq(Named(), "One-hand, shield and off-hand", "and in full in the field's tooltip")
     W.Run(1.5)
+    -- The arrows in the bags and the tooltips of the items there follow the list: what it
+    -- leaves out has no arrow, and what it offers in the place of the maul has one.
     eq(Arrow(axe), false, "in the bags the axe has lost its arrow"); eq(Arrow(sword), true, "the sword keeps its own")
-    eq(Arrow(shield), false, "and the shield has none still: an arrow goes by the line of the item's tooltip, which is as it was")
+    eq(Arrow(shield), true, "the shield has one now, as the list has a row for it"); eq(Arrow(mace), true, "and so has the mace")
+    eq(Arrow(helm), true, "the helm's is as it was")
+    eq(ItemTip(603), "Arms +12 pts | Protection +12 pts | Needs a one-hand weapon in your main hand", "the shield's tooltip reads as its row's does")
+    eq(ItemTip(602), 'Arms +20 pts | Protection +15 pts | Replaces your two-hand weapon and is not compared with it: one-hand is chosen in the "Weapons" filter.',
+        "and the mace's: its own worth, and whose place it takes")
+    eq(ItemTip(600), "Arms +50% | Protection +100%", "the axe's still says what it has over the maul: the choice takes its arrow, not its line")
     -- The best set for a budget is made of the same.
     local bar = frame.PlanBar
     bar.Check:SetChecked(true)
@@ -15181,6 +15232,16 @@ function scenarios.weapons_rogue()
     local S, L, Wants = ns.Scanner, ns.L, ns.Wants
     eq(ns.Score.Current().title, "Combat", "a rogue on Combat")
     eq(me.weapons[15], true, "its card has the daggers it has trained"); eq(me.weapons[7], nil, "and no swords")
+    -- A mace in the bags, better than the dagger in the main hand: no arrow while maces are
+    -- not trained.
+    local cudgel = W.PutInBags(W.Link(716))
+    W.OpenBags()
+    W.Run(0.5)
+    local function Arrow(slot)
+        local arrow = ContainerFrameCombinedBags.Items[slot].UpgradeScoutArrow
+        return arrow ~= nil and arrow:IsShown()
+    end
+    eq(Arrow(cudgel), false, "a mace in the bags has no arrow: the rogue has not trained maces")
     local tab = Tab()
     local Row, Rows, Settle, menu = tab.Row, tab.Rows, tab.Settle, tab.menu
     local SWORDS, FISTS = "One-Handed Swords (not trained)", "Fist Weapons (not trained)"
@@ -15281,6 +15342,7 @@ function scenarios.weapons_rogue()
     W.Fire("SPELLS_CHANGED")
     W.Run(1.5)
     eq(me.weapons[7], true, "trained: the card has the swords"); eq(ns.Roster.Untrained(me, 4), false, "and the maces")
+    eq(Arrow(cudgel), true, "the mace in the bags has its arrow, with the bags left open: the arrows are drawn again when the card has the new skill")
     eq(menu:Lines(), Kinds("[x] One-Handed Maces", "[x] One-Handed Swords", "[ ] Fist Weapons"),
         "the menu: swords and maces ticked and no longer marked, fist weapons unticked as the player left them")
     W.RunUntil(function() return W.AH.ready end, 5)

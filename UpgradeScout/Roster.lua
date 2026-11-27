@@ -412,7 +412,16 @@ function Roster.Update(gearChanged)
 
     -- What was read before stays when the game does not answer this time.
     local weapons = Learned(WEAPONS)
-    if weapons then card.weapons = weapons end
+    local trained = false
+    if weapons then
+        -- Another kind of weapon trained than the card had: what the character is offered
+        -- goes by that (Wants.KindsOut), and whoever shows it is told below.
+        local before = type(card.weapons) == "table" and card.weapons or {}
+        for kind in pairs(WEAPONS) do
+            if (before[kind] == true) ~= (weapons[kind] == true) then trained = true end
+        end
+        card.weapons = weapons
+    end
     -- Which armor a class starts with is known, so an answer about armor can be checked: one
     -- that lacks any of it (cloth, say, which everyone wears) is the game answering in part,
     -- and is not believed. Which weapons a character starts with depends on its race too,
@@ -444,6 +453,9 @@ function Roster.Update(gearChanged)
     end
 
     card.seen = time()
+    -- (The arrows in the bags were drawn again when the game said that the spells changed,
+    -- which is before the card is written: Bags.lua.)
+    if trained then ns.Fire("WANTS_CHANGED", card) end
 end
 
 ---------------------------------------------------------------------------

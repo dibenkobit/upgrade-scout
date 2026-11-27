@@ -27,6 +27,8 @@ ns.Scanner = S
 local BROWSE_TIMEOUT = 15      -- seconds to wait for an answer to a browse request
 local MAX_ROWS = 60000         -- browse rows read before giving up on the rest
 local EARLY_STOP_RUN = 100     -- rows above the player's level in a row that end a level-sorted browse
+local FIRST_RUN = 20           -- rows that ask for a level, one after another, that end the search for
+                               -- the gear that asks for none (ReadFirst)
 local LOAD_TIMEOUT = 4         -- seconds without a row read after which the client is not waited for any more
 local LOAD_QUIET = 1           -- and after which the list no longer waits for the rows still unread: they
                                -- are read on while the prices are looked up (see StepLate). A real scan:
@@ -1720,7 +1722,7 @@ local function BrowseQuery(variant)
 end
 
 local function ResetOrder()
-    run.order = { last = -1, count = 0, inversions = 0, above = 0, below = 0, noLevel = 0 }
+    run.order = { last = -1, count = 0, inversions = 0, above = 0, below = 0, noLevel = 0, leveled = 0 }
 end
 
 -- Notes the required level of each row in arrival order: of every row that arrives, kept or
@@ -1745,6 +1747,12 @@ local function TrackOrder(required)
         order.noLevel = order.noLevel + 1
     elseif from and required < from then
         order.below = order.below + 1
+    end
+    -- (The rows that ask for a level, one after another, up to this one: see ReadFirst.)
+    if required > 0 then
+        order.leveled = order.leveled + 1
+    else
+        order.leveled = 0
     end
 end
 
@@ -1848,6 +1856,9 @@ end
 local function SendUnbounded()
     run.bounded = false
     run.stats.levelAsked = false
+    -- (This search reads the gear that asks for no level with the rest: whatever the first
+    -- one went without is no loss now.)
+    run.cut = nil
     SendBrowse()
 end
 
@@ -1864,10 +1875,12 @@ end
 -- see S.Start), for the gear that asks for no level. The filter leaves that gear alone
 -- (Wants.Fits), and the Forever auction house sends none of it to a search that names a
 -- lowest level. In the order of levels its rows are the first there are, so they cost a
--- page or two: the reading ends with the first row that asks for a level, and the search
--- that names the level goes out. Rows below that level are dropped as they come (AddRow),
--- and a row both searches bring is taken once. Where the rows come in no order of levels
--- this reads its first page and no more, and the list is without the rest of such gear.
+-- page or two: the reading ends when FIRST_RUN rows in a row have asked for a level, and
+-- the search that names the level goes out. (One row that asks for a level among those that
+-- ask for none, out of its place, does not end it.) Rows below that level are dropped as
+-- they come (AddRow), and a row both searches bring is taken once. Where the rows come in
+-- no order of levels this reads little more than its first page, and the list is without
+-- the rest of such gear.
 local function EndFirst()
     run.first = false
     run.readFirst = run.rowCount
@@ -1879,8 +1892,7 @@ local function ReadFirst(count)
     run.answered = true
     S.info.rows = run.rowCount
     ns.Fire("SCAN_PROGRESS")
-    local order = run.order
-    if order.count > order.noLevel or AH.HasFullBrowseResults() or count >= MAX_ROWS then
+    if run.order.leveled >= FIRST_RUN or AH.HasFullBrowseResults() or count >= MAX_ROWS then
         EndFirst()
     else
         MoreBrowse()
